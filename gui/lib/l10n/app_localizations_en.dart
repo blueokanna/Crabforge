@@ -1,0 +1,387 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for English (`en`).
+class AppLocalizationsEn extends AppLocalizations {
+  AppLocalizationsEn([String locale = 'en']) : super(locale);
+
+  @override
+  String routeSession(String id) {
+    return 'Session $id';
+  }
+
+  @override
+  String get enableGroup => 'Enable group';
+
+  @override
+  String get disableGroup => 'Disable group';
+
+  @override
+  String get listGroupModels => 'Show member models in client catalogs';
+
+  @override
+  String get copyGroup => 'Duplicate group';
+
+  @override
+  String get groupNote => 'Group note (optional)';
+
+  @override
+  String get enableMember => 'Enable member';
+
+  @override
+  String get disableMember => 'Disable member';
+
+  @override
+  String get manualRouting => 'Manual selection';
+
+  @override
+  String get selectMember => 'Select this member';
+
+  @override
+  String get providerCatalogs => 'models.dev catalog IDs (optional)';
+
+  @override
+  String get anthropicAuthHeader => 'Anthropic API key header';
+
+  @override
+  String get automaticAuthHeader => 'Automatic';
+
+  @override
+  String get autoGroups => 'Group matching models across providers';
+
+  @override
+  String get restoreGroup => 'Restore group';
+
+  @override
+  String get vertexProject => 'Vertex AI project settings';
+
+  @override
+  String get cloudProjectId => 'Google Cloud project ID';
+
+  @override
+  String get vertexLocation => 'Vertex AI location';
+
+  @override
+  String get googleCredentials => 'ADC file (optional)';
+
+  @override
+  String get impersonateAccount => 'Service account to impersonate (optional)';
+
+  @override
+  String get models => 'Models';
+
+  @override
+  String get modelCopied => 'Model ID copied';
+
+  @override
+  String get noModelsFound => 'No matching models';
+
+  @override
+  String get routingStrategy => 'Routing strategy';
+
+  @override
+  String get listedOrder => 'Listed order';
+
+  @override
+  String get weightedOrder => 'Weighted round robin';
+
+  @override
+  String get memberWeight => 'Member weight';
+
+  @override
+  String get invalidWeight => 'Enter a whole number from 1 to 1000.';
+
+  @override
+  String get providers => 'Providers';
+
+  @override
+  String get routes => 'Routes';
+
+  @override
+  String get groups => 'Route groups';
+
+  @override
+  String get gateway => 'Gateway';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get systemLanguage => 'System language';
+
+  @override
+  String confirmRemove(String value) {
+    return 'Remove $value?';
+  }
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get webLogin => 'Web sign-in';
+
+  @override
+  String get loginHelp =>
+      'Sign in in the new Chrome window, then return here to close it.';
+
+  @override
+  String get closeLogin => 'Close sign-in window';
+
+  @override
+  String get duplicateGroup => 'This group ID already exists.';
+
+  @override
+  String get addProvider => 'Add provider';
+
+  @override
+  String get newGroup => 'New group';
+
+  @override
+  String get stopToEdit => 'Stop the gateway to edit its configuration.';
+
+  @override
+  String get reload => 'Reload';
+
+  @override
+  String get reloadConfig => 'Reload configuration';
+
+  @override
+  String providerCount(int count) {
+    return 'Providers: $count';
+  }
+
+  @override
+  String presetCount(int count) {
+    return 'Choose from $count API presets or enter a custom base URL.';
+  }
+
+  @override
+  String get providerHelp =>
+      'Add an upstream URL and model ID to enable client requests.';
+
+  @override
+  String get removeProvider => 'Remove provider';
+
+  @override
+  String get webProviders => 'Web providers';
+
+  @override
+  String get webHelp =>
+      'Use Chrome and a matching ChromeDriver. Select an added provider to sign in with its own browser profile.';
+
+  @override
+  String webSite(String value) {
+    return '$value Web';
+  }
+
+  @override
+  String get groupNeedsProvider =>
+      'Add a provider and model before creating a route group.';
+
+  @override
+  String get groupHelp =>
+      'Add members in priority order. On rate limits or server errors, the gateway tries the next member.';
+
+  @override
+  String get removeGroup => 'Remove group';
+
+  @override
+  String recentAttempts(int count) {
+    return 'Recent upstream attempts: $count';
+  }
+
+  @override
+  String get historyLimit =>
+      'Current gateway process · 128 most recent attempts';
+
+  @override
+  String get waiting => 'Waiting for a client request.';
+
+  @override
+  String get historyHelp => 'Start the gateway to see route history.';
+
+  @override
+  String get running => 'Gateway running';
+
+  @override
+  String get stopped => 'Gateway stopped';
+
+  @override
+  String get stop => 'Stop gateway';
+
+  @override
+  String get start => 'Start gateway';
+
+  @override
+  String get keyCopied => 'Gateway key copied';
+
+  @override
+  String get copyKey => 'Copy client key';
+
+  @override
+  String get networkSettings => 'Network settings';
+
+  @override
+  String get browserOrigins => 'Allowed browser origins (one per line)';
+
+  @override
+  String get localPeer => 'Local peer ID';
+
+  @override
+  String get copyPeer => 'Copy peer ID';
+
+  @override
+  String get peerCopied => 'Peer ID copied';
+
+  @override
+  String get listenAddress => 'Listen address';
+
+  @override
+  String get disabled => 'Disabled';
+
+  @override
+  String get trustedPeers => 'Trusted peers';
+
+  @override
+  String get clients => 'Client connections';
+
+  @override
+  String get agentRoot => 'Agent API root URL';
+
+  @override
+  String get copyRoot => 'Copy root URL';
+
+  @override
+  String get rootCopied => 'Root URL copied';
+
+  @override
+  String get agentHelp =>
+      'Append /v1 for Chat Completions and Responses clients. Route history shows the selected agent.';
+
+  @override
+  String get tunnel => 'Remote gateway tunnel';
+
+  @override
+  String get disconnected => 'Disconnected';
+
+  @override
+  String get connect => 'Connect';
+
+  @override
+  String get disconnect => 'Disconnect';
+
+  @override
+  String get apiBase => 'API base URL';
+
+  @override
+  String get copyBase => 'Copy base URL';
+
+  @override
+  String get baseCopied => 'API base URL copied';
+
+  @override
+  String get changed => 'Provider settings changed. Fetch models again.';
+
+  @override
+  String modelsRead(int count) {
+    return 'Models found: $count. Edit the list before saving.';
+  }
+
+  @override
+  String get presetLoaded =>
+      'Preset models loaded. Adjust the list for your account.';
+
+  @override
+  String get editProvider => 'Edit provider';
+
+  @override
+  String get searchPresets => 'Search presets by name';
+
+  @override
+  String get providerId => 'Provider ID';
+
+  @override
+  String get keyEnv => 'API key environment variable';
+
+  @override
+  String get keyHint => 'Optional for local services or Bedrock with AWS IAM';
+
+  @override
+  String get resourceRoot => 'Resource root URL';
+
+  @override
+  String get modelIds => 'Upstream model IDs, one per line';
+
+  @override
+  String protocolBase(String value) {
+    return '$value base URL';
+  }
+
+  @override
+  String get catalogUrl => 'Model catalog URL (optional)';
+
+  @override
+  String get catalogHint => 'Leave blank for the provider’s default catalog';
+
+  @override
+  String get readingModels => 'Loading models';
+
+  @override
+  String get readModels => 'Load model catalog';
+
+  @override
+  String get requiredField => 'This field is required.';
+
+  @override
+  String get createGroup => 'Create route group';
+
+  @override
+  String get editGroup => 'Edit route group';
+
+  @override
+  String get groupId => 'Route group ID';
+
+  @override
+  String get raisePriority => 'Increase priority';
+
+  @override
+  String get removeMember => 'Remove member';
+
+  @override
+  String get addCandidate => 'Add candidate model';
+
+  @override
+  String get connectRemote => 'Connect to remote gateway';
+
+  @override
+  String get remoteQuic => 'Remote QUIC address (include /p2p/PeerID)';
+
+  @override
+  String get localTunnel => 'Local tunnel listen address';
+
+  @override
+  String get tunnelHelp =>
+      'Trust this peer ID on the remote gateway. Clients connecting to the local tunnel use the remote gateway key.';
+
+  @override
+  String get loopback => 'HTTP loopback address';
+
+  @override
+  String get peerListen => 'P2P listen address (blank to disable)';
+
+  @override
+  String get allowedPeers => 'Allowed peer IDs, one per line';
+
+  @override
+  String get rotateMembers => 'Rotate the first member';
+}

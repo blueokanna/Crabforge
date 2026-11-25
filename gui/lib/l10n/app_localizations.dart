@@ -1,0 +1,873 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations_de.dart';
+import 'app_localizations_en.dart';
+import 'app_localizations_es.dart';
+import 'app_localizations_fr.dart';
+import 'app_localizations_hi.dart';
+import 'app_localizations_ja.dart';
+import 'app_localizations_ko.dart';
+import 'app_localizations_pt.dart';
+import 'app_localizations_zh.dart';
+
+// ignore_for_file: type=lint
+
+/// Callers can lookup localized strings with an instance of AppLocalizations
+/// returned by `AppLocalizations.of(context)`.
+///
+/// Applications need to include `AppLocalizations.delegate()` in their app's
+/// `localizationDelegates` list, and the locales they support in the app's
+/// `supportedLocales` list. For example:
+///
+/// ```dart
+/// import 'l10n/app_localizations.dart';
+///
+/// return MaterialApp(
+///   localizationsDelegates: AppLocalizations.localizationsDelegates,
+///   supportedLocales: AppLocalizations.supportedLocales,
+///   home: MyApplicationHome(),
+/// );
+/// ```
+///
+/// ## Update pubspec.yaml
+///
+/// Please make sure to update your pubspec.yaml to include the following
+/// packages:
+///
+/// ```yaml
+/// dependencies:
+///   # Internationalization support.
+///   flutter_localizations:
+///     sdk: flutter
+///   intl: any # Use the pinned version from flutter_localizations
+///
+///   # Rest of dependencies
+/// ```
+///
+/// ## iOS Applications
+///
+/// iOS applications define key application metadata, including supported
+/// locales, in an Info.plist file that is built into the application bundle.
+/// To configure the locales supported by your app, you’ll need to edit this
+/// file.
+///
+/// First, open your project’s ios/Runner.xcworkspace Xcode workspace file.
+/// Then, in the Project Navigator, open the Info.plist file under the Runner
+/// project’s Runner folder.
+///
+/// Next, select the Information Property List item, select Add Item from the
+/// Editor menu, then select Localizations from the pop-up menu.
+///
+/// Select and expand the newly-created Localizations item then, for each
+/// locale your application supports, add a new item and select the locale
+/// you wish to add from the pop-up menu in the Value field. This list should
+/// be consistent with the languages listed in the AppLocalizations.supportedLocales
+/// property.
+abstract class AppLocalizations {
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+
+  final String localeName;
+
+  static AppLocalizations of(BuildContext context) {
+    return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
+  }
+
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
+
+  /// A list of this localizations delegate along with the default localizations
+  /// delegates.
+  ///
+  /// Returns a list of localizations delegates containing this delegate along with
+  /// GlobalMaterialLocalizations.delegate, GlobalCupertinoLocalizations.delegate,
+  /// and GlobalWidgetsLocalizations.delegate.
+  ///
+  /// Additional delegates can be added by appending to this list in
+  /// MaterialApp. This list does not have to be used at all if a custom list
+  /// of delegates is preferred or required.
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
+
+  /// A list of this localizations delegate's supported locales.
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('de'),
+    Locale('en'),
+    Locale('es'),
+    Locale('fr'),
+    Locale('hi'),
+    Locale('ja'),
+    Locale('ko'),
+    Locale('pt'),
+    Locale('zh'),
+  ];
+
+  /// No description provided for @routeSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Session {id}'**
+  String routeSession(String id);
+
+  /// No description provided for @enableGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable group'**
+  String get enableGroup;
+
+  /// No description provided for @disableGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable group'**
+  String get disableGroup;
+
+  /// No description provided for @listGroupModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Show member models in client catalogs'**
+  String get listGroupModels;
+
+  /// No description provided for @copyGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate group'**
+  String get copyGroup;
+
+  /// No description provided for @groupNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Group note (optional)'**
+  String get groupNote;
+
+  /// No description provided for @enableMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable member'**
+  String get enableMember;
+
+  /// No description provided for @disableMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable member'**
+  String get disableMember;
+
+  /// No description provided for @manualRouting.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual selection'**
+  String get manualRouting;
+
+  /// No description provided for @selectMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Select this member'**
+  String get selectMember;
+
+  /// No description provided for @providerCatalogs.
+  ///
+  /// In en, this message translates to:
+  /// **'models.dev catalog IDs (optional)'**
+  String get providerCatalogs;
+
+  /// No description provided for @anthropicAuthHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Anthropic API key header'**
+  String get anthropicAuthHeader;
+
+  /// No description provided for @automaticAuthHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get automaticAuthHeader;
+
+  /// No description provided for @autoGroups.
+  ///
+  /// In en, this message translates to:
+  /// **'Group matching models across providers'**
+  String get autoGroups;
+
+  /// No description provided for @restoreGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore group'**
+  String get restoreGroup;
+
+  /// No description provided for @vertexProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Vertex AI project settings'**
+  String get vertexProject;
+
+  /// No description provided for @cloudProjectId.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Cloud project ID'**
+  String get cloudProjectId;
+
+  /// No description provided for @vertexLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Vertex AI location'**
+  String get vertexLocation;
+
+  /// No description provided for @googleCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'ADC file (optional)'**
+  String get googleCredentials;
+
+  /// No description provided for @impersonateAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Service account to impersonate (optional)'**
+  String get impersonateAccount;
+
+  /// No description provided for @models.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get models;
+
+  /// No description provided for @modelCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ID copied'**
+  String get modelCopied;
+
+  /// No description provided for @noModelsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching models'**
+  String get noModelsFound;
+
+  /// No description provided for @routingStrategy.
+  ///
+  /// In en, this message translates to:
+  /// **'Routing strategy'**
+  String get routingStrategy;
+
+  /// No description provided for @listedOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Listed order'**
+  String get listedOrder;
+
+  /// No description provided for @weightedOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Weighted round robin'**
+  String get weightedOrder;
+
+  /// No description provided for @memberWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Member weight'**
+  String get memberWeight;
+
+  /// No description provided for @invalidWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number from 1 to 1000.'**
+  String get invalidWeight;
+
+  /// No description provided for @providers.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers'**
+  String get providers;
+
+  /// No description provided for @routes.
+  ///
+  /// In en, this message translates to:
+  /// **'Routes'**
+  String get routes;
+
+  /// No description provided for @groups.
+  ///
+  /// In en, this message translates to:
+  /// **'Route groups'**
+  String get groups;
+
+  /// No description provided for @gateway.
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway'**
+  String get gateway;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @systemLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'System language'**
+  String get systemLanguage;
+
+  /// No description provided for @confirmRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {value}?'**
+  String confirmRemove(String value);
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get remove;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @webLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Web sign-in'**
+  String get webLogin;
+
+  /// No description provided for @loginHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in in the new Chrome window, then return here to close it.'**
+  String get loginHelp;
+
+  /// No description provided for @closeLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Close sign-in window'**
+  String get closeLogin;
+
+  /// No description provided for @duplicateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'This group ID already exists.'**
+  String get duplicateGroup;
+
+  /// No description provided for @addProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Add provider'**
+  String get addProvider;
+
+  /// No description provided for @newGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'New group'**
+  String get newGroup;
+
+  /// No description provided for @stopToEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the gateway to edit its configuration.'**
+  String get stopToEdit;
+
+  /// No description provided for @reload.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get reload;
+
+  /// No description provided for @reloadConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload configuration'**
+  String get reloadConfig;
+
+  /// No description provided for @providerCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers: {count}'**
+  String providerCount(int count);
+
+  /// No description provided for @presetCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from {count} API presets or enter a custom base URL.'**
+  String presetCount(int count);
+
+  /// No description provided for @providerHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an upstream URL and model ID to enable client requests.'**
+  String get providerHelp;
+
+  /// No description provided for @removeProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove provider'**
+  String get removeProvider;
+
+  /// No description provided for @webProviders.
+  ///
+  /// In en, this message translates to:
+  /// **'Web providers'**
+  String get webProviders;
+
+  /// No description provided for @webHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Chrome and a matching ChromeDriver. Select an added provider to sign in with its own browser profile.'**
+  String get webHelp;
+
+  /// No description provided for @webSite.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} Web'**
+  String webSite(String value);
+
+  /// No description provided for @groupNeedsProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a provider and model before creating a route group.'**
+  String get groupNeedsProvider;
+
+  /// No description provided for @groupHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Add members in priority order. On rate limits or server errors, the gateway tries the next member.'**
+  String get groupHelp;
+
+  /// No description provided for @removeGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove group'**
+  String get removeGroup;
+
+  /// No description provided for @recentAttempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent upstream attempts: {count}'**
+  String recentAttempts(int count);
+
+  /// No description provided for @historyLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Current gateway process · 128 most recent attempts'**
+  String get historyLimit;
+
+  /// No description provided for @waiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for a client request.'**
+  String get waiting;
+
+  /// No description provided for @historyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Start the gateway to see route history.'**
+  String get historyHelp;
+
+  /// No description provided for @running.
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway running'**
+  String get running;
+
+  /// No description provided for @stopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway stopped'**
+  String get stopped;
+
+  /// No description provided for @stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop gateway'**
+  String get stop;
+
+  /// No description provided for @start.
+  ///
+  /// In en, this message translates to:
+  /// **'Start gateway'**
+  String get start;
+
+  /// No description provided for @keyCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway key copied'**
+  String get keyCopied;
+
+  /// No description provided for @copyKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy client key'**
+  String get copyKey;
+
+  /// No description provided for @networkSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Network settings'**
+  String get networkSettings;
+
+  /// No description provided for @browserOrigins.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed browser origins (one per line)'**
+  String get browserOrigins;
+
+  /// No description provided for @localPeer.
+  ///
+  /// In en, this message translates to:
+  /// **'Local peer ID'**
+  String get localPeer;
+
+  /// No description provided for @copyPeer.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy peer ID'**
+  String get copyPeer;
+
+  /// No description provided for @peerCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Peer ID copied'**
+  String get peerCopied;
+
+  /// No description provided for @listenAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen address'**
+  String get listenAddress;
+
+  /// No description provided for @disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get disabled;
+
+  /// No description provided for @trustedPeers.
+  ///
+  /// In en, this message translates to:
+  /// **'Trusted peers'**
+  String get trustedPeers;
+
+  /// No description provided for @clients.
+  ///
+  /// In en, this message translates to:
+  /// **'Client connections'**
+  String get clients;
+
+  /// No description provided for @agentRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent API root URL'**
+  String get agentRoot;
+
+  /// No description provided for @copyRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy root URL'**
+  String get copyRoot;
+
+  /// No description provided for @rootCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Root URL copied'**
+  String get rootCopied;
+
+  /// No description provided for @agentHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Append /v1 for Chat Completions and Responses clients. Route history shows the selected agent.'**
+  String get agentHelp;
+
+  /// No description provided for @tunnel.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote gateway tunnel'**
+  String get tunnel;
+
+  /// No description provided for @disconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected'**
+  String get disconnected;
+
+  /// No description provided for @connect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get connect;
+
+  /// No description provided for @disconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get disconnect;
+
+  /// No description provided for @apiBase.
+  ///
+  /// In en, this message translates to:
+  /// **'API base URL'**
+  String get apiBase;
+
+  /// No description provided for @copyBase.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy base URL'**
+  String get copyBase;
+
+  /// No description provided for @baseCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'API base URL copied'**
+  String get baseCopied;
+
+  /// No description provided for @changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider settings changed. Fetch models again.'**
+  String get changed;
+
+  /// No description provided for @modelsRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Models found: {count}. Edit the list before saving.'**
+  String modelsRead(int count);
+
+  /// No description provided for @presetLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset models loaded. Adjust the list for your account.'**
+  String get presetLoaded;
+
+  /// No description provided for @editProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit provider'**
+  String get editProvider;
+
+  /// No description provided for @searchPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Search presets by name'**
+  String get searchPresets;
+
+  /// No description provided for @providerId.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider ID'**
+  String get providerId;
+
+  /// No description provided for @keyEnv.
+  ///
+  /// In en, this message translates to:
+  /// **'API key environment variable'**
+  String get keyEnv;
+
+  /// No description provided for @keyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional for local services or Bedrock with AWS IAM'**
+  String get keyHint;
+
+  /// No description provided for @resourceRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Resource root URL'**
+  String get resourceRoot;
+
+  /// No description provided for @modelIds.
+  ///
+  /// In en, this message translates to:
+  /// **'Upstream model IDs, one per line'**
+  String get modelIds;
+
+  /// No description provided for @protocolBase.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} base URL'**
+  String protocolBase(String value);
+
+  /// No description provided for @catalogUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Model catalog URL (optional)'**
+  String get catalogUrl;
+
+  /// No description provided for @catalogHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank for the provider’s default catalog'**
+  String get catalogHint;
+
+  /// No description provided for @readingModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading models'**
+  String get readingModels;
+
+  /// No description provided for @readModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Load model catalog'**
+  String get readModels;
+
+  /// No description provided for @requiredField.
+  ///
+  /// In en, this message translates to:
+  /// **'This field is required.'**
+  String get requiredField;
+
+  /// No description provided for @createGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Create route group'**
+  String get createGroup;
+
+  /// No description provided for @editGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit route group'**
+  String get editGroup;
+
+  /// No description provided for @groupId.
+  ///
+  /// In en, this message translates to:
+  /// **'Route group ID'**
+  String get groupId;
+
+  /// No description provided for @raisePriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase priority'**
+  String get raisePriority;
+
+  /// No description provided for @removeMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove member'**
+  String get removeMember;
+
+  /// No description provided for @addCandidate.
+  ///
+  /// In en, this message translates to:
+  /// **'Add candidate model'**
+  String get addCandidate;
+
+  /// No description provided for @connectRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to remote gateway'**
+  String get connectRemote;
+
+  /// No description provided for @remoteQuic.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote QUIC address (include /p2p/PeerID)'**
+  String get remoteQuic;
+
+  /// No description provided for @localTunnel.
+  ///
+  /// In en, this message translates to:
+  /// **'Local tunnel listen address'**
+  String get localTunnel;
+
+  /// No description provided for @tunnelHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Trust this peer ID on the remote gateway. Clients connecting to the local tunnel use the remote gateway key.'**
+  String get tunnelHelp;
+
+  /// No description provided for @loopback.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTP loopback address'**
+  String get loopback;
+
+  /// No description provided for @peerListen.
+  ///
+  /// In en, this message translates to:
+  /// **'P2P listen address (blank to disable)'**
+  String get peerListen;
+
+  /// No description provided for @allowedPeers.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed peer IDs, one per line'**
+  String get allowedPeers;
+
+  /// No description provided for @rotateMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate the first member'**
+  String get rotateMembers;
+}
+
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
+  const _AppLocalizationsDelegate();
+
+  @override
+  Future<AppLocalizations> load(Locale locale) {
+    return SynchronousFuture<AppLocalizations>(lookupAppLocalizations(locale));
+  }
+
+  @override
+  bool isSupported(Locale locale) => <String>[
+    'de',
+    'en',
+    'es',
+    'fr',
+    'hi',
+    'ja',
+    'ko',
+    'pt',
+    'zh',
+  ].contains(locale.languageCode);
+
+  @override
+  bool shouldReload(_AppLocalizationsDelegate old) => false;
+}
+
+AppLocalizations lookupAppLocalizations(Locale locale) {
+  // Lookup logic when only language code is specified.
+  switch (locale.languageCode) {
+    case 'de':
+      return AppLocalizationsDe();
+    case 'en':
+      return AppLocalizationsEn();
+    case 'es':
+      return AppLocalizationsEs();
+    case 'fr':
+      return AppLocalizationsFr();
+    case 'hi':
+      return AppLocalizationsHi();
+    case 'ja':
+      return AppLocalizationsJa();
+    case 'ko':
+      return AppLocalizationsKo();
+    case 'pt':
+      return AppLocalizationsPt();
+    case 'zh':
+      return AppLocalizationsZh();
+  }
+
+  throw FlutterError(
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
+}

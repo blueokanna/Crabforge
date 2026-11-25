@@ -1,0 +1,198 @@
+use anyhow::Result;
+use axum::{Json, Router, extract::OriginalUri, http::HeaderMap, routing::get};
+use crabforge_core::{catalog::discover, config::Endpoints};
+use serde_json::json;
+use tokio::net::TcpListener;
+
+#[tokio::test]
+async fn plans_without_live_catalogs_use_their_own_model_lists() -> Result<()> {
+    use crabforge_core::catalog::{fixed_models, presets};
+    let items: Vec<serde_json::Value> = serde_json::from_str(&presets()?)?;
+    let endpoints = |id: &str| -> Endpoints {
+        let item = items.iter().find(|p| p["id"] == id).unwrap();
+        serde_json::from_value(item["endpoints"].clone()).unwrap()
+    };
+    let personal = discover(&endpoints("baidu-qianfan-personal"), "UNUSED_KEY").await?;
+    assert!(personal.iter().any(|m| m == "qianfan-code-latest"));
+    assert!(!personal.iter().any(|m| m == "deepseek-v3.2"));
+    let team = discover(&endpoints("baidu-qianfan-team"), "UNUSED_KEY").await?;
+    assert!(team.iter().any(|m| m == "deepseek-v3.2"));
+    for (region, count) in [("global", 23), ("eu", 9), ("us", 9), ("us-central1", 3)] {
+        let mut vertex: Endpoints = serde_json::from_value(
+            json!({"vertex":{"project":"sample-project", "location":region}}),
+        )?;
+        assert_eq!(discover(&vertex, "").await?.len(), count);
+        vertex.models_url = "https://relay.example/v1/models".to_owned();
+        assert!(
+            discover(&vertex, "")
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("project's Google endpoint")
+        );
+    }
+    for (id, expected) in [
+        ("bedrock", "global.anthropic.claude-opus-5-5"),
+        ("voyage", "rerank-3"),
+        ("google-vertex", "gemini-2.5-pro"),
+        ("volcengine-agent", "ark-code-latest"),
+        ("tencent-cloud-plan", "tc-code-latest"),
+        ("tencent-cloud-enterprise-intl", "auto"),
+    ] {
+        let list = discover(&endpoints(id), "UNUSED_KEY").await?;
+        assert!(list.iter().any(|m| m == expected));
+    }
+    for id in [
+        "bedrock-mantle",
+        "volcengine-api",
+        "baidu-qianfan-api",
+        "fireworks",
+        "tencent-cloud-intl",
+    ] {
+        assert!(fixed_models(&endpoints(id)).is_none());
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn protocol_directories_merge_only_complete_lists_and_allow_an_override() -> Result<()> {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let root = format!("http://{}", listener.local_addr()?);
+    let hits = Arc::new(AtomicUsize::new(0));
+    let counter = hits.clone();
+    let app = Router::new()
+        .route(
+            "/chat/models",
+            get(move || {
+                counter.fetch_add(1, Ordering::Relaxed);
+                async { Json(json!({"data":[{"id":"shared"},{"id":"chat"}]})) }
+            }),
+        )
+        .route(
+            "/anthropic/v1/models",
+            get(|OriginalUri(uri): OriginalUri| async move {
+                if uri.query().is_none() {
+                    Json(json!({"data":[{"id":"partial"}],"has_more":true,"last_id":"next"}))
+                } else {
+                    Json(json!({"data":"broken"}))
+                }
+            }),
+        )
+        .route(
+            "/gemini/models",
+            get(|| async {
+                Json(json!({"models":[{"name":"models/shared"},{"name":"models/gemini"}]}))
+            }),
+        )
+        .route(
+            "/account/catalog",
+            get(|OriginalUri(uri): OriginalUri| async move {
+                assert_eq!(uri.query(), Some("edition=team"));
+                Json(json!({"data":[{"id":"account-model"}]}))
+            }),
+        );
+    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let endpoints = Endpoints {
+        chat: format!("{root}/chat"),
+        responses: format!("{root}/chat/"),
+        anthropic: format!("{root}/anthropic"),
+        gemini: format!("{root}/gemini"),
+        ..Default::default()
+    };
+    assert_eq!(
+        discover(&endpoints, "").await?,
+        ["shared", "chat", "gemini"]
+    );
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+    let endpoints = Endpoints {
+        models_url: format!("{root}/account/catalog?edition=team"),
+        ..endpoints
+    };
+    assert_eq!(discover(&endpoints, "").await?, ["account-model"]);
+    assert_eq!(hits.load(Ordering::Relaxed), 1);
+    let builtin_with_override = Endpoints {
+        chat: "https://api.voyageai.com/v1".into(),
+        ..endpoints
+    };
+    assert_eq!(
+        discover(&builtin_with_override, "").await?,
+        ["account-model"]
+    );
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn catalog_follows_vendor_cursors_and_rejects_incomplete_pages() -> Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let root = format!("http://{}", listener.local_addr()?);
+    let app = Router::new()
+        .route(
+            "/v1beta/models",
+            get(|OriginalUri(uri): OriginalUri| async move {
+                Json(match uri.query() {
+                    Some("pageSize=1000") => json!({"models":[{"name":"models/first"},{"name":"models/embedding","supportedGenerationMethods":["embedContent"]}],"nextPageToken":"next+1"}),
+                    Some("pageSize=1000&pageToken=next%2B1") => {
+                        json!({"models":[{"name":"models/first"},{"name":"models/second", "supportedGenerationMethods":["countTokens","generateContent"]},{"name":"models/video","supportedGenerationMethods":["predictLongRunning"]}]})
+                    }
+                    other => panic!("unexpected cursor {other:?}"),
+                })
+            }),
+        )
+        .route(
+            "/v1/messages-api/v1/models",
+            get(
+                |headers: HeaderMap, OriginalUri(uri): OriginalUri| async move {
+                    assert_eq!(headers["anthropic-version"], "2023-06-01");
+                    Json(match uri.query() {
+                        None => json!({"data":[{"id":"first"}],"has_more":true,"last_id":"abc"}),
+                        Some("after_id=abc") => json!({"data":[{"id":"second"}],"has_more":false}),
+                        other => panic!("unexpected cursor {other:?}"),
+                    })
+                },
+            ),
+        )
+        .route(
+            "/broken/v1/models",
+            get(|| async { Json(json!({"data":[{"id":"partial"}],"has_more":true,"last_id":""})) }),
+        );
+    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    for endpoints in [
+        Endpoints {
+            gemini: format!("{root}/v1beta/models/vendor/demo:streamGenerateContent?alt=sse"),
+            ..Default::default()
+        },
+        Endpoints {
+            gemini: root.clone(),
+            ..Default::default()
+        },
+        Endpoints {
+            gemini: format!("{root}/models"),
+            ..Default::default()
+        },
+        Endpoints {
+            anthropic: format!("{root}/v1/messages-api"),
+            ..Default::default()
+        },
+    ] {
+        assert_eq!(discover(&endpoints, "").await?, ["first", "second"]);
+    }
+    let incomplete = Endpoints {
+        anthropic: format!("{root}/broken"),
+        ..Default::default()
+    };
+    assert!(
+        discover(&incomplete, "")
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("cursor")
+    );
+    server.abort();
+    let _ = server.await;
+    Ok(())
+}

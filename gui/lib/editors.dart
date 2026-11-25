@@ -1,0 +1,739 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+
+import 'language.dart';
+import 'src/rust/api.dart' as api;
+
+typedef JsonMap = Map<String, dynamic>;
+
+const protocolLabels = {
+  'chat': 'Chat Completions',
+  'responses': 'Responses',
+  'anthropic': 'Anthropic Messages',
+  'gemini': 'Gemini',
+};
+
+class ProviderEditor extends StatefulWidget {
+  const ProviderEditor({super.key, required this.presets, this.provider});
+  final List<JsonMap> presets;
+  final JsonMap? provider;
+  @override
+  State<ProviderEditor> createState() => _ProviderEditorState();
+}
+
+class _ProviderEditorState extends State<ProviderEditor> {
+  final form = GlobalKey<FormState>();
+  bool loading = false;
+  String? discoveryMessage;
+  String presetModelText = '';
+  late String authHeader = widget.provider?['endpoints']?['auth_header'] ?? '';
+  JsonMap? resource;
+  static const expressBase =
+      'https://aiplatform.googleapis.com/v1/publishers/google';
+  late bool vertexPreset =
+      widget.provider?['endpoints']?['vertex'] != null ||
+      widget.provider?['endpoints']?['gemini'] == expressBase;
+  late bool vertexProject = savedVertex != null;
+  JsonMap? get savedVertex =>
+      widget.provider?['endpoints']?['vertex'] as JsonMap?;
+  late final project = TextEditingController(text: savedVertex?['project']);
+  late final location = TextEditingController(
+    text: savedVertex?['location'] ?? 'global',
+  );
+  late final credentials = TextEditingController(
+    text: savedVertex?['credentials'],
+  );
+  late final impersonate = TextEditingController(
+    text: savedVertex?['impersonate'],
+  );
+  late final vertexBase = TextEditingController(
+    text: savedVertex?['base_url'] ?? savedVertex?['baseUrl'],
+  );
+  final resourceUrl = TextEditingController();
+  JsonMap get endpoints => {
+    if (vertexProject)
+      'vertex': {
+        'project': project.text.trim().toLowerCase(),
+        'location': location.text.trim().toLowerCase(),
+        'credentials': credentials.text.trim(),
+        'impersonate': impersonate.text.trim(),
+        'base_url': vertexBase.text.trim(),
+      }
+    else
+      for (final e in urls.entries) e.key: e.value.text.trim(),
+    if (modelsUrl.text.trim().isNotEmpty) 'models_url': modelsUrl.text.trim(),
+    if (!vertexProject &&
+        urls['anthropic']!.text.trim().isNotEmpty &&
+        authHeader.isNotEmpty)
+      'auth_header': authHeader,
+  };
+
+  Future<void> discover() async {
+    final bases = jsonEncode(endpoints), key = keyEnv.text.trim();
+    setState(() {
+      loading = true;
+      discoveryMessage = null;
+    });
+    try {
+      final ids = await api.discoverModels(endpoints: bases, keyEnv: key);
+      if (!mounted) return;
+      if (bases != jsonEncode(endpoints) || key != keyEnv.text.trim()) {
+        discoveryMessage = context.strings.changed;
+      } else {
+        models.text = {...linesOf(models.text), ...ids}.join('\n');
+        discoveryMessage = context.strings.modelsRead(ids.length);
+      }
+    } catch (e) {
+      discoveryMessage = '$e';
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  late final id = TextEditingController(text: widget.provider?['id']);
+  late final models = TextEditingController(
+    text: (widget.provider?['models'] as List?)?.join('\n'),
+  );
+  late final keyEnv = TextEditingController(text: widget.provider?['key_env']);
+  late final catalog = TextEditingController(text: widget.provider?['catalog']);
+  late final modelsUrl = TextEditingController(
+    text: widget.provider?['endpoints']['models_url'],
+  );
+  late final urls = {
+    for (final p in protocolLabels.keys)
+      p: TextEditingController(text: widget.provider?['endpoints'][p]),
+  };
+
+  @override
+  void dispose() {
+    for (final c in [
+      id,
+      models,
+      keyEnv,
+      catalog,
+      modelsUrl,
+      resourceUrl,
+      project,
+      location,
+      credentials,
+      impersonate,
+      vertexBase,
+      ...urls.values,
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void select(JsonMap? p) {
+    if (p == null) return;
+    id.text = p['id'];
+    catalog.text = p['catalog'] ?? '';
+    modelsUrl.text = p['endpoints']['models_url'] ?? '';
+    final presetModels = (p['models'] as List?)?.cast<String>() ?? [];
+    final usePresetModels =
+        models.text.isEmpty || models.text == presetModelText;
+    presetModelText = presetModels.join('\n');
+    if (usePresetModels) models.text = presetModelText;
+    setState(() {
+      resource = p['resource'];
+      authHeader = p['endpoints']['auth_header'] ?? '';
+      vertexPreset = p['id'] == 'google-vertex';
+      vertexProject = false;
+      resourceUrl.clear();
+      discoveryMessage = usePresetModels && presetModels.isNotEmpty
+          ? context.strings.presetLoaded
+          : null;
+    });
+    keyEnv.text =
+        resource == null &&
+            (p['endpoints'].values as Iterable).every(
+              (v) => v.toString().startsWith('http://localhost'),
+            )
+        ? ''
+        : '${RegExp(r'^[0-9]').hasMatch(id.text) ? 'PROVIDER_' : ''}${id.text.toUpperCase().replaceAll(RegExp('[^A-Z0-9_]'), '_')}_API_KEY';
+    for (final e in urls.entries) {
+      e.value.text = p['endpoints'][e.key] ?? '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(
+      widget.provider == null
+          ? context.strings.addProvider
+          : context.strings.editProvider,
+    ),
+    content: SizedBox(
+      width: 520,
+      child: SingleChildScrollView(
+        child: Form(
+          key: form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.provider == null)
+                DropdownMenu<JsonMap>(
+                  label: Text(context.strings.searchPresets),
+                  expandedInsets: EdgeInsets.zero,
+                  enableFilter: true,
+                  requestFocusOnTap: true,
+                  menuHeight: 280,
+                  dropdownMenuEntries: [
+                    for (final p in widget.presets)
+                      DropdownMenuEntry(value: p, label: p['name']),
+                  ],
+                  onSelected: select,
+                ),
+              field(
+                context,
+                id,
+                context.strings.providerId,
+                enabled: widget.provider == null,
+                required: true,
+              ),
+              field(
+                context,
+                keyEnv,
+                context.strings.keyEnv,
+                hint: context.strings.keyHint,
+              ),
+              if (vertexPreset)
+                SwitchListTile(
+                  title: Text(context.strings.vertexProject),
+                  value: vertexProject,
+                  onChanged: (enabled) => setState(() {
+                    vertexProject = enabled;
+                    if (enabled && keyEnv.text == 'GOOGLE_VERTEX_API_KEY') {
+                      keyEnv.clear();
+                    }
+                    if (!enabled) {
+                      urls['gemini']!.text = expressBase;
+                      if (keyEnv.text.isEmpty) {
+                        keyEnv.text = 'GOOGLE_VERTEX_API_KEY';
+                      }
+                    }
+                  }),
+                ),
+              if (vertexProject) ...[
+                field(context, project, context.strings.cloudProjectId),
+                field(
+                  context,
+                  location,
+                  context.strings.vertexLocation,
+                  hint: 'global, eu, us-central1',
+                ),
+                field(
+                  context,
+                  credentials,
+                  context.strings.googleCredentials,
+                  hint: 'GOOGLE_APPLICATION_CREDENTIALS',
+                ),
+                field(context, impersonate, context.strings.impersonateAccount),
+                field(
+                  context,
+                  vertexBase,
+                  context.strings.resourceRoot,
+                  hint: 'https://aiplatform.googleapis.com',
+                ),
+              ],
+              if (resource != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: TextFormField(
+                    controller: resourceUrl,
+                    decoration: InputDecoration(
+                      labelText: context.strings.resourceRoot,
+                      hintText: resource!['hint'],
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: (raw) {
+                      final base = raw.trim().replaceFirst(RegExp(r'/+$'), '');
+                      for (final e in (resource!['paths'] as JsonMap).entries) {
+                        urls[e.key]!.text = base.isEmpty
+                            ? ''
+                            : '$base${e.value}';
+                      }
+                    },
+                  ),
+                ),
+              field(
+                context,
+                models,
+                context.strings.modelIds,
+                lines: 3,
+                required: true,
+              ),
+              if (!vertexProject)
+                for (final e in urls.entries)
+                  field(
+                    context,
+                    e.value,
+                    context.strings.protocolBase(protocolLabels[e.key]!),
+                  ),
+              if (!vertexProject)
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: urls['anthropic']!,
+                  builder: (context, url, _) => url.text.trim().isEmpty
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 14),
+                          child: DropdownMenu<String>(
+                            key: ValueKey(authHeader),
+                            label: Text(context.strings.anthropicAuthHeader),
+                            initialSelection: authHeader,
+                            expandedInsets: EdgeInsets.zero,
+                            dropdownMenuEntries: [
+                              DropdownMenuEntry(
+                                value: '',
+                                label: context.strings.automaticAuthHeader,
+                              ),
+                              const DropdownMenuEntry(
+                                value: 'x-api-key',
+                                label: 'x-api-key',
+                              ),
+                              const DropdownMenuEntry(
+                                value: 'bearer',
+                                label: 'Authorization: Bearer',
+                              ),
+                            ],
+                            onSelected: (value) {
+                              if (value != null) {
+                                setState(() => authHeader = value);
+                              }
+                            },
+                          ),
+                        ),
+                ),
+              field(
+                context,
+                modelsUrl,
+                context.strings.catalogUrl,
+                hint: context.strings.catalogHint,
+              ),
+              field(
+                context,
+                catalog,
+                context.strings.providerCatalogs,
+                hint: 'kimi-code-plan-global, vercel',
+              ),
+              TextButton.icon(
+                onPressed: loading ? null : discover,
+                icon: const Icon(Icons.sync),
+                label: Text(
+                  loading
+                      ? context.strings.readingModels
+                      : context.strings.readModels,
+                ),
+              ),
+              if (discoveryMessage != null) SelectableText(discoveryMessage!),
+            ],
+          ),
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(context.strings.cancel),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (form.currentState!.validate()) {
+            Navigator.pop(context, <String, dynamic>{
+              'id': id.text.trim(),
+              'key_env': keyEnv.text.trim(),
+              if (catalog.text.trim().isNotEmpty)
+                'catalog': catalog.text.trim(),
+              'models': linesOf(models.text),
+              'endpoints': endpoints,
+            });
+          }
+        },
+        child: Text(context.strings.save),
+      ),
+    ],
+  );
+}
+
+Widget field(
+  BuildContext context,
+  TextEditingController c,
+  String label, {
+  String? hint,
+  int lines = 1,
+  bool required = false,
+  bool enabled = true,
+}) => Padding(
+  padding: const EdgeInsets.only(top: 14),
+  child: TextFormField(
+    controller: c,
+    minLines: lines,
+    maxLines: lines == 1 ? 1 : 6,
+    enabled: enabled,
+    decoration: InputDecoration(
+      labelText: label,
+      hintText: hint,
+      border: const OutlineInputBorder(),
+    ),
+    validator: (s) => required && (s == null || s.trim().isEmpty)
+        ? context.strings.requiredField
+        : null,
+  ),
+);
+
+List<String> linesOf(String text) =>
+    text.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+enum GroupStrategy { order, rotate, weight, manual }
+
+typedef GroupSelection = ({
+  String name,
+  String note,
+  bool listMembers,
+  List<String> off,
+  List<String> members,
+  GroupStrategy strategy,
+  Map<String, int> weights,
+  String? pick,
+});
+
+class GroupEditor extends StatefulWidget {
+  const GroupEditor({
+    super.key,
+    required this.choices,
+    required this.members,
+    required this.strategy,
+    required this.weights,
+    required this.off,
+    required this.listMembers,
+    this.pick,
+    this.name,
+    this.note,
+  });
+  final String? name, note;
+  final bool listMembers;
+  final GroupStrategy strategy;
+  final Map<String, int> weights;
+  final String? pick;
+  final List<String> choices, members, off;
+  @override
+  State<GroupEditor> createState() => _GroupEditorState();
+}
+
+class _GroupEditorState extends State<GroupEditor> {
+  late final name = TextEditingController(text: widget.name);
+  late final note = TextEditingController(text: widget.note);
+  late bool listMembers = widget.listMembers;
+  late final members = [...widget.members];
+  late final off = widget.off.toSet();
+  late GroupStrategy strategy = widget.strategy;
+  late final weights = {...widget.weights};
+  late String? pick = widget.pick;
+  String? get selected => members.contains(pick) ? pick : members.firstOrNull;
+  @override
+  void dispose() {
+    name.dispose();
+    note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(
+      widget.name == null
+          ? context.strings.createGroup
+          : context.strings.editGroup,
+    ),
+    content: SizedBox(
+      width: 480,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            field(context, name, context.strings.groupId),
+            field(context, note, context.strings.groupNote),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.strings.listGroupModels),
+              value: listMembers,
+              onChanged: (value) => setState(() => listMembers = value),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<GroupStrategy>(
+              decoration: InputDecoration(
+                labelText: context.strings.routingStrategy,
+              ),
+              initialValue: strategy,
+              items: [
+                DropdownMenuItem(
+                  value: GroupStrategy.order,
+                  child: Text(context.strings.listedOrder),
+                ),
+                DropdownMenuItem(
+                  value: GroupStrategy.rotate,
+                  child: Text(context.strings.rotateMembers),
+                ),
+                DropdownMenuItem(
+                  value: GroupStrategy.weight,
+                  child: Text(context.strings.weightedOrder),
+                ),
+                DropdownMenuItem(
+                  value: GroupStrategy.manual,
+                  child: Text(context.strings.manualRouting),
+                ),
+              ],
+              onChanged: (v) {
+                if (v != null) setState(() => strategy = v);
+              },
+            ),
+            const SizedBox(height: 16),
+            for (final m in members)
+              ListTile(
+                key: ValueKey(m),
+                contentPadding: EdgeInsets.zero,
+                title: Text(m),
+                subtitle: strategy != GroupStrategy.weight
+                    ? null
+                    : TextFormField(
+                        initialValue: (weights[m] ?? 1).toString(),
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: context.strings.memberWeight,
+                        ),
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        validator: (text) => validWeight(text)
+                            ? null
+                            : context.strings.invalidWeight,
+                        onChanged: (text) => setState(
+                          () => weights[m] = validWeight(text)
+                              ? int.parse(text)
+                              : 0,
+                        ),
+                      ),
+                leading: strategy == GroupStrategy.manual
+                    ? IconButton(
+                        isSelected: selected == m,
+                        tooltip: context.strings.selectMember,
+                        icon: const Icon(Icons.radio_button_unchecked),
+                        selectedIcon: const Icon(Icons.radio_button_checked),
+                        onPressed: () => setState(() => pick = m),
+                      )
+                    : Text('${members.indexOf(m) + 1}'),
+                trailing: Wrap(
+                  children: [
+                    if (strategy != GroupStrategy.manual)
+                      IconButton(
+                        tooltip: off.contains(m)
+                            ? context.strings.enableMember
+                            : context.strings.disableMember,
+                        icon: Icon(
+                          off.contains(m)
+                              ? Icons.toggle_off_outlined
+                              : Icons.toggle_on,
+                        ),
+                        onPressed: () => setState(() {
+                          if (!off.remove(m)) off.add(m);
+                        }),
+                      ),
+                    IconButton(
+                      tooltip: context.strings.raisePriority,
+                      onPressed: members.first == m
+                          ? null
+                          : () {
+                              final i = members.indexOf(m);
+                              setState(() {
+                                members.removeAt(i);
+                                members.insert(i - 1, m);
+                              });
+                            },
+                      icon: const Icon(Icons.arrow_upward),
+                    ),
+                    IconButton(
+                      tooltip: context.strings.removeMember,
+                      onPressed: () => setState(() {
+                        members.remove(m);
+                        off.remove(m);
+                      }),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                  ],
+                ),
+              ),
+            DropdownMenu<String>(
+              key: ValueKey(('choices', members.join('\n'))),
+              label: Text(context.strings.addCandidate),
+              expandedInsets: EdgeInsets.zero,
+              menuHeight: 220,
+              dropdownMenuEntries: [
+                for (final m in widget.choices.where(
+                  (m) => !members.contains(m),
+                ))
+                  DropdownMenuEntry(value: m, label: m),
+              ],
+              onSelected: (v) {
+                if (v != null) {
+                  setState(() => members.add(v));
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(context.strings.cancel),
+      ),
+      FilledButton(
+        onPressed:
+            members.isEmpty ||
+                (strategy != GroupStrategy.manual &&
+                    members.every(off.contains)) ||
+                (strategy == GroupStrategy.weight &&
+                    members.any((m) => weights[m] == 0))
+            ? null
+            : () => Navigator.pop(context, (
+                name: name.text.trim(),
+                note: note.text,
+                listMembers: listMembers,
+                off: members.where(off.contains).toList(),
+                members: members,
+                strategy: strategy,
+                pick: strategy == GroupStrategy.manual || members.contains(pick)
+                    ? selected
+                    : null,
+                weights: {for (final m in members) m: weights[m] ?? 1},
+              )),
+        child: Text(context.strings.save),
+      ),
+    ],
+  );
+
+  bool validWeight(String? text) {
+    final value = int.tryParse(text ?? '');
+    return value != null && value > 0 && value <= 1000;
+  }
+}
+
+class NetworkEditor extends StatefulWidget {
+  const NetworkEditor({super.key, required this.config});
+  final JsonMap config;
+  @override
+  State<NetworkEditor> createState() => _NetworkEditorState();
+}
+
+class TunnelEditor extends StatefulWidget {
+  const TunnelEditor({super.key});
+  @override
+  State<TunnelEditor> createState() => _TunnelEditorState();
+}
+
+class _TunnelEditorState extends State<TunnelEditor> {
+  final remote = TextEditingController(),
+      local = TextEditingController(text: '127.0.0.1:3426');
+  @override
+  void dispose() {
+    remote.dispose();
+    local.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(context.strings.connectRemote),
+    content: SizedBox(
+      width: 480,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            field(context, remote, context.strings.remoteQuic),
+            field(context, local, context.strings.localTunnel),
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(context.strings.tunnelHelp),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(context.strings.cancel),
+      ),
+      FilledButton(
+        onPressed: () =>
+            Navigator.pop(context, (remote.text.trim(), local.text.trim())),
+        child: Text(context.strings.connect),
+      ),
+    ],
+  );
+}
+
+class _NetworkEditorState extends State<NetworkEditor> {
+  late final origins = TextEditingController(
+    text: (widget.config['cors_origins'] as List? ?? []).join('\n'),
+  );
+  late final listen = TextEditingController(text: widget.config['listen']);
+  late final peer = TextEditingController(text: widget.config['peer_listen']);
+  late final allowed = TextEditingController(
+    text: (widget.config['allowed_peers'] as List).join('\n'),
+  );
+  @override
+  void dispose() {
+    listen.dispose();
+    peer.dispose();
+    allowed.dispose();
+    origins.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(context.strings.networkSettings),
+    content: SizedBox(
+      width: 500,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            field(context, listen, context.strings.loopback),
+            field(
+              context,
+              peer,
+              context.strings.peerListen,
+              hint: '/ip4/0.0.0.0/udp/3427/quic-v1',
+            ),
+            field(context, allowed, context.strings.allowedPeers, lines: 3),
+            field(
+              context,
+              origins,
+              context.strings.browserOrigins,
+              hint: 'https://app.example.com',
+              lines: 3,
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(context.strings.cancel),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, <String, dynamic>{
+          'listen': listen.text.trim(),
+          'peer_listen': peer.text.trim(),
+          'allowed_peers': linesOf(allowed.text),
+          'cors_origins': linesOf(origins.text),
+        }),
+        child: Text(context.strings.save),
+      ),
+    ],
+  );
+}

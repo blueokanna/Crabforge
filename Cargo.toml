@@ -1,0 +1,28 @@
+[workspace]
+members = ["crates/core", "crates/cli", "crates/bridge", "crates/runner", "tools/verify"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+anyhow = "1.0.105"
+crabforge-core = { path = "crates/core" }
+tokio = { version = "1", features = [
+    "macros",
+    "rt-multi-thread",
+    "net",
+    "signal",
+    "sync",
+    "time",
+    "io-util",
+] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
+
+[profile.dev]
+debug = 1

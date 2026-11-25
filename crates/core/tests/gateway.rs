@@ -1,0 +1,375 @@
+use anyhow::Result;
+use axum::{
+    Router,
+    body::{Body, Bytes},
+    http::{HeaderMap, StatusCode},
+    routing::post,
+};
+use crabforge_core::{
+    config::{self, Config, Endpoints, Provider},
+    peer,
+    service::Service,
+};
+use futures_util::{StreamExt, stream};
+use serde_json::{Value, json};
+use std::{collections::BTreeMap, convert::Infallible, net::SocketAddr, time::Duration};
+use tempfile::tempdir;
+use tokio::{net::TcpListener, sync::watch, time::timeout};
+
+fn ephemeral() -> SocketAddr {
+    ([127, 0, 0, 1], 0).into()
+}
+
+#[tokio::test]
+async fn native_endpoints_follow_models_aliases_and_enabled_group_members() -> Result<()> {
+    let root = tempdir()?;
+    let cfg = json!({"listen":"127.0.0.1:0","providers":[
+        {"id":"both","models":["gpt-5"],"endpoints":{"responses":"https://api.openai.com/v1","chat":"https://api.openai.com/v1"}},
+        {"id":"response","models":["r"],"endpoints":{"responses":"http://127.0.0.1:1/v1"}},
+        {"id":"text","models":["claude-a"],"endpoints":{"chat":"http://127.0.0.1:1/v1","anthropic":"http://127.0.0.1:1"}}],
+        "groups":{"pool":["both/gpt-5","response/r"],"paused":["text/claude-a"],"outer":["group/pool","group/paused","text/claude-a"],"mixed":["group/pool","text/claude-a"]},
+        "group_off":{"outer":["text/claude-a"]},"disabled_groups":["paused"],"former_groups":{"old":"outer"}});
+    config::save(
+        root.path(),
+        &config::snapshot(root.path())?,
+        &cfg.to_string(),
+    )?;
+    let svc = Service::start(root.path()).await?;
+    let http = reqwest::Client::builder().no_proxy().build()?;
+    let key = config::token(root.path())?;
+    let url = format!("http://{}/v1/models", svc.addr);
+    let get = |url: String| http.get(url).bearer_auth(&key);
+    let catalog: Value = serde_json::from_slice(
+        &get(url.clone())
+            .send()
+            .await?
+            .error_for_status()?
+            .bytes()
+            .await?,
+    )?;
+    for (id, paths, preferred) in [
+        (
+            "gpt-5",
+            json!(["/v1/chat/completions", "/v1/responses"]),
+            json!("/v1/responses"),
+        ),
+        (
+            "text/claude-a",
+            json!(["/v1/chat/completions", "/v1/messages"]),
+            json!("/v1/messages"),
+        ),
+        (
+            "group/outer",
+            json!(["/v1/responses"]),
+            json!("/v1/responses"),
+        ),
+        (
+            "group/old",
+            json!(["/v1/responses"]),
+            json!("/v1/responses"),
+        ),
+        ("group/mixed", Value::Null, Value::Null),
+    ] {
+        let detail: Value = serde_json::from_slice(
+            &get(format!("{url}/{id}"))
+                .send()
+                .await?
+                .error_for_status()?
+                .bytes()
+                .await?,
+        )?;
+        assert_eq!(detail["native_endpoints"], paths, "{id}");
+        assert_eq!(detail["magpie_prefers"], preferred, "{id}");
+        let listed = catalog["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|m| m["id"] == id);
+        assert_eq!(listed, (id != "group/old").then_some(&detail));
+    }
+    svc.stop().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn rotating_groups_share_turns_only_among_compatible_members() -> Result<()> {
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let upstream = listener.local_addr()?;
+    let app = Router::new().route(
+        "/{provider}/embeddings",
+        post(
+            |axum::extract::Path(id): axum::extract::Path<String>| async move {
+                let status = if id == "busy" {
+                    StatusCode::TOO_MANY_REQUESTS
+                } else {
+                    StatusCode::OK
+                };
+                (status, id)
+            },
+        ),
+    );
+    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let root = tempdir()?;
+    let cfg = json!({"listen":"127.0.0.1:0","providers":[
+       {"id":"a","models":["m"],"endpoints":{"chat":format!("http://{upstream}/a")}},
+       {"id":"b","models":["m"],"endpoints":{"anthropic":format!("http://{upstream}/b")}},
+       {"id":"c","models":["m"],"endpoints":{"chat":format!("http://{upstream}/c")}},
+       {"id":"d","models":["m"],"endpoints":{"chat":format!("http://{upstream}/d")}},
+       {"id":"busy","models":["m"],"endpoints":{"chat":format!("http://{upstream}/busy")}}],
+       "groups":{"pool":["a/m","b/m","c/m"],"weighted":["a/m","b/m","c/m"],
+                 "fallback":["a/m","busy/m","c/m"], "outer":["group/first","group/second","busy/m","c/m"],
+                 "first":["busy/m","a/m"],"second":["b/m","c/m"],
+                 "nested":["group/inner","d/m"],"inner":["a/m","c/m"],
+                 "nested-weight":["group/inner-weight","d/m"],"inner-weight":["a/m","c/m"]},
+       "rotating_groups":["pool","outer","nested","inner"], "group_weights":{"weighted":{"a/m":3,"b/m":50},"fallback":{"busy/m":1000},"nested-weight":{"group/inner-weight":3},"inner-weight":{"c/m":2}}});
+    config::save(
+        root.path(),
+        &config::snapshot(root.path())?,
+        &cfg.to_string(),
+    )?;
+    let svc = Service::start(root.path()).await?;
+    let http = reqwest::Client::builder().no_proxy().build()?;
+    let key = config::token(root.path())?;
+    let request = |group: &str| {
+        http.post(format!("http://{}/v1/embeddings", svc.addr))
+            .bearer_auth(&key)
+            .body(json!({"model":format!("group/{group}"), "input":"sample"}).to_string())
+    };
+    for (group, sequence) in [
+        ("pool", ["a", "c", "a", "c"]),
+        ("weighted", ["a", "a", "c", "a"]),
+        ("outer", ["a", "c", "a", "c"]),
+        ("nested", ["a", "d", "c", "d"]),
+        ("nested-weight", ["c", "a", "d", "c"]),
+    ] {
+        for expected in sequence {
+            let reply = request(group).send().await?.error_for_status()?;
+            assert_eq!(reply.text().await?, expected);
+        }
+    }
+    let replies = futures_util::future::try_join_all((0..16).map(|_| {
+        let req = request("weighted");
+        async move { req.send().await?.error_for_status()?.text().await }
+    }))
+    .await?;
+    assert_eq!(replies.iter().filter(|id| *id == "a").count(), 12);
+    assert_eq!(replies.iter().filter(|id| *id == "c").count(), 4);
+    assert_eq!(
+        request("fallback")
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?,
+        "a"
+    );
+    {
+        let history = svc.history.lock().unwrap();
+        let attempts: Vec<_> = history
+            .iter()
+            .filter(|a| a.model == "group/fallback")
+            .map(|a| (a.provider.as_str(), a.status))
+            .collect();
+        assert_eq!(attempts, [("busy", 429), ("a", 200)]);
+        let nested: Vec<_> = history
+            .iter()
+            .filter(|a| a.model == "group/outer")
+            .map(|a| (a.provider.as_str(), a.via[0].as_str()))
+            .collect();
+        assert_eq!(
+            nested,
+            [
+                ("busy", "group/first"),
+                ("a", "group/first"),
+                ("c", "group/second")
+            ]
+            .repeat(2)
+        );
+    }
+    svc.stop().await;
+    server.abort();
+    Ok(())
+}
+
+#[test]
+fn invalid_nested_group_edits_preserve_the_saved_graph() -> Result<()> {
+    let dir = tempdir()?;
+    let mut cfg = json!({"providers":[{"id":"p","models":["m"],"endpoints":{"chat":"http://localhost:8080"}}],"groups":{"g0":["p/m"]}});
+    for i in 1..=8 {
+        cfg["groups"][format!("g{i}")] = json!([format!("group/g{}", i - 1)]);
+    }
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let saved = config::snapshot(dir.path())?;
+    for (id, member) in [
+        ("g0", "group/g8"),
+        ("g8", "group/g8"),
+        ("g9", "group/g8"),
+        ("g2", "group/missing"),
+    ] {
+        let mut invalid = cfg.clone();
+        invalid["groups"][id] = json!([member]);
+        assert!(config::save(dir.path(), &saved, &invalid.to_string()).is_err());
+        assert_eq!(config::snapshot(dir.path())?, saved);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()> {
+    let (release, gate) = watch::channel(false);
+    let mock=Router::new().route("/busy/chat/completions",post(||async{StatusCode::TOO_MANY_REQUESTS}))
+        .route("/ready/chat/completions",post(move |headers:HeaderMap,body:Bytes|{
+            let mut gate=gate.clone();async move {
+                assert!(!headers.contains_key("authorization"));
+                assert!(!headers.contains_key("cookie"));
+                assert_eq!(serde_json::from_slice::<Value>(&body).unwrap(),json!({"model":"family/m","messages":[{"role":"user","content":"group/test"}],"stream":true}));
+                let first=stream::once(async{Ok::<_,Infallible>(Bytes::from_static(b"data: first\n\n"))});
+                let last=stream::once(async move {gate.wait_for(|v|*v).await.unwrap(); Ok(Bytes::from_static(b"data: [DONE]\n\n"))});
+                ([("content-type","text/event-stream")],Body::from_stream(first.chain(last)))
+            }
+        }));
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let upstream = listener.local_addr()?;
+    let upstream_task = tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
+    let dir = tempdir()?;
+    let providers = ["busy", "ready"].map(|id| Provider {
+        catalog: String::new(),
+        web_site: None,
+        id: id.into(),
+        endpoints: Endpoints {
+            chat: format!("http://{upstream}/{id}"),
+            ..Default::default()
+        },
+        key_env: String::new(),
+        models: vec!["family/m".into()],
+    });
+    let cfg = Config {
+        listen: ephemeral(),
+        providers: providers.into(),
+        groups: BTreeMap::from([(
+            "test".into(),
+            vec!["busy/family/m".into(), "ready/family/m".into()],
+        )]),
+        ..Default::default()
+    };
+    config::save(
+        dir.path(),
+        &config::snapshot(dir.path())?,
+        &serde_json::to_string(&cfg)?,
+    )?;
+    let service = Service::start(dir.path()).await?;
+    let client = reqwest::Client::builder().no_proxy().build()?;
+    let url = format!("http://{}/v1/chat/completions", service.addr);
+    let key = config::token(dir.path())?;
+    assert_eq!(client.post(&url).send().await?.status(), 401);
+    assert_eq!(
+        client
+            .post(&url)
+            .bearer_auth(&key)
+            .header("Origin", "null")
+            .send()
+            .await?
+            .status(),
+        401
+    );
+    let mut response=client.post(url).bearer_auth(key).header("cookie","private").body(r#"{"model":"group/test","messages":[{"role":"user","content":"group/test"}],"stream":true}"#).send().await?;
+    assert_eq!(response.status(), 200);
+    assert_eq!(
+        timeout(Duration::from_secs(5), response.chunk())
+            .await??
+            .unwrap(),
+        "data: first\n\n"
+    );
+    release.send(true)?;
+    assert_eq!(response.bytes().await?, "data: [DONE]\n\n");
+    assert_eq!(
+        service
+            .history
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|a| a.status)
+            .collect::<Vec<_>>(),
+        [429, 200]
+    );
+    service.stop().await;
+    upstream_task.abort();
+    let _ = upstream_task.await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn quic_peer_identity_and_gateway_key_are_both_required() -> Result<()> {
+    let server_dir = tempdir()?;
+    let client_dir = tempdir()?;
+    let client_key = peer::identity(client_dir.path())?;
+    let allowed = client_key.public().to_peer_id();
+    assert_eq!(
+        peer::identity(client_dir.path())?.public().to_peer_id(),
+        allowed
+    );
+    let cfg = Config {
+        listen: ephemeral(),
+        peer_listen: "/ip4/127.0.0.1/udp/0/quic-v1".into(),
+        allowed_peers: vec![allowed.to_string()],
+        ..Default::default()
+    };
+    config::save(
+        server_dir.path(),
+        &config::snapshot(server_dir.path())?,
+        &serde_json::to_string(&cfg)?,
+    )?;
+    let service = Service::start(server_dir.path()).await?;
+    let address = service.peer.as_ref().unwrap().address.to_string();
+    let (local, task) = peer::tunnel(client_key, &address, ephemeral()).await?;
+    let url = format!("http://{local}/v1/models");
+    let http = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(Duration::from_secs(5))
+        .build()?;
+    assert_eq!(http.get(&url).send().await?.status(), 401);
+    let response = http
+        .get(&url)
+        .bearer_auth(config::token(server_dir.path())?)
+        .send()
+        .await?;
+    assert_eq!(response.status(), 200);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&response.bytes().await?)?,
+        json!({"object":"list","data":[]})
+    );
+    let stranger = libp2p::identity::Keypair::generate_ed25519();
+    if let Ok((untrusted, denied)) = peer::tunnel(stranger, &address, ephemeral()).await {
+        // The dialer can complete TLS just before the listener rejects its identity.
+        let response = http
+            .get(format!("http://{untrusted}/v1/models"))
+            .bearer_auth(config::token(server_dir.path())?)
+            .send()
+            .await;
+        assert!(response.is_err());
+        denied.abort();
+        let _ = denied.await;
+    }
+    task.abort();
+    let _ = task.await;
+    service.stop().await;
+    Ok(())
+}
+
+#[test]
+fn concurrent_edit_and_corrupt_file_preserve_disk_state() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path();
+    let old = config::snapshot(path)?;
+    let changed = serde_json::to_string(&Config {
+        listen: ephemeral(),
+        ..Default::default()
+    })?;
+    config::save(path, &old, &changed)?;
+    assert!(config::save(path, &old, &old).is_err());
+    assert_eq!(config::load(path)?.listen, ephemeral());
+    std::fs::write(path.join("settings.json"), b"{")?;
+    assert!(config::save(path, &old, &old).is_err());
+    assert_eq!(std::fs::read(path.join("settings.json"))?, b"{");
+    Ok(())
+}

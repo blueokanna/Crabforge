@@ -1,0 +1,170 @@
+{
+  "@@locale": "en",
+  "routeSession": "Session {id}",
+  "@routeSession": {"placeholders": {"id": {"type": "String"}}},
+  "enableGroup": "Enable group",
+  "disableGroup": "Disable group",
+  "listGroupModels": "Show member models in client catalogs",
+  "copyGroup": "Duplicate group",
+  "groupNote": "Group note (optional)",
+  "enableMember": "Enable member",
+  "disableMember": "Disable member",
+  "manualRouting": "Manual selection",
+  "selectMember": "Select this member",
+  "providerCatalogs": "models.dev catalog IDs (optional)",
+  "anthropicAuthHeader": "Anthropic API key header",
+  "automaticAuthHeader": "Automatic",
+  "autoGroups": "Group matching models across providers",
+  "restoreGroup": "Restore group",
+  "vertexProject": "Vertex AI project settings",
+  "cloudProjectId": "Google Cloud project ID",
+  "vertexLocation": "Vertex AI location",
+  "googleCredentials": "ADC file (optional)",
+  "impersonateAccount": "Service account to impersonate (optional)",
+  "models": "Models",
+  "modelCopied": "Model ID copied",
+  "noModelsFound": "No matching models",
+  "routingStrategy": "Routing strategy",
+  "listedOrder": "Listed order",
+  "weightedOrder": "Weighted round robin",
+  "memberWeight": "Member weight",
+  "invalidWeight": "Enter a whole number from 1 to 1000.",
+  "providers": "Providers",
+  "routes": "Routes",
+  "groups": "Route groups",
+  "gateway": "Gateway",
+  "language": "Language",
+  "systemLanguage": "System language",
+  "confirmRemove": "Remove {value}?",
+  "@confirmRemove": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "remove": "Remove",
+  "save": "Save",
+  "webLogin": "Web sign-in",
+  "loginHelp": "Sign in in the new Chrome window, then return here to close it.",
+  "closeLogin": "Close sign-in window",
+  "duplicateGroup": "This group ID already exists.",
+  "addProvider": "Add provider",
+  "newGroup": "New group",
+  "stopToEdit": "Stop the gateway to edit its configuration.",
+  "reload": "Reload",
+  "reloadConfig": "Reload configuration",
+  "providerCount": "Providers: {count}",
+  "@providerCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "presetCount": "Choose from {count} API presets or enter a custom base URL.",
+  "@presetCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "providerHelp": "Add an upstream URL and model ID to enable client requests.",
+  "removeProvider": "Remove provider",
+  "webProviders": "Web providers",
+  "webHelp": "Use Chrome and a matching ChromeDriver. Select an added provider to sign in with its own browser profile.",
+  "webSite": "{value} Web",
+  "@webSite": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "groupNeedsProvider": "Add a provider and model before creating a route group.",
+  "groupHelp": "Add members in priority order. On rate limits or server errors, the gateway tries the next member.",
+  "removeGroup": "Remove group",
+  "recentAttempts": "Recent upstream attempts: {count}",
+  "@recentAttempts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyLimit": "Current gateway process · 128 most recent attempts",
+  "waiting": "Waiting for a client request.",
+  "historyHelp": "Start the gateway to see route history.",
+  "running": "Gateway running",
+  "stopped": "Gateway stopped",
+  "stop": "Stop gateway",
+  "start": "Start gateway",
+  "keyCopied": "Gateway key copied",
+  "copyKey": "Copy client key",
+  "networkSettings": "Network settings",
+  "browserOrigins": "Allowed browser origins (one per line)",
+  "localPeer": "Local peer ID",
+  "copyPeer": "Copy peer ID",
+  "peerCopied": "Peer ID copied",
+  "listenAddress": "Listen address",
+  "disabled": "Disabled",
+  "trustedPeers": "Trusted peers",
+  "clients": "Client connections",
+  "agentRoot": "Agent API root URL",
+  "copyRoot": "Copy root URL",
+  "rootCopied": "Root URL copied",
+  "agentHelp": "Append /v1 for Chat Completions and Responses clients. Route history shows the selected agent.",
+  "tunnel": "Remote gateway tunnel",
+  "disconnected": "Disconnected",
+  "connect": "Connect",
+  "disconnect": "Disconnect",
+  "apiBase": "API base URL",
+  "copyBase": "Copy base URL",
+  "baseCopied": "API base URL copied",
+  "changed": "Provider settings changed. Fetch models again.",
+  "modelsRead": "Models found: {count}. Edit the list before saving.",
+  "@modelsRead": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "presetLoaded": "Preset models loaded. Adjust the list for your account.",
+  "editProvider": "Edit provider",
+  "searchPresets": "Search presets by name",
+  "providerId": "Provider ID",
+  "keyEnv": "API key environment variable",
+  "keyHint": "Optional for local services or Bedrock with AWS IAM",
+  "resourceRoot": "Resource root URL",
+  "modelIds": "Upstream model IDs, one per line",
+  "protocolBase": "{value} base URL",
+  "@protocolBase": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "catalogUrl": "Model catalog URL (optional)",
+  "catalogHint": "Leave blank for the provider’s default catalog",
+  "readingModels": "Loading models",
+  "readModels": "Load model catalog",
+  "requiredField": "This field is required.",
+  "createGroup": "Create route group",
+  "editGroup": "Edit route group",
+  "groupId": "Route group ID",
+  "raisePriority": "Increase priority",
+  "removeMember": "Remove member",
+  "addCandidate": "Add candidate model",
+  "connectRemote": "Connect to remote gateway",
+  "remoteQuic": "Remote QUIC address (include /p2p/PeerID)",
+  "localTunnel": "Local tunnel listen address",
+  "tunnelHelp": "Trust this peer ID on the remote gateway. Clients connecting to the local tunnel use the remote gateway key.",
+  "loopback": "HTTP loopback address",
+  "peerListen": "P2P listen address (blank to disable)",
+  "allowedPeers": "Allowed peer IDs, one per line",
+  "rotateMembers": "Rotate the first member"
+}
