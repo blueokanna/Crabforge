@@ -1,5 +1,12 @@
 {
   "@@locale": "de",
+  "shareGroup": "Gruppe zum Teilen kopieren",
+  "groupCopied": "Gruppe in die Zwischenablage kopiert",
+  "importGroup": "Gruppe importieren",
+  "sharedGroupText": "Text der geteilten Gruppe",
+  "replaceGroup": "Vorhandene Gruppe mit derselben ID ersetzen",
+  "missingMembers": "Nicht verfügbare Mitglieder",
+  "replacedMembers": "Ersetzte Mitglieder",
   "routeSession": "Sitzung {id}",
   "enableGroup": "Gruppe aktivieren",
   "disableGroup": "Gruppe deaktivieren",

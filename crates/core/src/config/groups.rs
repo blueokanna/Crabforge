@@ -1,18 +1,25 @@
 use super::{Config, Provider};
 use std::collections::{BTreeMap, BTreeSet};
 mod share;
+mod pattern;
+pub use pattern::MemberPattern;
 pub use share::ImportedGroup;
 include!(concat!(env!("OUT_DIR"), "/catalog_names.rs"));
 
 /// Derived from the configured catalogs. Only explicit edits belong in settings.json.
 pub struct ResolvedGroups {
     pub members: BTreeMap<String, Vec<String>>,
+    /// Expanded members in display order, before resolving stored aliases.
+    pub expanded: BTreeMap<String, Vec<String>>,
     pub aliases: BTreeMap<String, String>,
     /// Public model ID for each internal group/<name> that has a vendor spelling.
     pub public_refs: BTreeMap<String, String>,
 }
 
 impl ResolvedGroups {
+    pub fn display_members<'a>(&'a self, config: &'a Config, name: &str) -> &'a Vec<String> {
+        self.expanded.get(name).or_else(|| config.groups.get(name)).unwrap_or_else(|| &self.members[name])
+    }
     pub fn listed_refs(&self, config: &Config) -> Vec<String> {
         self.ordered_names(&config.group_display_order)
             .into_iter()
@@ -110,7 +117,12 @@ impl Config {
         hidden
     }
 
-    fn free_group_name(&self, resolved: &ResolvedGroups, requested: &str, replacing: Option<&str>) -> (String, String) {
+    fn free_group_name(
+        &self,
+        resolved: &ResolvedGroups,
+        requested: &str,
+        replacing: Option<&str>,
+    ) -> (String, String) {
         let labels: BTreeSet<_> = resolved
             .members
             .keys()
@@ -124,7 +136,9 @@ impl Config {
             }
             label = format!("{requested} {n}");
         }
-        if let Some(id) = replacing { return (label, id.to_owned()); }
+        if let Some(id) = replacing {
+            return (label, id.to_owned());
+        }
         let slug = label
             .to_ascii_lowercase()
             .split(|c: char| !c.is_ascii_alphanumeric() && c != '.')
@@ -166,12 +180,23 @@ impl Config {
         let resolved = self.resolved_groups();
         let mut from = self.group_name(from);
         if !resolved.members.contains_key(&from)
-            && let Some((id, _)) = self.group_labels.iter().find(|(_, label)| label.to_lowercase() == from.to_lowercase()) {
+            && let Some((id, _)) = self
+                .group_labels
+                .iter()
+                .find(|(_, label)| label.to_lowercase() == from.to_lowercase())
+        {
             from.clone_from(id);
         }
-        let effective = resolved.members.get(&from).ok_or_else(|| anyhow::anyhow!("unknown route group {from}"))?;
+        let effective = resolved
+            .members
+            .get(&from)
+            .ok_or_else(|| anyhow::anyhow!("unknown route group {from}"))?;
         let source_label = self.group_labels.get(&from).unwrap_or(&from);
-        let requested = if name.trim().is_empty() { format!("{source_label} copy") } else { name.trim().to_owned() };
+        let requested = if name.trim().is_empty() {
+            format!("{source_label} copy")
+        } else {
+            name.trim().to_owned()
+        };
         let (label, id) = self.free_group_name(&resolved, &requested, None);
         let mut cfg = self.clone();
         cfg.groups.insert(
@@ -179,6 +204,8 @@ impl Config {
             self.groups.get(&from).unwrap_or(effective).clone(),
         );
         cfg.group_labels.insert(id.clone(), label);
+        if let Some(rules) = self.group_match.get(&from) { cfg.group_match.insert(id.clone(), rules.clone()); }
+        if let Some(order) = self.group_placed.get(&from) { cfg.group_placed.insert(id.clone(), order.clone()); }
         if self.group_unlists.contains(&from) {
             cfg.group_unlists.insert(id.clone());
         }
@@ -190,6 +217,9 @@ impl Config {
         }
         if let Some(weights) = self.group_weights.get(&from) {
             cfg.group_weights.insert(id.clone(), weights.clone());
+        }
+        if let Some(weights) = self.group_last_weights.get(&from) {
+            cfg.group_last_weights.insert(id.clone(), weights.clone());
         }
         if self.rotating_groups.contains(&from) {
             cfg.rotating_groups.insert(id.clone());
@@ -217,16 +247,12 @@ impl Config {
 
     /// Update a running manual group's selection without changing its members or strategy.
     pub fn pick_member(&mut self, group: &str, member: &str) -> anyhow::Result<()> {
+        let resolved = self.resolved_groups();
+        anyhow::ensure!(resolved.members.contains_key(group) && resolved.display_members(self,group).iter().any(|m|m == member), "unknown member {member} in group {group}");
         let pick = self
             .group_picks
             .get_mut(group)
             .ok_or_else(|| anyhow::anyhow!("group {group} does not use manual selection"))?;
-        anyhow::ensure!(
-            self.groups
-                .get(group)
-                .is_some_and(|members| members.iter().any(|m| m == member)),
-            "unknown member {member} in group {group}"
-        );
         *pick = member.to_owned();
         Ok(())
     }
@@ -258,8 +284,11 @@ impl Config {
             }
         }
         for (name, saved) in &mut cfg.groups {
-            for (id, effective) in saved.iter_mut().zip(&resolved.members[name]) {
-                if effective == &old {
+            for id in saved.iter_mut() {
+                if id == &old || resolved.aliases.get(id) == Some(&old) && (id.starts_with("group/") || self.canonical_auto_ref(id).is_some()) {
+                    if let Some(placed) = cfg.group_placed.get_mut(name) {
+                        for m in placed.iter_mut().filter(|m| *m == id) { m.clone_from(&new); }
+                    }
                     if let Some(off) = cfg.group_off.get_mut(name)
                         && off.remove(id)
                     {
@@ -272,10 +301,12 @@ impl Config {
                             pick.clone_from(&new);
                         }
                     }
-                    if let Some(weights) = cfg.group_weights.get_mut(name)
-                        && let Some(weight) = weights.remove(id)
-                    {
-                        weights.insert(new.clone(), weight);
+                    for strategy in [&mut cfg.group_weights, &mut cfg.group_last_weights] {
+                        if let Some(weights) = strategy.get_mut(name)
+                            && let Some(weight) = weights.remove(id)
+                        {
+                            weights.insert(new.clone(), weight);
+                        }
                     }
                     id.clone_from(&new);
                 }
@@ -283,6 +314,8 @@ impl Config {
         }
         let saved = cfg.groups.remove(&from).unwrap_or_else(|| members.clone());
         cfg.groups.insert(to.into(), saved);
+        if let Some(rules) = cfg.group_match.remove(&from) { cfg.group_match.insert(to.into(),rules); }
+        if let Some(order) = cfg.group_placed.remove(&from) { cfg.group_placed.insert(to.into(),order); }
         if cfg.disabled_groups.remove(&from) {
             cfg.disabled_groups.insert(to.into());
         }
@@ -301,8 +334,10 @@ impl Config {
         if cfg.rotating_groups.remove(&from) {
             cfg.rotating_groups.insert(to.into());
         }
-        if let Some(weights) = cfg.group_weights.remove(&from) {
-            cfg.group_weights.insert(to.into(), weights);
+        for strategy in [&mut cfg.group_weights, &mut cfg.group_last_weights] {
+            if let Some(weights) = strategy.remove(&from) {
+                strategy.insert(to.into(), weights);
+            }
         }
         for choices in [&mut cfg.group_picks, &mut cfg.group_last_picks] {
             if let Some(pick) = choices.remove(&from) {
@@ -348,7 +383,10 @@ impl Config {
         id.to_owned()
     }
     fn equivalent_name<'a>(&'a self, provider: &Provider, model: &'a str) -> &'a str {
-        let id = provider.id.as_str();
+        self.equivalent_model(&provider.id, &provider.catalog, model)
+    }
+
+    fn equivalent_model<'a>(&'a self, id: &str, catalog: &str, model: &'a str) -> &'a str {
         if !self.model_same_as.is_empty()
             && let Some(other) = self.model_same_as.get(&format!("{id}/{model}"))
         {
@@ -357,7 +395,7 @@ impl Config {
         if id == "workbuddy-ai" && model == "deepseek-v4.1-flash-sg" {
             return "deepseek-v4.1-flash";
         }
-        let catalogs = match (provider.catalog.trim(), id) {
+        let catalogs = match (catalog.trim(), id) {
             ("", "kimi-code") => "kimi-code-plan-global",
             ("", "kimi-code-cn") => "kimi-code-plan-cn",
             ("", "moonshot" | "moonshot-cn") => "moonshotai",
@@ -470,9 +508,16 @@ impl Config {
     pub fn resolved_groups(&self) -> ResolvedGroups {
         let mut groups = ResolvedGroups {
             members: self.groups.clone(),
+            expanded: BTreeMap::new(),
             aliases: BTreeMap::new(),
             public_refs: BTreeMap::new(),
         };
+        for name in self.group_match.keys() {
+            if let Some(members) = groups.members.get_mut(name) {
+                *members = self.expand_patterns(name,members);
+                groups.expanded.insert(name.clone(), members.clone());
+            }
+        }
         if (self.no_auto_groups || self.providers.len() < 2)
             && !self.groups.keys().any(|g| g.starts_with("auto-"))
             && self.former_groups.is_empty()

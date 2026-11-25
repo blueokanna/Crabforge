@@ -10,6 +10,27 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get shareGroup => 'साझा करने के लिए समूह कॉपी करें';
+
+  @override
+  String get groupCopied => 'समूह क्लिपबोर्ड पर कॉपी किया गया';
+
+  @override
+  String get importGroup => 'समूह आयात करें';
+
+  @override
+  String get sharedGroupText => 'साझा किए गए समूह का टेक्स्ट';
+
+  @override
+  String get replaceGroup => 'समान आईडी वाले मौजूदा समूह को बदलें';
+
+  @override
+  String get missingMembers => 'अनुपलब्ध सदस्य';
+
+  @override
+  String get replacedMembers => 'बदले गए सदस्य';
+
+  @override
   String routeSession(String id) {
     return 'सत्र $id';
   }

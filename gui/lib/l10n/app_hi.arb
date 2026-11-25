@@ -1,5 +1,12 @@
 {
   "@@locale": "hi",
+  "shareGroup": "साझा करने के लिए समूह कॉपी करें",
+  "groupCopied": "समूह क्लिपबोर्ड पर कॉपी किया गया",
+  "importGroup": "समूह आयात करें",
+  "sharedGroupText": "साझा किए गए समूह का टेक्स्ट",
+  "replaceGroup": "समान आईडी वाले मौजूदा समूह को बदलें",
+  "missingMembers": "अनुपलब्ध सदस्य",
+  "replacedMembers": "बदले गए सदस्य",
   "routeSession": "सत्र {id}",
   "enableGroup": "समूह चालू करें",
   "disableGroup": "समूह बंद करें",

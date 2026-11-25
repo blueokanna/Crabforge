@@ -233,6 +233,7 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
     let upstream_task = tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
     let dir = tempdir()?;
     let providers = ["busy", "ready"].map(|id| Provider {
+        free_models: Default::default(),
         catalog: String::new(),
         web_site: None,
         id: id.into(),

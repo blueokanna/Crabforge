@@ -175,11 +175,11 @@ fn router_with_client(
         .group_picks
         .keys()
         .filter(|name| !config.disabled_groups.contains(*name))
-        .map(|name| (name.clone(), config.groups[name].clone()))
+        .map(|name| (name.clone(), resolved.display_members(&config,name).clone()))
         .collect();
     for (group, weights) in &mut config.group_weights {
         let original = std::mem::take(weights);
-        for (id, target) in config.groups[group].iter().zip(&resolved.members[group]) {
+        for (id, target) in resolved.expanded.get(group).unwrap_or(&config.groups[group]).iter().zip(&resolved.members[group]) {
             if let Some(weight) = original.get(id) {
                 weights.insert(target.clone(), *weight);
             }
@@ -188,7 +188,7 @@ fn router_with_client(
     // Keep the full member list for manual groups, whose selected member always wins.
     for (name, off) in &config.group_off {
         if !config.group_picks.contains_key(name) {
-            let saved = &config.groups[name];
+            let saved = resolved.expanded.get(name).unwrap_or(&config.groups[name]);
             let canonical = resolved
                 .members
                 .get_mut(name)
@@ -1091,6 +1091,7 @@ mod tests {
             .find(|p| p["id"] == "bedrock")
             .unwrap();
         let p = Provider {
+            free_models: Default::default(),
             id: "aws".into(),
             catalog: String::new(),
             web_site: None,

@@ -42,6 +42,24 @@ Future<String> copiedGroup({
   from: from,
 );
 
+Future<String> sharedGroup({
+  required String configuration,
+  required String id,
+}) => RustLib.instance.api.crateApiSharedGroup(
+  configuration: configuration,
+  id: id,
+);
+
+Future<String> importedGroup({
+  required String configuration,
+  required String text,
+  required bool replace,
+}) => RustLib.instance.api.crateApiImportedGroup(
+  configuration: configuration,
+  text: text,
+  replace: replace,
+);
+
 Future<String> uiLanguage() => RustLib.instance.api.crateApiUiLanguage();
 
 Future<void> setUiLanguage({required String language}) =>

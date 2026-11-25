@@ -1,5 +1,12 @@
 {
   "@@locale": "es",
+  "shareGroup": "Copiar grupo para compartir",
+  "groupCopied": "Grupo copiado al portapapeles",
+  "importGroup": "Importar grupo",
+  "sharedGroupText": "Texto del grupo compartido",
+  "replaceGroup": "Reemplazar el grupo existente con el mismo ID",
+  "missingMembers": "Miembros no disponibles",
+  "replacedMembers": "Miembros sustituidos",
   "routeSession": "Sesión {id}",
   "enableGroup": "Activar grupo",
   "disableGroup": "Desactivar grupo",

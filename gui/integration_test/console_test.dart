@@ -6,6 +6,7 @@ import 'package:crabforge/language.dart';
 import 'package:crabforge/l10n/app_localizations.dart';
 import 'package:crabforge/src/rust/api.dart' as native;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -314,6 +315,34 @@ void main() {
     expect(copied['group_notes']['renamed-copy'], '备用 模型');
     expect(copied['group_weights']['renamed-copy'], {'local/desktop-model': 3});
     expect(copied['group_display_order'].take(2), ['renamed', 'renamed-copy']);
+    final shareButton = find.descendant(
+      of: renamedCard,
+      matching: find.byTooltip(zh.shareGroup),
+    );
+    String? shareText;
+    final messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        shareText = call.arguments['text'] as String;
+      }
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+    await tester.ensureVisible(shareButton);
+    await tester.tap(shareButton);
+    await waitFor(find.text(zh.groupCopied));
+    messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    expect(jsonDecode(shareText!)['group']['routing'], 'weight');
+    await tapText(zh.importGroup);
+    final importText = find.widgetWithText(TextField, zh.sharedGroupText);
+    await tester.enterText(importText, shareText!);
+    await tapText(zh.save);
+    await waitFor(find.text('group/renamed-2'));
+    final imported = jsonDecode(settings.readAsStringSync());
+    expect(imported['groups']['renamed-2'], ['local/desktop-model']);
+    expect(imported['group_weights']['renamed-2'], {'local/desktop-model': 3});
     final copyCard = find.widgetWithText(
       ListTile,
       'renamed copy · group/renamed-copy',

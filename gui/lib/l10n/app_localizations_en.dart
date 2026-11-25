@@ -10,6 +10,27 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get shareGroup => 'Copy group to share';
+
+  @override
+  String get groupCopied => 'Group copied to clipboard';
+
+  @override
+  String get importGroup => 'Import group';
+
+  @override
+  String get sharedGroupText => 'Shared group text';
+
+  @override
+  String get replaceGroup => 'Replace an existing group with the same ID';
+
+  @override
+  String get missingMembers => 'Unavailable members';
+
+  @override
+  String get replacedMembers => 'Member substitutions';
+
+  @override
   String routeSession(String id) {
     return 'Session $id';
   }

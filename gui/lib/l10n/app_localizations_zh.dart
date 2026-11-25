@@ -10,6 +10,27 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get shareGroup => '复制路由组以分享';
+
+  @override
+  String get groupCopied => '路由组已复制到剪贴板';
+
+  @override
+  String get importGroup => '导入路由组';
+
+  @override
+  String get sharedGroupText => '路由组分享文本';
+
+  @override
+  String get replaceGroup => '替换 ID 相同的已有路由组';
+
+  @override
+  String get missingMembers => '本机缺少的成员';
+
+  @override
+  String get replacedMembers => '已替换的成员';
+
+  @override
   String routeSession(String id) {
     return '会话 $id';
   }

@@ -1,5 +1,12 @@
 {
   "@@locale": "ko",
+  "shareGroup": "공유할 그룹 복사",
+  "groupCopied": "그룹을 클립보드에 복사했습니다",
+  "importGroup": "그룹 가져오기",
+  "sharedGroupText": "공유된 그룹 텍스트",
+  "replaceGroup": "같은 ID의 기존 그룹 교체",
+  "missingMembers": "사용할 수 없는 구성원",
+  "replacedMembers": "교체된 구성원",
   "routeSession": "세션 {id}",
   "enableGroup": "그룹 사용",
   "disableGroup": "그룹 사용 중지",

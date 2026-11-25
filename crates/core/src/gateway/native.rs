@@ -134,7 +134,7 @@ pub fn native_protocols(
             .get(name)
             .filter(|_| !config.group_picks.contains_key(name));
         let members = &groups.members[name];
-        let saved = config.groups.get(name).unwrap_or(members);
+        let saved = groups.display_members(config,name);
         let common = NativeProtocols::group(
             saved
                 .iter()

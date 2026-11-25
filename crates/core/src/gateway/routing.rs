@@ -75,7 +75,7 @@ impl Gateway {
     pub(super) fn live_members(&self, name: &str, picks: &BTreeMap<String, usize>) -> &[String] {
         let members = &self.config.groups[name];
         match picks.get(name) {
-            Some(&index) => std::slice::from_ref(&members[index]),
+            Some(&index) => members.get(index..=index).unwrap_or_default(),
             None => members,
         }
     }

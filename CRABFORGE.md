@@ -65,6 +65,10 @@ carbforge-cli serve
 
 `groups` 列出路由组。`group show 组名` 和 `group 组名` 可查看组的地址、备注、路由策略、成员状态及直接引用它的父组。
 
+从加权轮询切换到其他策略时，组会记住现有成员的权重。桌面重新选择「加权轮询」或 CLI 使用 `group set 组名 成员列表 --weighted` 可恢复这些权重。显式传入 `--weight 成员=权重` 会按新列表设置权重。
+
+在桌面组卡片上选择「复制路由组以分享」，在另一台设备的「路由组 → 导入路由组」中粘贴。CLI 可用 `carbforge-cli group share work` 输出 Magpie v1 分享文本，用 `carbforge-cli group import work.json` 从 UTF-8 文件导入，省略文件名则读取标准输入。默认追加为新组；已有自定义组的 ID 与分享文本相同时，`--replace` 在原位置更新它并保留启停状态。导入报告列出缺失成员和本机采用的等价模型。当前可传递顺序、轮询、加权和手选策略、成员开关、目录可见性、备注与历史地址。导入器遇到尚未支持的策略或设置会报告错误。
+
 用 `carbforge-cli group switch daily off` 或点击组卡片左侧的开关，可停用已保存的组。重启网关后，客户端目录会移除该组，向其当前或历史地址发送请求会收到 HTTP 404。顺序、轮询和加权父组会跳过它。手动父组选中它时，请选择另一个可用成员。`group switch daily on` 可恢复原有成员、策略和目录规则。停用期间仍可编辑组，复制得到的新组会启用。自动发现的组须先编辑保存才能切换。
 
 例如，`group set daily local/m group/backup --listed=no` 会在客户端目录中列出 `group/daily`，隐藏其直接成员 `local/m`。子组 `group/backup` 仍控制自己的模型列表。可以继续按完整地址调用隐藏的成员。桌面组编辑器提供同一开关，网关重启和 Agent 下次启动时读取设置。使用 `--listed=yes` 可恢复列出成员，其他组设置的隐藏规则仍然有效。

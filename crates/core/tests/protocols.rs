@@ -86,6 +86,7 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
         providers: formats
             .iter()
             .map(|name| Provider {
+                free_models: Default::default(),
                 id: name.to_string(),
                 catalog: String::new(),
                 web_site: None,

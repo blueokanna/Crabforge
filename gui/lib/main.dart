@@ -365,7 +365,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
             : rotatingGroups.contains(id)
             ? GroupStrategy.rotate
             : GroupStrategy.order,
-        weights: Map<String, int>.from(groupWeights[id] ?? {}),
+        weights: Map<String, int>.from(
+          groupWeights[id] ?? settings['group_last_weights']?[id] ?? {},
+        ),
         members: List<String>.from(savedGroups[id] ?? groups[id] ?? []),
         choices: [
           for (final p in providers)
@@ -412,6 +414,16 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         for (final e in (base['group_weights'] as JsonMap? ?? {}).entries)
           if (e.key != name) e.key: e.value,
         if (value.strategy == GroupStrategy.weight) name: value.weights,
+      },
+      'group_last_weights': {
+        for (final e in (base['group_last_weights'] as JsonMap? ?? {}).entries)
+          if (e.key != name) e.key: e.value,
+        if (value.strategy != GroupStrategy.weight &&
+            value.weights.values.any((w) => w > 1))
+          name: {
+            for (final e in value.weights.entries)
+              if (e.value > 1) e.key: e.value,
+          },
       },
       'group_picks': {
         for (final e in (base['group_picks'] as JsonMap? ?? {}).entries)
@@ -744,6 +756,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     ),
   ];
   List<Widget> groupsPage() => [
+    Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: TextButton.icon(
+        onPressed: busy || running ? null : importGroup,
+        icon: const Icon(Icons.file_download_outlined),
+        label: Text(context.strings.importGroup),
+      ),
+    ),
     SwitchListTile(
       title: Text(context.strings.autoGroups),
       value: settings['no_auto_groups'] != true,
@@ -879,6 +899,20 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                 icon: const Icon(Icons.copy_outlined),
               ),
               IconButton(
+                tooltip: context.strings.shareGroup,
+                onPressed: busy
+                    ? null
+                    : () => act(() async {
+                        final message = context.strings.groupCopied;
+                        final text = await api.sharedGroup(
+                          configuration: snapshot!,
+                          id: e.key,
+                        );
+                        await copy(text, message);
+                      }),
+                icon: const Icon(Icons.share_outlined),
+              ),
+              IconButton(
                 tooltip: context.strings.removeGroup,
                 onPressed: busy || running
                     ? null
@@ -915,6 +949,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                               if (e.key.startsWith('auto-')) e.key,
                             }.toList(),
                             'group_weights': {...groupWeights}..remove(e.key),
+                            'group_last_weights': {
+                              ...?settings['group_last_weights'] as JsonMap?,
+                            }..remove(e.key),
                             'group_picks': {...groupPicks}..remove(e.key),
                             'group_last_picks': {
                               ...?settings['group_last_picks'] as JsonMap?,
@@ -938,6 +975,48 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     order.removeAt(index);
     order.insert(index + step, name);
     return save({...settings, 'group_display_order': order});
+  }
+
+  Future<void> importGroup() async {
+    final previous = snapshot!;
+    final result = await showDialog<JsonMap>(
+      context: context,
+      builder: (_) => SharedGroupImport(configuration: previous),
+    );
+    if (!mounted || result == null) return;
+    await act(() async {
+      await persist(previous, jsonEncode(result['configuration']));
+      if (!mounted) return;
+      final report = result['report'] as JsonMap;
+      final missing = List<String>.from(report['missing']);
+      final instead = List<String>.from(report['instead']);
+      final ref = 'group/${report['id']}';
+      if (missing.isEmpty && instead.isEmpty) {
+        notice(ref);
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (c) => AlertDialog(
+          scrollable: true,
+          title: Text(ref),
+          content: SelectableText(
+            [
+              if (missing.isNotEmpty)
+                '${context.strings.missingMembers}\n${missing.join('\n')}',
+              if (instead.isNotEmpty)
+                '${context.strings.replacedMembers}\n${instead.join('\n')}',
+            ].join('\n\n'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: Text(MaterialLocalizations.of(c).closeButtonLabel),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   List<Widget> routesPage() {

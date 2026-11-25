@@ -10,6 +10,27 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get shareGroup => '공유할 그룹 복사';
+
+  @override
+  String get groupCopied => '그룹을 클립보드에 복사했습니다';
+
+  @override
+  String get importGroup => '그룹 가져오기';
+
+  @override
+  String get sharedGroupText => '공유된 그룹 텍스트';
+
+  @override
+  String get replaceGroup => '같은 ID의 기존 그룹 교체';
+
+  @override
+  String get missingMembers => '사용할 수 없는 구성원';
+
+  @override
+  String get replacedMembers => '교체된 구성원';
+
+  @override
   String routeSession(String id) {
     return '세션 $id';
   }

@@ -84,6 +84,73 @@ async fn group_display_order_survives_rename_and_reaches_all_model_lists() -> Re
 }
 
 #[test]
+fn shares_remap_members_and_replace_only_the_requested_group() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let settings = dir.path().join("settings.json");
+    let cfg = json!({"providers":[{"id":"local","models":["m","n"],"key_env":"PERSONAL_KEY","endpoints":{"chat":"http://127.0.0.1:1/v1"}}],
+        "groups":{"work":["local/n"],"parent":["group/work"]},"group_display_order":["parent","work"],"disabled_groups":["work"]});
+    fs::write(&settings, cfg.to_string())?;
+    let share = dir.path().join("shared.txt");
+    let mut doc = json!({"magpie":"routing-group","version":1,"group":{
+        "id":"work","name":"Parent","routing":"weight","members":["sender/m#secret","sender/m","old/m","local/n","lost/x"],
+        "weights":{"old/m":5,"sender/m":2,"lost/x":4},"off":["sender/m"],"pick":"local/n","unlists":true,
+        "accounts":["local/secret"],"keys":["secret"],"note":"priority   models"}});
+    fs::write(&share, format!("Shared in chat\n```json\n{doc}\n```"))?;
+    let run = |replace: bool| {
+        let mut args = vec!["group", "import", share.to_str().unwrap()];
+        if replace {
+            args.push("--replace");
+        }
+        group_cli(dir.path(), &args)
+    };
+    let report: Value = serde_json::from_str(&run(true)?)?;
+    assert_eq!(report["id"], "work");
+    assert_eq!(report["name"], "Parent 2");
+    assert_eq!(report["replaced"], true);
+    assert_eq!(report["missing"], json!(["lost/x"]));
+    assert_eq!(
+        report["instead"],
+        json!(["sender/m → local/m", "old/m → local/m"])
+    );
+    let saved: Value = serde_json::from_slice(&fs::read(&settings)?)?;
+    assert_eq!(saved["groups"]["parent"], cfg["groups"]["parent"]);
+    assert_eq!(saved["group_display_order"], cfg["group_display_order"]);
+    assert_eq!(saved["disabled_groups"], cfg["disabled_groups"]);
+    let exported = group_cli(dir.path(), &["group", "share", "group/work"])?;
+    for private in [
+        "secret",
+        "PERSONAL_KEY",
+        "127.0.0.1",
+        "accounts",
+        "disabled",
+    ] {
+        assert!(!exported.contains(private));
+    }
+    let clean: Value = serde_json::from_str(&exported)?;
+    assert_eq!(
+        clean["group"],
+        json!({"id":"work","name":"Parent 2","routing":"weight","members":["local/m","local/n"],"weights":{"local/m":5},"off":["local/m"],"pick":"local/n","note":"priority models","unlists":true})
+    );
+    fs::write(&share, exported)?;
+    let added: Value = serde_json::from_str(&run(false)?)?;
+    assert_eq!(added["id"], "parent-2-2");
+    let before = fs::read(&settings)?;
+    for (field, value) in [
+        ("members", json!(["nothing/here"])),
+        ("members", json!(["group/parent"])),
+        ("rules", json!([{"use":"local/m"}])),
+    ] {
+        let previous = doc["group"][field].clone();
+        doc["group"][field] = value;
+        fs::write(&share, doc.to_string())?;
+        assert!(run(true).is_err());
+        assert_eq!(fs::read(&settings)?, before);
+        doc["group"][field] = previous;
+    }
+    Ok(())
+}
+
+#[test]
 fn copying_groups_preserves_independent_strategies_labels_and_discovered_members() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let cfg = json!({"providers":[
@@ -125,6 +192,26 @@ fn copying_groups_preserves_independent_strategies_labels_and_discovered_members
             .rotating_groups
             .contains("rotated")
     );
+    let text = run(&["group", "share", "rotated"])?;
+    let exported: Value = serde_json::from_str(&text)?;
+    assert_eq!(exported["group"]["routing"], "rotate");
+    assert_eq!(exported["group"]["weights"], json!({"b/m":3}));
+    let file = dir.path().join("share.json");
+    fs::write(&file, text)?;
+    let imported: Value =
+        serde_json::from_str(&run(&["group", "import", file.to_str().unwrap()])?)?;
+    let id = imported["id"].as_str().unwrap();
+    run(&["group", "rename", id, "retained"])?;
+    assert_eq!(
+        config::load(dir.path())?.group_last_weights["retained"]["b/m"],
+        3
+    );
+    run(&["group", "set", "retained", "a/m", "b/m", "--weighted"])?;
+    assert_eq!(
+        config::load(dir.path())?.group_weights["retained"]["b/m"],
+        3
+    );
+    run(&["group", "remove", "retained"])?;
     run(&["group", "copy", "auto/m", "我的组"])?;
     run(&["group", "auto", "off"])?;
     let cfg = config::load(dir.path())?;

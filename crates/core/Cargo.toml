@@ -13,11 +13,11 @@ percent-encoding = "2"
 ring = "0.17"
 rustls-pki-types = "1"
 tokio = { workspace = true, features = ["process"] }
-courierust = { version = "1.1.3", default-features = false }
-nextjson = {version = "0.1.5", features = ["derive"] }
-recurse-x = { version = "0.2.6", default-features = false }
-rustbinary = { version = "0.1.10", default-features = false }
-libp2p = { version = "0.57.1", features = [
+courierust = { version = "=1.1.3", default-features = false }
+nextjson = { version = "=0.1.5", features = ["derive"] }
+recurse-x = { version = "=0.2.6", default-features = false }
+rustbinary = { version = "=0.1.10", default-features = false }
+libp2p = { version = "=0.57.1", features = [
     "ed25519",
     "tokio",
     "quic",
@@ -41,6 +41,8 @@ subtle = "2"
 tempfile = "3"
 open = "5"
 futures-util = "0.3"
+fancy-regex = "0.16.2"
+regex = "1"
 async-stream = "0.3"
 getrandom = "0.4"
 flutter_rust_bridge = { version = "2.13" }

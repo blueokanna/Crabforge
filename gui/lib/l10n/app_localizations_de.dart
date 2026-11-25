@@ -10,6 +10,27 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get shareGroup => 'Gruppe zum Teilen kopieren';
+
+  @override
+  String get groupCopied => 'Gruppe in die Zwischenablage kopiert';
+
+  @override
+  String get importGroup => 'Gruppe importieren';
+
+  @override
+  String get sharedGroupText => 'Text der geteilten Gruppe';
+
+  @override
+  String get replaceGroup => 'Vorhandene Gruppe mit derselben ID ersetzen';
+
+  @override
+  String get missingMembers => 'Nicht verfügbare Mitglieder';
+
+  @override
+  String get replacedMembers => 'Ersetzte Mitglieder';
+
+  @override
   String routeSession(String id) {
     return 'Sitzung $id';
   }

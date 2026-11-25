@@ -14,7 +14,7 @@ use tempfile::NamedTempFile;
 mod groups;
 mod origins;
 pub use crate::anthropic_auth::AuthHeader;
-pub use groups::{ImportedGroup, ResolvedGroups};
+pub use groups::{ImportedGroup, MemberPattern, ResolvedGroups};
 
 pub const MAX_CONFIG: usize = 1024 * 1024;
 pub const MAX_MEMBER_WEIGHT: u32 = 1000;
@@ -49,6 +49,9 @@ pub struct Provider {
     #[serde(default)]
     pub key_env: String,
     pub models: Vec<String>,
+    /// IDs the provider catalog explicitly marks free.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub free_models: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -59,6 +62,10 @@ pub struct Config {
     pub cors_origins: BTreeSet<String>,
     pub providers: Vec<Provider>,
     pub groups: BTreeMap<String, Vec<String>>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub group_match: BTreeMap<String, Vec<MemberPattern>>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub group_placed: BTreeMap<String, Vec<String>>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_labels: BTreeMap<String, String>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
@@ -88,6 +95,9 @@ pub struct Config {
     pub rotating_groups: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_weights: BTreeMap<String, BTreeMap<String, u32>>,
+    /// Member weights retained while a group uses another strategy.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub group_last_weights: BTreeMap<String, BTreeMap<String, u32>>,
     /// A manual group routes only to its selected member, or its first if the selection is gone.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_picks: BTreeMap<String, String>,
@@ -105,6 +115,8 @@ impl Default for Config {
             cors_origins: BTreeSet::new(),
             providers: vec![],
             groups: BTreeMap::new(),
+            group_match: BTreeMap::new(),
+            group_placed: BTreeMap::new(),
             group_labels: BTreeMap::new(),
             group_notes: BTreeMap::new(),
             group_off: BTreeMap::new(),
@@ -118,6 +130,7 @@ impl Default for Config {
             model_same_as: BTreeMap::new(),
             rotating_groups: BTreeSet::new(),
             group_weights: BTreeMap::new(),
+            group_last_weights: BTreeMap::new(),
             group_picks: BTreeMap::new(),
             group_last_picks: BTreeMap::new(),
             peer_listen: String::new(),
@@ -414,6 +427,8 @@ impl Config {
             "rotation references an unknown group"
         );
         let resolved = self.resolved_groups();
+        ensure!(self.group_match.keys().all(|id|self.groups.contains_key(id)), "patterns reference an unknown route group");
+        ensure!(self.group_placed.keys().all(|id|self.group_match.contains_key(id)), "member placement requires a group with patterns");
         ensure!(
             self.disabled_groups
                 .iter()
@@ -432,7 +447,7 @@ impl Config {
                 .get(name)
                 .context("disabled members for unknown group")?;
             ensure!(
-                self.group_picks.contains_key(name) || members.iter().any(|m| !off.contains(m)),
+                self.group_match.contains_key(name) || self.group_picks.contains_key(name) || members.iter().any(|m| !off.contains(m)),
                 "all members of group {name} are switched off"
             );
         }
@@ -467,7 +482,7 @@ impl Config {
         }
         for (group, members) in &resolved.members {
             ensure!(
-                valid_group_name(group) && !members.is_empty(),
+                valid_group_name(group) && (!members.is_empty() || self.group_match.get(group).is_some_and(|p|!p.is_empty())),
                 "invalid or empty route group"
             );
             let mut seen = HashSet::new();
@@ -501,19 +516,21 @@ impl Config {
                 "group {group}: select one routing strategy"
             );
         }
-        for (group, weights) in &self.group_weights {
+        for (group, weights) in self.group_weights.iter().chain(&self.group_last_weights) {
             let members = self
                 .groups
                 .get(group)
                 .context("weights reference an unknown group")?;
             ensure!(
-                !self.rotating_groups.contains(group),
+                !self.group_weights.contains_key(group)
+                    || (!self.rotating_groups.contains(group)
+                        && !self.group_last_weights.contains_key(group)),
                 "group {group}: select one routing strategy"
             );
             let members: HashSet<_> = members.iter().collect();
             for (id, weight) in weights {
                 ensure!(
-                    members.contains(id) && (1..=MAX_MEMBER_WEIGHT).contains(weight),
+                    (members.contains(id) || self.group_match.get(group).is_some_and(|r|r.iter().any(|r|r.matches(id,true)))) && (1..=MAX_MEMBER_WEIGHT).contains(weight),
                     "group {group}: invalid member or weight for {id} (expected 1 to {MAX_MEMBER_WEIGHT})"
                 );
             }
@@ -532,9 +549,19 @@ impl Config {
         ensure!(text.len() <= MAX_CONFIG, "configuration exceeds 1 MiB");
         let mut config: Self = serde_json::from_str(text)?;
         config.cors_origins = origins::clean(&config.cors_origins)?;
+        config.group_match.retain(|_,rules| {
+            let mut seen=HashSet::new();
+            rules.retain(|rule|seen.insert(rule.as_str().to_owned()));
+            !rules.is_empty()
+        });
+        config.group_placed.retain(|_,ids| {
+            let mut seen=HashSet::new();
+            ids.retain(|id|seen.insert(id.clone()));
+            !ids.is_empty()
+        });
         config.group_off.retain(|group, off| {
             if let Some(members) = config.groups.get(group) {
-                off.retain(|m| members.contains(m));
+                off.retain(|m| members.contains(m) || config.group_match.get(group).is_some_and(|r|r.iter().any(|r|r.matches(m,true))));
             }
             !off.is_empty()
         });

@@ -73,6 +73,16 @@ enum Command {
 #[derive(Subcommand)]
 enum GroupCommand {
     List,
+    /// Print this group's portable Magpie routing-group JSON.
+    Share {
+        id: String,
+    },
+    /// Import a shared group from a UTF-8 file or from standard input.
+    Import {
+        file: Option<PathBuf>,
+        #[arg(long)]
+        replace: bool,
+    },
     /// Show one group's address, strategy, members, note and parent groups.
     Show {
         id: String,
@@ -135,6 +145,9 @@ enum GroupCommand {
         listed: Option<String>,
         #[arg(long)]
         rotate: bool,
+        /// Resume weighted routing with the saved weights, defaulting to one per member.
+        #[arg(long, conflicts_with_all=["rotate", "manual", "pick"])]
+        weighted: bool,
         /// Resume manual selection, using the last pick if it is still a member.
         #[arg(long, conflicts_with_all=["rotate", "weight", "pick"])]
         manual: bool,
@@ -174,6 +187,23 @@ pub async fn run() -> Result<()> {
             let previous = config::snapshot(&dir)?;
             let mut cfg = config::Config::parse(&previous)?;
             match command.unwrap_or(GroupCommand::List) {
+                GroupCommand::Share { id } => println!("{}", cfg.share_group(&id)?),
+                GroupCommand::Import { file, replace } => {
+                    use std::io::Read;
+                    let reader: Box<dyn Read> = match file {
+                        Some(path) if path.as_os_str() != "-" => {
+                            Box::new(std::fs::File::open(path)?)
+                        }
+                        _ => Box::new(std::io::stdin().lock()),
+                    };
+                    let mut text = String::new();
+                    reader
+                        .take(config::MAX_CONFIG as u64 + 1)
+                        .read_to_string(&mut text)?;
+                    let (modified, report) = cfg.import_group(&text, replace)?;
+                    config::save(&dir, &previous, &serde_json::to_string(&modified)?)?;
+                    println!("{}", serde_json::to_string(&report)?);
+                }
                 GroupCommand::Show { id } => groups::show(&cfg, &id)?,
                 GroupCommand::ByName(args) => {
                     ensure!(args.len() == 1, "expected group show <id>");
@@ -183,14 +213,11 @@ pub async fn run() -> Result<()> {
                     let name = cfg.group_name(&id);
                     let resolved = cfg.resolved_groups();
                     let effective = resolved.members.get(&name).context("unknown route group")?;
-                    let members = cfg
+                    ensure!(resolved.display_members(&cfg,&name).contains(&member),"unknown member {member} in group {name}");
+                    cfg
                         .groups
                         .entry(name.clone())
                         .or_insert_with(|| effective.clone());
-                    ensure!(
-                        members.contains(&member),
-                        "unknown member {member} in group {name}"
-                    );
                     let off = cfg.group_off.entry(name).or_default();
                     if mode == "off" {
                         off.insert(member);
@@ -229,7 +256,7 @@ pub async fn run() -> Result<()> {
                 GroupCommand::List => {
                     let groups = cfg.resolved_groups();
                     for name in groups.ordered_names(&cfg.group_display_order) {
-                        let members = cfg.groups.get(name).unwrap_or(&groups.members[name]);
+                        let members = groups.display_members(&cfg,name);
                         let legacy = format!("group/{name}");
                         let id = groups.public_refs.get(&legacy).unwrap_or(&legacy);
                         let state = if cfg.disabled_groups.contains(name) {
@@ -254,7 +281,7 @@ pub async fn run() -> Result<()> {
                             .unwrap_or_default();
                         let strategy = if let Some(pick) = cfg.group_picks.get(name) {
                             let selected =
-                                members.iter().find(|m| *m == pick).unwrap_or(&members[0]);
+                                members.iter().find(|m| *m == pick).or(members.first()).map_or("",String::as_str);
                             println!(
                                 "{id}\tmanual\t{selected}\t{}{off}{state}",
                                 members.join(" ")
@@ -310,11 +337,15 @@ pub async fn run() -> Result<()> {
                     note,
                     listed,
                     rotate,
+                    weighted,
                     manual,
                     pick,
                     weight,
                 } => {
                     let id = cfg.group_name(&id);
+                    let (rules,named): (Vec<_>,Vec<_>) = members.into_iter().partition(|m| config::MemberPattern::is_pattern(m));
+                    cfg.set_member_patterns(&id,rules)?;
+                    let members = cfg.expand_patterns(&id,&named);
                     let previous_pick = cfg
                         .group_picks
                         .remove(&id)
@@ -329,12 +360,17 @@ pub async fn run() -> Result<()> {
                     } else if manual {
                         cfg.group_picks.insert(
                             id.clone(),
-                            previous_pick.unwrap_or_else(|| members[0].clone()),
+                             previous_pick.or_else(||members.first().cloned()).unwrap_or_default(),
                         );
                     } else if let Some(pick) = previous_pick {
                         cfg.group_last_picks.insert(id.clone(), pick);
                     }
-                    cfg.group_weights.remove(&id);
+                    let mut previous_weights = cfg
+                        .group_weights
+                        .remove(&id)
+                        .or_else(|| cfg.group_last_weights.remove(&id))
+                        .unwrap_or_default();
+                    previous_weights.retain(|member, _| members.contains(member));
                     if !weight.is_empty() {
                         let count = weight.len();
                         let weights = weight
@@ -342,6 +378,10 @@ pub async fn run() -> Result<()> {
                             .collect::<std::collections::BTreeMap<_, _>>();
                         ensure!(weights.len() == count, "duplicate member weight");
                         cfg.group_weights.insert(id.clone(), weights);
+                    } else if weighted {
+                        cfg.group_weights.insert(id.clone(), previous_weights);
+                    } else if !previous_weights.is_empty() {
+                        cfg.group_last_weights.insert(id.clone(), previous_weights);
                     }
                     if rotate {
                         cfg.rotating_groups.insert(id.clone());
@@ -361,7 +401,7 @@ pub async fn run() -> Result<()> {
                     if let Some(note) = note {
                         cfg.group_notes.insert(id.clone(), note);
                     }
-                    cfg.groups.insert(id, members);
+                    cfg.groups.insert(id, named);
                     cfg.former_groups
                         .retain(|old, _| !cfg.groups.contains_key(old));
                     config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
@@ -373,6 +413,8 @@ pub async fn run() -> Result<()> {
                         "unknown route group"
                     );
                     cfg.groups.remove(&id);
+                    cfg.group_match.remove(&id);
+                    cfg.group_placed.remove(&id);
                     cfg.group_labels.remove(&id);
                     cfg.group_notes.remove(&id);
                     cfg.group_off.remove(&id);
@@ -385,6 +427,7 @@ pub async fn run() -> Result<()> {
                     }
                     cfg.rotating_groups.remove(&id);
                     cfg.group_weights.remove(&id);
+                    cfg.group_last_weights.remove(&id);
                     cfg.group_picks.remove(&id);
                     cfg.group_last_picks.remove(&id);
                     config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;

@@ -1,5 +1,12 @@
 {
   "@@locale": "ja",
+  "shareGroup": "共有用にグループをコピー",
+  "groupCopied": "グループをクリップボードにコピーしました",
+  "importGroup": "グループをインポート",
+  "sharedGroupText": "共有されたグループのテキスト",
+  "replaceGroup": "同じ ID の既存グループを置き換える",
+  "missingMembers": "利用できないメンバー",
+  "replacedMembers": "置き換えたメンバー",
   "routeSession": "セッション {id}",
   "enableGroup": "グループを有効にする",
   "disableGroup": "グループを無効にする",

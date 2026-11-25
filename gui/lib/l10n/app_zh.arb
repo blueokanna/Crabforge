@@ -1,5 +1,12 @@
 {
   "@@locale": "zh",
+  "shareGroup": "复制路由组以分享",
+  "groupCopied": "路由组已复制到剪贴板",
+  "importGroup": "导入路由组",
+  "sharedGroupText": "路由组分享文本",
+  "replaceGroup": "替换 ID 相同的已有路由组",
+  "missingMembers": "本机缺少的成员",
+  "replacedMembers": "已替换的成员",
   "routeSession": "会话 {id}",
   "enableGroup": "启用路由组",
   "disableGroup": "停用路由组",

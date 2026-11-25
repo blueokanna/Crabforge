@@ -7,6 +7,90 @@ import 'src/rust/api.dart' as api;
 
 typedef JsonMap = Map<String, dynamic>;
 
+class SharedGroupImport extends StatefulWidget {
+  const SharedGroupImport({super.key, required this.configuration});
+  final String configuration;
+
+  @override
+  State<SharedGroupImport> createState() => _SharedGroupImportState();
+}
+
+class _SharedGroupImportState extends State<SharedGroupImport> {
+  String text = '';
+  String? error;
+  bool replace = false;
+  bool loading = false;
+
+  Future<void> submit() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final result = await api.importedGroup(
+        configuration: widget.configuration,
+        text: text,
+        replace: replace,
+      );
+      if (mounted) Navigator.pop(context, jsonDecode(result) as JsonMap);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          error = '$e';
+          loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
+    title: Text(context.strings.importGroup),
+    content: SizedBox(
+      width: 480,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            autofocus: true,
+            enabled: !loading,
+            minLines: 3,
+            maxLines: 8,
+            decoration: InputDecoration(
+              labelText: context.strings.sharedGroupText,
+              errorText: error,
+              errorMaxLines: 5,
+            ),
+            onChanged: (value) => setState(() {
+              text = value;
+              error = null;
+            }),
+          ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(context.strings.replaceGroup),
+            value: replace,
+            onChanged: loading
+                ? null
+                : (value) => setState(() => replace = value ?? false),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(context.strings.cancel),
+      ),
+      FilledButton(
+        onPressed: loading || text.trim().isEmpty ? null : submit,
+        child: Text(context.strings.save),
+      ),
+    ],
+  );
+}
+
 const protocolLabels = {
   'chat': 'Chat Completions',
   'responses': 'Responses',

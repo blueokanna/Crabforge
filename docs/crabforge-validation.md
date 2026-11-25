@@ -273,3 +273,26 @@ Windows 桌面集成通过会话响应头、路由页会话译文、停用组和
 ### Oh My Pi 原生协议
 
 在固定源码快照 `crabforge-native-src-0a247f95-a4d1-4015-adb3-c70dcbdf3413` 上执行含忽略项的全工作区串行回归，共 64 项通过，文档测试也已通过。Oh My Pi 19.2.1 的同一个验收用例依次将 `local/m` 交给四个独立的本地上游，分别使用 Chat Completions、Responses、Anthropic Messages 和 Gemini 并收到回复。网关模型目录和单模型查询另核对了原生端点、首选端点、组别名及停用成员。这批源码早于命名 profile 和浏览器来源设置。
+
+### 浏览器来源与 Oh My Pi 命名 profile
+
+冻结源码 `crabforge-cors-profile-src-5a018d3e-62c5-46b5-be93-7eee4b5c6781` 的 66 项 Rust 测试全部通过，包含所有忽略项，三个 crate 的文档测试也通过。真实 Chrome 在获准来源读到了两个会话头，用错误密钥得到 401，未获准来源无法读取响应。Oh My Pi 19.2.1 在四种协议的对话中验证了显式 profile、`OMP_PROFILE`、`PI_PROFILE` 的优先级和空环境变量的行为。四次运行均使用隔离配置和本地上游。
+
+同批 Windows 桌面集成验证了来源编辑、保存时移除 HTTPS 默认端口和带 Origin 的网关请求，随后在独立进程中通过冷启动测试。网关三轮中位数与原始 CSV 对应 `%LOCALAPPDATA%\Temp\opencode\crabforge-browser-profiles-c6c6935c-e3d3-4036-98fd-630ff35ddce8` 中的双 CLI。
+
+| 负载 | Crabforge 工作集 / 私有字节 MiB | Magpie 工作集 / 私有字节 MiB |
+| --- | ---: | ---: |
+| Catalog | 7.45 / 1.32 | 57.69 / 91.78 |
+| Chat | 8.43 / 1.46 | 68.34 / 97.58 |
+
+`carbforge-cli.exe` SHA-256 为 `ABC10B9B2F75A93CB957E0D05AFF633278E36AFB9A220D39D21C5158798433E3`，`crabforge-cli.exe` 为 `9D4BCB661C4492E2E6B994AE55DAC22C18D250179BAF44CF98BA6FA0A24F49DF`。
+
+后续 profile 发现改动已通过原生参数边界单测，以及两个 Oh My Pi 真实客户端专项。后者覆盖自定义配置根目录、profile 列表及活动标记、透传 `--profile` 覆盖启动器选项、空值与 `default` 回到隔离目录、非法名称报错和四种协议的对话。该改动晚于上述 66 项快照。
+
+此浏览器来源版 Windows Release 的 7 个随包资源逐一通过 SHA-256 比较，EXE 中的 10 张图标与 ICO 内容一致，五个字体覆盖该版九语译文使用的 732 个非空白字符。三轮桌面采样的工作集 / 私有字节中位数为 Crabforge `149.23 / 255.93` MiB、已打开的 Magpie 主进程 `170.39 / 242.28` MiB、含 WebView2 的 Magpie 进程树 `1006.33 / 1662.98` MiB。Magpie 窗口保留了原有会话，这组桌面数据只反映采样时的状态。
+
+| 桌面产物 | SHA-256 |
+| --- | --- |
+| crabforge.exe | `D0E1A6AA74767A58C0174ECE292779B73E5058CA49802BAA371B3FD2AFD9A81D` |
+| crabforge_bridge.dll | `9FCE55DAE8A83E511DCB4C29FA558C7CFEEB8C5C9C441BE0A8E10359E2DE25E5` |
+| data/app.so | `EA3D502B93B0282809D211398656B0EF2F588EED5399255CD96B86202A3AC3BA` |

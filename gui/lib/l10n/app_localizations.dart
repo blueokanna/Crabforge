@@ -112,6 +112,48 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @shareGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy group to share'**
+  String get shareGroup;
+
+  /// No description provided for @groupCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Group copied to clipboard'**
+  String get groupCopied;
+
+  /// No description provided for @importGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Import group'**
+  String get importGroup;
+
+  /// No description provided for @sharedGroupText.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared group text'**
+  String get sharedGroupText;
+
+  /// No description provided for @replaceGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace an existing group with the same ID'**
+  String get replaceGroup;
+
+  /// No description provided for @missingMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable members'**
+  String get missingMembers;
+
+  /// No description provided for @replacedMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Member substitutions'**
+  String get replacedMembers;
+
   /// No description provided for @routeSession.
   ///
   /// In en, this message translates to:

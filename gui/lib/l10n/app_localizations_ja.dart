@@ -10,6 +10,27 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get shareGroup => '共有用にグループをコピー';
+
+  @override
+  String get groupCopied => 'グループをクリップボードにコピーしました';
+
+  @override
+  String get importGroup => 'グループをインポート';
+
+  @override
+  String get sharedGroupText => '共有されたグループのテキスト';
+
+  @override
+  String get replaceGroup => '同じ ID の既存グループを置き換える';
+
+  @override
+  String get missingMembers => '利用できないメンバー';
+
+  @override
+  String get replacedMembers => '置き換えたメンバー';
+
+  @override
   String routeSession(String id) {
     return 'セッション $id';
   }

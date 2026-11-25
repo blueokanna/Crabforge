@@ -68,7 +68,7 @@ pub fn route_groups(configuration: String) -> Result<String> {
     let cfg = config::Config::parse(&configuration)?;
     let groups = cfg.resolved_groups();
     Ok(serde_json::to_string(
-        &serde_json::json!({"members":groups.members,"public_refs":groups.public_refs,"order":groups.ordered_names(&cfg.group_display_order)}),
+        &serde_json::json!({"members":groups.members,"expanded":groups.expanded,"public_refs":groups.public_refs,"order":groups.ordered_names(&cfg.group_display_order)}),
     )?)
 }
 
@@ -80,6 +80,17 @@ pub fn renamed_group(configuration: String, from: String, to: String) -> Result<
 pub fn copied_group(configuration: String, from: String) -> Result<String> {
     let (cfg, _) = config::Config::parse(&configuration)?.copied_group(&from, "")?;
     Ok(serde_json::to_string(&cfg)?)
+}
+
+pub fn shared_group(configuration: String, id: String) -> Result<String> {
+    config::Config::parse(&configuration)?.share_group(&id)
+}
+
+pub fn imported_group(configuration: String, text: String, replace: bool) -> Result<String> {
+    let (cfg, report) = config::Config::parse(&configuration)?.import_group(&text, replace)?;
+    Ok(serde_json::to_string(
+        &serde_json::json!({"configuration": cfg, "report": report}),
+    )?)
 }
 
 pub fn ui_language() -> Result<String> {

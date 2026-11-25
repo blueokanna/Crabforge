@@ -1,5 +1,12 @@
 {
   "@@locale": "en",
+  "shareGroup": "Copy group to share",
+  "groupCopied": "Group copied to clipboard",
+  "importGroup": "Import group",
+  "sharedGroupText": "Shared group text",
+  "replaceGroup": "Replace an existing group with the same ID",
+  "missingMembers": "Unavailable members",
+  "replacedMembers": "Member substitutions",
   "routeSession": "Session {id}",
   "@routeSession": {"placeholders": {"id": {"type": "String"}}},
   "enableGroup": "Enable group",
