@@ -1,11 +1,11 @@
+use crate::upstream::ForwardClient;
 use anyhow::Result;
 use axum::{
-    body::Bytes,
-    http::{Response as HttpResponse, StatusCode, header::AUTHORIZATION},
+    body::{Body, Bytes},
+    http::{Request, StatusCode, header::AUTHORIZATION},
+    response::Response,
 };
 use futures_util::{StreamExt, stream};
-use http_body_util::BodyExt;
-use reqwest::{Body, RequestBuilder, Response};
 use std::sync::OnceLock;
 
 string_enum! {
@@ -57,7 +57,7 @@ pub(crate) fn conflict(body: &[u8]) -> bool {
 
 /// Inspect a bounded prefix while retaining the original response for unrelated 401s.
 async fn inspect(response: Response) -> Result<(bool, Response)> {
-    let (parts, body) = HttpResponse::<Body>::from(response).into_parts();
+    let (parts, body) = response.into_parts();
     let mut data = body.into_data_stream();
     let mut prefix = Vec::new();
     let mut tail = Bytes::new();
@@ -71,24 +71,23 @@ async fn inspect(response: Response) -> Result<(bool, Response)> {
         tail = chunk;
     }
     let refused = conflict(&prefix);
-    let body = Body::wrap_stream(stream::iter([Ok(Bytes::from(prefix)), Ok(tail)]).chain(data));
-    Ok((refused, HttpResponse::from_parts(parts, body).into()))
+    let body = Body::from_stream(stream::iter([Ok(Bytes::from(prefix)), Ok(tail)]).chain(data));
+    Ok((refused, Response::from_parts(parts, body)))
 }
 
 /// Only a third-party Messages request initially carrying both provider credentials
 /// may negotiate. Other protocols retain their original transport and signing path.
 pub(crate) async fn send(
-    builder: RequestBuilder,
+    client: &ForwardClient,
+    mut request: Request<Vec<Bytes>>,
     learned: &OnceLock<AuthHeader>,
 ) -> Result<Response> {
-    let (client, request) = builder.build_split();
-    let mut request = request?;
     if !request.headers().contains_key(AUTHORIZATION)
         || !request.headers().contains_key("x-api-key")
     {
-        return Ok(client.execute(request).await?);
+        return client.send(request).await;
     }
-    let single = |r: &mut reqwest::Request, mode: AuthHeader| match mode {
+    let single = |r: &mut Request<Vec<Bytes>>, mode: AuthHeader| match mode {
         AuthHeader::ApiKey => {
             r.headers_mut().remove(AUTHORIZATION);
         }
@@ -99,29 +98,18 @@ pub(crate) async fn send(
     };
     if let Some(&mode) = learned.get() {
         single(&mut request, mode);
-        return Ok(client.execute(request).await?);
+        return client.send(request).await;
     }
-    if request.body().is_some_and(|b| b.as_bytes().is_none()) {
-        let body = request
-            .body_mut()
-            .take()
-            .unwrap()
-            .collect()
-            .await?
-            .to_bytes();
-        *request.body_mut() = Some(body.into());
-    }
-    let template = request.try_clone().expect("replayable Messages body");
-    let response = client.execute(request).await?;
+    let response = client.send(request.clone()).await?;
     if response.status() != StatusCode::UNAUTHORIZED {
         return Ok(response);
     }
     let (refused, mut response) = inspect(response).await?;
     if refused {
         for mode in [AuthHeader::ApiKey, AuthHeader::Bearer] {
-            let mut request = template.try_clone().expect("replayable Messages body");
-            single(&mut request, mode);
-            response = client.execute(request).await?;
+            let mut attempt = request.clone();
+            single(&mut attempt, mode);
+            response = client.send(attempt).await?;
             if !matches!(
                 response.status(),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN

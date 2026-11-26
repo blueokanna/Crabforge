@@ -2,8 +2,35 @@ use super::*;
 use http_body_util::BodyExt;
 use hyper::{server::conn::http1, service::service_fn};
 use hyper_util::rt::TokioIo;
+use reqwest::Client;
 use tokio::net::TcpListener;
 use tokio_rustls::{TlsAcceptor, rustls};
+use ureq::{
+    Agent,
+    config::Config as HttpConfig,
+    tls::{Certificate, RootCerts, TlsConfig},
+    unversioned::{
+        resolver::{ResolvedSocketAddrs, Resolver},
+        transport::{DefaultConnector, NextTimeout},
+    },
+};
+
+#[derive(Debug)]
+struct FixtureAddress(std::net::SocketAddr);
+
+impl Resolver for FixtureAddress {
+    fn resolve(
+        &self,
+        uri: &axum::http::Uri,
+        _: &HttpConfig,
+        _: NextTimeout,
+    ) -> Result<ResolvedSocketAddrs, ureq::Error> {
+        assert_eq!(uri.host(), Some("opencode.ai"));
+        let mut addresses = self.empty();
+        addresses.push(self.0);
+        Ok(addresses)
+    }
+}
 
 #[tokio::test]
 async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> Result<()> {
@@ -15,12 +42,23 @@ async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> 
     let certificate =
         rcgen::CertificateParams::new(vec!["opencode.ai".to_string()])?.self_signed(&key)?;
     let cert = certificate.der();
-    let client = Client::builder()
-        .no_proxy()
-        .resolve("opencode.ai", address)
-        .tls_certs_only([reqwest::Certificate::from_der(cert)?])
-        .timeout(Duration::from_secs(5))
-        .build()?;
+    let tls = TlsConfig::builder()
+        .root_certs(RootCerts::Specific(Arc::new(vec![
+            Certificate::from_der(cert).to_owned(),
+        ])))
+        .build();
+    let config = Agent::config_builder()
+        .proxy(None)
+        .tls_config(tls)
+        .timeout_global(Some(Duration::from_secs(5)))
+        .build();
+    let client = ForwardClient::with_factory(None, move || {
+        Agent::with_parts(
+            config.clone(),
+            DefaultConnector::default(),
+            FixtureAddress(address),
+        )
+    });
     let server = rustls::ServerConfig::builder_with_provider(Arc::new(
         rustls::crypto::ring::default_provider(),
     ))

@@ -1,12 +1,12 @@
 use std::{
     borrow::Cow,
     collections::{BTreeMap, VecDeque},
-    convert::Infallible,
     ops::Range,
     sync::{Arc, Mutex},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use crate::upstream::ForwardClient;
 use anyhow::Result;
 use axum::{
     Router,
@@ -15,11 +15,11 @@ use axum::{
     http::{HeaderMap, Method, StatusCode, header},
     response::{IntoResponse, Response},
 };
-use futures_util::{StreamExt, stream};
+use futures_util::StreamExt;
 use nextjson::{NsonSerialize, json};
-use reqwest::{Client, Url};
 use subtle::ConstantTimeEq;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use url::Url;
 
 mod cors;
 mod native;
@@ -38,7 +38,7 @@ use session::Caller;
 use std::path::{Path, PathBuf};
 
 const BODY_LIMIT: usize = 8 * 1024 * 1024;
-const MAX_IN_FLIGHT: usize = 16;
+pub(crate) const MAX_IN_FLIGHT: usize = 16;
 
 #[derive(Clone, NsonSerialize)]
 pub struct Attempt {
@@ -75,7 +75,7 @@ struct Gateway {
     ordered_group_refs: Vec<String>,
     rounds: BTreeMap<String, Round>,
     models: Bytes,
-    client: Client,
+    client: ForwardClient,
     vertex_tokens: BTreeMap<String, crate::vertex::auth::TokenCache>,
     token: String,
     slots: Arc<Semaphore>,
@@ -139,12 +139,7 @@ impl Gateway {
 }
 
 pub fn router(config: Config, token: String, history: History, root: &Path) -> Result<Router> {
-    let client = Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .pool_max_idle_per_host(2)
-        .connect_timeout(Duration::from_secs(10))
-        .read_timeout(Duration::from_secs(120))
-        .build()?;
+    let client = ForwardClient::new();
     router_with_client(config, token, history, root, client)
 }
 
@@ -153,7 +148,7 @@ fn router_with_client(
     token: String,
     history: History,
     root: &Path,
-    client: Client,
+    client: ForwardClient,
 ) -> Result<Router> {
     config.validate()?;
     for p in &mut config.providers {
@@ -871,7 +866,7 @@ async fn forward(
         } else {
             None
         };
-        let mut request = gw.client.post(url.clone());
+        let mut request = Request::post(url.as_str());
         if crate::opencode::Console::request(&url).is_some() && native.format().is_some() {
             let seed = headers
                 .get("x-opencode-session")
@@ -925,7 +920,9 @@ async fn forward(
             };
         } else if let Some(v) = &p.endpoints.vertex {
             match gw.vertex_tokens[&p.id].token(v).await {
-                Ok(token) => request = request.bearer_auth(token),
+                Ok(token) => {
+                    request = request.header(header::AUTHORIZATION, format!("Bearer {token}"))
+                }
                 Err(e) => {
                     record(503);
                     if candidates.peek().is_some() {
@@ -936,44 +933,45 @@ async fn forward(
             }
         }
         let stream = converted.as_ref().is_some_and(|body| body.stream);
-        let request = if let Some(body) = vertex_body {
-            request.body(body)
+        let parts = if let Some(body) = vertex_body {
+            vec![body.into()]
         } else if let Some(upload) = &upload {
-            match upload.form(model) {
-                Ok(form) => request.multipart(form),
+            request = request.header(header::CONTENT_TYPE, &upload.content_type);
+            match upload.body(model) {
+                Ok(parts) => parts,
                 Err(e) => return failure(StatusCode::BAD_REQUEST, &e.to_string()),
             }
         } else if let Some(converted) = converted {
-            request.body(converted.body)
+            vec![converted.body.into()]
         } else {
             match &range {
                 Some(r) if &asked != model => {
                     let wire = Bytes::from(nextjson::to_vec(model).expect("string serialization"));
-                    let len = bytes.len() - r.len() + wire.len();
-                    let parts = [bytes.slice(..r.start), wire, bytes.slice(r.end..)];
-                    request
-                        .header(header::CONTENT_LENGTH, len)
-                        .body(reqwest::Body::wrap_stream(stream::iter(
-                            parts.into_iter().map(Ok::<_, Infallible>),
-                        )))
+                    vec![bytes.slice(..r.start), wire, bytes.slice(r.end..)]
                 }
-                _ => request.body(bytes.clone()),
+                _ => vec![bytes.clone()],
             }
         };
-        let result = if matches!(native, Api::Messages(_))
-            && !p.key_env.is_empty()
-            && p.endpoints.vertex.is_none()
-        {
-            let learned = &gw.anthropic_auth[candidate.target.provider];
-            let unknown = learned.get().is_none();
-            let result = crate::anthropic_auth::send(request, learned).await;
-            if unknown && let Some(&mode) = learned.get() {
-                let _ = crate::config::remember_auth(&gw.root, p, mode);
+        let length: usize = parts.iter().map(Bytes::len).sum();
+        let result = async {
+            let mut request = request.header(header::CONTENT_LENGTH, length).body(parts)?;
+            if matches!(native, Api::Messages(_))
+                && !p.key_env.is_empty()
+                && p.endpoints.vertex.is_none()
+            {
+                let learned = &gw.anthropic_auth[candidate.target.provider];
+                let unknown = learned.get().is_none();
+                let result = crate::anthropic_auth::send(&gw.client, request, learned).await;
+                if unknown && let Some(&mode) = learned.get() {
+                    let _ = crate::config::remember_auth(&gw.root, p, mode);
+                }
+                result
+            } else {
+                crate::bedrock::authenticate(&mut request, &url, &p.key_env)?;
+                gw.client.send(request).await
             }
-            result
-        } else {
-            crate::bedrock::send(request, &p.key_env).await
-        };
+        }
+        .await;
         let upstream = match result {
             Ok(resp) => resp,
             Err(_) => {
@@ -1016,7 +1014,7 @@ async fn forward(
     failure(StatusCode::BAD_GATEWAY, "no upstream available")
 }
 
-fn upstream_response(upstream: reqwest::Response, permit: Arc<OwnedSemaphorePermit>) -> Response {
+fn upstream_response(upstream: Response, permit: Arc<OwnedSemaphorePermit>) -> Response {
     let mut response = Response::builder().status(upstream.status());
     for h in [
         "content-type",
@@ -1029,7 +1027,7 @@ fn upstream_response(upstream: reqwest::Response, permit: Arc<OwnedSemaphorePerm
             response = response.header(h, v);
         }
     }
-    let body = upstream.bytes_stream().map(move |chunk| {
+    let body = upstream.into_body().into_data_stream().map(move |chunk| {
         let _keep = &permit;
         chunk
     });

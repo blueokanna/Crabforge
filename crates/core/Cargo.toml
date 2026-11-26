@@ -34,11 +34,8 @@ tokio-util = { version = "0.7", features = ["compat", "rt"] }
 axum.workspace = true
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio", "service"] }
-reqwest = { version = "0.13.5", default-features = false, features = [
-    "rustls",
-    "stream",
-    "multipart",
-] }
+ureq = { version = "3.5.2", default-features = false, features = ["rustls", "platform-verifier"] }
+no-proxy = { version = "0.3.7", default-features = false }
 multer = "3.1"
 saphyr = { version = "0.4.1", default-features = false }
 saphyr-parser = "0.4.1"
@@ -60,6 +57,7 @@ hex = "0.4"
 time = { version = "0.3", features = ["formatting", "parsing"] }
 
 [dev-dependencies]
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "stream"] }
 serde_json = "1"
 axum = { workspace = true, features = ["json"] }
 aws-lc-rs = "1"

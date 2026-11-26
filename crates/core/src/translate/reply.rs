@@ -163,14 +163,14 @@ impl Reply {
 }
 
 fn live(
-    upstream: reqwest::Response,
+    upstream: Response,
     from: Format,
     mut encoder: Encoder,
     permit: std::sync::Arc<OwnedSemaphorePermit>,
 ) -> impl futures_util::Stream<Item = Result<String>> {
     async_stream::try_stream! {
         let _permit = permit;
-        let frames = sse::data(upstream.bytes_stream());
+        let frames = sse::data(upstream.into_body().into_data_stream());
         futures_util::pin_mut!(frames);
         let mut decoder = Decoder::default();
         let mut started = false;
@@ -191,7 +191,7 @@ fn live(
 }
 
 pub async fn convert_reply(
-    upstream: reqwest::Response,
+    upstream: Response,
     from: Format,
     to: Format,
     model: &str,
@@ -218,7 +218,7 @@ pub async fn convert_reply(
         return Ok((SSE_HEADERS, Body::from_stream(body)).into_response());
     }
     let mut bytes = vec![];
-    let mut chunks = upstream.bytes_stream();
+    let mut chunks = upstream.into_body().into_data_stream();
     while let Some(chunk) = chunks.next().await {
         let chunk = chunk?;
         ensure!(

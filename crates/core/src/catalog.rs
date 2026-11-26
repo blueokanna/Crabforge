@@ -340,7 +340,7 @@ impl CatalogAuth<'_> {
             let signature = crate::bedrock::signature(
                 "GET",
                 url,
-                &[],
+                aws_sigv4::http_request::SignableBody::Bytes(&[]),
                 crate::bedrock::credentials()?,
                 SystemTime::now(),
             )?;

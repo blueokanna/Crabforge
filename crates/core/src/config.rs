@@ -8,9 +8,10 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail, ensure};
+use axum::http::request::Builder as RequestBuilder;
 use nextjson::{NsonDeserialize, NsonSerialize};
-use reqwest::{RequestBuilder, Url};
 use tempfile::NamedTempFile;
+use url::Url;
 mod groups;
 mod origins;
 mod rename;
@@ -272,7 +273,7 @@ pub(crate) fn authenticate(
 ) -> RequestBuilder {
     for &name in api_key_headers(url, protocol, mode) {
         request = if name == "authorization" {
-            request.bearer_auth(key)
+            request.header(name, format!("Bearer {key}"))
         } else {
             request.header(name, key)
         };
@@ -853,7 +854,6 @@ mod tests {
 
     #[test]
     fn api_key_headers_match_vendor_and_protocol() -> Result<()> {
-        let client = reqwest::Client::new();
         for (base, protocol, header, value) in [
             (
                 "https://resource.openai.azure.com/openai/deployments/old?api-version=2024-01-01",
@@ -900,28 +900,28 @@ mod tests {
         ] {
             let url = api_base(base, protocol)?;
             let request = authenticate(
-                client.get(url.clone()),
+                axum::http::Request::get(url.as_str()),
                 &url,
                 protocol,
                 "example",
                 AuthHeader::Both,
             )
-            .build()?;
+            .body(())?;
             assert_eq!(request.headers().len(), 1);
             assert_eq!(request.headers()[header], value);
             if header == "api-key" {
-                assert_eq!(request.url().path(), "/openai/v1");
+                assert_eq!(request.uri().path(), "/openai/v1");
             }
         }
         let url = api_base("https://api.deepseek.com/anthropic", "anthropic")?;
         let request = authenticate(
-            client.get(url.clone()),
+            axum::http::Request::get(url.as_str()),
             &url,
             "anthropic",
             "example",
             AuthHeader::Both,
         )
-        .build()?;
+        .body(())?;
         assert_eq!(request.headers()["authorization"], "Bearer example");
         assert_eq!(request.headers()["x-api-key"], "example");
         Ok(())

@@ -1,7 +1,8 @@
 use crate::{config::Endpoints, translate::Format};
+use axum::http::{header::USER_AGENT, request::Builder as RequestBuilder};
 use nextjson::Value;
-use reqwest::{RequestBuilder, Url, header::USER_AGENT};
 use std::collections::BTreeMap;
+use url::Url;
 
 include!(concat!(env!("OUT_DIR"), "/opencode_models.rs"));
 
@@ -188,24 +189,22 @@ mod tests {
 
     #[test]
     fn console_session_survives_turns_and_auth_uses_the_actual_destination() -> anyhow::Result<()> {
-        let client = reqwest::Client::new();
         let url = Url::parse(
             "https://opencode.ai/inference/go/google/v1beta/models/gemini-4-argon:generateContent",
         )?;
-        let build =
-            |session: Option<&str>, body: &[u8]| -> anyhow::Result<reqwest::header::HeaderMap> {
-                let request = authenticate(
-                    client.post(url.clone()),
-                    &url,
-                    "gemini",
-                    "provider-key",
-                    AuthHeader::Both,
-                );
-                Ok(conversation(request, session, body, "local-key")
-                    .build()?
-                    .headers()
-                    .clone())
-            };
+        let build = |session: Option<&str>, body: &[u8]| -> anyhow::Result<axum::http::HeaderMap> {
+            let request = authenticate(
+                axum::http::Request::post(url.as_str()),
+                &url,
+                "gemini",
+                "provider-key",
+                AuthHeader::Both,
+            );
+            Ok(conversation(request, session, body, "local-key")
+                .body(())?
+                .headers()
+                .clone())
+        };
         let first = build(None, br#"{"messages":[{"role":"user","content":"hello"}]}"#)?;
         assert_eq!(
             first["x-opencode-session"],

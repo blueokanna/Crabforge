@@ -1,9 +1,9 @@
 use anyhow::Result;
 use axum::{Router, body::Bytes, extract::OriginalUri, http::HeaderMap, routing::post};
+use courierust::courierust_client::{Client, multipart::Multipart};
 use crabforge_core::{config, service::Service};
 use futures_util::stream;
-use reqwest::multipart::{Form, Part};
-use serde_json::json;
+use nextjson::json;
 use std::convert::Infallible;
 use tokio::net::TcpListener;
 
@@ -35,6 +35,11 @@ async fn media_uploads_rewrite_model_and_preserve_binary_parts() -> Result<()> {
                         assert_eq!(field.bytes().await.unwrap().as_ref(), BINARY);
                         files += 1;
                     }
+                    "mask" => {
+                        assert!(field.file_name().is_none());
+                        assert_eq!(field.content_type().unwrap().as_ref(), "image/png");
+                        assert_eq!(field.bytes().await.unwrap().as_ref(), BINARY);
+                    }
                     _ => panic!("unexpected field"),
                 }
             }
@@ -56,26 +61,42 @@ async fn media_uploads_rewrite_model_and_preserve_binary_parts() -> Result<()> {
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
     let service = Service::start(dir.path()).await?;
     let key = config::token(dir.path())?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
     for path in ["images/edits", "audio/transcriptions", "audio/translations"] {
-        let mut form = Form::new().text("model", "local/m");
-        let file = || {
-            Part::bytes(BINARY)
-                .file_name("sample.bin")
-                .mime_str("application/octet-stream")
-        };
-        if path == "images/edits" {
-            form = form.part("image[]", file()?).part("image[]", file()?);
-        } else {
-            form = form.part("file", file()?);
-        }
-        let response = http
-            .post(format!("http://{}/v1/{path}", service.addr))
-            .bearer_auth(&key)
-            .multipart(form)
-            .send()
-            .await?;
-        assert_eq!(response.error_for_status()?.text().await?, "received");
+        let url = format!("http://{}/v1/{path}", service.addr);
+        let auth = format!("Bearer {key}");
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            use courierust::{
+                courierust_body::Body,
+                courierust_client::multipart::Part,
+                courierust_http::{header::HeaderValue, request::Request},
+            };
+            let mut form = Multipart::new()?.text("model", "local/m");
+            let name = if path == "images/edits" {
+                "image[]"
+            } else {
+                "file"
+            };
+            form = form.file(name, "sample.bin", None, BINARY);
+            if path == "images/edits" {
+                form = form
+                    .file(name, "sample.bin", None, BINARY)
+                    .part(Part::bytes("mask", "image/png", BINARY));
+            }
+            let mut request = Request::post("/").with_body(Body::from(form.encode()?));
+            request.headers.insert(
+                "content-type".into(),
+                HeaderValue::from_bytes(form.content_type().as_bytes())?,
+            );
+            request.headers.insert(
+                "authorization".into(),
+                HeaderValue::from_bytes(auth.as_bytes())?,
+            );
+            let response = Client::new().execute(&url, request)?;
+            assert_eq!(response.status.as_u16(), 200);
+            assert_eq!(response.body.as_bytes(), Some(b"received".as_slice()));
+            Ok(())
+        })
+        .await??;
     }
     service.stop().await;
     server.abort();
