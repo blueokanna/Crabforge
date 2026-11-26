@@ -846,7 +846,6 @@ dependencies = [
  "rustbinary",
  "rustls-pki-types",
  "semver",
- "serde",
  "serde_json",
  "serde_yaml",
  "sha2",

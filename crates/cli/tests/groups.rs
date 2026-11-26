@@ -988,7 +988,7 @@ async fn manual_group_switches_live_and_only_its_parent_can_fall_back() -> Resul
     service.stop().await;
     let mut cfg = config::load(root.path())?;
     cfg.group_picks.insert("stable".into(), "removed".into());
-    fs::write(root.path().join("settings.json"), serde_json::to_vec(&cfg)?)?;
+    fs::write(root.path().join("settings.json"), cfg.to_json()?)?;
     assert!(run(&["group", "list"])?.contains("group/stable\tmanual\tp/busy"));
     let restored = Service::start(root.path()).await?;
     let response = client
@@ -1270,7 +1270,7 @@ async fn automatic_groups_follow_catalog_changes_and_keep_user_edits() -> Result
     );
     cfg.providers.pop();
     assert!(cfg.resolved_groups().members.is_empty());
-    fs::write(root.path().join("settings.json"), serde_json::to_vec(&cfg)?)?;
+    fs::write(root.path().join("settings.json"), cfg.to_json()?)?;
     let service = Service::start(root.path()).await?;
     let url = format!("http://{}/v1", service.addr);
     let catalog = client
@@ -1320,7 +1320,7 @@ fn maker_prefixes_and_reserved_provider_follow_catalog_ownership() -> Result<()>
     assert!(!groups.aliases.keys().any(|name| name.starts_with("auto/")));
     assert!(cfg.canonical_auto_ref("auto/kimi-k3.1-pro").is_none());
     let legacy = tempfile::tempdir()?;
-    let saved = serde_json::to_string(&cfg)?;
+    let saved = cfg.to_json()?;
     assert!(config::save(legacy.path(), &config::snapshot(legacy.path())?, &saved).is_err());
     fs::write(legacy.path().join("settings.json"), &saved)?;
     config::save(legacy.path(), &config::snapshot(legacy.path())?, &saved)?;

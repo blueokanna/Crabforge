@@ -4,7 +4,6 @@ use courierust::{
     courierust_client::Client,
     courierust_http::{HeaderMap, HeaderName, HeaderValue, Method},
 };
-use serde::Deserialize;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     time::{Duration, SystemTime},
@@ -69,20 +68,12 @@ string_enum! {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    serde::Serialize,
-    Deserialize,
-    nextjson::NsonSerialize,
-    nextjson::NsonDeserialize,
-)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Debug, Default, nextjson::NsonSerialize, nextjson::NsonDeserialize)]
+#[njson(default, deny_unknown_fields)]
 pub struct RelayProtocols {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[njson(skip_serializing_if = "Option::is_none")]
     pub native_endpoints: Option<BTreeSet<RelayEndpoint>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[njson(skip_serializing_if = "Option::is_none")]
     pub magpie_prefers: Option<RelayEndpoint>,
 }
 
@@ -196,9 +187,9 @@ fn list_url(mut url: Url, api: &str) -> Result<Url> {
 #[cfg(test)]
 #[test]
 fn console_catalogs_deduplicate_by_plan_and_allow_an_explicit_override() -> Result<()> {
-    let mut bases: Endpoints = serde_json::from_value(serde_json::json!({
+    let mut bases: Endpoints = nextjson::from_value(nextjson::json!({
             "chat":"https://opencode.ai/zen/go/v1", "gemini":"https://opencode.ai/inference/go/google/v1beta",
-            "anthropic":"https://opencode.ai/inference/anthropic"}))?;
+            "anthropic":"https://opencode.ai/inference/anthropic"})).map_err(anyhow::Error::msg)?;
     let locations = sources(&bases)?;
     assert_eq!(
         locations

@@ -7,10 +7,14 @@ use tokio::net::TcpListener;
 #[tokio::test]
 async fn plans_without_live_catalogs_use_their_own_model_lists() -> Result<()> {
     use crabforge_core::catalog::{fixed_models, presets};
-    let items: Vec<serde_json::Value> = serde_json::from_str(&presets()?)?;
+    let items: Vec<nextjson::Value> =
+        nextjson::from_str(&presets()?).map_err(anyhow::Error::msg)?;
     let endpoints = |id: &str| -> Endpoints {
-        let item = items.iter().find(|p| p["id"] == id).unwrap();
-        serde_json::from_value(item["endpoints"].clone()).unwrap()
+        let item = items
+            .iter()
+            .find(|p| p.get("id").and_then(nextjson::Value::as_str) == Some(id))
+            .unwrap();
+        nextjson::from_value(item["endpoints"].clone()).unwrap()
     };
     let personal = discover(&endpoints("baidu-qianfan-personal"), "UNUSED_KEY").await?;
     assert!(personal.iter().any(|m| m == "qianfan-code-latest"));
@@ -18,9 +22,10 @@ async fn plans_without_live_catalogs_use_their_own_model_lists() -> Result<()> {
     let team = discover(&endpoints("baidu-qianfan-team"), "UNUSED_KEY").await?;
     assert!(team.iter().any(|m| m == "deepseek-v3.2"));
     for (region, count) in [("global", 23), ("eu", 9), ("us", 9), ("us-central1", 3)] {
-        let mut vertex: Endpoints = serde_json::from_value(
-            json!({"vertex":{"project":"sample-project", "location":region}}),
-        )?;
+        let mut vertex: Endpoints = nextjson::from_value(
+            nextjson::json!({"vertex":{"project":"sample-project", "location":region}}),
+        )
+        .map_err(anyhow::Error::msg)?;
         assert_eq!(discover(&vertex, "").await?.len(), count);
         vertex.models_url = "https://relay.example/v1/models".to_owned();
         assert!(

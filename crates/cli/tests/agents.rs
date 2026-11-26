@@ -123,7 +123,7 @@ async fn synced_relay_catalog_preserves_native_protocols_across_gateways() -> Re
     config::save(
         local.path(),
         &config::snapshot(local.path())?,
-        &serde_json::to_string(&changed)?,
+        &changed.to_json()?,
     )?;
     let sync = cli().args(["models", "relay", "--sync"]).output().await?;
     assert!(
@@ -918,11 +918,7 @@ async fn omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses() 
     let service = Service::start(root).await?;
     let mut cfg = renamed;
     cfg.listen = service.addr;
-    config::save(
-        root,
-        &config::snapshot(root)?,
-        &serde_json::to_string(&cfg)?,
-    )?;
+    config::save(root, &config::snapshot(root)?, &cfg.to_json()?)?;
     let token = config::token(root)?;
     let http = reqwest::Client::builder().no_proxy().build()?;
     for id in ["local/m", "lab/m", "group/weighted"] {

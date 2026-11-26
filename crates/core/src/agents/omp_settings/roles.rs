@@ -400,7 +400,7 @@ mod tests {
     use super::*;
 
     fn config() -> Config {
-        serde_json::from_value(serde_json::json!({"providers":[{"id":"local","models":["a", "qwen3:8b"],"endpoints":{"chat":"http://127.0.0.1:1/v1"}}]})).unwrap()
+        Config::parse(r#"{"providers":[{"id":"local","models":["a", "qwen3:8b"],"endpoints":{"chat":"http://127.0.0.1:1/v1"}}]}"#).unwrap()
     }
 
     #[test]

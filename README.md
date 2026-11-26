@@ -40,9 +40,9 @@ Pass the full address advertised by the gateway to `carbforge-cli tunnel <addres
 
 ## Build for Windows x64
 
-A three-round desktop comparison used the unpacked `e3726ad` build. Crabforge used a median 152.41 MiB working set and 263.36 MiB private bytes. Magpie and its seven WebView2 child processes used 370.04 MiB and 793.39 MiB respectively. Crabforge started with fresh settings each round. Magpie kept its existing visible window. [Desktop samples](docs/validation/cf-nextjson-594fadc304/desktop-comparison.csv)
+A three-round desktop comparison used the unpacked `efb2db7` build. Crabforge used a median 129.80 MiB working set and 221.44 MiB private bytes. Magpie and its seven WebView2 child processes used 528.54 MiB and 868.88 MiB respectively. Crabforge started with fresh settings each round. Magpie kept its existing visible window. [Desktop samples](docs/validation/cf-protocol-efb2db7/desktop.csv)
 
-The `e3726ad` Windows snapshot passed 98 Rust tests, including the normally ignored client integrations. Across three runs the empty gateway used a median 7.85 MiB working set and 1.45 MiB private bytes. For the Chat workload those figures were 8.86 and 1.57 MiB. The validation record includes the ZIP checksum, raw measurements, and same-host IPv6 results. [Windows validation](docs/crabforge-validation.md)
+The frozen Rust suite passed 100 of 101 tests on its first run. The OmO client timed out before its first gateway request and passed all four protocols on a separate run. The unpacked gateway used a median 7.90 MiB working set and 1.49 MiB private bytes with an empty catalog. For the Chat workload those figures were 8.84 and 1.56 MiB. The validation record includes the ZIP checksum, raw measurements, and same-host IPv6 results. [Windows validation](docs/crabforge-validation.md)
 
 Install the Rust MSVC toolchain, Flutter and the Visual Studio Desktop development with C++ workload. The recorded Windows builds used Rust 1.99.1, Flutter 3.47.9 and Dart 3.13.7.
 

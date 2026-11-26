@@ -256,11 +256,7 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
         )]),
         ..Default::default()
     };
-    config::save(
-        dir.path(),
-        &config::snapshot(dir.path())?,
-        &serde_json::to_string(&cfg)?,
-    )?;
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_json()?)?;
     let service = Service::start(dir.path()).await?;
     let client = reqwest::Client::builder().no_proxy().build()?;
     let url = format!("http://{}/v1/chat/completions", service.addr);
@@ -321,7 +317,7 @@ async fn quic_peer_identity_and_gateway_key_are_both_required() -> Result<()> {
     config::save(
         server_dir.path(),
         &config::snapshot(server_dir.path())?,
-        &serde_json::to_string(&cfg)?,
+        &cfg.to_json()?,
     )?;
     let service = Service::start(server_dir.path()).await?;
     let address = service.peer.as_ref().unwrap().address.to_string();
@@ -365,10 +361,11 @@ fn concurrent_edit_and_corrupt_file_preserve_disk_state() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path();
     let old = config::snapshot(path)?;
-    let changed = serde_json::to_string(&Config {
+    let changed = Config {
         listen: ephemeral(),
         ..Default::default()
-    })?;
+    }
+    .to_json()?;
     config::save(path, &old, &changed)?;
     assert!(config::save(path, &old, &old).is_err());
     assert_eq!(config::load(path)?.listen, ephemeral());

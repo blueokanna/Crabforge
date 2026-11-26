@@ -85,7 +85,7 @@ async fn local_weights_generate_text_for_each_client_protocol() -> Result<()> {
         "expected configured llama.cpp model alias"
     );
     let dir = tempfile::tempdir()?;
-    let settings = json!({"listen":"127.0.0.1:0","providers":[{"id":"llama","models":models,"endpoints":endpoints}]});
+    let settings = nextjson::json!({"listen":"127.0.0.1:0","providers":[{"id":"llama","models":models,"endpoints":endpoints}]});
     config::save(
         dir.path(),
         &config::snapshot(dir.path())?,

@@ -10,7 +10,6 @@ use std::{
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize};
 use reqwest::{RequestBuilder, Url};
-use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 mod groups;
 mod origins;
@@ -23,105 +22,104 @@ pub const MAX_CONFIG: usize = 1024 * 1024;
 pub const MAX_MEMBER_WEIGHT: u32 = 1000;
 pub const PRESETS: &str = include_str!("presets.json");
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, NsonSerialize, NsonDeserialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Debug, Default, NsonSerialize, NsonDeserialize)]
+#[njson(default, deny_unknown_fields)]
 pub struct Endpoints {
-    #[serde(skip_serializing_if = "AuthHeader::is_default")]
+    #[njson(skip_serializing_if = "AuthHeader::is_default")]
     pub auth_header: AuthHeader,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[njson(skip_serializing_if = "Option::is_none")]
     pub vertex: Option<crate::vertex::Vertex>,
     pub chat: String,
     pub responses: String,
     pub anthropic: String,
     pub gemini: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
+    #[njson(skip_serializing_if = "String::is_empty")]
     pub models_url: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, NsonSerialize, NsonDeserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone, Debug, NsonSerialize, NsonDeserialize)]
+#[njson(deny_unknown_fields)]
 pub struct Provider {
     pub id: String,
     /// Ordered models.dev catalogs for matching vendor-specific model IDs.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[njson(default, skip_serializing_if = "String::is_empty")]
     pub catalog: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[njson(default, skip_serializing_if = "Option::is_none")]
     pub web_site: Option<crate::webchat::Site>,
-    #[serde(default)]
+    #[njson(default)]
     pub endpoints: Endpoints,
-    #[serde(default)]
+    #[njson(default)]
     pub key_env: String,
     pub models: Vec<String>,
     /// Backup model and route group IDs in the order to try for direct requests.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[njson(default, skip_serializing_if = "Vec::is_empty")]
     pub fallback: Vec<String>,
-    #[serde(
+    #[njson(
         default,
         alias = "noStandIn",
         skip_serializing_if = "std::ops::Not::not"
     )]
     pub no_stand_in: bool,
     /// IDs the provider catalog explicitly marks free.
-    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    #[njson(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub free_models: BTreeSet<String>,
     /// Protocol information advertised by an upstream gateway for individual models.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub model_protocols: BTreeMap<String, crate::catalog::RelayProtocols>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, NsonSerialize, NsonDeserialize)]
-#[serde(default, deny_unknown_fields)]
-#[njson(default = "Config::default")]
+#[derive(Clone, Debug, NsonSerialize, NsonDeserialize)]
+#[njson(default = "Config::default", deny_unknown_fields)]
 pub struct Config {
     pub listen: SocketAddr,
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[njson(skip_serializing_if = "BTreeSet::is_empty")]
     pub cors_origins: BTreeSet<String>,
     pub providers: Vec<Provider>,
     /// Previous provider IDs accepted by saved client conversations.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub former_providers: BTreeMap<String, String>,
     pub groups: BTreeMap<String, Vec<String>>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_match: BTreeMap<String, Vec<MemberPattern>>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_placed: BTreeMap<String, Vec<String>>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_labels: BTreeMap<String, String>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_notes: BTreeMap<String, String>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_off: BTreeMap<String, BTreeSet<String>>,
     /// Groups whose direct model members are omitted from client catalogs.
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[njson(skip_serializing_if = "BTreeSet::is_empty")]
     pub group_unlists: BTreeSet<String>,
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[njson(skip_serializing_if = "BTreeSet::is_empty")]
     pub disabled_groups: BTreeSet<String>,
     /// Group IDs in the user's preferred display order, including temporarily absent auto groups.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[njson(skip_serializing_if = "Vec::is_empty")]
     pub group_display_order: Vec<String>,
     /// Former group name to its current name, retained for saved client conversations.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub former_groups: BTreeMap<String, String>,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    #[njson(skip_serializing_if = "std::ops::Not::not")]
     pub no_auto_groups: bool,
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[njson(skip_serializing_if = "BTreeSet::is_empty")]
     pub hidden_auto_groups: BTreeSet<String>,
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[njson(skip_serializing_if = "BTreeSet::is_empty")]
     pub auto_group_skip: BTreeSet<String>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub model_same_as: BTreeMap<String, String>,
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[njson(skip_serializing_if = "BTreeSet::is_empty")]
     pub rotating_groups: BTreeSet<String>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_weights: BTreeMap<String, BTreeMap<String, u32>>,
     /// Member weights retained while a group uses another strategy.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_last_weights: BTreeMap<String, BTreeMap<String, u32>>,
     /// A manual group routes only to its selected member, or its first if the selection is gone.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_picks: BTreeMap<String, String>,
     /// Remember a manual choice while a group uses another strategy.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_last_picks: BTreeMap<String, String>,
     pub peer_listen: String,
     pub allowed_peers: Vec<String>,
@@ -834,12 +832,16 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let legacy = r#"{"listen":"[::1]:3425","providers":[{"id":"relay","models":["m"],"noStandIn":true,"endpoints":{"chat":"http://127.0.0.1:1/v1","auth_header":"both"},"model_protocols":{"m":{"native_endpoints":[],"magpie_prefers":"/v1/messages"}}}],"groups":{"g":[]},"group_match":{"g":["relay/*"]}}"#;
         fs::write(dir.path().join("settings.json"), legacy)?;
-        let cfg = load(dir.path())?;
-        let previous = serde_json::to_string_pretty(&cfg)?;
+        // Serialized by the legacy editor, including its default and omitted fields.
+        let previous = r#"{"listen":"[::1]:3425","providers":[{"id":"relay","endpoints":{"chat":"http://127.0.0.1:1/v1","responses":"","anthropic":"","gemini":""},"key_env":"","models":["m"],"no_stand_in":true,"model_protocols":{"m":{"native_endpoints":[],"magpie_prefers":"/v1/messages"}}}],"groups":{"g":[]},"group_match":{"g":["relay/*"]},"peer_listen":"","allowed_peers":[]}"#;
         let before = snapshot(dir.path())?;
-        save(dir.path(), &previous, legacy)?;
-        let sorted: serde_json::Value = serde_json::from_str(&previous)?;
-        save(dir.path(), &sorted.to_string(), legacy)?;
+        save(dir.path(), previous, legacy)?;
+        let reordered: BTreeMap<String, nextjson::Value> = nextjson::from_str(previous).unwrap();
+        save(
+            dir.path(),
+            &nextjson::to_string(&reordered).unwrap(),
+            legacy,
+        )?;
         assert_eq!(snapshot(dir.path())?, before);
         assert!(save(dir.path(), "{}", legacy).is_err());
         assert_eq!(Config::parse("{}")?.listen, Config::default().listen);

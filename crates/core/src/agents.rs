@@ -113,20 +113,20 @@ pub use command::installed_command;
 pub(crate) use user_agent::client_name;
 
 /// Model configuration shared by the Pi clients and Oh My Pi.
-#[derive(nextjson::NsonSerialize, serde::Serialize)]
+#[derive(nextjson::NsonSerialize)]
 pub struct PiModel<'a> {
     id: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[njson(skip_serializing_if = "Option::is_none")]
     api: Option<&'a str>,
-    #[serde(rename = "baseUrl", skip_serializing_if = "Option::is_none")]
+    #[njson(rename = "baseUrl", skip_serializing_if = "Option::is_none")]
     base_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[njson(skip_serializing_if = "Option::is_none")]
     compat: Option<PiCompatibility>,
 }
 
-#[derive(nextjson::NsonSerialize, serde::Serialize)]
+#[derive(nextjson::NsonSerialize)]
 struct PiCompatibility {
-    #[serde(rename = "supportsStrictMode")]
+    #[njson(rename = "supportsStrictMode")]
     supports_strict_mode: bool,
 }
 

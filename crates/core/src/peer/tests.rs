@@ -55,7 +55,7 @@ async fn dcutr_upgrades_an_ipv6_circuit_to_authenticated_direct_quic() -> Result
     config::save(
         root.path(),
         &config::snapshot(root.path())?,
-        &serde_json::to_string(&cfg)?,
+        &cfg.to_json()?,
     )?;
     let server = Service::start(root.path()).await?;
     let gateway_id = identity(root.path())?.public().to_peer_id();

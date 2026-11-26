@@ -1094,7 +1094,7 @@ mod console_test;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    use nextjson::json;
 
     #[test]
     fn selection_locates_only_the_top_level_model_literal() {
@@ -1115,13 +1115,13 @@ mod tests {
 
     #[test]
     fn relay_routes_use_the_incoming_protocol_or_the_advertised_native_api() -> Result<()> {
-        let p: Provider = serde_json::from_value(json!({"id":"relay","models":[],
+        let p: Provider = nextjson::from_value(json!({"id":"relay","models":[],
         "endpoints":{"chat":"http://localhost/v1","responses":"http://localhost/v1","anthropic":"http://localhost"},
         "model_protocols":{
             "mixed":{"native_endpoints":[]},
             "picked":{"native_endpoints":["/v1/messages","/v1/responses"],"magpie_prefers":"/v1/messages"},
             "text":{"native_endpoints":["/v1/chat/completions"]}
-        }}))?;
+        }})).map_err(anyhow::Error::msg)?;
         for (model, api, expected, conversion) in [
             (
                 "legacy",
@@ -1168,9 +1168,10 @@ mod tests {
                 "gemini-4-argon",
             ),
         ] {
-            let mut p: Provider = serde_json::from_value(
+            let mut p: Provider = nextjson::from_value(
                 json!({"id":"my-console","models":[],"endpoints":{"chat":base}}),
-            )?;
+            )
+            .map_err(anyhow::Error::msg)?;
             crate::opencode::Console::fill_missing(&mut p.endpoints);
             let api = Api::Chat("chat/completions");
             let endpoint = |model| -> (Url, Option<(Format, Format)>) {
@@ -1214,9 +1215,10 @@ mod tests {
 
     #[test]
     fn bedrock_chooses_the_models_native_api_before_translation() -> Result<()> {
-        let preset = serde_json::from_str::<Vec<serde_json::Value>>(crate::config::PRESETS)?
+        let preset = nextjson::from_str::<Vec<nextjson::Value>>(crate::config::PRESETS)
+            .map_err(anyhow::Error::msg)?
             .into_iter()
-            .find(|p| p["id"] == "bedrock")
+            .find(|p| p.get("id").and_then(nextjson::Value::as_str) == Some("bedrock"))
             .unwrap();
         let p = Provider {
             fallback: vec![],
@@ -1226,7 +1228,8 @@ mod tests {
             id: "aws".into(),
             catalog: String::new(),
             web_site: None,
-            endpoints: serde_json::from_value(preset["endpoints"].clone())?,
+            endpoints: nextjson::from_value(preset["endpoints"].clone())
+                .map_err(anyhow::Error::msg)?,
             key_env: String::new(),
             models: vec![],
         };

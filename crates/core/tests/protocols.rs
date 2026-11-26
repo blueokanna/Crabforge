@@ -95,7 +95,8 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
                 web_site: None,
                 key_env: String::new(),
                 models: vec!["m".into()],
-                endpoints: serde_json::from_value::<Endpoints>(json!({*name:&base})).unwrap(),
+                endpoints: nextjson::from_value::<Endpoints>(nextjson::json!({(*name): &base}))
+                    .unwrap(),
             })
             .collect(),
         groups: BTreeMap::new(),
@@ -104,7 +105,7 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
     config::save(
         root.path(),
         &config::snapshot(root.path())?,
-        &serde_json::to_string(&cfg)?,
+        &cfg.to_json()?,
     )?;
     let service = Service::start(root.path()).await?;
     let key = config::token(root.path())?;

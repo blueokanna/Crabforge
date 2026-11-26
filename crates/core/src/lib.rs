@@ -3,9 +3,8 @@
 macro_rules! string_enum {
     ($(#[$attr:meta])* pub enum $name:ident { $( $(#[$variant_attr:meta])* $variant:ident => $wire:literal $(| $alias:literal)* ),+ $(,)? }) => {
         $(#[$attr])*
-        #[derive(serde::Serialize, serde::Deserialize)]
         pub enum $name {
-            $( $(#[$variant_attr])* #[serde(rename = $wire $(, alias = $alias)*)] $variant ),+
+            $( $(#[$variant_attr])* $variant ),+
         }
 
         impl $name {

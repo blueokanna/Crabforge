@@ -1,10 +1,9 @@
 use anyhow::{Context, Result, ensure};
 use fancy_regex::Regex;
-use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashSet};
 
-#[derive(Clone, Debug, Serialize, Deserialize, nextjson::NsonDeserialize)]
-#[serde(try_from = "String", into = "String")]
+#[derive(Clone, Debug, nextjson::NsonDeserialize)]
+#[njson(try_from = "String")]
 pub struct MemberPattern {
     text: String,
     ids: Regex,

@@ -1,5 +1,23 @@
 # Crabforge 0.1.0 验收记录
 
+### Windows x64 四协议 NextJSON 版（`efb2db7`）
+
+从 `efb2db789685080d9f4307e42b43dbf6163ec088` 的 283 个输入离线构建，构建前后逐文件校验一致。`dist/cf-protocol-efb2db7/crabforge-0.1.0-windows-x64.zip` 共 60,140,402 字节，SHA-256 为 `F6F48B059BB1946D7D866AD3EFBD647FBF283C6F256911D06A7E4D8E0878FC14`。复核了解压后的 143 项文件哈希及清单本身。126 项声明的资产与源码逐字节相等。两个 CLI 各读出 97 项预设。[冻结输入](validation/cf-protocol-efb2db7/build-inputs.sha256) · [包内文件](validation/cf-protocol-efb2db7/SHA256SUMS)
+
+冻结源码全量 Rust 串行测试首轮 **100 项通过，1 项失败，0 项跳过**。OmO 的 Chat 对话在 150 秒内没有产生网关路由记录；同一冻结源码单独重跑该用例，其四种协议均通过。Flutter 静态分析、两项组件测试均通过。Windows 控制台和 Oh My Pi 设置各通过首次与独立冷启动，两套集成测试使用冻结源码构建的调试桌面及解压包内的 CLI。Release 桌面另从解压目录成功启动三次。
+
+| 三轮中位数（工作集 / 私有字节，MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.90 / 1.49 | 61.20 / 95.40 |
+| Chat 网关 | 8.84 / 1.56 | 72.83 / 101.24 |
+| 可见桌面 | 129.80 / 221.44 | 528.54 / 868.88（含七个 WebView2 子进程） |
+
+Magpie 单独主进程的工作集和私有字节为 160.26 / 219.67 MiB。网关按轮交替运行同一夹具。桌面每轮重启 Crabforge 并使用新配置，Magpie 保留已有窗口和数据。[空目录采样](validation/cf-protocol-efb2db7/catalog.csv) · [Chat 采样](validation/cf-protocol-efb2db7/chat.csv) · [桌面采样](validation/cf-protocol-efb2db7/desktop.csv)
+
+解压 CLI 在 IPv6 回环、同机网卡的全局单播 IPv6 直连、首选连接失败后回退至 Kubo 0.43.1 中继三条路径上都验证了错误密钥 401、正确密钥 200 和目录内容。跨公网主机和不同 NAT 的验收仍待第二台主机。[IPv6 采样](validation/cf-protocol-efb2db7/ipv6.csv)
+
+打包后的源码进一步移除了核心清单对 `serde` 的直接依赖。配置、目录协议、枚举和 Pi 客户端模型只派生 NextJSON 编解码。工作区全量串行测试 101 项通过，0 项跳过，全目标 Clippy 通过。按 Windows x64 包分别核对 `normal,build` 及 `normal,build,dev` 两棵树，核心、CLI 和桥接的生产及构建树已无 `serde_derive` 或 `serde_json`，仍经 `serde_yaml` 引入 `serde`，并包含 `serde_core`、Axum、Hyper 和 Reqwest。核心与 CLI 的开发树还含 `serde_json` 和 `serde_path_to_error`。`libp2p`、`crabforge-verify` 和 `crabforge-runner` 的两棵树均未引入上述库。
+
 ### Windows 桌面同期采样（2026-11-26）
 
 使用 `e3726ad` ZIP 解压出的桌面程序重测。Crabforge 每轮用新配置启动，Magpie 复用用户已经打开的可见窗口。每轮在同一台机器依次采样，三轮中位数如下。两个应用打开的页面和已有数据可能不同。[原始 CSV](validation/cf-nextjson-594fadc304/desktop-comparison.csv)

@@ -206,7 +206,7 @@ fn write_provider_with_protocol(
             )
         })
         .collect();
-    let models = serde_yaml::to_value(models)?;
+    let models = serde_yaml::from_str(&nextjson::to_string(&models).map_err(anyhow::Error::msg)?)?;
     provider.insert("api".into(), api.into());
     provider.remove("auth");
     provider.insert("baseUrl".into(), base.into());
@@ -322,8 +322,8 @@ mod tests {
         use crate::{config::Config, gateway::native_protocols};
         let dir = tempfile::tempdir()?;
         let home = dir.path();
-        let cfg: Config = serde_json::from_value(
-            serde_json::json!({"providers":[{"id":"local","models":["m"],"endpoints":{"responses":"http://127.0.0.1:1/v1"}}]}),
+        let cfg = Config::parse(
+            r#"{"providers":[{"id":"local","models":["m"],"endpoints":{"responses":"http://127.0.0.1:1/v1"}}]}"#,
         )?;
         let protocols = native_protocols(&cfg, &cfg.resolved_groups())?;
         let sync = || {

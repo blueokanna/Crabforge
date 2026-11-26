@@ -1,27 +1,18 @@
 use anyhow::{Context, Result, ensure};
 use nextjson::{Value, json};
-use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 
 pub(crate) mod auth;
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    Serialize,
-    Deserialize,
-    nextjson::NsonSerialize,
-    nextjson::NsonDeserialize,
-)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Debug, Default, nextjson::NsonSerialize, nextjson::NsonDeserialize)]
+#[njson(default, deny_unknown_fields)]
 pub struct Vertex {
     pub project: String,
     pub location: String,
     pub credentials: String,
     pub impersonate: String,
-    #[serde(alias = "baseUrl")]
+    #[njson(alias = "baseUrl")]
     pub base_url: String,
 }
 
