@@ -12,21 +12,26 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(380, 600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     String? edited;
+    bool grid = false;
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: Scaffold(
-          body: ModelCatalog(
-            providers: const [
-              {
-                'id': 'relay',
-                'models': ['gpt-example', 'other'],
-              },
-            ],
-            groupRefs: const {'parent': 'group/parent'},
-            canEdit: true,
-            onEdit: (_) {},
-            onGroup: (id) => edited = id,
+          body: StatefulBuilder(
+            builder: (context, setState) => ModelCatalog(
+              grid: grid,
+              onToggle: () => setState(() => grid = !grid),
+              providers: const [
+                {
+                  'id': 'relay',
+                  'models': ['gpt-example', 'other'],
+                },
+              ],
+              groupRefs: const {'parent': 'group/parent'},
+              canEdit: true,
+              onEdit: (_) {},
+              onGroup: (id) => edited = id,
+            ),
           ),
         ),
       ),

@@ -1,6 +1,10 @@
 [workspace]
 members = ["crates/core", "crates/cli", "crates/bridge", "crates/runner", "tools/verify"]
+exclude = ["crates/vendor/multiaddr"]
 resolver = "2"
+
+[patch.crates-io]
+multiaddr = { path = "crates/vendor/multiaddr" }
 
 [workspace.package]
 version = "0.1.0"

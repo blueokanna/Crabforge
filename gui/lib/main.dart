@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'brand_icon.dart';
+import 'collection_view.dart';
 import 'editors.dart';
 import 'language.dart';
 import 'omp_settings.dart';
@@ -95,6 +96,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   List<(String, String)> agents = [];
   String selectedAgent = 'claude';
   bool busy = false, reading = false, initialized = false;
+  bool grid = false;
   Timer? timer;
   late String peerId;
   bool get running => status['running'] == true;
@@ -200,6 +202,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         api.nodeId(),
         api.agents(),
         api.uiLanguage(),
+        api.uiLayout(),
       ]);
       final resolved = jsonDecode(
         await api.routeGroups(configuration: values[0]),
@@ -207,6 +210,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       if (!mounted) return;
       widget.onLanguage(values[5]);
       setState(() {
+        grid = values[6] == 'grid';
         applyConfiguration(values[0], resolved);
         presets = (jsonDecode(values[1]) as List).cast<JsonMap>();
         status = jsonDecode(values[2]);
@@ -533,6 +537,12 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     if (data != null && mounted) await save({...settings, ...data});
   }
 
+  void toggleLayout() => act(() async {
+    final next = !grid;
+    await api.setUiLayout(grid: next);
+    if (mounted) setState(() => grid = next);
+  });
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -547,6 +557,8 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     final ready = snapshot != null && error == null;
     final body = ready && page == 4
         ? ModelCatalog(
+            grid: grid,
+            onToggle: busy ? null : toggleLayout,
             providers: providers,
             groupRefs: {
               for (final g in groups.keys)
@@ -557,53 +569,69 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
             onGroup: group,
           )
         : ready
-        ? ListView(
+        ? CustomScrollView(
             key: PageStorageKey(page),
-            padding: EdgeInsets.symmetric(
-              horizontal: wide ? 36 : 16,
-              vertical: 24,
-            ),
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      pages[page].$1,
-                      style: Theme.of(context).textTheme.headlineLarge
-                          ?.copyWith(fontWeight: FontWeight.w700),
+            slivers: [
+              SliverPadding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: wide ? 36 : 16,
+                  vertical: 24,
+                ),
+                sliver: SliverMainAxisGroup(
+                  slivers: [
+                    SliverList.list(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                pages[page].$1,
+                                style: Theme.of(context).textTheme.headlineLarge
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            LayoutToggle(
+                              grid: grid,
+                              onPressed: busy ? null : toggleLayout,
+                            ),
+                            if (page == 0 || page == 2)
+                              FilledButton.icon(
+                                onPressed:
+                                    busy ||
+                                        running ||
+                                        (page == 2 && providers.isEmpty)
+                                    ? null
+                                    : () {
+                                        if (page == 0) {
+                                          provider();
+                                        } else {
+                                          group();
+                                        }
+                                      },
+                                icon: const Icon(Icons.add),
+                                label: Text(
+                                  page == 0
+                                      ? context.strings.addProvider
+                                      : context.strings.newGroup,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        if (running && (page == 0 || page == 2))
+                          note(context.strings.stopToEdit, Icons.lock_outline),
+                      ],
                     ),
-                  ),
-                  if (page == 0 || page == 2)
-                    FilledButton.icon(
-                      onPressed:
-                          busy || running || (page == 2 && providers.isEmpty)
-                          ? null
-                          : () {
-                              if (page == 0) {
-                                provider();
-                              } else {
-                                group();
-                              }
-                            },
-                      icon: const Icon(Icons.add),
-                      label: Text(
-                        page == 0
-                            ? context.strings.addProvider
-                            : context.strings.newGroup,
-                      ),
-                    ),
-                ],
+                    ...switch (page) {
+                      0 => providerPage(),
+                      1 => routesPage(),
+                      2 => groupsPage(),
+                      3 => gatewayPage(),
+                      _ => agentPage(),
+                    },
+                  ],
+                ),
               ),
-              const SizedBox(height: 18),
-              if (running && (page == 0 || page == 2))
-                note(context.strings.stopToEdit, Icons.lock_outline),
-              ...switch (page) {
-                0 => providerPage(),
-                1 => routesPage(),
-                2 => groupsPage(),
-                3 => gatewayPage(),
-                _ => agentPage(),
-              },
             ],
           )
         : Center(
@@ -781,27 +809,34 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   );
 
   List<Widget> providerPage() => [
-    heroPanel(
-      Icons.hub_outlined,
-      context.strings.providerCount(providers.length),
-      context.strings.presetCount(presets.length),
+    SliverList.list(
+      children: [
+        heroPanel(
+          Icons.hub_outlined,
+          context.strings.providerCount(providers.length),
+          context.strings.presetCount(presets.length),
+        ),
+        if (providers.isEmpty) note(context.strings.providerHelp, Icons.link),
+      ],
     ),
-    if (providers.isEmpty) note(context.strings.providerHelp, Icons.link),
-    for (final p in providers)
-      Card.filled(
-        child: ListTile(
-          title: Text(p['id']),
-          subtitle: Text((p['models'] as List).join(' · ')),
-          leading: BrandIcon.provider(
-            p['web_site'] == null ? p['id'] : '${p['web_site']}-web',
-          ),
-          onTap: busy || running
-              ? null
-              : () =>
-                    p['web_site'] == null ? provider(p) : login(p['web_site']),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+    CollectionSliver(
+      grid: grid,
+      height: 118,
+      children: [
+        for (final p in providers)
+          CollectionTile(
+            grid: grid,
+            title: collectionTitle(p['id']),
+            detail: Text((p['models'] as List).join(' · ')),
+            leading: BrandIcon.provider(
+              p['web_site'] == null ? p['id'] : '${p['web_site']}-web',
+            ),
+            onTap: busy || running
+                ? null
+                : () => p['web_site'] == null
+                      ? provider(p)
+                      : login(p['web_site']),
+            actions: [
               IconButton(
                 tooltip: context.strings.renameProvider,
                 icon: const Icon(Icons.drive_file_rename_outline),
@@ -827,145 +862,170 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               ),
             ],
           ),
-        ),
-      ),
-    heading(context.strings.webProviders),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Text(context.strings.webHelp),
+      ],
     ),
-    Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    SliverList.list(
       children: [
-        for (final s in [('DeepSeek', 'deepseek'), ('ChatGLM', 'chatglm')])
-          OutlinedButton.icon(
-            onPressed:
-                busy ||
-                    running ||
-                    providers.any((p) => p['id'] == '${s.$2}-web')
-                ? null
-                : () => addWeb(s.$2),
-            icon: BrandIcon.provider('${s.$2}-web', size: 18),
-            label: Text(context.strings.webSite(s.$1)),
-          ),
+        heading(context.strings.webProviders),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Text(context.strings.webHelp),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final s in [('DeepSeek', 'deepseek'), ('ChatGLM', 'chatglm')])
+              OutlinedButton.icon(
+                onPressed:
+                    busy ||
+                        running ||
+                        providers.any((p) => p['id'] == '${s.$2}-web')
+                    ? null
+                    : () => addWeb(s.$2),
+                icon: BrandIcon.provider('${s.$2}-web', size: 18),
+                label: Text(context.strings.webSite(s.$1)),
+              ),
+          ],
+        ),
       ],
     ),
   ];
+  Widget collectionTitle(String value) => Text(
+    value,
+    maxLines: grid ? 2 : null,
+    overflow: grid ? TextOverflow.ellipsis : null,
+  );
+
   List<Widget> groupsPage() => [
-    Align(
-      alignment: AlignmentDirectional.centerStart,
-      child: TextButton.icon(
-        onPressed: busy || running ? null : importGroup,
-        icon: const Icon(Icons.file_download_outlined),
-        label: Text(context.strings.importGroup),
-      ),
-    ),
-    SwitchListTile(
-      title: Text(context.strings.autoGroups),
-      value: settings['no_auto_groups'] != true,
-      onChanged: busy || running
-          ? null
-          : (enabled) => save({...settings, 'no_auto_groups': !enabled}),
-    ),
-    for (final name in hiddenGroups)
-      ListTile(
-        title: Text('group/$name'),
-        trailing: TextButton(
-          onPressed: busy || running
+    SliverList.list(
+      children: [
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: busy || running ? null : importGroup,
+            icon: const Icon(Icons.file_download_outlined),
+            label: Text(context.strings.importGroup),
+          ),
+        ),
+        SwitchListTile(
+          title: Text(context.strings.autoGroups),
+          value: settings['no_auto_groups'] != true,
+          onChanged: busy || running
               ? null
-              : () => save({
-                  ...settings,
-                  'hidden_auto_groups': [
-                    ...hiddenGroups.where((g) => g != name),
-                  ],
-                }),
-          child: Text(context.strings.restoreGroup),
+              : (enabled) => save({...settings, 'no_auto_groups': !enabled}),
+        ),
+      ],
+    ),
+    CollectionSliver(
+      grid: grid,
+      height: 60,
+      children: [
+        for (final name in hiddenGroups)
+          ListTile(
+            title: Text('group/$name'),
+            trailing: TextButton(
+              onPressed: busy || running
+                  ? null
+                  : () => save({
+                      ...settings,
+                      'hidden_auto_groups': [
+                        ...hiddenGroups.where((g) => g != name),
+                      ],
+                    }),
+              child: Text(context.strings.restoreGroup),
+            ),
+          ),
+      ],
+    ),
+    if (groups.isEmpty)
+      SliverToBoxAdapter(
+        child: note(
+          providers.isEmpty
+              ? context.strings.groupNeedsProvider
+              : context.strings.groupHelp,
+          Icons.account_tree_outlined,
         ),
       ),
-    if (groups.isEmpty)
-      note(
-        providers.isEmpty
-            ? context.strings.groupNeedsProvider
-            : context.strings.groupHelp,
-        Icons.account_tree_outlined,
-      ),
-    for (final e in groups.entries)
-      Card.filled(
-        child: ListTile(
-          title: Text(
-            [
-              if (settings['group_labels']?[e.key] case final String label)
-                label,
-              publicGroupRefs['group/${e.key}'] ?? 'group/${e.key}',
-            ].join(' · '),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (settings['group_notes']?[e.key] case final String note)
-                Text(note),
-              if (groupPicks.containsKey(e.key))
-                DropdownButton<String>(
-                  isExpanded: true,
-                  hint: Text(context.strings.selectMember),
-                  value: displayMembers(e.key).contains(groupPicks[e.key])
-                      ? groupPicks[e.key]
-                      : displayMembers(e.key).firstOrNull,
-                  items: [
-                    for (final member in displayMembers(e.key))
-                      DropdownMenuItem<String>(
-                        value: member,
-                        child: Text(member),
-                      ),
-                  ],
-                  onChanged: busy
-                      ? null
-                      : (value) {
-                          if (value != null) {
-                            save({
-                              ...settings,
-                              'group_picks': {...groupPicks, e.key: value},
-                            });
-                          }
-                        },
-                )
-              else
-                Text(
-                  displayMembers(e.key)
-                      .where(
-                        (m) =>
-                            settings['group_off']?[e.key]?.contains(m) != true,
-                      )
-                      .join(' → '),
-                ),
-            ],
-          ),
-          leading: savedGroups.containsKey(e.key)
-              ? IconButton(
-                  tooltip: disabledGroups.contains(e.key)
-                      ? context.strings.enableGroup
-                      : context.strings.disableGroup,
-                  icon: Icon(
-                    disabledGroups.contains(e.key)
-                        ? Icons.toggle_off_outlined
-                        : Icons.toggle_on,
+    CollectionSliver(
+      grid: grid,
+      height: 166,
+      children: [
+        for (final e in groups.entries)
+          CollectionTile(
+            grid: grid,
+            title: collectionTitle(
+              [
+                if (settings['group_labels']?[e.key] case final String label)
+                  label,
+                publicGroupRefs['group/${e.key}'] ?? 'group/${e.key}',
+              ].join(' · '),
+            ),
+            detail: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (settings['group_notes']?[e.key] case final String note)
+                  Text(note),
+                if (groupPicks.containsKey(e.key))
+                  DropdownButton<String>(
+                    isExpanded: true,
+                    hint: Text(context.strings.selectMember),
+                    value: displayMembers(e.key).contains(groupPicks[e.key])
+                        ? groupPicks[e.key]
+                        : displayMembers(e.key).firstOrNull,
+                    items: [
+                      for (final member in displayMembers(e.key))
+                        DropdownMenuItem<String>(
+                          value: member,
+                          child: Text(member, overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                    onChanged: busy
+                        ? null
+                        : (value) {
+                            if (value != null) {
+                              save({
+                                ...settings,
+                                'group_picks': {...groupPicks, e.key: value},
+                              });
+                            }
+                          },
+                  )
+                else
+                  Text(
+                    displayMembers(e.key)
+                        .where(
+                          (m) =>
+                              settings['group_off']?[e.key]?.contains(m) !=
+                              true,
+                        )
+                        .join(' → '),
                   ),
-                  onPressed: busy || running
-                      ? null
-                      : () => save({
-                          ...settings,
-                          'disabled_groups': [
-                            ...disabledGroups.where((id) => id != e.key),
-                            if (!disabledGroups.contains(e.key)) e.key,
-                          ],
-                        }),
-                )
-              : const Icon(Icons.account_tree),
-          onTap: busy || running ? null : () => group(e.key),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+              ],
+            ),
+            leading: savedGroups.containsKey(e.key)
+                ? IconButton(
+                    tooltip: disabledGroups.contains(e.key)
+                        ? context.strings.enableGroup
+                        : context.strings.disableGroup,
+                    icon: Icon(
+                      disabledGroups.contains(e.key)
+                          ? Icons.toggle_off_outlined
+                          : Icons.toggle_on,
+                    ),
+                    onPressed: busy || running
+                        ? null
+                        : () => save({
+                            ...settings,
+                            'disabled_groups': [
+                              ...disabledGroups.where((id) => id != e.key),
+                              if (!disabledGroups.contains(e.key)) e.key,
+                            ],
+                          }),
+                  )
+                : const Icon(Icons.account_tree),
+            onTap: busy || running ? null : () => group(e.key),
+            actions: [
               IconButton(
                 tooltip: WidgetsLocalizations.of(context).reorderItemUp,
                 onPressed: busy || running || e.key == groups.keys.first
@@ -1059,8 +1119,8 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               ),
             ],
           ),
-        ),
-      ),
+      ],
+    ),
   ];
   Future<void> moveGroup(String name, int step) {
     final order = groups.keys.toList();
@@ -1115,226 +1175,285 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   List<Widget> routesPage() {
     final attempts = status['attempts'] as List;
     return [
-      heroPanel(
-        Icons.alt_route,
-        context.strings.recentAttempts(attempts.length),
-        context.strings.historyLimit,
-      ),
-      if (attempts.isEmpty)
-        note(
-          running ? context.strings.waiting : context.strings.historyHelp,
-          Icons.timeline,
-        ),
-      for (final a in attempts)
-        Card.filled(
-          child: ListTile(
-            leading: Icon(
-              a['status'] < 400
-                  ? Icons.check_circle_outline
-                  : Icons.error_outline,
-              color: a['status'] < 400 ? colors.primary : colors.error,
-            ),
-            title: Text(
-              [a['model'], ...?a['via'] as List?, a['provider']].join(' → '),
-            ),
-            subtitle: Text(
-              [
-                a['agent'],
-                if (a['session'] case final String id)
-                  context.strings.routeSession(id),
-                '${a['status']} ${a['reason']}',
-              ].whereType<String>().join(' · '),
-            ),
-            trailing: Text(
-              TimeOfDay.fromDateTime(
-                DateTime.fromMillisecondsSinceEpoch(a['at'] * 1000),
-              ).format(context),
-            ),
+      SliverList.list(
+        children: [
+          heroPanel(
+            Icons.alt_route,
+            context.strings.recentAttempts(attempts.length),
+            context.strings.historyLimit,
           ),
-        ),
+          if (attempts.isEmpty)
+            note(
+              running ? context.strings.waiting : context.strings.historyHelp,
+              Icons.timeline,
+            ),
+        ],
+      ),
+      CollectionSliver(
+        grid: grid,
+        height: 110,
+        children: [
+          for (final a in attempts)
+            CollectionTile(
+              grid: grid,
+              leading: Icon(
+                a['status'] < 400
+                    ? Icons.check_circle_outline
+                    : Icons.error_outline,
+                color: a['status'] < 400 ? colors.primary : colors.error,
+              ),
+              title: collectionTitle(
+                [a['model'], ...?a['via'] as List?, a['provider']].join(' → '),
+              ),
+              detail: Text(
+                [
+                  a['agent'],
+                  if (a['session'] case final String id)
+                    context.strings.routeSession(id),
+                  '${a['status']} ${a['reason']}',
+                ].whereType<String>().join(' · '),
+              ),
+              actions: [
+                Text(
+                  TimeOfDay.fromDateTime(
+                    DateTime.fromMillisecondsSinceEpoch(a['at'] * 1000),
+                  ).format(context),
+                ),
+              ],
+            ),
+        ],
+      ),
     ];
   }
 
   List<Widget> gatewayPage() {
     final addr = status['address'] ?? settings['listen'];
     return [
-      heroPanel(
-        Icons.dns,
-        running ? context.strings.running : context.strings.stopped,
-        'http://$addr/v1',
-      ),
-      const SizedBox(height: 12),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      SliverList.list(
         children: [
-          FilledButton.icon(
-            onPressed: busy
-                ? null
-                : () => act(() async {
-                    await api.setRunning(on_: !running);
-                    final s = jsonDecode(await api.status());
-                    if (mounted) setState(() => status = s);
-                  }),
-            icon: Icon(running ? Icons.stop : Icons.play_arrow),
-            label: Text(running ? context.strings.stop : context.strings.start),
+          heroPanel(
+            Icons.dns,
+            running ? context.strings.running : context.strings.stopped,
+            'http://$addr/v1',
           ),
-          OutlinedButton.icon(
-            onPressed: busy
-                ? null
-                : () => act(() async {
-                    final key = await api.gatewayKey();
-                    if (mounted) await copy(key, context.strings.keyCopied);
-                  }),
-            icon: const Icon(Icons.key),
-            label: Text(context.strings.copyKey),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: busy
+                    ? null
+                    : () => act(() async {
+                        await api.setRunning(on_: !running);
+                        final s = jsonDecode(await api.status());
+                        if (mounted) setState(() => status = s);
+                      }),
+                icon: Icon(running ? Icons.stop : Icons.play_arrow),
+                label: Text(
+                  running ? context.strings.stop : context.strings.start,
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: busy
+                    ? null
+                    : () => act(() async {
+                        final key = await api.gatewayKey();
+                        if (mounted) await copy(key, context.strings.keyCopied);
+                      }),
+                icon: const Icon(Icons.key),
+                label: Text(context.strings.copyKey),
+              ),
+              TextButton.icon(
+                onPressed: busy || running ? null : network,
+                icon: const Icon(Icons.tune),
+                label: Text(context.strings.networkSettings),
+              ),
+            ],
           ),
-          TextButton.icon(
-            onPressed: busy || running ? null : network,
-            icon: const Icon(Icons.tune),
-            label: Text(context.strings.networkSettings),
-          ),
+          heading('P2P · QUIC'),
         ],
       ),
-      heading('P2P · QUIC'),
-      Card.filled(
-        child: Column(
-          children: [
-            ListTile(
-              title: Text(context.strings.localPeer),
-              subtitle: SelectableText(peerId),
-              trailing: IconButton(
+      CollectionSliver(
+        grid: grid,
+        height: 105,
+        children: [
+          CollectionTile(
+            grid: grid,
+            title: collectionTitle(context.strings.localPeer),
+            detail: SelectableText(peerId),
+            actions: [
+              IconButton(
                 tooltip: context.strings.copyPeer,
                 onPressed: () => copy(peerId, context.strings.peerCopied),
                 icon: const Icon(Icons.copy),
               ),
+            ],
+          ),
+          CollectionTile(
+            grid: grid,
+            title: collectionTitle(context.strings.listenAddress),
+            detail: SelectableText(
+              status['peer'] ??
+                  (settings['peer_listen'].isEmpty
+                      ? context.strings.disabled
+                      : settings['peer_listen']),
             ),
-            const Divider(height: 1),
-            ListTile(
-              title: Text(context.strings.listenAddress),
-              subtitle: SelectableText(
-                status['peer'] ??
-                    (settings['peer_listen'].isEmpty
-                        ? context.strings.disabled
-                        : settings['peer_listen']),
-              ),
+          ),
+          CollectionTile(
+            grid: grid,
+            title: collectionTitle(context.strings.trustedPeers),
+            detail: Text('${(settings['allowed_peers'] as List).length}'),
+          ),
+          Card.filled(
+            child: ListTile(
+              leading: const Icon(Icons.devices),
+              title: Text(context.strings.clients),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => navigate(5),
             ),
-            ListTile(
-              title: Text(context.strings.trustedPeers),
-              trailing: Text('${(settings['allowed_peers'] as List).length}'),
-            ),
-          ],
+          ),
+          ...gatewayConnections(addr),
+        ],
+      ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text(
+            'Crabforge ${status['version']} · com.blue.crabforge',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ),
       ),
-      Card.filled(
-        child: ListTile(
-          leading: const Icon(Icons.devices),
-          title: Text(context.strings.clients),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => navigate(5),
-        ),
-      ),
-      ...gatewayConnections(addr),
     ];
   }
 
   List<Widget> agentPage() {
     final addr = status['address'] ?? settings['listen'];
     return [
-      Card.filled(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DropdownMenu<String>(
-                label: const Text('Agent'),
-                expandedInsets: EdgeInsets.zero,
-                enableFilter: true,
-                menuHeight: 240,
-                initialSelection: selectedAgent,
-                leadingIcon: BrandIcon.agent(selectedAgent),
-                dropdownMenuEntries: [
-                  for (final (id, name) in agents)
-                    DropdownMenuEntry(
-                      value: id,
-                      label: name,
-                      leadingIcon: BrandIcon.agent(id),
+      SliverToBoxAdapter(
+        child: Card.filled(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DropdownMenu<String>(
+                  label: const Text('Agent'),
+                  expandedInsets: EdgeInsets.zero,
+                  enableFilter: true,
+                  menuHeight: 240,
+                  initialSelection: selectedAgent,
+                  leadingIcon: BrandIcon.agent(selectedAgent),
+                  dropdownMenuEntries: [
+                    for (final (id, name) in agents)
+                      DropdownMenuEntry(
+                        value: id,
+                        label: name,
+                        leadingIcon: BrandIcon.agent(id),
+                      ),
+                  ],
+                  onSelected: (v) {
+                    if (v != null) setState(() => selectedAgent = v);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(context.strings.agentRoot),
+                  subtitle: SelectableText('http://$addr/agent/$selectedAgent'),
+                  trailing: IconButton(
+                    tooltip: context.strings.copyRoot,
+                    icon: const Icon(Icons.copy),
+                    onPressed: () => copy(
+                      'http://$addr/agent/$selectedAgent',
+                      context.strings.rootCopied,
                     ),
-                ],
-                onSelected: (v) {
-                  if (v != null) setState(() => selectedAgent = v);
-                },
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(context.strings.agentRoot),
-                subtitle: SelectableText('http://$addr/agent/$selectedAgent'),
-                trailing: IconButton(
-                  tooltip: context.strings.copyRoot,
-                  icon: const Icon(Icons.copy),
-                  onPressed: () => copy(
-                    'http://$addr/agent/$selectedAgent',
-                    context.strings.rootCopied,
                   ),
                 ),
-              ),
-              Text(context.strings.agentHelp),
-              if (selectedAgent == 'omp') ...[
-                TextButton.icon(
-                  onPressed: busy
-                      ? null
-                      : () => act(() => chooseOmpProtocol(context)),
-                  icon: const Icon(Icons.settings_ethernet),
-                  label: Text(context.strings.gatewayProtocol),
-                ),
-                TextButton.icon(
-                  onPressed: busy
-                      ? null
-                      : () => act(() => editOmpRole(context)),
-                  icon: const Icon(Icons.assignment_ind_outlined),
-                  label: Text(context.strings.roleModels),
-                ),
-                TextButton.icon(
-                  onPressed: busy
-                      ? null
-                      : () => act(() async {
-                          final profile = await chooseOmpProfile(context);
-                          if (profile == null) return;
-                          final count = await api.syncOmpCatalog(
-                            profile: profile,
-                          );
-                          if (mounted) {
-                            notice(
-                              '$profile · ${context.strings.models} ($count)',
+                Text(context.strings.agentHelp),
+                if (selectedAgent == 'omp') ...[
+                  TextButton.icon(
+                    onPressed: busy
+                        ? null
+                        : () => act(() => chooseOmpProtocol(context)),
+                    icon: const Icon(Icons.settings_ethernet),
+                    label: Text(context.strings.gatewayProtocol),
+                  ),
+                  TextButton.icon(
+                    onPressed: busy
+                        ? null
+                        : () => act(() => editOmpRole(context)),
+                    icon: const Icon(Icons.assignment_ind_outlined),
+                    label: Text(context.strings.roleModels),
+                  ),
+                  TextButton.icon(
+                    onPressed: busy
+                        ? null
+                        : () => act(() async {
+                            final profile = await chooseOmpProfile(context);
+                            if (profile == null) return;
+                            final count = await api.syncOmpCatalog(
+                              profile: profile,
                             );
-                          }
-                        }),
-                  icon: const Icon(Icons.sync),
-                  label: Text(context.strings.syncModelCatalog),
-                ),
-                TextButton.icon(
-                  onPressed: busy
-                      ? null
-                      : () => act(
-                          () => editOmpSettings(context, OmpEditor.advisor),
-                        ),
-                  icon: const Icon(Icons.settings_outlined),
-                  label: Text(context.strings.advisorSettings),
-                ),
-                TextButton.icon(
-                  onPressed: busy
-                      ? null
-                      : () => act(
-                          () => editOmpSettings(context, OmpEditor.thinking),
-                        ),
-                  icon: const Icon(Icons.psychology_outlined),
-                  label: Text(context.strings.thinkingLevels),
-                ),
+                            if (mounted) {
+                              notice(
+                                '$profile · ${context.strings.models} ($count)',
+                              );
+                            }
+                          }),
+                    icon: const Icon(Icons.sync),
+                    label: Text(context.strings.syncModelCatalog),
+                  ),
+                  TextButton.icon(
+                    onPressed: busy
+                        ? null
+                        : () => act(
+                            () => editOmpSettings(context, OmpEditor.advisor),
+                          ),
+                    icon: const Icon(Icons.settings_outlined),
+                    label: Text(context.strings.advisorSettings),
+                  ),
+                  TextButton.icon(
+                    onPressed: busy
+                        ? null
+                        : () => act(
+                            () => editOmpSettings(context, OmpEditor.thinking),
+                          ),
+                    icon: const Icon(Icons.psychology_outlined),
+                    label: Text(context.strings.thinkingLevels),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
+      ),
+      CollectionSliver(
+        grid: grid,
+        height: 40,
+        children: [
+          for (final (id, name) in agents)
+            Builder(
+              builder: (tileContext) => Card.filled(
+                child: ListTile(
+                  selected: selectedAgent == id,
+                  leading: BrandIcon.agent(id),
+                  title: Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: name == id
+                      ? null
+                      : Text(id, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  onTap: () {
+                    setState(() => selectedAgent = id);
+                    Scrollable.of(tileContext).position.jumpTo(0);
+                  },
+                ),
+              ),
+            ),
+        ],
       ),
     ];
   }
@@ -1395,13 +1514,6 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         ),
       ),
     ),
-    Padding(
-      padding: const EdgeInsets.all(12),
-      child: Text(
-        'Crabforge ${status['version']} · com.blue.crabforge',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-    ),
   ];
 }
 
@@ -1413,10 +1525,14 @@ class ModelCatalog extends StatefulWidget {
     required this.canEdit,
     required this.onEdit,
     required this.onGroup,
+    required this.grid,
+    required this.onToggle,
   });
   final List<JsonMap> providers;
   final Map<String, String> groupRefs;
   final bool canEdit;
+  final bool grid;
+  final VoidCallback? onToggle;
   final ValueChanged<JsonMap> onEdit;
   final ValueChanged<String> onGroup;
   @override
@@ -1425,10 +1541,10 @@ class ModelCatalog extends StatefulWidget {
 
 class _ModelCatalogState extends State<ModelCatalog> {
   String filter = '';
-  bool grid = false;
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
+    final grid = widget.grid;
     final material = MaterialLocalizations.of(context);
     final rows = <({String id, bool group, VoidCallback? edit})>[
       for (final provider in widget.providers)
@@ -1457,14 +1573,7 @@ class _ModelCatalogState extends State<ModelCatalog> {
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
-              IconButton(
-                isSelected: grid,
-                tooltip: grid ? strings.listView : strings.gridView,
-                icon: Icon(
-                  grid ? Icons.view_list_outlined : Icons.grid_view_outlined,
-                ),
-                onPressed: () => setState(() => grid = !grid),
-              ),
+              LayoutToggle(grid: grid, onPressed: widget.onToggle),
             ],
           ),
           const SizedBox(height: 16),

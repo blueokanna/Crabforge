@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use futures_util::{StreamExt, stream};
-use serde_json::{Value, json};
+use nextjson::{Value, json};
 use std::{collections::BTreeMap, fs, path::Path, time::Duration};
 use tokio::{process::Command, time::timeout};
 
@@ -10,14 +10,16 @@ async fn inspect(cli: &Path, p: &Value) -> Result<Row> {
     if p.get("resource").is_some() {
         return Ok(Row("Resource", None, "Requires a resource URL".into()));
     }
-    if p["id"] == "bedrock-mantle" {
+    if p.get("id").and_then(Value::as_str) == Some("bedrock-mantle") {
         return Ok(Row("Credentials", None, "Requires an AWS account".into()));
     }
-    let endpoints = p["endpoints"].as_object().context("missing endpoints")?;
+    let endpoints = p.get("endpoints").context("missing endpoints")?;
     if endpoints
+        .as_object()
+        .context("expected endpoint object")?
         .values()
         .filter_map(Value::as_str)
-        .filter_map(|s| reqwest::Url::parse(s).ok())
+        .filter_map(|s| url::Url::parse(s).ok())
         .any(|url| matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]")))
     {
         return Ok(Row("Local", None, "Requires a local server".into()));
@@ -25,8 +27,10 @@ async fn inspect(cli: &Path, p: &Value) -> Result<Row> {
     let dir = tempfile::tempdir()?;
     fs::write(
         dir.path().join("settings.json"),
-        json!({"providers":[{"id":"survey","endpoints":endpoints,"models":["survey"]}]})
-            .to_string(),
+        nextjson::to_vec(
+            &json!({"providers":[{"id":"survey","endpoints":endpoints,"models":["survey"]}]}),
+        )
+        .map_err(anyhow::Error::msg)?,
     )?;
     let mut cmd = Command::new(cli);
     cmd.args(["models", "survey"])
@@ -69,15 +73,24 @@ async fn inspect(cli: &Path, p: &Value) -> Result<Row> {
 pub async fn run(cli: &Path, parallel: u8) -> Result<()> {
     let output = Command::new(cli).arg("catalog").output().await?;
     ensure!(output.status.success(), "cannot read provider presets");
-    let presets: Vec<Value> = serde_json::from_slice(&output.stdout)?;
+    let presets: Vec<Value> = nextjson::from_slice(&output.stdout).map_err(anyhow::Error::msg)?;
     let mut unique = BTreeMap::new();
     let mut ids = Vec::new();
     for p in &presets {
-        let id = p["id"].as_str().context("missing preset ID")?;
+        let id = p
+            .get("id")
+            .and_then(Value::as_str)
+            .context("missing preset ID")?;
         let key = if p.get("resource").is_some() {
             id.to_owned()
         } else {
-            p["endpoints"].to_string()
+            // Equivalent endpoints can arrive in a different JSON property order.
+            let endpoints = p
+                .get("endpoints")
+                .and_then(Value::as_object)
+                .context("missing endpoints")?;
+            nextjson::to_string(&endpoints.iter().collect::<BTreeMap<_, _>>())
+                .map_err(anyhow::Error::msg)?
         };
         unique.entry(key.clone()).or_insert(p);
         ids.push((id, key));

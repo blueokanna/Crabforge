@@ -45,6 +45,10 @@ void main() {
       await waitFor(find.text('renamed-local'));
       final zh = lookupAppLocalizations(const Locale('zh'));
       await waitFor(find.text(zh.addProvider));
+      expect(await native.uiLayout(), 'grid');
+      await waitFor(find.byType(SliverGrid));
+      await tester.tap(find.byTooltip(zh.listView));
+      await waitFor(find.byTooltip(zh.gridView));
       final persisted = jsonDecode(await native.configuration());
       expect(persisted['groups']['renamed-2'], ['renamed-local/desktop-model']);
       expect(persisted['group_weights']['renamed-2'], {
@@ -284,7 +288,15 @@ void main() {
     await waitFor(find.text(zh.noModelsFound));
     await tapText(zh.clients);
     await waitFor(find.text(zh.agentRoot));
+    await tester.tap(find.byTooltip(zh.gridView));
+    await waitFor(find.byType(SliverGrid));
+    await tapText(zh.gateway);
+    await waitFor(find.text(zh.listenAddress));
+    await waitFor(find.byType(SliverGrid));
     await tapText(zh.groups);
+    await waitFor(find.byTooltip(zh.listView));
+    await tester.tap(find.byTooltip(zh.listView));
+    await waitFor(find.byTooltip(zh.gridView));
     final foundGroup = find.text('auto/desktop-model');
     await waitFor(foundGroup);
     await tapText(zh.autoGroups);
@@ -730,5 +742,15 @@ void main() {
     );
     await tapText(zh.save);
     await waitFor(find.text('renamed-local'));
+    dispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(dispatcher.clearPlatformBrightnessTestValue);
+    await tester.ensureVisible(find.byTooltip(zh.gridView));
+    await tester.tap(find.byTooltip(zh.gridView));
+    await waitFor(find.byType(SliverGrid));
+    expect(
+      Theme.of(tester.element(find.text('renamed-local'))).brightness,
+      Brightness.dark,
+    );
+    expect(await native.uiLayout(), 'grid');
   });
 }

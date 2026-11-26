@@ -875,14 +875,14 @@ name = "crabforge-verify"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "axum",
  "clap",
+ "courierust",
  "futures-util",
  "hex",
- "reqwest",
- "serde_json",
+ "nextjson",
  "tempfile",
  "tokio",
+ "url",
  "windows-sys 0.61.2",
 ]
 
@@ -2560,8 +2560,6 @@ dependencies = [
 [[package]]
 name = "multiaddr"
 version = "0.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd707c05eadfb37577f01cbec206726feeecf0b9edea259aee6fc9bc541ee253"
 dependencies = [
  "byteorder",
  "bytes",
@@ -2570,7 +2568,6 @@ dependencies = [
  "multibase",
  "multihash",
  "percent-encoding",
- "serde",
  "static_assertions",
  "unsigned-varint",
  "url",

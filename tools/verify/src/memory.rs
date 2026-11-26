@@ -1,11 +1,12 @@
 use anyhow::{Context, Result, bail, ensure};
-use axum::{
-    Json, Router,
-    routing::{get, post},
-};
 use clap::ValueEnum;
-use reqwest::Client;
-use serde_json::{Value, json};
+use courierust::{
+    courierust_body::Body,
+    courierust_client::{Client, ClientConfig},
+    courierust_http::{Method, request::Request, response::Response},
+    courierust_server::Server,
+};
+use nextjson::{Value, json};
 use std::{
     collections::HashSet,
     env, fs,
@@ -180,24 +181,36 @@ pub enum Workload {
 }
 
 pub async fn gateway(cli: &Path, magpie: &Path, work: Workload, rounds: u8) -> Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:0").await?;
-    let base = format!("http://{}/v1", listener.local_addr()?);
-    let fixture=Router::new().route("/v1/chat/completions",post(||async{Json(json!({"id":"chatcmpl-local","object":"chat.completion","model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"measured"},"finish_reason":"stop"}],"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}))})).route("/v1/models",get(||async{Json(json!({"object":"list","data":[{"id":"m","object":"model"}]}))}));
-    let fixture = tokio::spawn(async move { axum::serve(listener, fixture).await });
+    let server = Server::bind("127.0.0.1:0")?;
+    let base = format!("http://{}/v1", server.local_addr()?);
+    let fixture = server.serve_background(|req: Request<Body>| {
+        let data = match (&req.method, req.uri.path()) {
+            (&Method::GET, "/v1/models") => r#"{"object":"list","data":[{"id":"m","object":"model"}]}"#,
+            (&Method::POST, "/v1/chat/completions") => r#"{"id":"chatcmpl-local","object":"chat.completion","model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"measured"},"finish_reason":"stop"}],"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}"#,
+            _ => return Response::with_status(404.into()),
+        };
+        Response::ok().header("content-type", "application/json").with_body(Body::from(data))
+    })?;
     println!("Gateway,Round,Workload,Models,WorkingSetMiB,PrivateMiB");
     for round in 1..=rounds {
         for reference in [round % 2 == 0, round % 2 != 0] {
-            measure(
+            let result = measure(
                 if reference { magpie } else { cli },
                 reference,
                 round,
                 work,
                 &base,
             )
-            .await?;
+            .await;
+            if let Err(error) = result {
+                fixture.stop();
+                fixture.join()?;
+                return Err(error);
+            }
         }
     }
-    fixture.abort();
+    fixture.stop();
+    fixture.join()?;
     Ok(())
 }
 
@@ -211,15 +224,27 @@ async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &
         fs::write(root.join(".portable"), "")?;
         if matches!(work, Workload::Chat) {
             fs::create_dir(root.join("data"))?;
-            fs::write(root.join("data/providers.json"),json!({"providers":[{"id":"bench","name":"Benchmark","key":"local-test","chat":base,"models":["m"]}]}).to_string())?;
+            fs::write(
+                root.join("data/providers.json"),
+                nextjson::to_vec(
+                    &json!({"providers":[{"id":"bench","name":"Benchmark","key":"local-test","chat":base,"models":["m"]}]}),
+                ).map_err(anyhow::Error::msg)?,
+            )?;
         }
         Command::new(local)
     } else {
-        let mut cfg = json!({"listen":addr});
+        let mut cfg = nextjson::Map::new();
+        cfg.insert("listen".into(), json!(addr.to_string()));
         if matches!(work, Workload::Chat) {
-            cfg["providers"] = json!([{"id":"bench","endpoints":{"chat":base},"models":["m"]}]);
+            cfg.insert(
+                "providers".into(),
+                json!([{"id":"bench","endpoints":{"chat":base},"models":["m"]}]),
+            );
         }
-        fs::write(root.join("settings.json"), cfg.to_string())?;
+        fs::write(
+            root.join("settings.json"),
+            nextjson::to_vec(&Value::Object(cfg)).map_err(anyhow::Error::msg)?,
+        )?;
         Command::new(exe)
     };
     let startup_log = root.join("gateway-stderr.log");
@@ -265,10 +290,12 @@ async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &
         .env("HTTPS_PROXY", "http://127.0.0.1:1")
         .env("NO_PROXY", "127.0.0.1,localhost");
     let mut process = cmd.spawn()?;
-    let http = Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(10))
-        .build()?;
+    let http = Client::with_config(ClientConfig {
+        read_timeout: Some(Duration::from_secs(10)),
+        connect_timeout: Some(Duration::from_secs(10)),
+        max_redirects: 0,
+        ..Default::default()
+    });
     let catalog = format!("http://{addr}/v1/models");
     let start = Instant::now();
     let mut last_probe = String::from("waiting for gateway key");
@@ -286,30 +313,42 @@ async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &
             fs::read(root.join("gateway.key")).ok().map(hex::encode)
         };
         if let Some(key) = key {
-            match http.get(&catalog).bearer_auth(&key).send().await {
-                Ok(res) if res.status().is_success() => {
-                    let v: Value = serde_json::from_slice(&res.bytes().await?)?;
-                    break (key, v["data"].as_array().context("expected models")?.len());
+            match http.request(&catalog, Method::GET).bearer_auth(&key).send() {
+                Ok(res) if res.status.is_success() => {
+                    let v = read_json(res)?;
+                    break (
+                        key,
+                        v.get("data")
+                            .and_then(Value::as_array)
+                            .context("expected models")?
+                            .len(),
+                    );
                 }
-                Ok(res) => last_probe = res.status().to_string(),
+                Ok(res) => last_probe = res.status.as_u16().to_string(),
                 Err(error) => last_probe = format!("{error:#?}"),
             }
         }
         sleep(Duration::from_millis(100)).await;
     };
     for _ in 0..100 {
-        let req=match work{Workload::Catalog=>http.get(&catalog),Workload::Chat=>http.post(format!("http://{addr}/v1/chat/completions")).header("content-type","application/json").body(r#"{"model":"bench/m","messages":[{"role":"user","content":"local measurement"}]}"#)};
-        let data = req
-            .bearer_auth(&key)
-            .send()
-            .await?
-            .error_for_status()?
-            .bytes()
-            .await?;
-        let v: Value = serde_json::from_slice(&data)?;
+        let req = match work {
+            Workload::Catalog => http.request(&catalog, Method::GET),
+            Workload::Chat => http.request(&format!("http://{addr}/v1/chat/completions"), Method::POST)
+                .header("content-type", "application/json")
+                .body(r#"{"model":"bench/m","messages":[{"role":"user","content":"local measurement"}]}"#),
+        };
+        let res = req.bearer_auth(&key).send()?;
+        ensure!(
+            res.status.is_success(),
+            "gateway returned HTTP {}",
+            res.status.as_u16()
+        );
+        let v = read_json(res)?;
         if matches!(work, Workload::Chat) {
             ensure!(
-                v["choices"][0]["message"]["content"] == "measured",
+                v.pointer("/choices/0/message/content")
+                    .and_then(Value::as_str)
+                    == Some("measured"),
                 "unexpected benchmark response"
             );
         }
@@ -322,4 +361,9 @@ async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &
     );
     process.kill().await?;
     Ok(())
+}
+
+fn read_json(res: Response<Body>) -> Result<Value> {
+    let bytes = res.body.collect_limited(4 * 1024 * 1024)?;
+    nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)
 }

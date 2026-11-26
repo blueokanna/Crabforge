@@ -1,5 +1,15 @@
 # Crabforge 0.1.0 验收记录
 
+### 源码依赖审计与控制台视图（2026-11-26）
+
+Windows x64 使用 `cargo tree --offline --locked -p <包名> --edges normal,build --prefix none` 检查解析后的依赖，再将 `--edges` 换为 `normal,build,dev` 复核开发和测试依赖。两次检查中，`libp2p` 和 `crabforge-verify` 均未引入名称含 `serde` 的包、Hyper 系列、Reqwest 或 Axum。`crabforge-core`、`crabforge-cli` 和 `crabforge-bridge` 仍引入 `serde`、`serde_core`、`serde_derive`、`serde_json`、`serde_path_to_error`、`serde_urlencoded`、`serde_yaml`、`hyper`、`hyper-rustls`、`hyper-util`、`reqwest` 和 `axum`。
+
+- `libp2p` 保持 `0.57.1`。根清单将 `multiaddr` 指向仓库内的 `0.19.1`，原 crates.io 压缩包 SHA-256 为 `fd707c05eadfb37577f01cbec206726feeecf0b9edea259aee6fc9bc541ee253`，上游提交为 `d5981da4b337d21807ee5869178fbaf3d5ec7e03`。与原包比较，源码差异仅为 `lib.rs` 删除 81 行 Serde 相关实现和引用。文本与二进制编解码和 MIT 许可证均来自原包。同机重跑 DCUtR 升级、中继预约与回退、Kubo 双向鉴权共四项，全部通过。[本地清单](../crates/vendor/multiaddr/Cargo.toml)
+- 验收工具的 HTTP 客户端和测试服务使用 Courierust，模型目录和内存探针使用 NextJSON。使用 `cf-dcutr-1031922879` 的 `carbforge-cli` 与 Magpie 分别重跑一轮空目录及 Chat 负载，四次均完成。网页对话的 ChromeDriver 请求、模型输入和响应改用 NextJSON 后，两个真实 Chrome 本地夹具通过。
+- 六个控制台页面共用列表或网格偏好，Rust 将选择原子写入数据目录的 `ui-layout`。Windows 桌面集成测试覆盖供应商、路由组、Agent、网关和模型的视图切换或沿用，另核对深色主题、系统剪贴板和独立进程重新启动后的布局。Flutter 静态分析和两个组件测试通过。
+
+下方 `cf-dcutr-1031922879` 的 ZIP、三轮内存数据和 97 项全量回归对应较早的冻结源码。
+
 ### Windows x64 直连升级与中继回退版（`cf-dcutr-1031922879`）
 
 Windows 包 `dist/cf-dcutr-1031922879/crabforge-0.1.0-windows-x64.zip` 共 62,207,857 字节，SHA-256 为 `B674CA946F26730D462A4DAEDE387405A1AEDBC33C8D5312460A97C0457AD953`。解压到新目录后核对全部 141 个文件，分别运行双 CLI 并启动桌面三次。包内 126 项品牌图标、字体、应用图标和许可证与源码一致。[逐文件 SHA-256](validation/cf-dcutr-1031922879/SHA256SUMS)

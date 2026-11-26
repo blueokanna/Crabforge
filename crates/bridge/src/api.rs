@@ -109,16 +109,18 @@ pub fn imported_group(configuration: String, text: String, replace: bool) -> Res
 }
 
 pub fn ui_language() -> Result<String> {
-    let path = config::data_dir()?.join("ui-language");
-    match std::fs::read_to_string(path) {
-        Ok(language) => Ok(language),
+    read_preference("ui-language")
+}
+
+fn read_preference(name: &str) -> Result<String> {
+    match std::fs::read_to_string(config::data_dir()?.join(name)) {
+        Ok(value) => Ok(value),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
         Err(e) => Err(e.into()),
     }
 }
 
 pub fn set_ui_language(language: String) -> Result<()> {
-    use std::io::Write;
     ensure!(
         matches!(
             language.as_str(),
@@ -126,12 +128,25 @@ pub fn set_ui_language(language: String) -> Result<()> {
         ),
         "unsupported UI language"
     );
+    write_preference("ui-language", &language)
+}
+
+pub fn ui_layout() -> Result<String> {
+    read_preference("ui-layout")
+}
+
+pub fn set_ui_layout(grid: bool) -> Result<()> {
+    write_preference("ui-layout", if grid { "grid" } else { "list" })
+}
+
+fn write_preference(name: &str, value: &str) -> Result<()> {
+    use std::io::Write;
     let dir = config::data_dir()?;
     std::fs::create_dir_all(&dir)?;
     let mut file = tempfile::NamedTempFile::new_in(&dir)?;
-    file.write_all(language.as_bytes())?;
+    file.write_all(value.as_bytes())?;
     file.as_file().sync_all()?;
-    file.persist(dir.join("ui-language"))?;
+    file.persist(dir.join(name))?;
     Ok(())
 }
 pub fn presets() -> String {

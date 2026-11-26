@@ -3,8 +3,7 @@ use courierust::{
     courierust_client::{Client, ClientConfig},
     courierust_http::Method,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use nextjson::{NsonDeserialize, NsonSerialize, Value, json};
 use std::{
     fs::File,
     path::Path,
@@ -18,7 +17,7 @@ use tokio::{
 };
 use url::Url;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Site {
     DeepSeek,
@@ -78,12 +77,10 @@ mod tests {
         );
         let task = tokio::spawn(async move { axum::serve(page, web).await });
         let root = tempfile::tempdir()?;
-        let settings = json!({"listen":"127.0.0.1:0", "cors_origins":[origin]});
-        config::save(
-            root.path(),
-            &config::snapshot(root.path())?,
-            &settings.to_string(),
-        )?;
+        let settings =
+            nextjson::to_string(&json!({"listen":"127.0.0.1:0", "cors_origins":[origin]}))
+                .map_err(anyhow::Error::msg)?;
+        config::save(root.path(), &config::snapshot(root.path())?, &settings)?;
         let allowed = Service::start(root.path()).await?;
         let other = tempfile::tempdir()?;
         config::save(
@@ -158,18 +155,25 @@ async fn wire(client: &Client, method: Method, url: &str, body: Option<Value>) -
             if let Some(body) = body {
                 req = req
                     .header("content-type", "application/json")
-                    .body(serde_json::to_vec(&body)?);
+                    .body(nextjson::to_vec(&body).map_err(anyhow::Error::msg)?);
             }
             let response = req.send().context("browser driver is unavailable")?;
             let bytes = response.body.collect_limited(MAX_REPLY)?;
-            let mut reply: Value = serde_json::from_slice(&bytes)?;
+            let reply: Value = nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?;
+            let value = reply
+                .into_object()
+                .and_then(|mut obj| obj.remove("value"))
+                .unwrap_or(Value::Null);
             ensure!(
                 response.status.is_success(),
                 "WebDriver HTTP {} ({})",
                 response.status.as_u16(),
-                reply["value"]["error"].as_str().unwrap_or("command failed")
+                value
+                    .get("error")
+                    .and_then(Value::as_str)
+                    .unwrap_or("command failed")
             );
-            Ok(reply["value"].take())
+            Ok(value)
         }),
     )
     .await
@@ -231,8 +235,9 @@ impl Browser {
         ];
         let capabilities = json!({"capabilities":{"alwaysMatch":{"browserName":"chrome","goog:chromeOptions":{"args":flags},"pageLoadStrategy":"eager"}}});
         let value = wire(&client, Method::POST, &url, Some(capabilities)).await?;
-        let id = value["sessionId"]
-            .as_str()
+        let id = value
+            .get("sessionId")
+            .and_then(Value::as_str)
             .context("missing browser session id")?;
         let browser = Self {
             driver: Some((driver, lock)),
@@ -274,8 +279,8 @@ impl Browser {
             .context("invalid element list")?
             .iter()
             .map(|e| {
-                e[ELEMENT]
-                    .as_str()
+                e.get(ELEMENT)
+                    .and_then(Value::as_str)
                     .map(str::to_owned)
                     .context("invalid element reference")
             })
@@ -382,25 +387,25 @@ impl Drop for Browser {
     }
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(NsonDeserialize)]
+#[njson(deny_unknown_fields)]
 struct ChatRequest {
     model: String,
     messages: Vec<Message>,
-    #[serde(default)]
+    #[njson(default)]
     stream: bool,
-    #[serde(rename = "stream_options")]
+    #[njson(rename = "stream_options")]
     _stream_options: Option<StreamOptions>,
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(NsonDeserialize)]
+#[njson(deny_unknown_fields)]
 struct StreamOptions {
-    #[serde(rename = "include_usage")]
+    #[njson(rename = "include_usage")]
     _include_usage: Option<bool>,
 }
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(NsonSerialize, NsonDeserialize)]
+#[njson(deny_unknown_fields)]
 struct Message {
     role: String,
     content: String,
@@ -413,7 +418,8 @@ pub struct WebPrompt {
 }
 impl WebPrompt {
     pub fn parse(body: &[u8]) -> Result<Self> {
-        let request: ChatRequest = serde_json::from_slice(body)
+        let request: ChatRequest = nextjson::from_slice(body)
+            .map_err(anyhow::Error::msg)
             .context("web chat accepts text messages and the stream flag")?;
         ensure!(
             !request.messages.is_empty()
@@ -432,7 +438,7 @@ impl WebPrompt {
         } else {
             format!(
                 "Continue this conversation and answer the last user message.\n{}",
-                serde_json::to_string(&request.messages)?
+                nextjson::to_string(&request.messages).map_err(anyhow::Error::msg)?
             )
         };
         ensure!(
@@ -453,22 +459,28 @@ impl WebPrompt {
         let text = answer?;
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?;
         let id = format!("chatcmpl-web-{}", now.as_nanos());
-        let base = json!({"id":id,"created":now.as_secs(),"model":self.model});
+        let reply = |object: &str, choices: Value| {
+            nextjson::to_string(&json!({"id":id,"created":now.as_secs(),"model":self.model,"object":object,"choices":choices})).map_err(anyhow::Error::msg)
+        };
         if self.stream {
-            let mut chunk = base;
-            chunk["object"] = json!("chat.completion.chunk");
-            chunk["choices"] = json!([{"index":0,"delta":{"role":"assistant","content":text},"finish_reason":null}]);
-            let first = chunk.to_string();
-            chunk["choices"] = json!([{"index":0,"delta":{},"finish_reason":"stop"}]);
+            let first = reply(
+                "chat.completion.chunk",
+                json!([{"index":0,"delta":{"role":"assistant","content":text},"finish_reason":null}]),
+            )?;
+            let last = reply(
+                "chat.completion.chunk",
+                json!([{"index":0,"delta":{},"finish_reason":"stop"}]),
+            )?;
             return Ok((
                 [("content-type", "text/event-stream")],
-                format!("data: {first}\n\ndata: {chunk}\n\ndata: [DONE]\n\n"),
+                format!("data: {first}\n\ndata: {last}\n\ndata: [DONE]\n\n"),
             )
                 .into_response());
         }
-        let mut reply = base;
-        reply["object"] = json!("chat.completion");
-        reply["choices"] = json!([{"index":0,"message":{"role":"assistant","content":text},"finish_reason":"stop"}]);
-        Ok(axum::Json(reply).into_response())
+        let body = reply(
+            "chat.completion",
+            json!([{"index":0,"message":{"role":"assistant","content":text},"finish_reason":"stop"}]),
+        )?;
+        Ok(([("content-type", "application/json")], body).into_response())
     }
 }

@@ -30,6 +30,7 @@ On Windows, the configuration, gateway key and P2P identity live under `%LOCALAP
 - Clients can use OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Gemini and Ollama APIs. The validation record describes which streaming, tool, media and authentication paths have been exercised. Model availability depends on the provider and account.
 - Groups support ordered, rotating, weighted, manual and nested routes. `carbforge-cli provider fallback primary group/work` configures a fallback for direct requests to `primary`. `carbforge-cli provider set backup fallback-for-others=no` prevents an ordinary provider's failed request from being sent to `backup`.
 - The desktop console follows the system locale by default and offers Chinese, English, French, German, Hindi, Japanese, Korean, Portuguese and Spanish.
+- Use the list or grid button on any of the six console pages. The other pages follow your choice, and the console restores it on the next launch.
 
 ## Reach another gateway
 
