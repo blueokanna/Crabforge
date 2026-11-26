@@ -1,0 +1,4 @@
+Source,Valid candidates,Installed names skipped,Invalid metadata skipped,Long document listed,Selected attachment copied,Dismissal persisted,Direct import after dismissal
+local Git fixture,1,pass,pass,pass,pass,,
+public anthropics/skills main,19,,,,,,
+local collection folder,1,,,,,pass,pass

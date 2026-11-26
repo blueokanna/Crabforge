@@ -1,0 +1,4 @@
+Client,Observed by,Published value,Inherited value kept
+Claude Code,Native SessionStart hook,pass,
+Codex,Native shell command and second localhost model request,pass,
+Pi,Native and gateway profiles via session_start event,pass,pass

@@ -6,6 +6,24 @@
 
 `assets/brands` 中的 119 个文件与本地 Magpie 参考快照的 `internal/gui/assets/icons` 逐文件 SHA-256 相同。包内附带 Magpie 与 Lobe Icons 的 MIT 声明。OpenAI 的标志使用另受品牌指南及其授权条款约束，Anthropic 商业服务条款第 F 节将知识产权授权限于条款明确授予的范围。正式售卖所需的品牌授权核定仍在进行。当前 Windows 用户没有可访问私钥的代码签名证书，冻结包的 Authenticode 状态为 `NotSigned`。[第三方声明](../THIRD_PARTY_NOTICES) · [OpenAI 品牌指南](https://openai.com/brand/#usage-terms) · [Anthropic 商业条款](https://www.anthropic.com/legal/commercial-terms#f-intellectual-property)
 
+### Windows x64 环境变量（`8064053`）
+
+从 `806405399a164f9184fa1fa6530b416ab9aa1c48` 离线构建的 ZIP 为 62,982,543 字节，SHA-256 为 `A389FEADE3B16C4E9CFE31DE260896603F9E581D1663635DD2CE184B5D210027`。核对 328 项构建输入、671 项解压清单、126 项资产和双 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。全目标 Clippy、Flutter 分析、两项组件测试和 136 项 Rust 全量回归通过。三个入口的 Authenticode 状态均为 `NotSigned`。[解压清单](validation/cf-windows-8064053/SHA256SUMS) · [依赖审计](validation/cf-windows-8064053/dependency-audit.csv) · [Rust 回归](validation/cf-windows-8064053/regression.log)
+
+解压 CLI 通过 Claude 的 JSONC、Codex 内联 TOML 的 BOM、CRLF 和注释保留，以及过期修订、改名、撤销、外部值保护和 Pi 双配置发布。Claude Code 2.1.332 的 `SessionStart`、Codex 0.172.0 的 Shell 回合和 Pi 1.6.0 两套配置的 `session_start` 都读到了发布值。Pi 两套配置都保留了 Shell 已有值。宽窄窗口集成验证了默认遮盖、List/Grid、分配、外部修改和撤销。该用例来自仅修改测试的 `279434b39621da83308e4e60d657f48fd906be39`。[解压 CLI](validation/cf-windows-8064053/environment.csv) · [真实客户端](validation/cf-windows-8064053/environment-process.csv) · [Windows 集成](validation/cf-windows-8064053/agent-environment.log)
+
+Profile 记录 577 帧，UI 构建 P90/P99 为 1.46/7.70 ms，帧总跨度为 2.95/9.78 ms。三轮解压 Release 启动的工作集／私有字节中位数为 Crabforge 155.14/229.99 MiB、Magpie 主进程 82.47/99.33 MiB、含七个 WebView2 子进程的 Magpie 454.73/419.18 MiB。三轮本机 SSE 首事件为 16、30、17 ms，末事件为 724、741、731 ms，上游等待 700 ms。同机 IPv6 回环、网卡全局 IPv6 地址及 Kubo 回退对无效和有效密钥分别返回 401 与 200。[Profile](validation/cf-windows-8064053/profile.json) · [内存采样](validation/cf-windows-8064053/desktop-comparison.csv) · [SSE](validation/cf-windows-8064053/forward-h1.csv) · [IPv6](validation/cf-windows-8064053/ipv6.csv)
+
+### Windows x64 技能来源目录（`1d072e8`）
+
+从 `1d072e8ac47aca7aeaa77798eb514101bdc971de` 离线构建的 ZIP 为 62,757,439 字节，SHA-256 为 `8EC82593C5F2098A2BCD840A9AD8AE5F9FB40AB8838D59636820A6196DCB8AB2`。核对 323 项构建输入、671 项解压清单、126 项资产和两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。三个入口的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-1d072e8/build-inputs.sha256) · [解压清单](validation/cf-windows-1d072e8/SHA256SUMS) · [依赖审计](validation/cf-windows-1d072e8/dependency-audit.csv)
+
+解压 CLI 通过引用名含 `/` 的本地 Git 目录、元数据过滤、长文档选择、完整附件导入和本地集合持久忽略。直接导入被忽略技能仍然可用。公开 `anthropics/skills` 主分支返回 19 个候选。解压 CLI 也通过了 Git 技能更新及真实 Gemini CLI 的项目 MCP 回合。[来源目录](validation/cf-windows-1d072e8/git-catalog.csv) · [Git 技能](validation/cf-windows-1d072e8/git-skills.csv) · [共享 MCP](validation/cf-windows-1d072e8/project-mcp-library-process.csv)
+
+Windows Debug 在宽窄窗口验证了来源目录的 List/Grid 与候选分配，确认 Codex 原生技能落盘、本地集合忽略保留，以及被忽略技能仍可直接导入 Claude Code。用例来自仅修改测试的 `2dfb3c6f8c358f51c67debdd82b01d6cd6de258b`。[Windows 集成](validation/cf-windows-1d072e8/agent-skills.log)
+
+Profile 记录 579 帧，UI 构建 P90/P99 为 1.66/7.64 ms，帧总跨度为 3.19/10.63 ms。三轮解压 Release 启动的工作集／私有字节中位数为 Crabforge 154.56/227.01 MiB、Magpie 主进程 84.08/100.48 MiB、含七个 WebView2 子进程的 Magpie 512.14/429.18 MiB。同机 IPv6 回环、网卡全局 IPv6 地址及 Kubo 回退通过 401/200 核对。本机 SSE 首事件为 32、13、16 ms，末事件为 744、728、717 ms。[Profile](validation/cf-windows-1d072e8/profile.json) · [内存采样](validation/cf-windows-1d072e8/desktop-comparison.csv) · [SSE](validation/cf-windows-1d072e8/forward-h1.csv) · [IPv6](validation/cf-windows-1d072e8/ipv6.csv)
+
 ### Windows x64 Git 技能（`876cd85`）
 
 从 `876cd856c3dfbc2a513f93ac33d410cf94a14883` 离线构建的 ZIP 为 62,703,264 字节，SHA-256 为 `150ABDE2790DB7AC877D328E8505498CC0C54E840CD7B9738B8DD13709EDDF76`。核对 321 项构建输入、671 项解压清单、126 项资产、311 组 Rust 许可及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。全目标 Clippy、Flutter 分析和两项组件测试通过。解压桌面和两个 CLI 的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-876cd85/build-inputs.sha256) · [解压清单](validation/cf-windows-876cd85/SHA256SUMS) · [依赖审计](validation/cf-windows-876cd85/dependency-audit.csv)
