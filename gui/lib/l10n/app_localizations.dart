@@ -112,6 +112,138 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @agentHooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Hooks'**
+  String get agentHooks;
+
+  /// No description provided for @addHook.
+  ///
+  /// In en, this message translates to:
+  /// **'Add hook'**
+  String get addHook;
+
+  /// No description provided for @editHook.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit hook'**
+  String get editHook;
+
+  /// No description provided for @adoptHook.
+  ///
+  /// In en, this message translates to:
+  /// **'Adopt hook'**
+  String get adoptHook;
+
+  /// No description provided for @noHooks.
+  ///
+  /// In en, this message translates to:
+  /// **'No hooks saved'**
+  String get noHooks;
+
+  /// No description provided for @installedHooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Hooks in client settings'**
+  String get installedHooks;
+
+  /// No description provided for @hookName.
+  ///
+  /// In en, this message translates to:
+  /// **'Hook name'**
+  String get hookName;
+
+  /// No description provided for @hookDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get hookDescription;
+
+  /// No description provided for @hookEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get hookEvent;
+
+  /// No description provided for @hookMatcher.
+  ///
+  /// In en, this message translates to:
+  /// **'Matcher'**
+  String get hookMatcher;
+
+  /// No description provided for @hookAllTools.
+  ///
+  /// In en, this message translates to:
+  /// **'All tools'**
+  String get hookAllTools;
+
+  /// No description provided for @hookShellTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Shell commands'**
+  String get hookShellTool;
+
+  /// No description provided for @hookEditTool.
+  ///
+  /// In en, this message translates to:
+  /// **'File edits'**
+  String get hookEditTool;
+
+  /// No description provided for @hookCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Command run by the client'**
+  String get hookCommand;
+
+  /// No description provided for @hookTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeout in seconds (optional)'**
+  String get hookTimeout;
+
+  /// No description provided for @hookTurnEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'End of turn'**
+  String get hookTurnEnd;
+
+  /// No description provided for @hookAfterTool.
+  ///
+  /// In en, this message translates to:
+  /// **'After tool use'**
+  String get hookAfterTool;
+
+  /// No description provided for @hookBeforeTool.
+  ///
+  /// In en, this message translates to:
+  /// **'Before tool use'**
+  String get hookBeforeTool;
+
+  /// No description provided for @hookPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt submitted'**
+  String get hookPrompt;
+
+  /// No description provided for @hookSessionStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Session start'**
+  String get hookSessionStart;
+
+  /// No description provided for @hookExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'Matching hook already exists'**
+  String get hookExisting;
+
+  /// No description provided for @hookConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing hooks kept'**
+  String get hookConflict;
+
   /// No description provided for @agentEnvironment.
   ///
   /// In en, this message translates to:

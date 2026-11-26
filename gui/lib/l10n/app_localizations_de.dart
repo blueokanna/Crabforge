@@ -10,6 +10,72 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get agentHooks => 'Hooks';
+
+  @override
+  String get addHook => 'Hook hinzufügen';
+
+  @override
+  String get editHook => 'Hook bearbeiten';
+
+  @override
+  String get adoptHook => 'Hook übernehmen';
+
+  @override
+  String get noHooks => 'Keine Hooks gespeichert';
+
+  @override
+  String get installedHooks => 'Hooks in den Client-Einstellungen';
+
+  @override
+  String get hookName => 'Name des Hooks';
+
+  @override
+  String get hookDescription => 'Beschreibung (optional)';
+
+  @override
+  String get hookEvent => 'Ereignis';
+
+  @override
+  String get hookMatcher => 'Filter';
+
+  @override
+  String get hookAllTools => 'Alle Werkzeuge';
+
+  @override
+  String get hookShellTool => 'Shell-Befehle';
+
+  @override
+  String get hookEditTool => 'Dateibearbeitungen';
+
+  @override
+  String get hookCommand => 'Vom Client ausgeführter Befehl';
+
+  @override
+  String get hookTimeout => 'Zeitlimit in Sekunden (optional)';
+
+  @override
+  String get hookTurnEnd => 'Ende des Gesprächsschritts';
+
+  @override
+  String get hookAfterTool => 'Nach dem Werkzeugaufruf';
+
+  @override
+  String get hookBeforeTool => 'Vor dem Werkzeugaufruf';
+
+  @override
+  String get hookPrompt => 'Nach Absenden der Eingabe';
+
+  @override
+  String get hookSessionStart => 'Sitzungsbeginn';
+
+  @override
+  String get hookExisting => 'Passender Hook bereits vorhanden';
+
+  @override
+  String get hookConflict => 'Vorhandene Hooks beibehalten';
+
+  @override
   String get agentEnvironment => 'Umgebungsvariablen';
 
   @override

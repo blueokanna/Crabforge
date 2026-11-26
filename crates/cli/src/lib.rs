@@ -6,6 +6,7 @@ use std::{net::SocketAddr, path::PathBuf};
 mod agent;
 mod environment;
 mod groups;
+mod hooks;
 mod memory;
 mod project_mcp;
 mod rules;
@@ -76,6 +77,11 @@ enum Command {
     Environment {
         #[command(subcommand)]
         command: environment::Command,
+    },
+    /// Manage hook commands and their client assignments.
+    Hooks {
+        #[command(subcommand)]
+        command: hooks::Command,
     },
     /// Discover recent local Claude Code and Codex sessions.
     Sessions {
@@ -830,6 +836,7 @@ pub async fn run() -> Result<()> {
         Command::Rules { command } => rules::run(&dir, command)?,
         Command::Skills { command } => skills::run(&dir, command)?,
         Command::Environment { command } => environment::run(&dir, command)?,
+        Command::Hooks { command } => hooks::run(&dir, command)?,
         Command::ProjectMcp { command } => project_mcp::run(&dir, command)?,
         Command::Sessions { agent, limit } => println!(
             "{}",

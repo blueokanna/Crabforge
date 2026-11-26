@@ -19,6 +19,11 @@ struct Member {
     comma: Option<usize>,
 }
 
+pub(crate) struct Array {
+    elements: Vec<(Range<usize>, Option<usize>)>,
+    close: usize,
+}
+
 struct Cursor<'a> {
     source: &'a str,
     index: usize,
@@ -124,21 +129,36 @@ impl Cursor<'_> {
                 Ok(())
             }
             Some(b'[') => {
-                self.index += 1;
-                self.skip()?;
-                while !self.consume(b']') {
-                    self.value(depth + 1)?;
-                    self.skip()?;
-                    if !self.consume(b',') {
-                        return self.expect(b']');
-                    }
-                    self.skip()?;
-                }
+                self.array(depth, false)?;
                 Ok(())
             }
             Some(quote @ (b'"' | b'\'')) => self.string(quote),
             _ => self.atom(),
         }
+    }
+
+    fn array(&mut self, depth: usize, collect: bool) -> Result<Array> {
+        self.expect(b'[')?;
+        self.skip()?;
+        let mut elements = Vec::new();
+        while self.peek() != Some(b']') {
+            let start = self.index;
+            self.value(depth + 1)?;
+            let end = self.index;
+            self.skip()?;
+            let comma = self.peek().filter(|&byte| byte == b',').map(|_| self.index);
+            if collect {
+                elements.push((start..end, comma));
+            }
+            if comma.is_none() {
+                break;
+            }
+            self.index += 1;
+            self.skip()?;
+        }
+        let close = self.index;
+        self.expect(b']')?;
+        Ok(Array { elements, close })
     }
 
     fn object(&mut self, depth: usize, collect: bool) -> Result<Object> {
@@ -210,6 +230,24 @@ pub(crate) fn parse(source: &str, path: &[&str]) -> Result<Option<Object>> {
 }
 
 impl Object {
+    pub(crate) fn keys(&self) -> impl Iterator<Item = &str> {
+        self.members.iter().map(|member| member.key.as_str())
+    }
+
+    pub(crate) fn array(&self, source: &str, key: &str) -> Result<Option<Array>> {
+        self.members
+            .iter()
+            .find(|member| member.key == key)
+            .map(|member| {
+                Cursor {
+                    source,
+                    index: member.value.start,
+                }
+                .array(0, true)
+            })
+            .transpose()
+            .with_context(|| format!("expected {key} to contain an array"))
+    }
     pub(crate) fn entries(self, source: &str) -> impl Iterator<Item = (String, &str)> {
         self.members
             .into_iter()
@@ -270,6 +308,48 @@ impl Object {
             }
             (None, None) => {}
         }
+        Ok(text)
+    }
+}
+
+impl Array {
+    pub(crate) fn values<'a>(&'a self, source: &'a str) -> impl Iterator<Item = &'a str> + 'a {
+        self.elements
+            .iter()
+            .map(move |(range, _)| &source[range.clone()])
+    }
+
+    pub(crate) fn append(self, source: &str, replacement: &Value) -> Result<String> {
+        let encoded = Object::encode(replacement)?;
+        let mut text = source.to_owned();
+        text.insert_str(self.close, &encoded);
+        if let Some((last, None)) = self.elements.last() {
+            text.insert(last.end, ',');
+        }
+        Ok(text)
+    }
+
+    pub(crate) fn remove(self, source: &str, index: usize) -> Result<String> {
+        let (element, comma) = self.elements.get(index).context("hook entry moved")?;
+        let mut text = source.to_owned();
+        if let Some(comma) = comma {
+            text.remove(*comma);
+        }
+        text.replace_range(element.clone(), "");
+        if comma.is_none() && index > 0 {
+            text.remove(
+                self.elements[index - 1]
+                    .1
+                    .context("missing array separator")?,
+            );
+        }
+        Ok(text)
+    }
+
+    pub(crate) fn replace(self, source: &str, index: usize, value: &str) -> Result<String> {
+        let (range, _) = self.elements.get(index).context("hook entry moved")?;
+        let mut text = source.to_owned();
+        text.replace_range(range.clone(), value);
         Ok(text)
     }
 }

@@ -1,0 +1,762 @@
+use crate::{
+    agents::NativeAgent, config::read_limited, native_settings, project_instructions::replace,
+};
+use anyhow::{Context, Result, ensure};
+use nextjson::{NsonDeserialize, NsonSerialize, Value};
+use sha2::{Digest, Sha256};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    env, fs,
+    io::ErrorKind,
+    path::{Path, PathBuf},
+};
+
+mod native;
+
+const MAX_LIBRARY: usize = 4 * 1024 * 1024;
+pub const MAX_ENTRY: usize = 64 * 1024;
+
+string_enum! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub enum Agent { Claude => "claude", Codex => "codex", Gemini => "gemini", Cursor => "cursor" }
+}
+
+impl Agent {
+    fn parse(id: &str) -> Result<Self> {
+        Self::from_wire(id).context("unsupported hook client")
+    }
+
+    fn id(self) -> &'static str {
+        match self {
+            Self::Claude => "claude",
+            Self::Codex => "codex",
+            Self::Gemini => "gemini",
+            Self::Cursor => "cursor",
+        }
+    }
+}
+
+#[derive(Clone, NsonDeserialize, NsonSerialize)]
+struct Hook {
+    name: String,
+    #[njson(default)]
+    description: String,
+    event: String,
+    #[njson(default)]
+    matcher: String,
+    command: String,
+    #[njson(default)]
+    timeout: u32,
+    #[njson(default)]
+    agents: BTreeSet<Agent>,
+}
+
+impl Hook {
+    fn validate(&self) -> Result<()> {
+        ensure!(
+            !self.name.is_empty()
+                && self.name.len() <= 64
+                && self
+                    .name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"_-".contains(&byte)),
+            "use 1–64 letters, digits, underscores or hyphens for the hook name"
+        );
+        ensure!(
+            self.description.chars().count() <= 200
+                && !self.description.contains(['\0', '\r', '\n']),
+            "the hook description must be a single line of up to 200 characters"
+        );
+        ensure!(
+            !self.command.trim().is_empty()
+                && self.command.len() <= 8192
+                && !self.command.contains('\0'),
+            "invalid hook command"
+        );
+        ensure!(
+            self.matcher.len() <= 1024 && !self.matcher.contains('\0') && self.timeout <= 3600,
+            "invalid hook matcher or timeout"
+        );
+        native::validate_event(&self.event, &self.matcher)?;
+        for &agent in &self.agents {
+            native::encode(agent, self)?;
+        }
+        Ok(())
+    }
+
+    fn revision(&self) -> Result<String> {
+        Ok(hash(&encode(self)?))
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, NsonDeserialize, NsonSerialize)]
+struct Target {
+    agent: Agent,
+    path: String,
+}
+
+#[derive(Clone, NsonDeserialize, NsonSerialize)]
+struct Entry {
+    event: String,
+    value: Value,
+    #[njson(default, skip_serializing_if = "Option::is_none")]
+    equivalent: Option<Value>,
+}
+
+#[derive(NsonDeserialize, NsonSerialize)]
+struct Publication {
+    target: Target,
+    entries: BTreeMap<String, Entry>,
+}
+
+#[derive(NsonDeserialize, NsonSerialize)]
+struct Pending {
+    after: String,
+    publication: Publication,
+}
+
+#[derive(Default, NsonDeserialize, NsonSerialize)]
+struct Store {
+    hooks: BTreeMap<String, Hook>,
+    publications: Vec<Publication>,
+    pending: Option<Pending>,
+}
+
+#[derive(NsonSerialize)]
+struct Status<'a> {
+    name: String,
+    target: &'a Target,
+    status: &'static str,
+    detail: Option<String>,
+}
+
+#[derive(NsonSerialize)]
+struct Found<'a> {
+    key: String,
+    target: &'a Target,
+    event: String,
+    entry: Value,
+    hook: Option<Hook>,
+}
+
+#[derive(NsonSerialize)]
+struct Saved<'a> {
+    hook: &'a Hook,
+    revision: String,
+}
+
+#[derive(NsonSerialize)]
+struct View<'a> {
+    hooks: Vec<Saved<'a>>,
+    placements: Vec<Status<'a>>,
+    installed: Vec<Found<'a>>,
+    errors: Vec<(&'a Target, String)>,
+    events: BTreeMap<&'static str, Vec<&'static str>>,
+}
+
+pub enum Edit {
+    Read,
+    Save {
+        source: String,
+        previous: Option<(String, String)>,
+    },
+    Remove {
+        name: String,
+        revision: String,
+    },
+    Adopt {
+        key: String,
+        name: String,
+    },
+    Sync,
+}
+
+fn encode(value: &impl NsonSerialize) -> Result<String> {
+    nextjson::to_string(value).map_err(anyhow::Error::msg)
+}
+
+fn hash(text: &str) -> String {
+    hex::encode(Sha256::digest(text.as_bytes()))
+}
+
+fn profile(key: &str, fallback: PathBuf) -> PathBuf {
+    env::var_os(key)
+        .filter(|path| !path.is_empty())
+        .map_or(fallback, PathBuf::from)
+}
+
+fn targets(dir: &Path) -> Result<BTreeMap<Target, &'static str>> {
+    let home = env::home_dir().context("user profile is unavailable")?;
+    let claude = NativeAgent::Claude
+        .home()
+        .context("Claude Code profile is unavailable")?;
+    let codex = NativeAgent::Codex
+        .home()
+        .context("Codex profile is unavailable")?;
+    let gemini = profile("GEMINI_CLI_HOME", home.clone());
+    let cursor = profile("CURSOR_HOME", home.join(".cursor"));
+    [
+        (Agent::Claude, claude.join("settings.json"), "{}\n"),
+        (Agent::Codex, codex.join("hooks.json"), "{}\n"),
+        (
+            Agent::Cursor,
+            cursor.join("hooks.json"),
+            "{\"version\":1}\n",
+        ),
+        (Agent::Gemini, gemini.join(".gemini/settings.json"), "{}\n"),
+        (
+            Agent::Gemini,
+            dir.join("agents/gemini/.gemini/settings.json"),
+            "{\"security\":{\"auth\":{\"selectedType\":\"gemini-api-key\"}}}\n",
+        ),
+    ]
+    .into_iter()
+    .map(|(agent, path, default)| {
+        let path = native_settings::path(&path)?
+            .into_os_string()
+            .into_string()
+            .ok()
+            .context("native hook path is not UTF-8")?;
+        Ok((Target { agent, path }, default))
+    })
+    .collect()
+}
+
+impl Store {
+    fn load(path: &Path) -> Result<Self> {
+        match read_limited(path, MAX_LIBRARY) {
+            Ok(bytes) => {
+                nextjson::from_slice(&bytes).map_err(|_| anyhow::anyhow!("invalid hook library"))
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => Ok(Self::default()),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    fn save(&self, path: &Path) -> Result<()> {
+        let text = encode(self)?;
+        ensure!(text.len() <= MAX_LIBRARY, "hook library exceeds 4 MiB");
+        replace(path, &text)
+    }
+
+    fn check(&self, name: &str, revision: &str) -> Result<()> {
+        let hook = self.hooks.get(name).context("hook was removed")?;
+        ensure!(
+            hook.revision()? == revision,
+            "hook changed; reload the library"
+        );
+        Ok(())
+    }
+
+    fn entries(&self, target: &Target) -> Option<&BTreeMap<String, Entry>> {
+        self.publications
+            .iter()
+            .find(|item| item.target == *target)
+            .map(|item| &item.entries)
+    }
+
+    fn record(&mut self, publication: Publication) {
+        self.publications
+            .retain(|item| item.target != publication.target);
+        if !publication.entries.is_empty() {
+            self.publications.push(publication);
+        }
+    }
+
+    fn recover(&mut self, path: &Path, targets: &BTreeMap<Target, &str>) -> Result<()> {
+        if let Some(pending) = &self.pending {
+            let target = &pending.publication.target;
+            let applied = targets.contains_key(target)
+                && native_settings::read(Path::new(&target.path))?
+                    .is_some_and(|text| hash(&text) == pending.after);
+            let pending = self.pending.take().expect("hook journal");
+            if applied {
+                self.record(pending.publication);
+            }
+            self.save(path)?;
+        }
+        Ok(())
+    }
+
+    fn commit(
+        &mut self,
+        path: &Path,
+        publication: Publication,
+        before: Option<&str>,
+        after: &str,
+    ) -> Result<()> {
+        ensure!(
+            self.pending.is_none(),
+            "another hook update is awaiting recovery"
+        );
+        let native_path = PathBuf::from(&publication.target.path);
+        self.pending = Some(Pending {
+            after: hash(after),
+            publication,
+        });
+        self.save(path)?;
+        if let Err(error) = native_settings::write(&native_path, before, Some(after)) {
+            self.pending = None;
+            self.save(path)?;
+            return Err(error);
+        }
+        let pending = self.pending.take().expect("hook journal");
+        self.record(pending.publication);
+        self.save(path)
+    }
+}
+
+fn indexes(entries: &BTreeMap<String, Vec<Value>>, entry: &Entry) -> Vec<usize> {
+    entries
+        .get(&entry.event)
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .filter_map(|(index, value)| (*value == entry.value).then_some(index))
+        .collect()
+}
+
+fn discover<'a>(
+    target: &'a Target,
+    source: &str,
+    claimed: Option<&BTreeMap<String, Entry>>,
+) -> Result<Vec<Found<'a>>> {
+    let mut output = Vec::new();
+    let revision = hash(source);
+    let events = native::read(source)?;
+    for (event, entries) in &events {
+        for (index, entry) in entries.iter().enumerate() {
+            if target.agent == Agent::Codex && *entry == nextjson::json!({"hooks": []}) {
+                continue;
+            }
+            if claimed.is_some_and(|claimed| {
+                claimed
+                    .values()
+                    .any(|owned| owned.event == *event && owned.value == *entry)
+            }) && entries.iter().filter(|value| *value == entry).count() == 1
+            {
+                continue;
+            }
+            let hook =
+                native::decode(target.agent, event, entry).filter(|hook| hook.validate().is_ok());
+            let key = hash(&encode(&(target, &revision, event, index))?);
+            output.push(Found {
+                key,
+                target,
+                event: event.clone(),
+                entry: entry.clone(),
+                hook,
+            });
+        }
+    }
+    Ok(output)
+}
+
+fn reconcile<'a>(
+    store: &mut Store,
+    path: &Path,
+    target: &'a Target,
+    default: &str,
+    sync: bool,
+) -> Result<Vec<Status<'a>>> {
+    let wanted = store
+        .hooks
+        .values()
+        .filter(|hook| hook.agents.contains(&target.agent))
+        .cloned()
+        .collect::<Vec<_>>();
+    let previous = store.entries(target).cloned().unwrap_or_default();
+    if wanted.is_empty() && previous.is_empty() {
+        return Ok(Vec::new());
+    }
+    let before = native_settings::read(Path::new(&target.path))?;
+    let original = before.as_deref().unwrap_or(default);
+    let mut source = original.to_owned();
+    let mut events = native::read(&source)?;
+    let mut placements = Vec::new();
+    let mut managed = BTreeMap::new();
+    let mut wanted = wanted
+        .into_iter()
+        .map(|hook| (hook.name.clone(), hook))
+        .collect::<BTreeMap<_, _>>();
+    for (name, owned) in previous {
+        let selected = wanted.remove(&name);
+        match indexes(&events, &owned).as_slice() {
+            [index] => {
+                if let Some(hook) = &selected {
+                    let (event, value) = native::encode(target.agent, hook)?;
+                    if event == owned.event
+                        && &native::canonical(&value)
+                            == owned.equivalent.as_ref().unwrap_or(&owned.value)
+                    {
+                        placements.push(Status {
+                            name: name.clone(),
+                            target,
+                            status: "applied",
+                            detail: None,
+                        });
+                        managed.insert(name, owned);
+                        continue;
+                    }
+                    wanted.insert(name.clone(), hook.clone());
+                } else {
+                    placements.push(Status {
+                        name: name.clone(),
+                        target,
+                        status: if sync { "removed" } else { "pending" },
+                        detail: None,
+                    });
+                }
+                source = native::remove(target.agent, &source, &owned.event, *index)?;
+                events = native::read(&source)?;
+            }
+            _ => {
+                placements.push(Status {
+                    name: name.clone(),
+                    target,
+                    status: "conflict",
+                    detail: None,
+                });
+                if selected.is_some() {
+                    managed.insert(name, owned);
+                }
+            }
+        }
+    }
+    for (name, hook) in wanted {
+        let (event, value) = native::encode(target.agent, &hook)?;
+        let entry = Entry {
+            event,
+            value: native::canonical(&value),
+            equivalent: None,
+        };
+        let status = if indexes(&events, &entry).is_empty() {
+            if target.agent == Agent::Cursor {
+                source = native::cursor_version(&source)?;
+            }
+            source = native::add(&source, &entry.event, value)?;
+            events = native::read(&source)?;
+            managed.insert(name.clone(), entry);
+            if sync { "applied" } else { "pending" }
+        } else {
+            "existing"
+        };
+        placements.push(Status {
+            name,
+            target,
+            status,
+            detail: None,
+        });
+    }
+    if sync {
+        let publication = Publication {
+            target: target.clone(),
+            entries: managed,
+        };
+        if source != original {
+            store.commit(path, publication, before.as_deref(), &source)?;
+        } else {
+            store.record(publication);
+            store.save(path)?;
+        }
+    }
+    Ok(placements)
+}
+
+fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<String> {
+    let _lock = native_settings::lock(dir)?;
+    let library = dir.join("hooks");
+    fs::create_dir_all(&library)?;
+    let path = library.join("library.json");
+    let mut store = Store::load(&path)?;
+    let sync = !matches!(edit, Edit::Read);
+    if sync {
+        store.recover(&path, targets)?;
+    }
+    match edit {
+        Edit::Read | Edit::Sync => {}
+        Edit::Save { source, previous } => {
+            ensure!(source.len() <= MAX_ENTRY, "hook entry exceeds 64 KiB");
+            let hook: Hook =
+                nextjson::from_str(&source).map_err(|_| anyhow::anyhow!("invalid hook entry"))?;
+            hook.validate()?;
+            if let Some((name, revision)) = previous {
+                store.check(&name, &revision)?;
+                ensure!(
+                    name == hook.name || !store.hooks.contains_key(&hook.name),
+                    "hook name already exists"
+                );
+                store.hooks.remove(&name);
+                for publication in &mut store.publications {
+                    if let Some(entry) = publication.entries.remove(&name) {
+                        publication.entries.insert(hook.name.clone(), entry);
+                    }
+                }
+            } else {
+                ensure!(
+                    !store.hooks.contains_key(&hook.name),
+                    "hook name already exists"
+                );
+            }
+            store.hooks.insert(hook.name.clone(), hook);
+            store.save(&path)?;
+        }
+        Edit::Remove { name, revision } => {
+            store.check(&name, &revision)?;
+            store.hooks.remove(&name);
+            store.save(&path)?;
+        }
+        Edit::Adopt { key, name } => {
+            ensure!(!store.hooks.contains_key(&name), "hook name already exists");
+            let mut adopted = None;
+            for target in targets.keys() {
+                let Ok(Some(before)) = native_settings::read(Path::new(&target.path)) else {
+                    continue;
+                };
+                let Ok(found) = discover(target, &before, store.entries(target)) else {
+                    continue;
+                };
+                if let Some(found) = found.into_iter().find(|found| found.key == key) {
+                    let mut hook = found
+                        .hook
+                        .context("the native hook cannot be represented as a single command")?;
+                    hook.name = name;
+                    hook.validate()?;
+                    let (_, encoded) = native::encode(target.agent, &hook)?;
+                    let encoded = native::canonical(&encoded);
+                    let entry = Entry {
+                        event: found.event,
+                        equivalent: (encoded != found.entry).then_some(encoded),
+                        value: found.entry,
+                    };
+                    ensure!(
+                        indexes(&native::read(&before)?, &entry).len() == 1,
+                        "identical native hooks cannot be adopted individually"
+                    );
+                    ensure!(
+                        native_settings::read(Path::new(&target.path))?.as_deref()
+                            == Some(before.as_str()),
+                        "native hooks changed; rediscover them"
+                    );
+                    let mut entries = store.entries(target).cloned().unwrap_or_default();
+                    entries.insert(hook.name.clone(), entry);
+                    store.record(Publication {
+                        target: target.clone(),
+                        entries,
+                    });
+                    adopted = Some(hook);
+                    break;
+                }
+            }
+            let hook = adopted.context("native hook changed; rediscover it")?;
+            store.hooks.insert(hook.name.clone(), hook);
+            store.save(&path)?;
+        }
+    }
+    let mut placements = Vec::new();
+    let mut installed = Vec::new();
+    let mut errors = Vec::new();
+    for (target, default) in targets {
+        match reconcile(&mut store, &path, target, default, sync) {
+            Ok(rows) => placements.extend(rows),
+            Err(error) => {
+                errors.push((target, format!("{error:#}")));
+                continue;
+            }
+        }
+        match native_settings::read(Path::new(&target.path)).and_then(|text| {
+            text.map(|text| discover(target, &text, store.entries(target)))
+                .transpose()
+        }) {
+            Ok(Some(rows)) => installed.extend(rows),
+            Ok(None) => {}
+            Err(error) => errors.push((target, format!("{error:#}"))),
+        }
+    }
+    for publication in &store.publications {
+        if !targets.contains_key(&publication.target) {
+            placements.extend(publication.entries.keys().map(|name| Status {
+                name: name.clone(),
+                target: &publication.target,
+                status: "pending",
+                detail: Some("Select the original profile to synchronize this file".into()),
+            }));
+        }
+    }
+    let hooks = store
+        .hooks
+        .values()
+        .map(|hook| {
+            Ok(Saved {
+                hook,
+                revision: hook.revision()?,
+            })
+        })
+        .collect::<Result<_>>()?;
+    encode(&View {
+        hooks,
+        placements,
+        installed,
+        errors,
+        events: targets
+            .keys()
+            .map(|target| (target.agent.id(), native::native_events(target.agent)))
+            .collect(),
+    })
+}
+
+pub fn edit(dir: &Path, change: Edit) -> Result<String> {
+    edit_in(dir, &targets(dir)?, change)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nextjson::json;
+
+    fn fixture(dir: &Path, agent: Agent) -> (Target, BTreeMap<Target, &'static str>) {
+        let path = native_settings::path(&dir.join("settings.json")).unwrap();
+        let target = Target {
+            agent,
+            path: path.to_str().unwrap().into(),
+        };
+        (target.clone(), BTreeMap::from([(target, "{}\n")]))
+    }
+
+    fn run(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Value {
+        nextjson::from_str(&edit_in(dir, targets, edit).unwrap()).unwrap()
+    }
+
+    fn save(name: &str, agent: Agent, command: &str) -> Edit {
+        Edit::Save {
+            source: json!({"name": name, "event": "session-start", "command": command, "agents": [agent.id()]}).to_string(),
+            previous: None,
+        }
+    }
+
+    #[test]
+    fn adoption_keeps_native_bytes_and_external_edits() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        let (target, targets) = fixture(dir, Agent::Claude);
+        let path = Path::new(&target.path);
+        let original = "\u{feff}{\r\n  // Keep this.\r\n  \"env\": {\"OTHER\": \"yes\"},\r\n  \"hooks\": {\"SessionStart\": [/* keep */{\"matcher\":\"\",\"hooks\":[{\"type\":\"command\",\"command\":\"echo native\"}]}]},\r\n}\r\n";
+        fs::write(path, original).unwrap();
+        let before = run(dir, &targets, Edit::Read);
+        let key = before["installed"][0]["key"].as_str().unwrap().to_owned();
+        fs::write(path, original.replace("Keep this", "Changed")).unwrap();
+        assert!(
+            edit_in(
+                dir,
+                &targets,
+                Edit::Adopt {
+                    key,
+                    name: "probe".into()
+                }
+            )
+            .is_err()
+        );
+
+        fs::write(path, original).unwrap();
+        let key = before["installed"][0]["key"].as_str().unwrap().to_owned();
+        let adopted = run(
+            dir,
+            &targets,
+            Edit::Adopt {
+                key,
+                name: "probe".into(),
+            },
+        );
+        assert_eq!(fs::read_to_string(path).unwrap(), original);
+        assert_eq!(adopted["placements"][0]["status"].as_str(), Some("applied"));
+        assert!(adopted["installed"].as_array().unwrap().is_empty());
+
+        let edited = original.replace("echo native", "echo changed");
+        fs::write(path, &edited).unwrap();
+        let removed = run(
+            dir,
+            &targets,
+            Edit::Remove {
+                name: "probe".into(),
+                revision: adopted["hooks"][0]["revision"].as_str().unwrap().into(),
+            },
+        );
+        assert_eq!(
+            removed["placements"][0]["status"].as_str(),
+            Some("conflict")
+        );
+        assert_eq!(fs::read_to_string(path).unwrap(), edited);
+    }
+
+    #[test]
+    fn codex_removal_keeps_later_group_indexes_and_comments() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        let (target, targets) = fixture(dir, Agent::Codex);
+        let path = Path::new(&target.path);
+        let saved = run(dir, &targets, save("first", Agent::Codex, "echo managed"));
+        let source = fs::read_to_string(path).unwrap();
+        let later =
+            json!({"matcher":"resume","hooks":[{"type":"command","command":"echo external"}]});
+        let edited = native::add(&source, "SessionStart", later.clone())
+            .unwrap()
+            .replace(
+                "{\"matcher\":\"resume\"",
+                "/* external */{\"matcher\":\"resume\"",
+            );
+        assert!(edited.contains("/* external */"));
+        fs::write(path, &edited).unwrap();
+        run(
+            dir,
+            &targets,
+            Edit::Remove {
+                name: "first".into(),
+                revision: saved["hooks"][0]["revision"].as_str().unwrap().into(),
+            },
+        );
+        let removed = fs::read_to_string(path).unwrap();
+        assert!(removed.contains("/* external */"));
+        assert_eq!(
+            native::read(&removed).unwrap()["SessionStart"],
+            [json!({"hooks": []}), native::canonical(&later)]
+        );
+        run(dir, &targets, save("second", Agent::Codex, "echo new"));
+        let new = native::read(&fs::read_to_string(path).unwrap()).unwrap();
+        assert_eq!(new["SessionStart"].len(), 3);
+        assert_eq!(new["SessionStart"][1], native::canonical(&later));
+    }
+
+    #[test]
+    fn synchronization_recovers_a_committed_hook_write() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        let (target, targets) = fixture(dir, Agent::Claude);
+        let saved = run(dir, &targets, save("probe", Agent::Claude, "echo managed"));
+        let path = dir.join("hooks/library.json");
+        let mut store = Store::load(&path).unwrap();
+        let publication = store.publications.pop().unwrap();
+        let native_path = Path::new(&target.path);
+        let after = fs::read_to_string(native_path).unwrap();
+        store.pending = Some(Pending {
+            after: hash(&after),
+            publication,
+        });
+        store.save(&path).unwrap();
+
+        let removal = run(
+            dir,
+            &targets,
+            Edit::Remove {
+                name: "probe".into(),
+                revision: saved["hooks"][0]["revision"].as_str().unwrap().into(),
+            },
+        );
+        assert_eq!(removal["placements"][0]["status"].as_str(), Some("removed"));
+        assert!(
+            !fs::read_to_string(native_path)
+                .unwrap()
+                .contains("echo managed")
+        );
+        assert!(Store::load(&path).unwrap().pending.is_none());
+    }
+}
