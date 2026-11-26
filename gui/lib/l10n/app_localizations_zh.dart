@@ -13,6 +13,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get memoryLibrary => '记忆';
 
   @override
+  String get agentSessions => '本地会话';
+
+  @override
+  String get allAgents => '所有 Agent';
+
+  @override
+  String get noAgentSessions => '未找到本地会话';
+
+  @override
+  String unreadableSessions(int count) {
+    return '无法读取的会话文件（$count）';
+  }
+
+  @override
+  String get copySessionId => '复制会话 ID';
+
+  @override
+  String get agentInstructions => '用户指令';
+
+  @override
+  String get agentMemoryDigest => '用户记忆';
+
+  @override
+  String get agentMemoryDigestHelp => '发布后，全局记忆和此 Agent 的记忆将写入该 Agent 的用户指令。';
+
+  @override
+  String get agentMemoryDigestEmpty => '没有可发布的有效全局记忆或 Agent 记忆。';
+
+  @override
   String get projectMemory => '项目记忆';
 
   @override

@@ -13,6 +13,36 @@ class AppLocalizationsJa extends AppLocalizations {
   String get memoryLibrary => 'メモリ';
 
   @override
+  String get agentSessions => 'ローカルセッション';
+
+  @override
+  String get allAgents => 'すべてのエージェント';
+
+  @override
+  String get noAgentSessions => 'ローカルセッションが見つかりません';
+
+  @override
+  String unreadableSessions(int count) {
+    return '読み取れないセッションファイル（$count）';
+  }
+
+  @override
+  String get copySessionId => 'セッション ID をコピー';
+
+  @override
+  String get agentInstructions => 'ユーザー指示';
+
+  @override
+  String get agentMemoryDigest => 'ユーザーメモリ';
+
+  @override
+  String get agentMemoryDigestHelp =>
+      '公開すると、グローバルメモリとこのエージェントのメモリが、エージェントのユーザー指示に書き込まれます。';
+
+  @override
+  String get agentMemoryDigestEmpty => '公開できる有効なグローバルメモリまたはエージェントメモリはありません。';
+
+  @override
   String get projectMemory => 'プロジェクトのメモリ';
 
   @override

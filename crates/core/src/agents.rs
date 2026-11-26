@@ -107,6 +107,42 @@ pub fn by_path(path: &str) -> (&str, Option<&'static str>) {
 mod command;
 pub mod omp_catalog;
 pub mod omp_profiles;
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NativeAgent {
+    Claude,
+    Codex,
+}
+
+impl NativeAgent {
+    pub fn by_id(id: &str) -> Option<Self> {
+        match id {
+            "claude" => Some(Self::Claude),
+            "codex" => Some(Self::Codex),
+            _ => None,
+        }
+    }
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::Claude => "claude",
+            Self::Codex => "codex",
+        }
+    }
+
+    pub(crate) fn home(self) -> Option<std::path::PathBuf> {
+        use std::{env, path::PathBuf};
+
+        let (key, folder) = match self {
+            Self::Claude => ("CLAUDE_CONFIG_DIR", ".claude"),
+            Self::Codex => ("CODEX_HOME", ".codex"),
+        };
+        env::var_os(key)
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| env::home_dir().map(|home| home.join(folder)))
+    }
+}
 pub mod omp_settings;
 mod user_agent;
 mod yaml;

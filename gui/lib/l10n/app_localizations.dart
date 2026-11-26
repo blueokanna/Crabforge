@@ -118,6 +118,60 @@ abstract class AppLocalizations {
   /// **'Memory'**
   String get memoryLibrary;
 
+  /// No description provided for @agentSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Local sessions'**
+  String get agentSessions;
+
+  /// No description provided for @allAgents.
+  ///
+  /// In en, this message translates to:
+  /// **'All agents'**
+  String get allAgents;
+
+  /// No description provided for @noAgentSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'No local sessions found'**
+  String get noAgentSessions;
+
+  /// No description provided for @unreadableSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreadable session files ({count})'**
+  String unreadableSessions(int count);
+
+  /// No description provided for @copySessionId.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy session ID'**
+  String get copySessionId;
+
+  /// No description provided for @agentInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'User instructions'**
+  String get agentInstructions;
+
+  /// No description provided for @agentMemoryDigest.
+  ///
+  /// In en, this message translates to:
+  /// **'User memory'**
+  String get agentMemoryDigest;
+
+  /// No description provided for @agentMemoryDigestHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Publishing writes global memory and this agent’s memory to its user instructions.'**
+  String get agentMemoryDigestHelp;
+
+  /// No description provided for @agentMemoryDigestEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no active global or agent memories to publish.'**
+  String get agentMemoryDigestEmpty;
+
   /// No description provided for @projectMemory.
   ///
   /// In en, this message translates to:

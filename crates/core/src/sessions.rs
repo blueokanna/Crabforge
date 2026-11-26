@@ -1,9 +1,10 @@
+use crate::agents::NativeAgent as Agent;
 use anyhow::{Context, Result};
 use nextjson::{NsonSerialize, Value};
 use std::{
     cmp::Reverse,
     collections::HashSet,
-    env, fs,
+    fs,
     io::{BufRead, BufReader, ErrorKind, Read},
     path::{Path, PathBuf},
     time::SystemTime,
@@ -11,32 +12,6 @@ use std::{
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 const MAX_HEADER: u64 = 512 * 1024;
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Agent {
-    Claude,
-    Codex,
-}
-
-impl Agent {
-    pub fn id(self) -> &'static str {
-        match self {
-            Self::Claude => "claude",
-            Self::Codex => "codex",
-        }
-    }
-
-    fn home(self) -> Option<PathBuf> {
-        let (key, folder) = match self {
-            Self::Claude => ("CLAUDE_CONFIG_DIR", ".claude"),
-            Self::Codex => ("CODEX_HOME", ".codex"),
-        };
-        env::var_os(key)
-            .filter(|path| !path.is_empty())
-            .map(PathBuf::from)
-            .or_else(|| env::home_dir().map(|home| home.join(folder)))
-    }
-}
 
 #[derive(NsonSerialize)]
 pub struct Session {

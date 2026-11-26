@@ -163,6 +163,15 @@ pub fn agents() -> String {
     json!(crabforge_core::agents::CLIENTS).to_string()
 }
 
+pub fn agent_sessions(agent: Option<String>) -> Result<String> {
+    use crabforge_core::agents::NativeAgent;
+
+    let agent = agent
+        .map(|id| NativeAgent::by_id(&id).context("unsupported session agent"))
+        .transpose()?;
+    encode(&crabforge_core::sessions::list(agent, 50)?)
+}
+
 pub fn search_memories(query: String) -> Result<String> {
     encode(&crabforge_core::memory::search(
         &config::data_dir()?,
@@ -229,6 +238,39 @@ pub fn publish_project_memory(
     crabforge_core::project_instructions::publish_memory(
         &config::data_dir()?,
         project.as_ref(),
+        &agent,
+        &revision,
+        Some(&preview),
+    )
+}
+
+pub fn agent_instructions(agent: String) -> Result<String> {
+    encode(&crabforge_core::project_instructions::read_agent(
+        &config::data_dir()?,
+        &agent,
+    )?)
+}
+
+pub fn edit_agent_instructions(
+    agent: String,
+    revision: String,
+    text: Option<String>,
+) -> Result<()> {
+    crabforge_core::project_instructions::edit_agent(
+        &config::data_dir()?,
+        &agent,
+        &revision,
+        text.as_deref(),
+    )
+}
+
+pub fn agent_memory_digest(agent: String) -> Result<String> {
+    crabforge_core::memory::agent_digest(&config::data_dir()?, Some(&agent))
+}
+
+pub fn publish_agent_memory(agent: String, revision: String, preview: String) -> Result<()> {
+    crabforge_core::project_instructions::publish_agent_memory(
+        &config::data_dir()?,
         &agent,
         &revision,
         Some(&preview),

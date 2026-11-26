@@ -13,6 +13,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memoryLibrary => 'Memory';
 
   @override
+  String get agentSessions => 'Local sessions';
+
+  @override
+  String get allAgents => 'All agents';
+
+  @override
+  String get noAgentSessions => 'No local sessions found';
+
+  @override
+  String unreadableSessions(int count) {
+    return 'Unreadable session files ($count)';
+  }
+
+  @override
+  String get copySessionId => 'Copy session ID';
+
+  @override
+  String get agentInstructions => 'User instructions';
+
+  @override
+  String get agentMemoryDigest => 'User memory';
+
+  @override
+  String get agentMemoryDigestHelp =>
+      'Publishing writes global memory and this agent’s memory to its user instructions.';
+
+  @override
+  String get agentMemoryDigestEmpty =>
+      'There are no active global or agent memories to publish.';
+
+  @override
   String get projectMemory => 'Project memory';
 
   @override

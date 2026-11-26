@@ -16,6 +16,27 @@ const BEGIN: &str = "<!-- magpie:begin · written by magpie from its Library -->
 const END: &str = "<!-- magpie:end -->";
 const MEMORY_BEGIN: &str = "<!-- crabforge:project-memory:begin -->";
 const MEMORY_END: &str = "<!-- crabforge:project-memory:end -->";
+const AGENT_MEMORY_BEGIN: &str = "<!-- crabforge:agent-memory:begin -->";
+const AGENT_MEMORY_END: &str = "<!-- crabforge:agent-memory:end -->";
+
+#[derive(Clone, Copy)]
+enum Section {
+    Instructions,
+    ProjectMemory,
+    AgentMemory,
+}
+
+impl Section {
+    const ALL: [Self; 3] = [Self::Instructions, Self::ProjectMemory, Self::AgentMemory];
+
+    fn markers(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Instructions => (BEGIN, END),
+            Self::ProjectMemory => (MEMORY_BEGIN, MEMORY_END),
+            Self::AgentMemory => (AGENT_MEMORY_BEGIN, AGENT_MEMORY_END),
+        }
+    }
+}
 const MAX_DOCUMENT: u64 = 256 * 1024;
 const MAX_BACKUPS: usize = 16;
 const MAX_HISTORY: u64 = MAX_DOCUMENT * 6 * MAX_BACKUPS as u64 + 4096;
@@ -129,31 +150,19 @@ fn target(dir: &Path, project: &Path, agent: &str) -> Result<PathBuf> {
             "instruction filename must be relative to the project folder"
         );
         let path = root.join(name);
-        match fs::symlink_metadata(&path) {
-            Ok(_) => {
-                let resolved = path.canonicalize()?;
-                ensure!(
-                    resolved.starts_with(&root) && resolved.is_file(),
-                    "instructions must be a file inside the project"
-                );
-                return Ok(resolved);
-            }
-            Err(e) if e.kind() == ErrorKind::NotFound => {
-                if configured.is_some() {
-                    let parent = path.parent().context("missing instruction parent folder")?;
-                    let parent = parent
-                        .canonicalize()
-                        .context("cannot open the instruction parent folder")?;
-                    ensure!(
-                        parent.starts_with(&root) && parent.is_dir(),
-                        "instructions must be a file inside the project"
-                    );
-                    return Ok(
-                        parent.join(path.file_name().context("missing instruction filename")?)
-                    );
-                }
-            }
-            Err(e) => return Err(e.into()),
+        if let Some(existing) = existing_in(&root, &path)? {
+            return Ok(existing);
+        }
+        if configured.is_some() {
+            let parent = path.parent().context("missing instruction parent folder")?;
+            let parent = parent
+                .canonicalize()
+                .context("cannot open the instruction parent folder")?;
+            ensure!(
+                parent.starts_with(&root) && parent.is_dir(),
+                "instructions must be a file inside the project"
+            );
+            return Ok(parent.join(path.file_name().context("missing instruction filename")?));
         }
     }
     let default = if matches!(agent, "codex" | "pi") {
@@ -162,6 +171,45 @@ fn target(dir: &Path, project: &Path, agent: &str) -> Result<PathBuf> {
         names[0]
     };
     Ok(root.join(default))
+}
+
+fn existing_in(root: &Path, path: &Path) -> Result<Option<PathBuf>> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => {
+            let resolved = path.canonicalize()?;
+            ensure!(
+                resolved.starts_with(root) && resolved.is_file(),
+                "instructions must be a file inside {}",
+                root.display()
+            );
+            Ok(Some(resolved))
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn agent_target(agent: &str) -> Result<PathBuf> {
+    use crate::agents::NativeAgent;
+
+    let agent =
+        NativeAgent::by_id(agent).context("user instructions support Claude Code and Codex")?;
+    let names: &[&str] = match agent {
+        NativeAgent::Claude => &["CLAUDE.md"],
+        NativeAgent::Codex => &["AGENTS.override.md", "AGENTS.md"],
+    };
+    let root = agent
+        .home()
+        .context("cannot locate the agent's configuration folder")?
+        .canonicalize()
+        .context("cannot open the agent's configuration folder")?;
+    ensure!(root.is_dir(), "expected an agent configuration folder");
+    for name in names {
+        if let Some(path) = existing_in(&root, &root.join(name))? {
+            return Ok(path);
+        }
+    }
+    Ok(root.join(names.last().unwrap()))
 }
 
 struct Block {
@@ -202,25 +250,28 @@ fn block(source: &str, (start_marker, end_marker): (&str, &str)) -> Result<Optio
     Ok(found)
 }
 
-fn blocks(source: &str) -> Result<(Option<Block>, Option<Block>)> {
-    let instructions = block(source, (BEGIN, END))?;
-    let memory = block(source, (MEMORY_BEGIN, MEMORY_END))?;
-    if let (Some(a), Some(b)) = (&instructions, &memory) {
+fn blocks(source: &str) -> Result<[Option<Block>; 3]> {
+    let [instructions, project, agent] = Section::ALL;
+    let found = [
+        block(source, instructions.markers())?,
+        block(source, project.markers())?,
+        block(source, agent.markers())?,
+    ];
+    let mut whole: Vec<_> = found.iter().flatten().map(|block| &block.whole).collect();
+    whole.sort_unstable_by_key(|range| range.start);
+    for pair in whole.windows(2) {
         ensure!(
-            a.whole.end <= b.whole.start || b.whole.end <= a.whole.start,
-            "managed instructions and project memory overlap"
+            pair[0].end <= pair[1].start,
+            "managed instructions and memory blocks overlap"
         );
     }
-    Ok((instructions, memory))
+    Ok(found)
 }
 
-fn updated(source: &str, text: &str, publish_memory: bool) -> Result<String> {
-    let (instructions, memory) = blocks(source)?;
-    let (old, begin, end) = if publish_memory {
-        (memory, MEMORY_BEGIN, MEMORY_END)
-    } else {
-        (instructions, BEGIN, END)
-    };
+fn updated(source: &str, text: &str, section: Section) -> Result<String> {
+    let mut blocks = blocks(source)?;
+    let old = blocks[section as usize].take();
+    let (begin, end) = section.markers();
     let text = text
         .strip_prefix('\u{feff}')
         .unwrap_or(text)
@@ -229,7 +280,7 @@ fn updated(source: &str, text: &str, publish_memory: bool) -> Result<String> {
     ensure!(
         !text.split('\n').any(|line| matches!(
             line.trim_end_matches('\r'),
-            BEGIN | END | MEMORY_BEGIN | MEMORY_END
+            BEGIN | END | MEMORY_BEGIN | MEMORY_END | AGENT_MEMORY_BEGIN | AGENT_MEMORY_END
         )),
         "instructions contain a reserved marker line"
     );
@@ -331,14 +382,22 @@ fn history(dir: &Path, path: &Path) -> Result<(PathBuf, Vec<Backup>)> {
 }
 
 pub fn read(dir: &Path, project: &Path, agent: &str) -> Result<View> {
-    let path = target(dir, project, agent)?;
+    read_path(dir, target(dir, project, agent)?, Section::ProjectMemory)
+}
+
+pub fn read_agent(dir: &Path, agent: &str) -> Result<View> {
+    read_path(dir, agent_target(agent)?, Section::AgentMemory)
+}
+
+fn read_path(dir: &Path, path: PathBuf, memory_section: Section) -> Result<View> {
     let contents = optional(&path, MAX_DOCUMENT)?;
     let source = contents.as_deref().unwrap_or_default();
-    let (instructions, memory) = blocks(source)?;
-    let text = |block: Option<Block>| {
-        block
+    let found = blocks(source)?;
+    let text = |section: Section| {
+        found[section as usize]
+            .as_ref()
             .map(|b| {
-                source[b.body]
+                source[b.body.clone()]
                     .trim_end_matches(['\r', '\n'])
                     .replace("\r\n", "\n")
             })
@@ -348,8 +407,8 @@ pub fn read(dir: &Path, project: &Path, agent: &str) -> Result<View> {
     let (_, entries) = history(dir, &path)?;
     Ok(View {
         path: path.display().to_string(),
-        text: text(instructions),
-        memory_digest: text(memory),
+        text: text(Section::Instructions),
+        memory_digest: text(memory_section),
         can_restore: entries.iter().any(|e| e.after == revision),
         revision,
     })
@@ -363,7 +422,13 @@ pub fn edit(
     previous: &str,
     text: Option<&str>,
 ) -> Result<()> {
-    write(dir, project, agent, previous, text, false)
+    write(
+        dir,
+        || target(dir, project, agent),
+        previous,
+        text,
+        Section::Instructions,
+    )
 }
 
 pub fn publish_memory(
@@ -379,16 +444,52 @@ pub fn publish_memory(
         preview.is_none_or(|preview| digest == preview),
         "project memory changed; preview it again"
     );
-    write(dir, project, agent, previous, Some(&digest), true)
+    write(
+        dir,
+        || target(dir, project, agent),
+        previous,
+        Some(&digest),
+        Section::ProjectMemory,
+    )
+}
+
+pub fn publish_agent_memory(
+    dir: &Path,
+    agent: &str,
+    previous: &str,
+    preview: Option<&str>,
+) -> Result<()> {
+    let (_folder, _lock) = crate::memory::lock_store(dir)?;
+    let digest = crate::memory::agent_digest(dir, Some(agent))?;
+    ensure!(
+        preview.is_none_or(|preview| preview == digest),
+        "agent memory changed; preview it again"
+    );
+    write(
+        dir,
+        || agent_target(agent),
+        previous,
+        Some(&digest),
+        Section::AgentMemory,
+    )
+}
+
+pub fn edit_agent(dir: &Path, agent: &str, previous: &str, text: Option<&str>) -> Result<()> {
+    write(
+        dir,
+        || agent_target(agent),
+        previous,
+        text,
+        Section::Instructions,
+    )
 }
 
 fn write(
     dir: &Path,
-    project: &Path,
-    agent: &str,
+    resolve: impl Fn() -> Result<PathBuf>,
     previous: &str,
     text: Option<&str>,
-    publish_memory: bool,
+    section: Section,
 ) -> Result<()> {
     let store = dir.join("project-instructions");
     fs::create_dir_all(&store)?;
@@ -399,7 +500,7 @@ fn write(
         .truncate(false)
         .open(store.join("library.lock"))?;
     lock.lock()?;
-    let path = target(dir, project, agent)?;
+    let path = resolve()?;
     let before = optional(&path, MAX_DOCUMENT)?;
     let version = revision(&path, before.as_deref());
     ensure!(
@@ -410,7 +511,7 @@ fn write(
     let index = entries.iter().rposition(|e| e.after == version);
     let write_document = |contents: Option<&str>| -> Result<()> {
         ensure!(
-            target(dir, project, agent)? == path
+            resolve()? == path
                 && revision(&path, optional(&path, MAX_DOCUMENT)?.as_deref()) == version,
             "instructions changed; reload the project file"
         );
@@ -425,10 +526,10 @@ fn write(
                 text.len() as u64 <= MAX_DOCUMENT,
                 "instructions exceed the {MAX_DOCUMENT}-byte limit"
             );
-            let content = updated(before.as_deref().unwrap_or_default(), text, publish_memory)?;
+            let content = updated(before.as_deref().unwrap_or_default(), text, section)?;
             ensure!(
                 content.len() as u64 <= MAX_DOCUMENT,
-                "project file would exceed the {MAX_DOCUMENT}-byte limit"
+                "instruction file would exceed the {MAX_DOCUMENT}-byte limit"
             );
             let created = before.is_none() || index.is_some_and(|i| entries[i].created);
             let result = (!(created && content.is_empty())).then_some(content);
@@ -493,7 +594,7 @@ mod tests {
             let name = root.join(name);
             assert_eq!(target(data.path(), &root, agent)?, name);
         }
-        assert!(updated("", &format!("Useful text\n{END}\r"), false).is_err());
+        assert!(updated("", &format!("Useful text\n{END}\r"), Section::Instructions).is_err());
         Ok(())
     }
 

@@ -167,7 +167,7 @@ enum SessionAgent {
     Codex,
 }
 
-impl From<SessionAgent> for crabforge_core::sessions::Agent {
+impl From<SessionAgent> for crabforge_core::agents::NativeAgent {
     fn from(agent: SessionAgent) -> Self {
         match agent {
             SessionAgent::Claude => Self::Claude,

@@ -15,7 +15,7 @@ mod digest;
 pub mod mcp;
 mod project;
 
-pub use digest::project_digest;
+pub use digest::{agent_digest, project_digest};
 pub use project::key as project_key;
 
 const MAX_FILE: usize = 256 * 1024;
@@ -29,6 +29,15 @@ const KINDS: &[&str] = &[
     "episode",
 ];
 const STATES: &[&str] = &["active", "candidate", "archived", "superseded"];
+
+fn scope_key(prefix: &str, key: &str) -> Result<String> {
+    let key = key.trim();
+    ensure!(
+        !key.is_empty() && key.len() <= 1016 && !key.chars().any(char::is_control),
+        "invalid {prefix} scope key"
+    );
+    Ok(format!("{prefix}:{key}"))
+}
 
 #[derive(NsonSerialize)]
 pub struct Entry {

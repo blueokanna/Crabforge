@@ -7,9 +7,14 @@ import 'language.dart';
 import 'src/rust/api.dart' as api;
 
 class ProjectInstructionsEditor extends StatefulWidget {
-  const ProjectInstructionsEditor({super.key, required this.agent});
+  const ProjectInstructionsEditor({
+    super.key,
+    required this.agent,
+    this.userInstructions = false,
+  });
 
   final String agent;
+  final bool userInstructions;
 
   @override
   State<ProjectInstructionsEditor> createState() =>
@@ -30,6 +35,12 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
   document;
   bool busy = false;
   String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.userInstructions) perform(() => load(''));
+  }
 
   @override
   void dispose() {
@@ -55,7 +66,9 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
 
   Future<void> load(String path) async {
     final result = jsonDecode(
-      await api.projectInstructions(project: path, agent: widget.agent),
+      widget.userInstructions
+          ? await api.agentInstructions(agent: widget.agent)
+          : await api.projectInstructions(project: path, agent: widget.agent),
     );
     if (!mounted) return;
     final text = result['text'] as String;
@@ -97,12 +110,21 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
 
   Future<void> save({bool restore = false}) => perform(() async {
     final current = document!;
-    await api.editProjectInstructions(
-      project: current.folder,
-      agent: widget.agent,
-      revision: current.revision,
-      text: restore ? null : markdown.text,
-    );
+    final text = restore ? null : markdown.text;
+    if (widget.userInstructions) {
+      await api.editAgentInstructions(
+        agent: widget.agent,
+        revision: current.revision,
+        text: text,
+      );
+    } else {
+      await api.editProjectInstructions(
+        project: current.folder,
+        agent: widget.agent,
+        revision: current.revision,
+        text: text,
+      );
+    }
     await load(current.folder);
   });
 
@@ -110,29 +132,43 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
     final current = document!;
     String? result;
     await perform(() async {
-      result = await api.projectMemoryDigest(project: current.folder);
+      result = widget.userInstructions
+          ? await api.agentMemoryDigest(agent: widget.agent)
+          : await api.projectMemoryDigest(project: current.folder);
     });
     final preview = result;
     if (!mounted || preview == null) return;
     final strings = context.strings;
-    final canPublish = preview.trimRight() != current.memoryDigest;
+    final canPublish =
+        preview.replaceFirst(RegExp(r'\n+$'), '') != current.memoryDigest;
+    final title = widget.userInstructions
+        ? strings.agentMemoryDigest
+        : strings.projectMemory;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         scrollable: true,
-        title: Text(strings.projectMemory),
+        title: Text(title),
         content: SizedBox(
           width: 580,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(strings.projectMemoryHelp),
+              Text(
+                widget.userInstructions
+                    ? strings.agentMemoryDigestHelp
+                    : strings.projectMemoryHelp,
+              ),
               const SizedBox(height: 12),
               SelectableText(current.path),
               const SizedBox(height: 12),
               SelectableText(
-                preview.isEmpty ? strings.projectMemoryEmpty : preview,
+                preview.isNotEmpty
+                    ? preview
+                    : widget.userInstructions
+                    ? strings.agentMemoryDigestEmpty
+                    : strings.projectMemoryEmpty,
               ),
             ],
           ),
@@ -151,12 +187,20 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
     );
     if (!mounted || confirmed != true) return;
     await perform(() async {
-      await api.publishProjectMemory(
-        project: current.folder,
-        agent: widget.agent,
-        revision: current.revision,
-        preview: preview,
-      );
+      if (widget.userInstructions) {
+        await api.publishAgentMemory(
+          agent: widget.agent,
+          revision: current.revision,
+          preview: preview,
+        );
+      } else {
+        await api.publishProjectMemory(
+          project: current.folder,
+          agent: widget.agent,
+          revision: current.revision,
+          preview: preview,
+        );
+      }
       if (mounted) await load(current.folder);
     });
   }
@@ -168,36 +212,43 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
     final colors = Theme.of(context).colorScheme;
     return AlertDialog(
       scrollable: true,
-      title: Text(strings.projectInstructions),
+      title: Text(
+        widget.userInstructions
+            ? strings.agentInstructions
+            : strings.projectInstructions,
+      ),
       content: SizedBox(
         width: 620,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              controller: folder,
-              enabled: !busy && current == null,
-              decoration: InputDecoration(
-                labelText: strings.projectFolder,
-                suffixIcon: current == null
-                    ? IconButton(
-                        tooltip: strings.projectFolder,
-                        icon: const Icon(Icons.folder_open_outlined),
-                        onPressed: busy
-                            ? null
-                            : () => perform(() async {
-                                final selected = await getDirectoryPath();
-                                if (selected != null && mounted) {
-                                  await load(selected);
-                                }
-                              }),
-                      )
-                    : null,
+            if (!widget.userInstructions)
+              TextField(
+                controller: folder,
+                enabled: !busy && current == null,
+                decoration: InputDecoration(
+                  labelText: strings.projectFolder,
+                  suffixIcon: current == null
+                      ? IconButton(
+                          tooltip: strings.projectFolder,
+                          icon: const Icon(Icons.folder_open_outlined),
+                          onPressed: busy
+                              ? null
+                              : () => perform(() async {
+                                  final selected = await getDirectoryPath();
+                                  if (selected != null && mounted) {
+                                    await load(selected);
+                                  }
+                                }),
+                        )
+                      : null,
+                ),
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    perform(() => load(value.trim()));
+                  }
+                },
               ),
-              onSubmitted: (value) {
-                if (value.trim().isNotEmpty) perform(() => load(value.trim()));
-              },
-            ),
             if (busy) const LinearProgressIndicator(),
             if (current != null) ...[
               const SizedBox(height: 12),
@@ -214,7 +265,11 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
                         ? null
                         : previewMemory,
                     icon: const Icon(Icons.psychology_outlined),
-                    label: Text(strings.projectMemory),
+                    label: Text(
+                      widget.userInstructions
+                          ? strings.agentMemoryDigest
+                          : strings.projectMemory,
+                    ),
                   ),
                 ),
               ),
@@ -243,7 +298,12 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
           onPressed: busy ? null : () => Navigator.pop(context),
           child: Text(MaterialLocalizations.of(context).closeButtonLabel),
         ),
-        if (current == null)
+        if (current == null && widget.userInstructions)
+          TextButton(
+            onPressed: busy ? null : () => perform(() => load('')),
+            child: Text(strings.reload),
+          )
+        else if (current == null)
           FilledButton(
             onPressed: busy
                 ? null

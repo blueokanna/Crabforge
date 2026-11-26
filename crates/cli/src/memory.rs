@@ -46,6 +46,24 @@ pub(super) enum Command {
     },
     /// Preview the active memories belonging to this project as Markdown.
     Digest { folder: PathBuf },
+    /// Preview global memory and optionally the named agent's own memory as Markdown.
+    Context {
+        #[arg(long)]
+        agent: Option<String>,
+    },
+    /// Inspect, publish or restore memory in Claude Code or Codex user instructions.
+    AgentInstructions {
+        agent: String,
+        #[arg(long, group = "change")]
+        publish: bool,
+        #[arg(long, group = "change")]
+        restore: bool,
+        #[arg(long, requires = "change")]
+        revision: Option<String>,
+        /// Require this previously exported UTF-8 digest to still match.
+        #[arg(long, requires = "publish")]
+        preview: Option<PathBuf>,
+    },
     /// Publish the project's memory digest in the selected agent's instructions.
     Publish {
         folder: PathBuf,
@@ -139,6 +157,38 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
         Command::Digest { folder } => {
             print!("{}", memory::project_digest(dir, &folder)?);
             Ok(())
+        }
+        Command::Context { agent } => {
+            print!("{}", memory::agent_digest(dir, agent.as_deref())?);
+            Ok(())
+        }
+        Command::AgentInstructions {
+            agent,
+            publish,
+            restore,
+            revision,
+            preview,
+        } => {
+            let view = project_instructions::read_agent(dir, &agent)?;
+            let revision = revision.as_deref().unwrap_or(&view.revision);
+            if publish {
+                let preview = preview
+                    .as_deref()
+                    .map(project_instructions::read_markdown)
+                    .transpose()?
+                    .map(|text| text.trim_start_matches('\u{feff}').replace("\r\n", "\n"));
+                project_instructions::publish_agent_memory(
+                    dir,
+                    &agent,
+                    revision,
+                    preview.as_deref(),
+                )?;
+            } else if restore {
+                project_instructions::edit_agent(dir, &agent, revision, None)?;
+            } else {
+                return print(&view);
+            }
+            print(&project_instructions::read_agent(dir, &agent)?)
         }
         Command::Publish {
             folder,

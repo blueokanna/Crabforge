@@ -13,6 +13,37 @@ class AppLocalizationsHi extends AppLocalizations {
   String get memoryLibrary => 'स्मृति';
 
   @override
+  String get agentSessions => 'स्थानीय सत्र';
+
+  @override
+  String get allAgents => 'सभी एजेंट';
+
+  @override
+  String get noAgentSessions => 'कोई स्थानीय सत्र नहीं मिला';
+
+  @override
+  String unreadableSessions(int count) {
+    return 'ऐसी सत्र फ़ाइलें जिन्हें पढ़ा नहीं जा सका ($count)';
+  }
+
+  @override
+  String get copySessionId => 'सत्र आईडी कॉपी करें';
+
+  @override
+  String get agentInstructions => 'उपयोगकर्ता निर्देश';
+
+  @override
+  String get agentMemoryDigest => 'उपयोगकर्ता की स्मृति';
+
+  @override
+  String get agentMemoryDigestHelp =>
+      'प्रकाशित करने पर वैश्विक स्मृति और इस एजेंट की स्मृति उसके उपयोगकर्ता निर्देशों में लिखी जाती हैं।';
+
+  @override
+  String get agentMemoryDigestEmpty =>
+      'प्रकाशित करने के लिए कोई सक्रिय वैश्विक या एजेंट स्मृति नहीं है।';
+
+  @override
   String get projectMemory => 'प्रोजेक्ट की स्मृति';
 
   @override

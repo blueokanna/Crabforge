@@ -100,6 +100,9 @@ Future<String> presets() => RustLib.instance.api.crateApiPresets();
 
 Future<String> agents() => RustLib.instance.api.crateApiAgents();
 
+Future<String> agentSessions({String? agent}) =>
+    RustLib.instance.api.crateApiAgentSessions(agent: agent);
+
 Future<String> searchMemories({required String query}) =>
     RustLib.instance.api.crateApiSearchMemories(query: query);
 
@@ -149,6 +152,32 @@ Future<void> publishProjectMemory({
   required String preview,
 }) => RustLib.instance.api.crateApiPublishProjectMemory(
   project: project,
+  agent: agent,
+  revision: revision,
+  preview: preview,
+);
+
+Future<String> agentInstructions({required String agent}) =>
+    RustLib.instance.api.crateApiAgentInstructions(agent: agent);
+
+Future<void> editAgentInstructions({
+  required String agent,
+  required String revision,
+  String? text,
+}) => RustLib.instance.api.crateApiEditAgentInstructions(
+  agent: agent,
+  revision: revision,
+  text: text,
+);
+
+Future<String> agentMemoryDigest({required String agent}) =>
+    RustLib.instance.api.crateApiAgentMemoryDigest(agent: agent);
+
+Future<void> publishAgentMemory({
+  required String agent,
+  required String revision,
+  required String preview,
+}) => RustLib.instance.api.crateApiPublishAgentMemory(
   agent: agent,
   revision: revision,
   preview: preview,

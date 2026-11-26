@@ -13,6 +13,36 @@ class AppLocalizationsKo extends AppLocalizations {
   String get memoryLibrary => '메모리';
 
   @override
+  String get agentSessions => '로컬 세션';
+
+  @override
+  String get allAgents => '모든 에이전트';
+
+  @override
+  String get noAgentSessions => '로컬 세션을 찾을 수 없습니다';
+
+  @override
+  String unreadableSessions(int count) {
+    return '읽을 수 없는 세션 파일($count개)';
+  }
+
+  @override
+  String get copySessionId => '세션 ID 복사';
+
+  @override
+  String get agentInstructions => '사용자 지침';
+
+  @override
+  String get agentMemoryDigest => '사용자 메모리';
+
+  @override
+  String get agentMemoryDigestHelp =>
+      '게시하면 전역 메모리와 이 에이전트의 메모리를 해당 에이전트의 사용자 지침에 기록합니다.';
+
+  @override
+  String get agentMemoryDigestEmpty => '게시할 수 있는 활성 전역 또는 에이전트 메모리가 없습니다.';
+
+  @override
   String get projectMemory => '프로젝트 메모리';
 
   @override

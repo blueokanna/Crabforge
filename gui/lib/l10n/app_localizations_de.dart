@@ -13,6 +13,37 @@ class AppLocalizationsDe extends AppLocalizations {
   String get memoryLibrary => 'Gedächtnis';
 
   @override
+  String get agentSessions => 'Lokale Sitzungen';
+
+  @override
+  String get allAgents => 'Alle Agenten';
+
+  @override
+  String get noAgentSessions => 'Keine lokalen Sitzungen gefunden';
+
+  @override
+  String unreadableSessions(int count) {
+    return 'Nicht lesbare Sitzungsdateien ($count)';
+  }
+
+  @override
+  String get copySessionId => 'Sitzungs-ID kopieren';
+
+  @override
+  String get agentInstructions => 'Benutzeranweisungen';
+
+  @override
+  String get agentMemoryDigest => 'Benutzergedächtnis';
+
+  @override
+  String get agentMemoryDigestHelp =>
+      'Beim Veröffentlichen werden Einträge aus dem globalen Gedächtnis und dem Gedächtnis dieses Agenten in seine Benutzeranweisungen geschrieben.';
+
+  @override
+  String get agentMemoryDigestEmpty =>
+      'Es gibt keine aktiven globalen oder agentenspezifischen Einträge zum Veröffentlichen.';
+
+  @override
   String get projectMemory => 'Projektgedächtnis';
 
   @override

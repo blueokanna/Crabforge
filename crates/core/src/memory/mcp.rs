@@ -1,5 +1,6 @@
 use super::{
-    Changes, Entry, KINDS, Query, lock_store, markdown_text, read_in, save_locked, search_where,
+    Changes, Entry, KINDS, Query, lock_store, markdown_text, read_in, save_locked, scope_key,
+    search_where,
 };
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::{NsonDeserialize, Value, json};
@@ -37,21 +38,12 @@ pub fn serve(
     mut input: impl BufRead,
     mut output: impl Write,
 ) -> Result<()> {
-    fn scope(prefix: &str, key: Option<&str>) -> Result<Option<String>> {
-        key.map(|key| {
-            let key = key.trim();
-            ensure!(
-                !key.is_empty() && key.len() <= 1016 && !key.chars().any(char::is_control),
-                "invalid {prefix} scope key"
-            );
-            Ok(format!("{prefix}:{key}"))
-        })
-        .transpose()
-    }
     let server = Server {
         dir,
-        agent: scope("agent", agent)?,
-        project: scope("project", project_key)?,
+        agent: agent.map(|key| scope_key("agent", key)).transpose()?,
+        project: project_key
+            .map(|key| scope_key("project", key))
+            .transpose()?,
     };
     let mut line = Vec::new();
     loop {

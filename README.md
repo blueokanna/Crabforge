@@ -53,7 +53,11 @@ carbforge-cli memory publish D:\Projects\app codex
 
 To let an Agent search and save memories, register the full path to `carbforge-cli.exe` as a local stdio MCP server, with arguments `mcp memory --agent <agent-id> --project <folder>`. You can pass `--project-key <project-key>` in place of `--project <folder>`. Set the same `CRABFORGE_HOME` in the client environment if you use a custom data directory. `memory_search` reads active records in the available scopes. `memory_save` creates records and can update agent-created ones. `memory_forget` archives a visible record, and `memory_context` reports the scopes. Run `mcp memory` without arguments to expose only global memory.
 
-Run `carbforge-cli sessions --limit 50` to find recent local Claude Code and Codex sessions. Use `--agent claude` or `--agent codex` to filter. The command reads session IDs, the first prompt preview, timestamps, and working folders from the clients' native JSONL files under `CLAUDE_CONFIG_DIR` or `CODEX_HOME`, with `.claude` and `.codex` in the user home as defaults.
+Open **Client connections → Local sessions** to browse up to 50 recent Claude Code and Codex sessions, filter by agent and copy the session ID. Run `carbforge-cli sessions --limit 50` for JSON, with `--agent claude` or `--agent codex` to filter. Crabforge reads session IDs, prompt previews, timestamps and working folders from the clients' native JSONL files under `CLAUDE_CONFIG_DIR` or `CODEX_HOME`, with `.claude` and `.codex` in the user home as defaults.
+
+Select Claude Code or Codex in **Client connections**, then open **User instructions** to edit the managed Markdown or preview and publish **User memory**. It includes active global notes and the selected agent's notes. Crabforge writes the digest to `CLAUDE.md` or to the Codex user `AGENTS.md`, giving an existing `AGENTS.override.md` precedence. The client reads that file into new conversations. Use **Restore previous version** to roll back the most recent Crabforge edit to the file.
+
+In the CLI, `carbforge-cli memory context --agent codex` previews the same digest and `carbforge-cli memory agent-instructions codex` reports the current file and revision. Append `--publish` to publish, `--preview <UTF-8 file>` to require a saved preview to match, or `--restore` to restore. `--revision <revision>` checks that the instruction file still matches the inspected version.
 
 ## Protocols and routing
 

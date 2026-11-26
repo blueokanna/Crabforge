@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'brand_icon.dart';
+import 'agent_sessions.dart';
 import 'collection_view.dart';
 import 'editors.dart';
 import 'language.dart';
@@ -1470,6 +1471,27 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                     icon: const Icon(Icons.description_outlined),
                     label: Text(context.strings.projectInstructions),
                   ),
+                if (selectedAgent == 'claude' || selectedAgent == 'codex')
+                  TextButton.icon(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => ProjectInstructionsEditor(
+                        agent: selectedAgent,
+                        userInstructions: true,
+                      ),
+                    ),
+                    icon: const Icon(Icons.person_outline),
+                    label: Text(context.strings.agentInstructions),
+                  ),
+                TextButton.icon(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const AgentSessions(),
+                  ),
+                  icon: const Icon(Icons.history_outlined),
+                  label: Text(context.strings.agentSessions),
+                ),
                 if (selectedAgent == 'omp') ...[
                   TextButton.icon(
                     onPressed: busy
