@@ -1,3 +1,4 @@
+use super::yaml::{self, Mapping, Scalar, Value};
 use super::{configuration, persist, scope, source, thinking::single_model};
 use crate::{
     agents::{omp_catalog, omp_profiles},
@@ -5,7 +6,6 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize};
-use serde_yaml::{Mapping, Value};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -39,29 +39,42 @@ pub fn read_roles(home: &Path, cfg: &Config) -> Result<Roles> {
     let (_, text) = source(home)?;
     let root = configuration(&text)?;
     let roles = root
-        .get("modelRoles")
+        .get(&yaml::text("modelRoles"))
         .map(|v| v.as_mapping().context("modelRoles must be a mapping"))
         .transpose()?;
     let assignments: BTreeMap<String, Option<nextjson::Value>> = ROLES
         .iter()
-        .map(|&name| Ok((name.into(), assignment(roles.and_then(|r| r.get(name)))?)))
+        .map(|&name| {
+            Ok((
+                name.into(),
+                assignment(roles.and_then(|r| r.get(&yaml::text(name))))?,
+            ))
+        })
         .collect::<Result<_>>()?;
     let mut models: BTreeSet<_> = gateway_ids(cfg)
         .into_iter()
         .map(|id| format!("crabforge/{id}"))
         .collect();
     if let Some(path) = omp_catalog::catalog_path(home) {
-        let catalog: Value = serde_yaml::from_reader(fs::File::open(path)?)?;
-        if let Some(providers) = catalog.get("providers").and_then(Value::as_mapping) {
+        let catalog = yaml::parse(&fs::read_to_string(path)?)?;
+        if let Some(providers) = catalog
+            .as_mapping_get("providers")
+            .and_then(Value::as_mapping)
+        {
             for (name, provider) in providers {
                 let Some(name) = name.as_str().filter(|n| *n != "crabforge") else {
                     continue;
                 };
-                if let Some(entries) = provider.get("models").and_then(Value::as_sequence) {
+                if let Some(entries) = provider
+                    .as_mapping_get("models")
+                    .and_then(Value::as_sequence)
+                {
                     models.extend(
                         entries
                             .iter()
-                            .filter_map(|m| m.get("id")?.as_str().filter(|id| !id.is_empty()))
+                            .filter_map(|m| {
+                                m.as_mapping_get("id")?.as_str().filter(|id| !id.is_empty())
+                            })
                             .map(|id| format!("{name}/{id}")),
                     );
                 }
@@ -98,7 +111,11 @@ pub fn read_roles(home: &Path, cfg: &Config) -> Result<Roles> {
             ROLES
                 .iter()
                 .copied()
-                .filter(|name| roles.and_then(|r| r.get(*name)).is_some_and(Value::is_null))
+                .filter(|name| {
+                    roles
+                        .and_then(|r| r.get(&yaml::text(*name)))
+                        .is_some_and(Value::is_null)
+                })
                 .map(str::to_owned)
                 .collect(),
         ),
@@ -132,7 +149,7 @@ fn on_gateway(value: &Value) -> bool {
 
 fn references_gateway(value: &Value) -> bool {
     match value {
-        Value::String(s) => s.split(',').any(|s| s.trim().starts_with("crabforge/")),
+        Value::Value(Scalar::String(s)) => s.split(',').any(|s| s.trim().starts_with("crabforge/")),
         Value::Sequence(s) => s.iter().any(references_gateway),
         Value::Mapping(m) => m
             .iter()
@@ -143,13 +160,15 @@ fn references_gateway(value: &Value) -> bool {
 
 fn needs_provider(root: &Mapping) -> bool {
     let referenced = [
-        root.get("modelRoles"),
-        root.get("retry").and_then(|v| v.get("fallbackChains")),
-        root.get("task").and_then(|v| v.get("agentModelOverrides")),
+        root.get(&yaml::text("modelRoles")),
+        root.get(&yaml::text("retry"))
+            .and_then(|v| v.as_mapping_get("fallbackChains")),
+        root.get(&yaml::text("task"))
+            .and_then(|v| v.as_mapping_get("agentModelOverrides")),
     ];
     referenced.into_iter().flatten().any(references_gateway)
         || root
-            .get("enabledModels")
+            .get(&yaml::text("enabledModels"))
             .and_then(Value::as_sequence)
             .is_some_and(|list| list.iter().any(|v| v.is_mapping() && references_gateway(v)))
 }
@@ -168,7 +187,7 @@ fn remember(
     }
     let text = saved.to_string();
     ensure!(
-        configuration(&text)?.get("previous") == current,
+        configuration(&text)?.get(&yaml::text("previous")) == current,
         "could not preserve the previous role assignment"
     );
     let mut tmp = tempfile::NamedTempFile::new_in(home)?;
@@ -181,7 +200,7 @@ fn remember(
 fn recalled(path: &Path) -> Result<Option<(Value, yaml_edit::YamlNode)>> {
     match fs::read_to_string(path) {
         Ok(text) => {
-            let value = configuration(&text)?.remove("previous");
+            let value = configuration(&text)?.remove(&yaml::text("previous"));
             let node = text
                 .parse::<YamlFile>()?
                 .document()
@@ -214,10 +233,10 @@ pub fn save_role(
     let (path, text) = source(home)?;
     let mut expected = configuration(&text)?;
     let current = expected
-        .get("modelRoles")
+        .get(&yaml::text("modelRoles"))
         .map(|v| v.as_mapping().context("modelRoles must be a mapping"))
         .transpose()?
-        .and_then(|v| v.get(name))
+        .and_then(|v| v.get(&yaml::text(name)))
         .cloned();
     if let Some(old) = previous {
         let explicit_null = current.as_ref().is_some_and(Value::is_null);
@@ -257,7 +276,7 @@ pub fn save_role(
         }
     });
     let value = match (&picked, &restore) {
-        (Some(s), _) => Some(Value::String(s.clone())),
+        (Some(s), _) => Some(yaml::text(s)),
         (_, Some((value, _))) => Some(value.clone()),
         _ => None,
     };
@@ -282,11 +301,11 @@ pub fn save_role(
     }
     if let Some(v) = &value {
         let section = expected
-            .entry("modelRoles".into())
+            .entry(yaml::text("modelRoles"))
             .or_insert_with(|| Value::Mapping(Mapping::new()))
             .as_mapping_mut()
             .context("invalid modelRoles")?;
-        section.insert(name.into(), v.clone());
+        section.insert(yaml::text(name), v.clone());
         if doc.get_mapping("modelRoles").is_none() {
             doc.set("modelRoles", yaml_edit::Mapping::new());
         }
@@ -299,12 +318,12 @@ pub fn save_role(
             roles.set(name, node);
         }
     } else if let Some(roles) = expected
-        .get_mut("modelRoles")
+        .get_mut(&yaml::text("modelRoles"))
         .and_then(Value::as_mapping_mut)
     {
-        roles.remove(name);
+        roles.remove(&yaml::text(name));
         if roles.is_empty() {
-            expected.remove("modelRoles");
+            expected.remove(&yaml::text("modelRoles"));
             doc.remove("modelRoles");
         } else {
             doc.get_mapping("modelRoles")
@@ -320,14 +339,16 @@ pub fn save_role(
     let marker = home.join("crabforge-advisor-enabled");
     let mut enabled_by_pick = false;
     if name == "advisor" {
-        let enabled = expected.get("advisor").and_then(|v| v.get("enabled"));
+        let enabled = expected
+            .get(&yaml::text("advisor"))
+            .and_then(|v| v.as_mapping_get("enabled"));
         if picked.is_some() && enabled.is_none() {
             expected
-                .entry("advisor".into())
+                .entry(yaml::text("advisor"))
                 .or_insert_with(|| Value::Mapping(Mapping::new()))
                 .as_mapping_mut()
                 .context("invalid advisor settings")?
-                .insert("enabled".into(), true.into());
+                .insert(yaml::text("enabled"), yaml::boolean(true));
             if doc.get_mapping("advisor").is_none() {
                 doc.set("advisor", yaml_edit::Mapping::new());
             }
@@ -340,12 +361,12 @@ pub fn save_role(
             && enabled.and_then(Value::as_bool) == Some(true)
         {
             let advisor = expected
-                .get_mut("advisor")
+                .get_mut(&yaml::text("advisor"))
                 .and_then(Value::as_mapping_mut)
                 .context("invalid advisor settings")?;
-            advisor.remove("enabled");
+            advisor.remove(&yaml::text("enabled"));
             if advisor.is_empty() {
-                expected.remove("advisor");
+                expected.remove(&yaml::text("advisor"));
                 doc.remove("advisor");
             } else {
                 doc.get_mapping("advisor")
@@ -359,7 +380,7 @@ pub fn save_role(
         scope::without_gateway(&mut expected, &doc)?;
     }
     ensure!(
-        configuration(&yaml.to_string())? == expected,
+        yaml::same_mapping(&configuration(&yaml.to_string())?, &expected),
         "edited YAML did not preserve the role settings"
     );
     if used {
@@ -463,8 +484,8 @@ mod tests {
         save_role(home, &cfg, "task", Some("crabforge/local/a"), Some(&null))?;
         save_role(home, &cfg, "task", None, None)?;
         assert_eq!(
-            configuration(&fs::read_to_string(&path)?)?["modelRoles"]["task"],
-            Value::Null
+            configuration(&fs::read_to_string(&path)?)?[&yaml::text("modelRoles")]["task"],
+            Value::Value(Scalar::Null)
         );
         fs::write(&path, "modelRoles: {task: {models: [a,b], priority: 1}}\n")?;
         let prior = snapshot()?;
@@ -520,7 +541,10 @@ mod tests {
         )?;
         save_role(home, &cfg, "default", Some("crabforge/local/a"), None)?;
         let root = configuration(&fs::read_to_string(&path)?)?;
-        assert_eq!(root["enabledModels"][2], "crabforge/**");
+        assert_eq!(
+            root[&yaml::text("enabledModels")][2].as_str(),
+            Some("crabforge/**")
+        );
         save_role(home, &cfg, "advisor", Some("crabforge/local/a"), None)?;
         assert_eq!(super::super::read_advisor(home)?.review, "turn");
         save_role(home, &cfg, "advisor", None, None)?;
@@ -538,8 +562,14 @@ mod tests {
         assert_eq!(super::super::read_advisor(home)?.review, "agent-end");
         save_role(home, &cfg, "default", None, None)?;
         let root = configuration(&fs::read_to_string(&path)?)?;
-        assert!(root.get("modelRoles").is_none());
-        assert_eq!(root["enabledModels"].as_sequence().unwrap().len(), 2);
+        assert!(root.get(&yaml::text("modelRoles")).is_none());
+        assert_eq!(
+            root[&yaml::text("enabledModels")]
+                .as_sequence()
+                .unwrap()
+                .len(),
+            2
+        );
         assert!(!fs::read_to_string(home.join("models.yml"))?.contains("crabforge"));
         for enabled in [true, false] {
             fs::write(
@@ -549,8 +579,14 @@ mod tests {
             save_role(home, &cfg, "advisor", Some("crabforge/local/a"), None)?;
             save_role(home, &cfg, "advisor", None, None)?;
             let settings = configuration(&fs::read_to_string(&path)?)?;
-            assert_eq!(settings["advisor"]["enabled"].as_bool(), Some(enabled));
-            assert_eq!(settings["advisor"]["reviewMode"], "agent-end");
+            assert_eq!(
+                settings[&yaml::text("advisor")]["enabled"].as_bool(),
+                Some(enabled)
+            );
+            assert_eq!(
+                settings[&yaml::text("advisor")]["reviewMode"].as_str(),
+                Some("agent-end")
+            );
         }
         Ok(())
     }

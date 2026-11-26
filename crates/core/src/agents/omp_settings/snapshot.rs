@@ -1,6 +1,6 @@
+use crate::agents::yaml::{Scalar, Value as Yaml};
 use anyhow::{Result, bail};
 use nextjson::{Map, Value};
-use serde_yaml::Value as Yaml;
 
 pub(super) fn same(a: Option<&Value>, b: Option<&Value>) -> bool {
     match (a, b) {
@@ -13,28 +13,23 @@ pub(super) fn same(a: Option<&Value>, b: Option<&Value>) -> bool {
 /// Encode a YAML node for profile snapshots and recovery records.
 pub(crate) fn json_node(node: &Yaml) -> Result<Value> {
     Ok(match node {
-        Yaml::Null => Value::Null,
-        Yaml::Bool(b) => (*b).into(),
-        Yaml::String(s) => s.into(),
-        Yaml::Number(n) => {
-            if let Some(i) = n.as_u64() {
-                i.into()
-            } else if let Some(i) = n.as_i64() {
-                i.into()
-            } else {
-                n.as_f64().and_then(nextjson::Number::from_f64).into()
-            }
-        }
+        Yaml::Value(Scalar::Null) => Value::Null,
+        Yaml::Value(Scalar::Boolean(b)) => (*b).into(),
+        Yaml::Value(Scalar::String(s)) => s.into(),
+        Yaml::Value(Scalar::Integer(i)) => (*i).into(),
+        Yaml::Value(Scalar::FloatingPoint(f)) => nextjson::Number::from_f64(f.0).into(),
+        Yaml::Representation(n, _, None) => n.parse::<u64>()?.into(),
         Yaml::Sequence(list) => Value::Array(list.iter().map(json_node).collect::<Result<_>>()?),
         Yaml::Mapping(mapping) => {
             let mut object = Map::with_capacity(mapping.len());
             for (key, value) in mapping {
                 let key = match key {
-                    Yaml::String(s) => s.clone(),
-                    Yaml::Bool(b) => b.to_string(),
-                    Yaml::Number(n) => {
+                    Yaml::Value(Scalar::String(s)) => s.clone(),
+                    Yaml::Value(Scalar::Boolean(b)) => b.to_string(),
+                    Yaml::Value(Scalar::Integer(_) | Scalar::FloatingPoint(_))
+                    | Yaml::Representation(..) => {
                         let number = json_node(key)?;
-                        anyhow::ensure!(!number.is_null(), "non-finite YAML key {n}");
+                        anyhow::ensure!(!number.is_null(), "non-finite YAML key");
                         number.to_string()
                     }
                     _ => bail!("profile mapping key cannot be represented in JSON"),
@@ -43,10 +38,11 @@ pub(crate) fn json_node(node: &Yaml) -> Result<Value> {
             }
             Value::Object(object)
         }
-        Yaml::Tagged(tagged) => {
+        Yaml::Tagged(tag, inner) => {
             let mut object = Map::new();
-            object.insert(tagged.tag.to_string(), json_node(&tagged.value)?);
+            object.insert(tag.to_string(), json_node(inner)?);
             Value::Object(object)
         }
+        _ => bail!("unresolved YAML node in profile snapshot"),
     })
 }

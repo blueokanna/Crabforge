@@ -1,7 +1,7 @@
+use super::yaml::{self, Mapping, Scalar, Value};
 use super::{configuration, roles::ROLES, scope, source};
 use crate::agents::{omp_catalog, omp_profiles};
 use anyhow::{Context, Result, ensure};
-use serde_yaml::{Mapping, Value};
 use std::{
     fs,
     io::{ErrorKind, Write},
@@ -47,7 +47,7 @@ fn rename_profile(home: &Path, from: &str, to: &str) -> Result<()> {
     };
     let (path, text) = source(home)?;
     let mut expected = configuration(&text)?;
-    scope::rename_history(home, expected.get("enabledModels"), rename)?;
+    scope::rename_history(home, expected.get(&yaml::text("enabledModels")), rename)?;
     let yaml: YamlFile = text.parse()?;
     let doc = yaml.ensure_document();
     for (parent, field) in [
@@ -58,10 +58,12 @@ fn rename_profile(home: &Path, from: &str, to: &str) -> Result<()> {
     ] {
         let (value, node) = match parent {
             Some(parent) => (
-                expected.get_mut(parent).and_then(|p| p.get_mut(field)),
+                expected
+                    .get_mut(&yaml::text(parent))
+                    .and_then(|p| p.as_mapping_get_mut(field)),
                 doc.get_mapping(parent).and_then(|p| p.get(field)),
             ),
-            None => (expected.get_mut(field), doc.get(field)),
+            None => (expected.get_mut(&yaml::text(field)), doc.get(field)),
         };
         if let (Some(value), Some(node)) = (value, node) {
             edit_refs(value, node, &rename)?;
@@ -79,7 +81,7 @@ fn rename_profile(home: &Path, from: &str, to: &str) -> Result<()> {
         let mut expected = configuration(&text)?;
         let yaml: YamlFile = text.parse()?;
         if let (Some(value), Some(node)) = (
-            expected.get_mut("previous"),
+            expected.get_mut(&yaml::text("previous")),
             yaml.ensure_document().get("previous"),
         ) {
             edit_refs(value, node, &rename)?;
@@ -87,7 +89,7 @@ fn rename_profile(home: &Path, from: &str, to: &str) -> Result<()> {
         let rendered = yaml.to_string();
         if rendered != text {
             ensure!(
-                configuration(&rendered)? == expected,
+                yaml::same_mapping(&configuration(&rendered)?, &expected),
                 "could not preserve saved {role} role"
             );
             let mut tmp = tempfile::NamedTempFile::new_in(home)?;
@@ -104,18 +106,18 @@ fn rename_profile(home: &Path, from: &str, to: &str) -> Result<()> {
         let text = fs::read_to_string(&path)?;
         let mut catalog = configuration(&text)?;
         if let Some(models) = catalog
-            .get_mut("providers")
-            .and_then(|v| v.get_mut("crabforge"))
-            .and_then(|p| p.get_mut("models"))
+            .get_mut(&yaml::text("providers"))
+            .and_then(|v| v.as_mapping_get_mut("crabforge"))
+            .and_then(|p| p.as_mapping_get_mut("models"))
             .and_then(Value::as_sequence_mut)
         {
             let mut changed = false;
             for model in models {
-                if let Some(id) = model.get_mut("id")
+                if let Some(id) = model.as_mapping_get_mut("id")
                     && let Some((provider, name)) = id.as_str().and_then(|m| m.split_once('/'))
                     && provider == from
                 {
-                    *id = format!("{to}/{name}").into();
+                    *id = yaml::text(format!("{to}/{name}"));
                     changed = true;
                 }
             }
@@ -130,7 +132,7 @@ fn rename_profile(home: &Path, from: &str, to: &str) -> Result<()> {
 // Edit the lossless syntax tree and check it against the parsed YAML before saving.
 fn edit_refs(value: &mut Value, node: YamlNode, rename: &impl Fn(&str) -> String) -> Result<()> {
     match (value, node) {
-        (Value::String(original), YamlNode::Scalar(scalar)) => {
+        (Value::Value(Scalar::String(original)), YamlNode::Scalar(scalar)) => {
             let new = rename(original);
             if *original != new {
                 scalar.set_value(&nextjson::to_string(&new).map_err(anyhow::Error::msg)?);
@@ -158,7 +160,7 @@ fn edit_refs(value: &mut Value, node: YamlNode, rename: &impl Fn(&str) -> String
                             "duplicate model key after rename: {new}"
                         );
                         ensure!(mapping.rename_key(name, &new), "could not rename model key");
-                        key = new.into();
+                        key = yaml::text(new);
                     }
                 }
                 updated.insert(key, value);

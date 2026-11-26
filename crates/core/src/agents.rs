@@ -109,6 +109,7 @@ pub mod omp_catalog;
 pub mod omp_profiles;
 pub mod omp_settings;
 mod user_agent;
+mod yaml;
 pub use command::installed_command;
 pub(crate) use user_agent::client_name;
 

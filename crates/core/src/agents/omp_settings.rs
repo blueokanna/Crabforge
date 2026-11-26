@@ -1,6 +1,6 @@
+use super::yaml::{self, Mapping, Scalar, Value, configuration};
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize};
-use serde_yaml::{Mapping, Value};
 use std::{
     fs,
     io::{ErrorKind, Write},
@@ -46,16 +46,12 @@ fn source(home: &Path) -> Result<(PathBuf, String)> {
     Ok((home.join("config.yml"), String::new()))
 }
 
-fn configuration(text: &str) -> Result<Mapping> {
-    Ok(serde_yaml::from_str::<Option<Mapping>>(text)?.unwrap_or_default())
-}
-
 fn advisor(root: &Mapping) -> Result<Advisor> {
     let section = root
-        .get("advisor")
+        .get(&yaml::text("advisor"))
         .map(|v| v.as_mapping().context("invalid advisor settings"))
         .transpose()?;
-    let field = |name: &str| section.and_then(|m| m.get(name));
+    let field = |name: &str| section.and_then(|m| m.get(&yaml::text(name)));
     let string = |name| -> Result<String> {
         Ok(field(name)
             .map(|v| {
@@ -99,9 +95,9 @@ impl AdvisorChanges {
                 "turn" | "agent-end" => Some(true),
                 _ => anyhow::bail!("invalid advisor review mode {value:?}"),
             };
-            fields.push(("enabled", enabled.map(Value::Bool)));
+            fields.push(("enabled", enabled.map(yaml::boolean)));
             if enabled == Some(true) {
-                fields.push(("reviewMode", Some(value.into())));
+                fields.push(("reviewMode", Some(yaml::text(value))));
             }
         }
         for (name, value, options) in [
@@ -121,7 +117,7 @@ impl AdvisorChanges {
                     value == "inherit" || options.contains(&value),
                     "invalid advisor.{name} {value:?}"
                 );
-                fields.push((name, (value != "inherit").then(|| Value::from(value))));
+                fields.push((name, (value != "inherit").then(|| yaml::text(value))));
             }
         }
         Ok(fields)
@@ -146,10 +142,12 @@ pub fn save_advisor(
         previous.is_none_or(|old| old == &current),
         "advisor settings changed on disk; reopen the profile"
     );
-    if fields
-        .iter()
-        .all(|(key, value)| expected.get("advisor").and_then(|v| v.get(*key)) == value.as_ref())
-    {
+    if fields.iter().all(|(key, value)| {
+        expected
+            .get(&yaml::text("advisor"))
+            .and_then(|v| v.as_mapping_get(key))
+            == value.as_ref()
+    }) {
         if changes.review.is_some() {
             roles::forget_advisor_enable(home)?;
         }
@@ -158,11 +156,15 @@ pub fn save_advisor(
     let yaml: YamlFile = text.parse()?;
     let doc = yaml.ensure_document();
     for (key, value) in fields {
-        if expected.get("advisor").and_then(|v| v.get(key)) == value.as_ref() {
+        if expected
+            .get(&yaml::text("advisor"))
+            .and_then(|v| v.as_mapping_get(key))
+            == value.as_ref()
+        {
             continue;
         }
         let expected_section = expected
-            .entry("advisor".into())
+            .entry(yaml::text("advisor"))
             .or_insert_with(|| Value::Mapping(Mapping::new()))
             .as_mapping_mut()
             .context("invalid advisor settings")?;
@@ -176,20 +178,20 @@ pub fn save_advisor(
             .get_mapping("advisor")
             .context("invalid advisor mapping")?;
         match &value {
-            Some(Value::Bool(b)) => section.set(key, *b),
-            Some(Value::String(s)) => section.set(key, s.as_str()),
+            Some(Value::Value(Scalar::Boolean(b))) => section.set(key, *b),
+            Some(Value::Value(Scalar::String(s))) => section.set(key, s.as_str()),
             None => {
                 section.remove(key);
             }
             _ => unreachable!(),
         }
         if let Some(v) = value {
-            expected_section.insert(key.into(), v);
+            expected_section.insert(yaml::text(key), v);
         } else {
-            expected_section.remove(key);
+            expected_section.remove(&yaml::text(key));
         }
         if expected_section.is_empty() {
-            expected.remove("advisor");
+            expected.remove(&yaml::text("advisor"));
             doc.remove("advisor");
         }
     }
@@ -211,7 +213,7 @@ fn persist(
     let rendered = yaml.to_string();
     if rendered != text {
         ensure!(
-            configuration(&rendered)? == *expected,
+            yaml::same_mapping(&configuration(&rendered)?, expected),
             "edited YAML did not preserve the profile settings"
         );
         let mut file = tempfile::NamedTempFile::new_in(home)?;
@@ -251,7 +253,7 @@ mod tests {
                 && text.contains("other: true # retained")
         );
         assert_eq!(
-            configuration(&text)?["advisor"]["syncBacklog"].as_str(),
+            configuration(&text)?[&yaml::text("advisor")]["syncBacklog"].as_str(),
             Some("1")
         );
         assert!(!dir.path().join("config.yml").exists());
@@ -268,7 +270,10 @@ mod tests {
         };
         assert_eq!(save_advisor(dir.path(), None, &clear)?, old);
         let config = configuration(&fs::read_to_string(path)?)?;
-        assert_eq!(config["advisor"]["reviewMode"].as_str(), Some("agent-end"));
+        assert_eq!(
+            config[&yaml::text("advisor")]["reviewMode"].as_str(),
+            Some("agent-end")
+        );
         Ok(())
     }
 

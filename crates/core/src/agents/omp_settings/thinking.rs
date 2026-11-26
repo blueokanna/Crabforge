@@ -1,7 +1,7 @@
+use super::yaml::{self, Mapping, Value};
 use super::{configuration, persist, source};
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize};
-use serde_yaml::{Mapping, Value};
 use std::{collections::BTreeMap, path::Path};
 use yaml_edit::YamlFile;
 
@@ -49,17 +49,22 @@ pub(super) fn single_model(value: &str) -> Option<RoleThinking> {
 
 fn thinking(root: &Mapping) -> Result<Thinking> {
     let session = root
-        .get("defaultThinkingLevel")
+        .get(&yaml::text("defaultThinkingLevel"))
         .map(|v| v.as_str().context("defaultThinkingLevel must be a string"))
         .transpose()?
         .map(str::to_owned);
     let roles = root
-        .get("modelRoles")
+        .get(&yaml::text("modelRoles"))
         .map(|v| v.as_mapping().context("modelRoles must be a mapping"))
         .transpose()?;
     let roles = ROLES
         .iter()
-        .filter_map(|&name| Some((name.to_owned(), single_model(roles?.get(name)?.as_str()?)?)))
+        .filter_map(|&name| {
+            Some((
+                name.to_owned(),
+                single_model(roles?.get(&yaml::text(name))?.as_str()?)?,
+            ))
+        })
         .collect();
     Ok(Thinking { session, roles })
 }
@@ -94,11 +99,14 @@ pub fn save_thinking(
             "invalid session thinking level {level:?}"
         );
         if level == "inherit" {
-            if expected.remove("defaultThinkingLevel").is_some() {
+            if expected
+                .remove(&yaml::text("defaultThinkingLevel"))
+                .is_some()
+            {
                 doc.remove("defaultThinkingLevel");
             }
         } else if current.session.as_deref() != Some(level) {
-            expected.insert("defaultThinkingLevel".into(), level.into());
+            expected.insert(yaml::text("defaultThinkingLevel"), yaml::text(level));
             doc.set("defaultThinkingLevel", level);
         }
     }
@@ -132,10 +140,10 @@ pub fn save_thinking(
             .context("cannot edit modelRoles in this YAML document")?
             .set(name.as_str(), value.as_str());
         expected
-            .get_mut("modelRoles")
+            .get_mut(&yaml::text("modelRoles"))
             .and_then(Value::as_mapping_mut)
             .context("invalid modelRoles")?
-            .insert(name.as_str().into(), value.into());
+            .insert(yaml::text(name), yaml::text(value));
     }
     let updated = thinking(&expected)?;
     if updated != current {

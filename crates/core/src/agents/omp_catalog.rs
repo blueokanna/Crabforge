@@ -1,6 +1,6 @@
+use super::yaml::{self, Mapping, Value, text};
 use crate::gateway::NativeProtocols;
 use anyhow::{Context, Result};
-use serde_yaml::{Mapping, Value};
 use std::{
     collections::BTreeMap,
     fs,
@@ -32,7 +32,7 @@ pub fn installed_version(command: &Command) -> Option<semver::Version> {
 
 fn sync_user_agent(provider: &mut Mapping, version: Option<&semver::Version>) -> Result<()> {
     let headers = provider
-        .entry("headers".into())
+        .entry(text("headers"))
         .or_insert_with(|| Value::Mapping(Mapping::new()))
         .as_mapping_mut()
         .context("invalid omp provider headers")?;
@@ -54,10 +54,10 @@ fn sync_user_agent(provider: &mut Mapping, version: Option<&semver::Version>) ->
     });
     if !customized && version.is_none_or(|v| *v < semver::Version::new(18, 1, 6)) {
         let ua = version.map_or_else(|| "omp".to_owned(), |v| format!("omp/{v}"));
-        headers.insert("User-Agent".into(), ua.into());
+        headers.insert(text("User-Agent"), text(ua));
     }
     if headers.is_empty() {
-        provider.remove("headers");
+        provider.remove(&text("headers"));
     }
     Ok(())
 }
@@ -155,23 +155,21 @@ fn write_provider_with_protocol(
 ) -> Result<()> {
     let path = catalog_path(home);
     let source = path.as_ref().map(fs::read_to_string).transpose()?;
-    let mut doc: Mapping =
-        serde_yaml::from_str::<Option<Mapping>>(source.as_deref().unwrap_or_default())?
-            .unwrap_or_default();
+    let mut doc = yaml::configuration(source.as_deref().unwrap_or_default())?;
     let providers = doc
-        .entry("providers".into())
+        .entry(text("providers"))
         .or_insert_with(|| Value::Mapping(Mapping::new()))
         .as_mapping_mut()
         .context("invalid omp providers")?;
     let provider = providers
-        .entry("crabforge".into())
+        .entry(text("crabforge"))
         .or_insert_with(|| Value::Mapping(Mapping::new()))
         .as_mapping_mut()
         .context("invalid omp crabforge provider")?;
     let original = provider.clone();
     let mut preference = protocol::Preference::load(home)?;
     let file_api = provider
-        .get("api")
+        .get(&text("api"))
         .map(|v| v.as_str().context("invalid omp provider API"))
         .transpose()?;
     if let Some((choice, previous)) = change {
@@ -206,33 +204,35 @@ fn write_provider_with_protocol(
             )
         })
         .collect();
-    let models = serde_yaml::from_str(&nextjson::to_string(&models).map_err(anyhow::Error::msg)?)?;
-    provider.insert("api".into(), api.into());
-    provider.remove("auth");
-    provider.insert("baseUrl".into(), base.into());
-    provider.insert("apiKey".into(), "CRABFORGE_GATEWAY_KEY".into());
-    provider.insert("models".into(), models);
+    let models = yaml::parse(&nextjson::to_string(&models).map_err(anyhow::Error::msg)?)?;
+    provider.insert(text("api"), text(api));
+    provider.remove(&text("auth"));
+    provider.insert(text("baseUrl"), text(base));
+    provider.insert(text("apiKey"), text("CRABFORGE_GATEWAY_KEY"));
+    provider.insert(text("models"), models);
     sync_user_agent(provider, version)?;
     if version.is_some_and(|v| *v >= semver::Version::new(16, 0, 6)) {
         provider
-            .entry("compat".into())
+            .entry(text("compat"))
             .or_insert_with(|| Value::Mapping(Mapping::new()))
             .as_mapping_mut()
             .context("invalid omp provider compat settings")?
-            .entry("promptCacheSessionHeader".into())
-            .or_insert_with(|| "x-session-affinity".into());
-    } else if let Some(compat) = provider.get_mut("compat").and_then(Value::as_mapping_mut)
+            .entry(text("promptCacheSessionHeader"))
+            .or_insert_with(|| text("x-session-affinity"));
+    } else if let Some(compat) = provider
+        .get_mut(&text("compat"))
+        .and_then(Value::as_mapping_mut)
         && compat
-            .get("promptCacheSessionHeader")
+            .get(&text("promptCacheSessionHeader"))
             .and_then(Value::as_str)
             == Some("x-session-affinity")
     {
-        compat.remove("promptCacheSessionHeader");
+        compat.remove(&text("promptCacheSessionHeader"));
     }
     if change.is_some() {
         preference.persist(home)?;
     }
-    if *provider != original {
+    if !yaml::same_mapping(provider, &original) {
         persist_catalog(home, path.as_deref(), source.as_deref(), &doc)?;
     }
     preference.applied(home)
@@ -243,14 +243,14 @@ pub(super) fn drop_provider(home: &Path) -> Result<()> {
         return Ok(());
     };
     let original = fs::read_to_string(&path)?;
-    let mut expected: Mapping = serde_yaml::from_str(&original)?;
+    let mut expected = yaml::configuration(&original)?;
     let Some(providers) = expected
-        .get_mut("providers")
+        .get_mut(&text("providers"))
         .and_then(Value::as_mapping_mut)
     else {
         return Ok(());
     };
-    if providers.remove("crabforge").is_none() {
+    if providers.remove(&text("crabforge")).is_none() {
         return Ok(());
     }
     persist_catalog(home, Some(&path), Some(&original), &expected)
@@ -264,7 +264,7 @@ pub(super) fn persist_catalog(
 ) -> Result<()> {
     let legacy = path.and_then(Path::extension).is_some_and(|s| s == "json");
     let rendered = if legacy || source.is_none() {
-        serde_yaml::to_string(expected)?
+        yaml::render(&Value::Mapping(expected.clone()))?
     } else {
         let yaml: yaml_edit::YamlFile = source.unwrap_or_default().parse()?;
         let doc = yaml.ensure_document();
@@ -274,12 +274,12 @@ pub(super) fn persist_catalog(
         let providers = doc
             .get_mapping("providers")
             .context("cannot edit providers")?;
-        if let Some(provider) = expected["providers"].get("crabforge") {
+        if let Some(provider) = expected[&text("providers")].as_mapping_get("crabforge") {
             let fragment = if providers.is_flow_style() {
                 nextjson::to_string(&super::omp_settings::snapshot::json_node(provider)?)
                     .map_err(anyhow::Error::msg)?
             } else {
-                serde_yaml::to_string(provider)?
+                yaml::render(provider)?
             };
             let node: yaml_edit::YamlFile = fragment.parse()?;
             providers.set(
@@ -294,7 +294,7 @@ pub(super) fn persist_catalog(
         yaml.to_string()
     };
     anyhow::ensure!(
-        &serde_yaml::from_str::<Mapping>(&rendered)? == expected,
+        yaml::same_mapping(&yaml::configuration(&rendered)?, expected),
         "edited YAML did not preserve the model catalog"
     );
     let mut tmp = tempfile::NamedTempFile::new_in(home)?;
@@ -341,10 +341,10 @@ mod tests {
             "providers:\n  crabforge: {api: anthropic-messages}\n",
         )?;
         let current = || -> Result<Value> {
-            Ok(serde_yaml::from_reader::<_,Value>(fs::File::open(&path)?)?["providers"]["crabforge"].clone())
+            Ok(yaml::parse(&fs::read_to_string(&path)?)?["providers"]["crabforge"].clone())
         };
         sync()?;
-        assert_eq!(current()?["api"], "anthropic-messages");
+        assert_eq!(current()?["api"].as_str(), Some("anthropic-messages"));
         for choice in ["openai-completions", "auto"] {
             let mut preference = protocol::Preference::load(home)?;
             preference.select(choice, protocol::catalog_api(home)?.as_deref())?;
@@ -353,9 +353,11 @@ mod tests {
             sync()?;
             sync()?;
             let provider = current()?;
-            assert_eq!(provider["api"], "openai-completions");
+            assert_eq!(provider["api"].as_str(), Some("openai-completions"));
             assert_eq!(
-                provider["models"][0].get("api").and_then(Value::as_str),
+                provider["models"][0]
+                    .as_mapping_get("api")
+                    .and_then(Value::as_str),
                 (choice == "auto").then_some("openai-responses")
             );
         }
@@ -395,8 +397,10 @@ mod tests {
                 assert!(after.contains("# keep"));
             }
             drop_provider(home)?;
-            let cleared: Value = serde_yaml::from_reader(fs::File::open(dest)?)?;
-            assert_eq!(cleared, serde_yaml::from_str::<Value>(text)?);
+            assert!(yaml::same_mapping(
+                &yaml::configuration(&fs::read_to_string(dest)?)?,
+                &yaml::configuration(text)?
+            ));
         }
         Ok(())
     }
@@ -404,7 +408,7 @@ mod tests {
     #[test]
     fn user_agent_follows_client_upgrades_and_preserves_custom_headers() -> Result<()> {
         let mut provider: Mapping =
-            serde_yaml::from_str("headers:\n  X-Route: test\n  User-Agent: omp\n")?;
+            yaml::configuration("headers:\n  X-Route: test\n  User-Agent: omp\n")?;
         for (version, agent) in [
             (Some("18.1.5"), Some("omp/18.1.5")),
             (Some("18.1.6"), None),
@@ -412,17 +416,19 @@ mod tests {
         ] {
             let version = version.map(semver::Version::parse).transpose()?;
             sync_user_agent(&mut provider, version.as_ref())?;
-            assert_eq!(provider["headers"]["User-Agent"].as_str(), agent);
-            assert_eq!(provider["headers"]["X-Route"].as_str(), Some("test"));
+            assert_eq!(
+                provider[&text("headers")]
+                    .as_mapping_get("User-Agent")
+                    .and_then(Value::as_str),
+                agent
+            );
+            assert_eq!(provider[&text("headers")]["X-Route"].as_str(), Some("test"));
         }
-        provider.insert(
-            "headers".into(),
-            serde_yaml::from_str("user-agent: my-relay/2")?,
-        );
+        provider.insert(text("headers"), yaml::parse("user-agent: my-relay/2")?);
         sync_user_agent(&mut provider, None)?;
-        assert_eq!(provider["headers"].as_mapping().unwrap().len(), 1);
+        assert_eq!(provider[&text("headers")].as_mapping().unwrap().len(), 1);
         assert_eq!(
-            provider["headers"]["user-agent"].as_str(),
+            provider[&text("headers")]["user-agent"].as_str(),
             Some("my-relay/2")
         );
         Ok(())

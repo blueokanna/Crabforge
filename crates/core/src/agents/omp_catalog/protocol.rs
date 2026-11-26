@@ -80,11 +80,11 @@ pub(super) fn catalog_api(home: &Path) -> Result<Option<String>> {
     let Some(path) = catalog_path(home) else {
         return Ok(None);
     };
-    let doc: Value = serde_yaml::from_reader(fs::File::open(path)?)?;
+    let doc = super::yaml::parse(&fs::read_to_string(path)?)?;
     Ok(doc
-        .get("providers")
-        .and_then(|p| p.get("crabforge"))
-        .and_then(|p| p.get("api"))
+        .as_mapping_get("providers")
+        .and_then(|p| p.as_mapping_get("crabforge"))
+        .and_then(|p| p.as_mapping_get("api"))
         .and_then(Value::as_str)
         .map(str::to_owned))
 }

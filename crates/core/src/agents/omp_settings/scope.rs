@@ -1,7 +1,7 @@
+use super::yaml::{self, Mapping, Value};
 use super::{configuration, persist, source, thinking::single_model};
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize};
-use serde_yaml::Value;
 use std::{
     collections::HashSet,
     fs,
@@ -119,12 +119,12 @@ fn scope_takes(pattern: &str, model: &str) -> bool {
 
 /// An existing global list must include a newly selected default model. Folder scopes stay local.
 pub(super) fn include_default(
-    root: &mut serde_yaml::Mapping,
+    root: &mut Mapping,
     doc: &yaml_edit::Document,
     model: &str,
 ) -> Result<()> {
     let Some(items) = root
-        .get_mut("enabledModels")
+        .get_mut(&yaml::text("enabledModels"))
         .and_then(Value::as_sequence_mut)
     else {
         return Ok(());
@@ -163,18 +163,15 @@ pub(super) fn include_default(
     } else {
         model
     };
-    items.push(addition.into());
+    items.push(yaml::text(addition));
     seq.push(addition);
     Ok(())
 }
 
 /// Called under the same profile lock as the model catalog write.
-pub(super) fn without_gateway(
-    root: &mut serde_yaml::Mapping,
-    doc: &yaml_edit::Document,
-) -> Result<()> {
+pub(super) fn without_gateway(root: &mut Mapping, doc: &yaml_edit::Document) -> Result<()> {
     let Some(items) = root
-        .get_mut("enabledModels")
+        .get_mut(&yaml::text("enabledModels"))
         .and_then(Value::as_sequence_mut)
     else {
         return Ok(());
@@ -193,7 +190,7 @@ pub(super) fn without_gateway(
         return Ok(());
     }
     if removed.len() == items.len() {
-        root.remove("enabledModels");
+        root.remove(&yaml::text("enabledModels"));
         doc.remove("enabledModels");
     } else {
         let seq = doc
@@ -219,7 +216,7 @@ pub(crate) fn sync_scope(home: &Path, ids: &[String]) -> Result<()> {
     }
     let (path, text) = source(home)?;
     let mut expected = configuration(&text)?;
-    let before = expected.get("enabledModels").cloned();
+    let before = expected.get(&yaml::text("enabledModels")).cloned();
     let history_file = home.join("crabforge-scope-history.json");
     let saved = match fs::read(&history_file) {
         Ok(bytes) => {
@@ -288,7 +285,7 @@ pub(crate) fn sync_scope(home: &Path, ids: &[String]) -> Result<()> {
         if offered.contains(&model) {
             if present.insert(model) {
                 restored.push(entry.as_str());
-                next.push(entry.as_str().into());
+                next.push(yaml::text(entry));
             }
         } else if !after.entries.contains(entry) {
             after.entries.push(entry.clone());
@@ -304,7 +301,7 @@ pub(crate) fn sync_scope(home: &Path, ids: &[String]) -> Result<()> {
     let yaml: YamlFile = text.parse()?;
     let doc = yaml.ensure_document();
     if next.is_empty() {
-        expected.remove("enabledModels");
+        expected.remove(&yaml::text("enabledModels"));
         doc.remove("enabledModels");
     } else {
         if before.is_none() {
@@ -319,10 +316,10 @@ pub(crate) fn sync_scope(home: &Path, ids: &[String]) -> Result<()> {
         for value in restored {
             sequence.push(value);
         }
-        expected.insert("enabledModels".into(), Value::Sequence(next));
+        expected.insert(yaml::text("enabledModels"), Value::Sequence(next));
     }
     ensure!(
-        configuration(&yaml.to_string())? == expected,
+        yaml::same_mapping(&configuration(&yaml.to_string())?, &expected),
         "edited YAML did not preserve the model scope"
     );
     write_history(
@@ -362,12 +359,12 @@ mod tests {
         sync_scope(home, &both)?;
         let restored = fs::read_to_string(&path)?;
         assert_eq!(
-            configuration(&restored)?["enabledModels"]
+            configuration(&restored)?[&yaml::text("enabledModels")]
                 .as_sequence()
                 .unwrap()
                 .last()
-                .unwrap(),
-            "CRABFORGE/vendor/m:8b:high"
+                .and_then(Value::as_str),
+            Some("CRABFORGE/vendor/m:8b:high")
         );
         assert!(restored.contains(folder));
         sync_scope(home, &both[..1])?;
@@ -378,13 +375,13 @@ mod tests {
         sync_scope(home, &both[..1])?;
         assert!(
             configuration(&fs::read_to_string(&path)?)?
-                .get("enabledModels")
+                .get(&yaml::text("enabledModels"))
                 .is_none()
         );
         sync_scope(home, &both)?;
         assert_eq!(
-            configuration(&fs::read_to_string(&path)?)?["enabledModels"][0],
-            "crabforge/vendor/m:8b:off"
+            configuration(&fs::read_to_string(&path)?)?[&yaml::text("enabledModels")][0].as_str(),
+            Some("crabforge/vendor/m:8b:off")
         );
         assert!(!home.join("crabforge-scope-history.json").exists());
         Ok(())

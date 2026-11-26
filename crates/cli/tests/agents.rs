@@ -891,19 +891,23 @@ async fn omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses() 
     assert!(renamed.auto_group_skip.contains("lab"));
     assert_eq!(renamed.model_same_as["lab/n"], "other");
     let text = fs::read_to_string(profile.join("config.yaml"))?;
-    let parsed: Value = serde_yaml::from_str(&text)?;
+    use saphyr::{LoadableYamlNode, Yaml};
+    let docs = Yaml::load_from_str(&text)?;
+    let [parsed] = docs.as_slice() else {
+        anyhow::bail!("expected one Oh My Pi profile")
+    };
     assert!(text.contains("# personal"));
     assert_eq!(
         parsed["retry"]["fallbackChains"]["crabforge/lab/m"],
-        json!(["crabforge/lab/n"])
+        Yaml::load_from_str("[crabforge/lab/n]")?[0]
     );
     assert_eq!(
-        parsed["task"]["agentModelOverrides"]["review"],
-        "other/y, crabforge/lab/m:high"
+        parsed["task"]["agentModelOverrides"]["review"].as_str(),
+        Some("other/y, crabforge/lab/m:high")
     );
     assert_eq!(
         parsed["enabledModels"][0],
-        json!({"path":"crabforge/local/folder", "models":["crabforge/lab/m"]})
+        Yaml::load_from_str("{path: crabforge/local/folder, models: [crabforge/lab/m]}")?[0]
     );
     assert!(fs::read_to_string(default.join("config.yml"))?.contains("crabforge/lab/m"));
     assert!(
@@ -1523,10 +1527,22 @@ max_context_size = 32768
                 .exists()
         );
         let text = fs::read_to_string(omp_file)?;
-        let doc: Value = serde_yaml::from_str(&text)?;
-        assert_eq!(doc["providers"]["personal"]["models"][0]["id"], "personal");
-        let models = doc["providers"]["crabforge"]["models"].as_array().unwrap();
-        let direct = models.iter().find(|m| m["id"] == "local/m").unwrap();
+        use saphyr::{LoadableYamlNode, Yaml};
+        let docs = Yaml::load_from_str(&text)?;
+        let [doc] = docs.as_slice() else {
+            anyhow::bail!("expected one Oh My Pi catalog")
+        };
+        assert_eq!(
+            doc["providers"]["personal"]["models"][0]["id"].as_str(),
+            Some("personal")
+        );
+        let models = doc["providers"]["crabforge"]["models"]
+            .as_sequence()
+            .unwrap();
+        let direct = models
+            .iter()
+            .find(|m| m["id"].as_str() == Some("local/m"))
+            .unwrap();
         let expected = match protocol {
             "responses" => "openai-responses",
             "anthropic" => "anthropic-messages",
@@ -1534,21 +1550,24 @@ max_context_size = 32768
             _ => "openai-completions",
         };
         assert_eq!(
-            direct["api"].as_str().unwrap_or("openai-completions"),
+            direct
+                .as_mapping_get("api")
+                .and_then(Yaml::as_str)
+                .unwrap_or("openai-completions"),
             expected
         );
         assert_eq!(
-            models[0]["api"].as_str(),
+            models[0].as_mapping_get("api").and_then(Yaml::as_str),
             (protocol == "responses").then_some("openai-responses")
         );
         assert_eq!(
-            doc["providers"]["crabforge"]["models"][0]["id"],
-            "group/last"
+            doc["providers"]["crabforge"]["models"][0]["id"].as_str(),
+            Some("group/last")
         );
         assert!(!text.contains("group/paused") && !text.contains(&config::token(root)?));
         assert_eq!(
-            doc["providers"]["crabforge"]["compat"]["promptCacheSessionHeader"],
-            "x-session-affinity"
+            doc["providers"]["crabforge"]["compat"]["promptCacheSessionHeader"].as_str(),
+            Some("x-session-affinity")
         );
     }
     if client == "pi" || (client == "omp" && protocol == "chat") {
