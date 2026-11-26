@@ -1,5 +1,5 @@
 use crate::{config::Endpoints, translate::Format};
-use axum::http::{header::USER_AGENT, request::Builder as RequestBuilder};
+use http::{header::USER_AGENT, request::Builder as RequestBuilder};
 use nextjson::Value;
 use std::collections::BTreeMap;
 use url::Url;
@@ -192,9 +192,9 @@ mod tests {
         let url = Url::parse(
             "https://opencode.ai/inference/go/google/v1beta/models/gemini-4-argon:generateContent",
         )?;
-        let build = |session: Option<&str>, body: &[u8]| -> anyhow::Result<axum::http::HeaderMap> {
+        let build = |session: Option<&str>, body: &[u8]| -> anyhow::Result<http::HeaderMap> {
             let request = authenticate(
-                axum::http::Request::post(url.as_str()),
+                http::Request::post(url.as_str()),
                 &url,
                 "gemini",
                 "provider-key",

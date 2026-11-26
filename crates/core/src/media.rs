@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, ensure};
-use axum::{body::Bytes, http::header};
+use bytes::Bytes;
 use futures_util::stream;
+use http::header;
 use std::convert::Infallible;
 
 pub(crate) struct Upload {

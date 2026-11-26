@@ -109,7 +109,7 @@ async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> 
     )?;
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let gateway = listener.local_addr()?;
-    let task = tokio::spawn(async move { axum::serve(listener, router).await });
+    let task = tokio::spawn(crate::service::serve_local(listener, router));
     let reply = Client::builder()
         .no_proxy()
         .timeout(Duration::from_secs(8))

@@ -1,10 +1,8 @@
 use super::{Api, Caller, Gateway, Inbound, Route, forward, json_response};
 use anyhow::Result;
-use axum::{
-    body::{Body, Bytes},
-    http::{Method, StatusCode, request::Parts},
-    response::Response,
-};
+use axum_core::response::Response;
+use bytes::Bytes;
+use http::{Method, StatusCode, request::Parts};
 use nextjson::{Value, json};
 use sha2::{Digest, Sha256};
 use std::time::Instant;
@@ -77,7 +75,7 @@ impl Endpoint {
         gw: &Gateway,
         caller: &Caller<'_>,
         parts: &Parts,
-        body: Body,
+        body: impl Future<Output = Result<Bytes>>,
     ) -> Response {
         if matches!(self, Self::Version | Self::Tags) {
             if parts.method != Method::GET {

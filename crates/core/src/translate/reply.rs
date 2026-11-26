@@ -1,11 +1,11 @@
 use super::*;
 use super::{sse, stream_input::Decoder, stream_output::Encoder};
-use axum::{
+use axum_core::{
     body::Body,
-    http::StatusCode,
     response::{IntoResponse, Response},
 };
 use futures_util::StreamExt;
+use http::StatusCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::OwnedSemaphorePermit;
 

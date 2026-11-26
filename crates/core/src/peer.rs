@@ -1,7 +1,7 @@
 use std::{collections::HashSet, net::SocketAddr, path::Path, time::Duration};
 
+use crate::gateway::Gateway;
 use anyhow::{Context, Result, bail, ensure};
-use axum::Router;
 use futures_util::StreamExt;
 use libp2p::{
     Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder, allow_block_list, connection_limits,
@@ -130,7 +130,7 @@ pub async fn serve(
     key: Keypair,
     addr: Multiaddr,
     allowed: Vec<PeerId>,
-    app: Router,
+    app: std::sync::Arc<Gateway>,
 ) -> Result<PeerServer> {
     let clients: HashSet<_> = allowed.into_iter().collect();
     let relay = relay_peer(&addr);

@@ -4,12 +4,10 @@ use aws_sigv4::{
     http_request::{SignableBody, SignableRequest, SigningInstructions, SigningSettings, sign},
     sign::v4,
 };
-use axum::{
-    body::Bytes,
-    http::{
-        Request,
-        header::{HeaderName, HeaderValue},
-    },
+use bytes::Bytes;
+use http::{
+    Request,
+    header::{HeaderName, HeaderValue},
 };
 use sha2::{Digest, Sha256};
 use std::{env, time::SystemTime};

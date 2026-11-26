@@ -1,4 +1,4 @@
-use axum::http::{HeaderMap, HeaderValue, header::USER_AGENT};
+use http::{HeaderMap, HeaderValue, header::USER_AGENT};
 use std::borrow::Cow;
 
 pub(super) struct Caller<'a> {

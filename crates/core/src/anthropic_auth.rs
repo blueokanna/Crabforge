@@ -1,11 +1,9 @@
 use crate::upstream::ForwardClient;
 use anyhow::Result;
-use axum::{
-    body::{Body, Bytes},
-    http::{Request, StatusCode, header::AUTHORIZATION},
-    response::Response,
-};
+use axum_core::{body::Body, response::Response};
+use bytes::Bytes;
 use futures_util::{StreamExt, stream};
+use http::{Request, StatusCode, header::AUTHORIZATION};
 use std::sync::OnceLock;
 
 string_enum! {

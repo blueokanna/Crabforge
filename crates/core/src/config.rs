@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail, ensure};
-use axum::http::request::Builder as RequestBuilder;
+use http::request::Builder as RequestBuilder;
 use nextjson::{NsonDeserialize, NsonSerialize};
 use tempfile::NamedTempFile;
 use url::Url;
@@ -900,7 +900,7 @@ mod tests {
         ] {
             let url = api_base(base, protocol)?;
             let request = authenticate(
-                axum::http::Request::get(url.as_str()),
+                http::Request::get(url.as_str()),
                 &url,
                 protocol,
                 "example",
@@ -915,7 +915,7 @@ mod tests {
         }
         let url = api_base("https://api.deepseek.com/anthropic", "anthropic")?;
         let request = authenticate(
-            axum::http::Request::get(url.as_str()),
+            http::Request::get(url.as_str()),
             &url,
             "anthropic",
             "example",

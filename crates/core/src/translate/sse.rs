@@ -5,7 +5,7 @@ use futures_util::{Stream, StreamExt};
 /// The frame budget also bounds an unterminated line. Split before decoding so
 /// a multibyte code point can span two HTTP chunks.
 pub(crate) fn data<E>(
-    mut chunks: impl Stream<Item = Result<axum::body::Bytes, E>> + Unpin,
+    mut chunks: impl Stream<Item = Result<bytes::Bytes, E>> + Unpin,
 ) -> impl Stream<Item = Result<String>>
 where
     E: std::error::Error + Send + Sync + 'static,

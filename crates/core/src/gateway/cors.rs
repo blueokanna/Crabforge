@@ -1,7 +1,5 @@
-use axum::{
-    http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header},
-    response::{IntoResponse, Response},
-};
+use axum_core::response::{IntoResponse, Response};
+use http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 
 pub(super) fn preflight(headers: &HeaderMap) -> Response {
     let method = headers

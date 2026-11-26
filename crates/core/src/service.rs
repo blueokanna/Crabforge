@@ -1,15 +1,10 @@
 use crate::{
     config,
-    gateway::{self, History},
+    gateway::{self, Gateway, History},
     peer::{self, PeerServer},
 };
 use anyhow::Result;
-use axum::Router;
-use hyper_util::{
-    rt::{TokioIo, TokioTimer},
-    service::TowerToHyperService,
-};
-use std::{net::SocketAddr, path::Path, time::Duration};
+use std::{net::SocketAddr, path::Path, sync::Arc, time::Duration};
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::TcpListener,
@@ -17,19 +12,13 @@ use tokio::{
     time::timeout,
 };
 
-pub(crate) async fn serve_connection(io: impl AsyncRead + AsyncWrite + Unpin, app: Router) {
-    let mut http = hyper::server::conn::http1::Builder::new();
-    http.timer(TokioTimer::new())
-        .header_read_timeout(Duration::from_secs(15))
-        .max_buf_size(32768);
-    let _ = timeout(
-        Duration::from_secs(3600),
-        http.serve_connection(TokioIo::new(io), TowerToHyperService::new(app)),
-    )
-    .await;
+mod http1;
+
+pub(crate) async fn serve_connection(io: impl AsyncRead + AsyncWrite + Unpin, app: Arc<Gateway>) {
+    let _ = timeout(Duration::from_secs(3600), http1::serve(io, &app)).await;
 }
 
-async fn serve_local(listener: TcpListener, app: Router) -> std::io::Result<()> {
+pub(crate) async fn serve_local(listener: TcpListener, app: Arc<Gateway>) -> std::io::Result<()> {
     let mut workers = JoinSet::new();
     loop {
         tokio::select! {

@@ -452,8 +452,8 @@ impl WebPrompt {
             stream: request.stream,
         })
     }
-    pub async fn answer(self, root: &Path, site: Site) -> Result<axum::response::Response> {
-        use axum::response::IntoResponse;
+    pub async fn answer(self, root: &Path, site: Site) -> Result<axum_core::response::Response> {
+        use axum_core::response::IntoResponse;
         let browser = Browser::open(root, site).await?;
         let answer = browser.submit(site.url(), &self.prompt).await;
         browser.close().await;

@@ -8,14 +8,13 @@ use std::{
 
 use crate::upstream::ForwardClient;
 use anyhow::Result;
-use axum::{
-    Router,
-    body::{Body, Bytes, to_bytes},
-    extract::{Request, State},
-    http::{HeaderMap, Method, StatusCode, header},
+use axum_core::{
+    body::Body,
     response::{IntoResponse, Response},
 };
+use bytes::Bytes;
 use futures_util::StreamExt;
+use http::{HeaderMap, Method, Request, StatusCode, header};
 use nextjson::{NsonSerialize, json};
 use subtle::ConstantTimeEq;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
@@ -37,7 +36,7 @@ use routing::Route;
 use session::Caller;
 use std::path::{Path, PathBuf};
 
-const BODY_LIMIT: usize = 8 * 1024 * 1024;
+pub(crate) const BODY_LIMIT: usize = 8 * 1024 * 1024;
 pub(crate) const MAX_IN_FLIGHT: usize = 16;
 
 #[derive(Clone, NsonSerialize)]
@@ -63,7 +62,7 @@ struct Target {
     protocols: NativeProtocols,
 }
 
-struct Gateway {
+pub struct Gateway {
     root: PathBuf,
     config: Config,
     routes: BTreeMap<String, Route>,
@@ -138,7 +137,12 @@ impl Gateway {
     }
 }
 
-pub fn router(config: Config, token: String, history: History, root: &Path) -> Result<Router> {
+pub fn router(
+    config: Config,
+    token: String,
+    history: History,
+    root: &Path,
+) -> Result<Arc<Gateway>> {
     let client = ForwardClient::new();
     router_with_client(config, token, history, root, client)
 }
@@ -149,7 +153,7 @@ fn router_with_client(
     history: History,
     root: &Path,
     client: ForwardClient,
-) -> Result<Router> {
+) -> Result<Arc<Gateway>> {
     config.validate()?;
     for p in &mut config.providers {
         crate::opencode::Console::fill_missing(&mut p.endpoints);
@@ -320,7 +324,7 @@ fn router_with_client(
         })
         .map_err(anyhow::Error::msg)?,
     );
-    Ok(Router::new().fallback(dispatch).with_state(Arc::new(state)))
+    Ok(Arc::new(state))
 }
 
 #[derive(Clone, Copy)]
@@ -571,7 +575,10 @@ fn selection(bytes: &[u8]) -> nextjson::Result<(String, Range<usize>)> {
     model.ok_or_else(|| nextjson::Error::custom("missing model field"))
 }
 
-async fn dispatch(State(gw): State<Arc<Gateway>>, req: Request) -> Response {
+pub(crate) async fn dispatch(
+    gw: &Gateway,
+    req: Request<impl Future<Output = Result<Bytes>>>,
+) -> Response {
     let (parts, body) = req.into_parts();
     let mut origins = parts.headers.get_all(header::ORIGIN).iter();
     let origin = origins.next();
@@ -599,20 +606,20 @@ async fn dispatch(State(gw): State<Arc<Gateway>>, req: Request) -> Response {
     } else {
         let caller = Caller::new(agent, &parts.headers);
         let mut response = if let Some(endpoint) = ollama {
-            endpoint.serve(&gw, &caller, &parts, body).await
+            endpoint.serve(gw, &caller, &parts, body).await
         } else {
-            serve_http(&gw, &caller, path, &parts, body).await
+            serve_http(gw, &caller, path, &parts, body).await
         };
         caller.set_response_headers(response.headers_mut());
         response
     };
     let headers = response.headers_mut();
-    headers.append(header::VARY, axum::http::HeaderValue::from_static("Origin"));
+    headers.append(header::VARY, http::HeaderValue::from_static("Origin"));
     if let Some(origin) = allowed {
         headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.clone());
         headers.insert(
             header::ACCESS_CONTROL_EXPOSE_HEADERS,
-            axum::http::HeaderValue::from_static("X-Crabforge-Session, X-Magpie-Session"),
+            http::HeaderValue::from_static("X-Crabforge-Session, X-Magpie-Session"),
         );
     }
     response
@@ -622,8 +629,8 @@ async fn serve_http(
     gw: &Gateway,
     caller: &Caller<'_>,
     path: &str,
-    parts: &axum::http::request::Parts,
-    body: Body,
+    parts: &http::request::Parts,
+    body: impl Future<Output = Result<Bytes>>,
 ) -> Response {
     let path = path.strip_prefix("v1/").unwrap_or(path);
     if parts.method == Method::GET {
@@ -1039,14 +1046,14 @@ fn upstream_response(upstream: Response, permit: Arc<OwnedSemaphorePermit>) -> R
 impl Gateway {
     async fn read_body(
         &self,
-        body: Body,
+        body: impl Future<Output = Result<Bytes>>,
     ) -> std::result::Result<(Bytes, Arc<OwnedSemaphorePermit>), (StatusCode, &'static str)> {
         let permit = self
             .slots
             .clone()
             .try_acquire_owned()
             .map_err(|_| (StatusCode::TOO_MANY_REQUESTS, "gateway is busy"))?;
-        let bytes = tokio::time::timeout(Duration::from_secs(30), to_bytes(body, BODY_LIMIT))
+        let bytes = tokio::time::timeout(Duration::from_secs(30), body)
             .await
             .map_err(|_| (StatusCode::REQUEST_TIMEOUT, "request body timed out"))?
             .map_err(|_| {

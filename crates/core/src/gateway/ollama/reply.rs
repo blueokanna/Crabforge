@@ -1,11 +1,12 @@
 use super::{error, json_response};
 use anyhow::{Context, Result, bail, ensure};
-use axum::{
-    body::{Body, to_bytes},
-    http::{StatusCode, header},
+use axum_core::{
+    body::Body,
     response::{IntoResponse, Response},
 };
 use futures_util::{Stream, StreamExt, stream};
+use http::{StatusCode, header};
+use http_body_util::{BodyExt, Limited};
 use nextjson::{Map, Value, json};
 use std::{collections::BTreeMap, convert::Infallible, time::Instant};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
@@ -198,7 +199,7 @@ impl Output {
                     if self.stream { yield Value::Object(self.part(add,thought,vec![],false)); } else { text.push_str(add); thinking.push_str(thought); }
                 }
             } else {
-                let bytes = to_bytes(body,2 * 1024 * 1024).await?;
+                let bytes = reply_bytes(body).await?;
                 let v: Value = nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?;
                 let (add, thought) = completion.apply(&v,self.thinking)?;
                 text.push_str(add); thinking.push_str(thought);
@@ -245,9 +246,17 @@ impl Output {
     }
 }
 
+async fn reply_bytes(body: Body) -> Result<bytes::Bytes> {
+    Ok(Limited::new(body, 2 * 1024 * 1024)
+        .collect()
+        .await
+        .map_err(anyhow::Error::from_boxed)?
+        .to_bytes())
+}
+
 pub(super) async fn convert_error(response: Response) -> Response {
     let (parts, body) = response.into_parts();
-    let bytes = to_bytes(body, 2 * 1024 * 1024).await.unwrap_or_default();
+    let bytes = reply_bytes(body).await.unwrap_or_default();
     let v = nextjson::from_slice::<Value>(&bytes).unwrap_or(Value::Null);
     let message = v
         .pointer("/error/message")

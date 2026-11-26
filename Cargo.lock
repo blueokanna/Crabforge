@@ -832,7 +832,9 @@ dependencies = [
  "aws-lc-rs",
  "aws-sigv4",
  "axum",
+ "axum-core",
  "base64 0.23.1",
+ "bytes",
  "courierust",
  "fancy-regex",
  "flate2",
@@ -841,6 +843,8 @@ dependencies = [
  "getrandom 0.4.3",
  "glob",
  "hex",
+ "http",
+ "http-body",
  "http-body-util",
  "hyper",
  "hyper-util",
@@ -863,6 +867,7 @@ dependencies = [
  "semver",
  "serde_json",
  "sha2",
+ "simoom-http1",
  "subtle",
  "tempfile",
  "time",
@@ -3651,6 +3656,21 @@ name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
+
+[[package]]
+name = "simoom-http1"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90e3ba693bb57cbc4e34b2010c0205dd1f209bb9fd7b8bbda308f11d4325fa38"
+dependencies = [
+ "simoom-sys",
+]
+
+[[package]]
+name = "simoom-sys"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0b8f83bc658021d49bb26795f3a6baeee08e3a85bd025169d2b6628948465e5"
 
 [[package]]
 name = "siphasher"

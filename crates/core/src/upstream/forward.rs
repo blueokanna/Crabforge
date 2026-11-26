@@ -1,9 +1,7 @@
 use anyhow::{Context, Result};
-use axum::{
-    body::{Body, Bytes},
-    http::Request,
-    response::Response,
-};
+use axum_core::{body::Body, response::Response};
+use bytes::Bytes;
+use http::Request;
 use std::{
     collections::VecDeque,
     io::{self, Read},
