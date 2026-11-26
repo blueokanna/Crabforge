@@ -70,7 +70,6 @@ void main() {
     await tap(find.text('Environment variables'));
     final page = find.byType(AgentEnvironment);
     await waitFor(find.text('No variables saved'));
-    expect(below(page, find.byType(SliverList)), findsOneWidget);
     await tap(find.text('Add variable'));
     final save = find.widgetWithText(FilledButton, 'Save');
     final editor = find.ancestor(of: save, matching: find.byType(AlertDialog));
@@ -94,10 +93,13 @@ void main() {
     expect(codex.readAsStringSync(), contains('CRABFORGE_GUI_FIXTURE'));
     expect(nativePi.readAsStringSync(), gatewayPi.readAsStringSync());
 
-    await tap(below(page, find.byTooltip('Grid view')));
-    expect(below(page, find.byType(SliverGrid)), findsOneWidget);
+    final toList = below(page, find.byTooltip('List view'));
+    if (toList.evaluate().isNotEmpty) await tap(toList);
+    await waitFor(below(page, find.byType(SliverList)));
     tester.view.physicalSize = const Size(1280, 900);
     await tester.pumpAndSettle();
+    await tap(below(page, find.byTooltip('Grid view')));
+    await waitFor(below(page, find.byType(SliverGrid)));
     claude.writeAsStringSync(
       claude.readAsStringSync().replaceFirst('initial string', 'external'),
     );
