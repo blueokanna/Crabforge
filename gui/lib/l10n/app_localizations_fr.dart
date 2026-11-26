@@ -13,6 +13,45 @@ class AppLocalizationsFr extends AppLocalizations {
   String get memoryLibrary => 'Mémoire';
 
   @override
+  String get agentRules => 'Règles';
+
+  @override
+  String get addRule => 'Ajouter une règle';
+
+  @override
+  String get editRule => 'Modifier la règle';
+
+  @override
+  String get syncRules => 'Appliquer les règles';
+
+  @override
+  String get noRules => 'Aucune règle enregistrée';
+
+  @override
+  String get ruleName => 'Nom de la règle';
+
+  @override
+  String get ruleBody => 'Instructions Markdown';
+
+  @override
+  String get rulePaths => 'Motifs de chemin (facultatifs, un par ligne)';
+
+  @override
+  String get ruleRequired => 'Ce champ est obligatoire.';
+
+  @override
+  String ruleStatus(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'applied': 'Appliquée',
+      'pending': 'En attente',
+      'removed': 'Supprimée',
+      'conflict': 'Fichier existant conservé',
+      'other': 'Échec de l’application',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get agentSessions => 'Sessions locales';
 
   @override

@@ -13,6 +13,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get memoryLibrary => '记忆';
 
   @override
+  String get agentRules => '规则';
+
+  @override
+  String get addRule => '添加规则';
+
+  @override
+  String get editRule => '编辑规则';
+
+  @override
+  String get syncRules => '应用规则';
+
+  @override
+  String get noRules => '暂无已保存的规则';
+
+  @override
+  String get ruleName => '规则名称';
+
+  @override
+  String get ruleBody => 'Markdown 指令';
+
+  @override
+  String get rulePaths => '路径模式（可选，每行一个）';
+
+  @override
+  String get ruleRequired => '此项为必填项。';
+
+  @override
+  String ruleStatus(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'applied': '已应用',
+      'pending': '待应用',
+      'removed': '已移除',
+      'conflict': '已保留现有文件',
+      'other': '无法应用',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get agentSessions => '本地会话';
 
   @override

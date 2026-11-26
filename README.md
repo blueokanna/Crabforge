@@ -63,6 +63,15 @@ Select Claude Code or Codex in **Client connections**, then open **User instruct
 
 In the CLI, `carbforge-cli memory context --agent codex` previews the same digest and `carbforge-cli memory agent-instructions codex` reports the current file and revision. Append `--publish` to publish, `--preview <UTF-8 file>` to require a saved preview to match, or `--restore` to restore. `--revision <revision>` checks that the instruction file still matches the inspected version.
 
+Open **Rules** under **Client connections** to save Markdown guidance and assign it to Claude Code, Cline or Kiro CLI. Claude Code and Kiro CLI accept optional path patterns. Cline applies its rules to every conversation. The library shows each native file and its status. Editing, renaming or removing a rule affects the unchanged copies Crabforge manages. A pre-existing file or a local edit stays in place and appears as a conflict. **Apply rules** retries outstanding changes for the current agent profiles.
+
+```powershell
+carbforge-cli rules save diagnostics --from diagnostics.md --agent claude --agent kiro-cli --path 'src/**/*.rs'
+carbforge-cli rules list
+```
+
+Pass `--old <name>` to edit an existing rule or rename it. Add `--revision <revision>` from `rules list` to require the same version. `rules remove <name>` removes the library entry and its unchanged managed copies.
+
 ## Protocols and routing
 
 - Clients can use OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Gemini and Ollama APIs. The validation record describes which streaming, tool, media and authentication paths have been exercised. Model availability depends on the provider and account.

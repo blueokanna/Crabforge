@@ -13,6 +13,45 @@ class AppLocalizationsKo extends AppLocalizations {
   String get memoryLibrary => '메모리';
 
   @override
+  String get agentRules => '규칙';
+
+  @override
+  String get addRule => '규칙 추가';
+
+  @override
+  String get editRule => '규칙 편집';
+
+  @override
+  String get syncRules => '규칙 적용';
+
+  @override
+  String get noRules => '저장된 규칙이 없습니다';
+
+  @override
+  String get ruleName => '규칙 이름';
+
+  @override
+  String get ruleBody => 'Markdown 지침';
+
+  @override
+  String get rulePaths => '경로 패턴 (선택 사항, 줄마다 하나씩)';
+
+  @override
+  String get ruleRequired => '필수 입력 항목입니다.';
+
+  @override
+  String ruleStatus(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'applied': '적용됨',
+      'pending': '대기 중',
+      'removed': '삭제됨',
+      'conflict': '기존 파일 유지됨',
+      'other': '적용 실패',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get agentSessions => '로컬 세션';
 
   @override

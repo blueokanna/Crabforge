@@ -118,6 +118,66 @@ abstract class AppLocalizations {
   /// **'Memory'**
   String get memoryLibrary;
 
+  /// No description provided for @agentRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules'**
+  String get agentRules;
+
+  /// No description provided for @addRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Add rule'**
+  String get addRule;
+
+  /// No description provided for @editRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit rule'**
+  String get editRule;
+
+  /// No description provided for @syncRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply rules'**
+  String get syncRules;
+
+  /// No description provided for @noRules.
+  ///
+  /// In en, this message translates to:
+  /// **'No rules saved'**
+  String get noRules;
+
+  /// No description provided for @ruleName.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule name'**
+  String get ruleName;
+
+  /// No description provided for @ruleBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown instructions'**
+  String get ruleBody;
+
+  /// No description provided for @rulePaths.
+  ///
+  /// In en, this message translates to:
+  /// **'Path patterns (optional, one per line)'**
+  String get rulePaths;
+
+  /// No description provided for @ruleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'This field is required.'**
+  String get ruleRequired;
+
+  /// No description provided for @ruleStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'{value, select, applied{Applied} pending{Pending} removed{Removed} conflict{Existing file kept} other{Could not apply}}'**
+  String ruleStatus(String value);
+
   /// No description provided for @agentSessions.
   ///
   /// In en, this message translates to:

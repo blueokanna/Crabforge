@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'brand_icon.dart';
+import 'agent_rules.dart';
 import 'agent_sessions.dart';
 import 'collection_view.dart';
 import 'editors.dart';
@@ -1459,6 +1460,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                   ),
                   icon: const Icon(Icons.bookmarks_outlined),
                   label: Text(context.strings.memoryLibrary),
+                ),
+                TextButton.icon(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const AgentRules(),
+                  ),
+                  icon: const Icon(Icons.rule_outlined),
+                  label: Text(context.strings.agentRules),
                 ),
                 if (projectAgents.contains(selectedAgent))
                   TextButton.icon(

@@ -45,6 +45,7 @@ mod model_name;
 mod opencode;
 pub mod peer;
 pub mod project_instructions;
+pub mod rules;
 pub mod service;
 pub mod sessions;
 mod translate;

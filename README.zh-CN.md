@@ -63,6 +63,15 @@ CLI 中先运行 `carbforge-cli memory distill claude <会话-ID>` 获取消息�
 
 `carbforge-cli memory context --agent codex` 预览同一摘要。`carbforge-cli memory agent-instructions codex` 显示当前指令文件及修订。附加 `--publish` 发布，使用 `--preview <UTF-8 文件>` 要求摘要与已保存的预览一致，或使用 `--restore` 恢复。`--revision <修订>` 核对指令文件是否仍是已查看的版本。
 
+在 **客户端连接** 的 **规则** 中保存 Markdown 指令，并分配给 Claude Code、Cline 或 Kiro CLI。Claude Code 和 Kiro CLI 支持可选的路径模式，Cline 规则适用于每次会话。规则库显示原生文件的位置和状态。编辑、改名或删除规则时，Crabforge 会更新自己管理且内容未变化的副本。既有文件和本地修改会保留并显示冲突。点击 **应用规则** 可重试当前 Agent 配置中尚未完成的更改。
+
+```powershell
+carbforge-cli rules save diagnostics --from diagnostics.md --agent claude --agent kiro-cli --path 'src/**/*.rs'
+carbforge-cli rules list
+```
+
+使用 `--old <名称>` 编辑现有规则或改名，可加 `--revision <修订>` 核对 `rules list` 中读取的版本。`rules remove <名称>` 删除规则及内容未变化的托管副本。
+
 ## 协议与路由
 
 - 支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini 和 Ollama 客户端。目录、对话流、工具调用、媒体和鉴权的验证范围见验收记录。不同供应商及套餐开放的模型会变化。

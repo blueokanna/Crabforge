@@ -163,6 +163,39 @@ pub fn agents() -> String {
     json!(crabforge_core::agents::CLIENTS).to_string()
 }
 
+pub fn agent_rules() -> Result<String> {
+    crabforge_core::rules::library(&config::data_dir()?, crabforge_core::rules::Edit::Read)
+}
+
+pub fn save_agent_rule(
+    old: Option<String>,
+    revision: Option<String>,
+    rule: String,
+) -> Result<String> {
+    crabforge_core::rules::library(
+        &config::data_dir()?,
+        crabforge_core::rules::Edit::Save {
+            old,
+            expected: revision,
+            rule: decode(&rule)?,
+        },
+    )
+}
+
+pub fn remove_agent_rule(name: String, revision: String) -> Result<String> {
+    crabforge_core::rules::library(
+        &config::data_dir()?,
+        crabforge_core::rules::Edit::Remove {
+            name,
+            expected: Some(revision),
+        },
+    )
+}
+
+pub fn sync_agent_rules() -> Result<String> {
+    crabforge_core::rules::library(&config::data_dir()?, crabforge_core::rules::Edit::Sync)
+}
+
 pub fn agent_sessions(agent: Option<String>) -> Result<String> {
     use crabforge_core::agents::NativeAgent;
 

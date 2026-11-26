@@ -13,6 +13,45 @@ class AppLocalizationsDe extends AppLocalizations {
   String get memoryLibrary => 'Gedächtnis';
 
   @override
+  String get agentRules => 'Regeln';
+
+  @override
+  String get addRule => 'Regel hinzufügen';
+
+  @override
+  String get editRule => 'Regel bearbeiten';
+
+  @override
+  String get syncRules => 'Regeln anwenden';
+
+  @override
+  String get noRules => 'Keine Regeln gespeichert';
+
+  @override
+  String get ruleName => 'Regelname';
+
+  @override
+  String get ruleBody => 'Markdown-Anweisungen';
+
+  @override
+  String get rulePaths => 'Pfadmuster (optional, eines pro Zeile)';
+
+  @override
+  String get ruleRequired => 'Dies ist ein Pflichtfeld.';
+
+  @override
+  String ruleStatus(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'applied': 'Angewendet',
+      'pending': 'Ausstehend',
+      'removed': 'Entfernt',
+      'conflict': 'Vorhandene Datei beibehalten',
+      'other': 'Anwendung fehlgeschlagen',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get agentSessions => 'Lokale Sitzungen';
 
   @override

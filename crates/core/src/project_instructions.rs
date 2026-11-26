@@ -358,7 +358,7 @@ fn revision(path: &Path, text: Option<&str>) -> String {
     hex::encode(hash.finalize())
 }
 
-fn replace(path: &Path, text: &str) -> Result<()> {
+pub(crate) fn replace(path: &Path, text: &str) -> Result<()> {
     let mut tmp = tempfile::NamedTempFile::new_in(path.parent().context("missing parent folder")?)?;
     if let Ok(meta) = path.metadata() {
         tmp.as_file().set_permissions(meta.permissions())?;

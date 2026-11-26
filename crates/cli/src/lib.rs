@@ -6,6 +6,7 @@ use std::{net::SocketAddr, path::PathBuf};
 mod agent;
 mod groups;
 mod memory;
+mod rules;
 
 #[derive(Parser)]
 #[command(
@@ -56,6 +57,11 @@ enum Command {
     Memory {
         #[command(subcommand)]
         command: memory::Command,
+    },
+    /// Manage shared Markdown rules for Claude Code, Cline and Kiro CLI.
+    Rules {
+        #[command(subcommand)]
+        command: rules::Command,
     },
     /// Discover recent local Claude Code and Codex sessions.
     Sessions {
@@ -802,6 +808,7 @@ pub async fn run() -> Result<()> {
             );
         }
         Command::Memory { command } => memory::run(&dir, command).await?,
+        Command::Rules { command } => rules::run(&dir, command)?,
         Command::Sessions { agent, limit } => println!(
             "{}",
             nextjson::to_string_pretty(&crabforge_core::sessions::list(

@@ -13,6 +13,45 @@ class AppLocalizationsHi extends AppLocalizations {
   String get memoryLibrary => 'स्मृति';
 
   @override
+  String get agentRules => 'नियम';
+
+  @override
+  String get addRule => 'नियम जोड़ें';
+
+  @override
+  String get editRule => 'नियम संपादित करें';
+
+  @override
+  String get syncRules => 'नियम लागू करें';
+
+  @override
+  String get noRules => 'कोई नियम सहेजा नहीं गया है';
+
+  @override
+  String get ruleName => 'नियम का नाम';
+
+  @override
+  String get ruleBody => 'Markdown निर्देश';
+
+  @override
+  String get rulePaths => 'पथ पैटर्न (वैकल्पिक, हर पंक्ति में एक)';
+
+  @override
+  String get ruleRequired => 'यह फ़ील्ड ज़रूरी है।';
+
+  @override
+  String ruleStatus(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'applied': 'लागू',
+      'pending': 'लंबित',
+      'removed': 'हटाया गया',
+      'conflict': 'मौजूदा फ़ाइल सुरक्षित रखी गई',
+      'other': 'लागू नहीं हो सका',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get agentSessions => 'स्थानीय सत्र';
 
   @override

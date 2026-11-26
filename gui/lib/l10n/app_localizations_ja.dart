@@ -13,6 +13,45 @@ class AppLocalizationsJa extends AppLocalizations {
   String get memoryLibrary => 'メモリ';
 
   @override
+  String get agentRules => 'ルール';
+
+  @override
+  String get addRule => 'ルールを追加';
+
+  @override
+  String get editRule => 'ルールを編集';
+
+  @override
+  String get syncRules => 'ルールを適用';
+
+  @override
+  String get noRules => '保存済みのルールはありません';
+
+  @override
+  String get ruleName => 'ルール名';
+
+  @override
+  String get ruleBody => 'Markdown 形式の指示';
+
+  @override
+  String get rulePaths => 'パスのパターン（任意、1 行に 1 つ）';
+
+  @override
+  String get ruleRequired => 'この項目は必須です。';
+
+  @override
+  String ruleStatus(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'applied': '適用済み',
+      'pending': '保留中',
+      'removed': '削除済み',
+      'conflict': '既存のファイルを保持',
+      'other': '適用できませんでした',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get agentSessions => 'ローカルセッション';
 
   @override

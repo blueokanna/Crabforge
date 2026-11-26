@@ -100,6 +100,29 @@ Future<String> presets() => RustLib.instance.api.crateApiPresets();
 
 Future<String> agents() => RustLib.instance.api.crateApiAgents();
 
+Future<String> agentRules() => RustLib.instance.api.crateApiAgentRules();
+
+Future<String> saveAgentRule({
+  String? old,
+  String? revision,
+  required String rule,
+}) => RustLib.instance.api.crateApiSaveAgentRule(
+  old: old,
+  revision: revision,
+  rule: rule,
+);
+
+Future<String> removeAgentRule({
+  required String name,
+  required String revision,
+}) => RustLib.instance.api.crateApiRemoveAgentRule(
+  name: name,
+  revision: revision,
+);
+
+Future<String> syncAgentRules() =>
+    RustLib.instance.api.crateApiSyncAgentRules();
+
 Future<String> agentSessions({String? agent}) =>
     RustLib.instance.api.crateApiAgentSessions(agent: agent);
 
