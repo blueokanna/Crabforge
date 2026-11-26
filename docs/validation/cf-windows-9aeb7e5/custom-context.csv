@@ -1,0 +1,5 @@
+Agent,CustomFile,ImportBOM,PreserveCRLF,RejectStaleRevision,Restore,NativeClient,DefaultMarkerSeen
+gemini,MY_CONTEXT.md,pass,pass,pass,pass,0.71.1: observed in localhost model request,yes
+qwen,MY_CONTEXT.md,pass,pass,pass,pass,0.28.4: observed in localhost model request,no
+qoder,MY_CONTEXT.md,pass,pass,pass,pass,unavailable,unavailable
+qoder-cn,MY_CONTEXT.md,pass,pass,pass,pass,unavailable,unavailable

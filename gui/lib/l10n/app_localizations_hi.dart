@@ -10,6 +10,69 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get memoryLibrary => 'स्मृति';
+
+  @override
+  String get searchMemories => 'स्मृतियाँ खोजें';
+
+  @override
+  String get unreadableMemories => 'पढ़ी न जा सकने वाली स्मृति फ़ाइलें';
+
+  @override
+  String get noMemoriesFound => 'कोई मेल खाती स्मृति नहीं मिली';
+
+  @override
+  String get addMemory => 'स्मृति जोड़ें';
+
+  @override
+  String get editMemory => 'स्मृति संपादित करें';
+
+  @override
+  String get memoryScope => 'दायरा';
+
+  @override
+  String get memoryTags => 'टैग, हर पंक्ति में एक';
+
+  @override
+  String get memoryWhy => 'कारण (वैकल्पिक)';
+
+  @override
+  String get memoryKindLabel => 'प्रकार';
+
+  @override
+  String get memoryStateLabel => 'स्थिति';
+
+  @override
+  String get pinMemory => 'स्मृति पिन करें';
+
+  @override
+  String memoryKind(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'profile': 'प्रोफ़ाइल',
+      'preference': 'पसंद',
+      'rule': 'नियम',
+      'reference': 'संदर्भ',
+      'fact': 'तथ्य',
+      'procedure': 'प्रक्रिया',
+      'episode': 'घटना',
+      'other': 'प्रकार',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String memoryState(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'active': 'सक्रिय',
+      'candidate': 'समीक्षा बाकी',
+      'archived': 'संग्रहीत',
+      'superseded': 'प्रतिस्थापित',
+      'other': 'सभी स्थितियाँ',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get projectInstructions => 'प्रोजेक्ट निर्देश';
 
   @override

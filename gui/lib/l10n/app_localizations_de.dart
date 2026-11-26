@@ -10,6 +10,69 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get memoryLibrary => 'Gedächtnis';
+
+  @override
+  String get searchMemories => 'Gedächtnis durchsuchen';
+
+  @override
+  String get unreadableMemories => 'Nicht lesbare Gedächtnisdateien';
+
+  @override
+  String get noMemoriesFound => 'Keine passenden Einträge';
+
+  @override
+  String get addMemory => 'Eintrag hinzufügen';
+
+  @override
+  String get editMemory => 'Eintrag bearbeiten';
+
+  @override
+  String get memoryScope => 'Geltungsbereich';
+
+  @override
+  String get memoryTags => 'Schlagwörter, eines pro Zeile';
+
+  @override
+  String get memoryWhy => 'Begründung (optional)';
+
+  @override
+  String get memoryKindLabel => 'Typ';
+
+  @override
+  String get memoryStateLabel => 'Status';
+
+  @override
+  String get pinMemory => 'Eintrag anheften';
+
+  @override
+  String memoryKind(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'profile': 'Profil',
+      'preference': 'Vorliebe',
+      'rule': 'Regel',
+      'reference': 'Referenz',
+      'fact': 'Fakt',
+      'procedure': 'Vorgehen',
+      'episode': 'Ereignis',
+      'other': 'Typ',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String memoryState(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'active': 'Aktiv',
+      'candidate': 'Zu prüfen',
+      'archived': 'Archiviert',
+      'superseded': 'Ersetzt',
+      'other': 'Alle Status',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get projectInstructions => 'Projektanweisungen';
 
   @override

@@ -28,6 +28,10 @@ void main() {
     final dispatcher = tester.binding.platformDispatcher;
     dispatcher.localesTestValue = [const Locale('it')];
     addTearDown(dispatcher.clearLocalesTestValue);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
     Future<void> waitFor(Finder finder) async {
       final until = DateTime.now().add(const Duration(seconds: 25));
       while (finder.evaluate().isEmpty && DateTime.now().isBefore(until)) {
@@ -718,7 +722,12 @@ void main() {
         .transform(const LineSplitter())
         .firstWhere((s) => s.startsWith('P2P '))
         .timeout(const Duration(seconds: 15));
-    await tapText('连接');
+    final connect = find.widgetWithText(TextButton, zh.connect);
+    await waitFor(connect);
+    await Scrollable.ensureVisible(tester.element(connect), alignment: 0.5);
+    await tester.pumpAndSettle();
+    await tester.tap(connect.hitTestable());
+    await tester.pumpAndSettle();
     final inputs = find.descendant(
       of: find.byType(AlertDialog),
       matching: find.byType(TextField),
@@ -730,7 +739,13 @@ void main() {
       '/ip4/127.0.0.1/udp/1/quic-v1/p2p/${await native.nodeId()}/p2p-circuit/p2p/$remotePeer',
     );
     await tester.enterText(inputs.at(2), '127.0.0.1:0');
-    await tapText('连接');
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.widgetWithText(FilledButton, zh.connect),
+      ),
+    );
+    await tester.pumpAndSettle();
     await waitFor(find.text('断开'));
     final local = jsonDecode(await native.status())['tunnel'];
     final list = await http.getUrl(Uri.parse('http://$local/v1/models'));

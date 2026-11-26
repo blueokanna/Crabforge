@@ -163,6 +163,26 @@ pub fn agents() -> String {
     json!(crabforge_core::agents::CLIENTS).to_string()
 }
 
+pub fn search_memories(query: String) -> Result<String> {
+    encode(&crabforge_core::memory::search(
+        &config::data_dir()?,
+        decode(&query)?,
+    )?)
+}
+
+pub fn save_memory(
+    id: Option<String>,
+    revision: Option<String>,
+    changes: String,
+) -> Result<String> {
+    encode(&crabforge_core::memory::save(
+        &config::data_dir()?,
+        id.as_deref(),
+        revision.as_deref(),
+        decode(&changes)?,
+    )?)
+}
+
 pub fn project_instruction_agents() -> Vec<String> {
     crabforge_core::project_instructions::agents()
         .map(str::to_owned)

@@ -112,6 +112,90 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @memoryLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory'**
+  String get memoryLibrary;
+
+  /// No description provided for @searchMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'Search memories'**
+  String get searchMemories;
+
+  /// No description provided for @unreadableMemories.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreadable memory files'**
+  String get unreadableMemories;
+
+  /// No description provided for @noMemoriesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching memories'**
+  String get noMemoriesFound;
+
+  /// No description provided for @addMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Add memory'**
+  String get addMemory;
+
+  /// No description provided for @editMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit memory'**
+  String get editMemory;
+
+  /// No description provided for @memoryScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Scope'**
+  String get memoryScope;
+
+  /// No description provided for @memoryTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags, one per line'**
+  String get memoryTags;
+
+  /// No description provided for @memoryWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (optional)'**
+  String get memoryWhy;
+
+  /// No description provided for @memoryKindLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Kind'**
+  String get memoryKindLabel;
+
+  /// No description provided for @memoryStateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get memoryStateLabel;
+
+  /// No description provided for @pinMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin memory'**
+  String get pinMemory;
+
+  /// No description provided for @memoryKind.
+  ///
+  /// In en, this message translates to:
+  /// **'{value, select, profile{Profile} preference{Preference} rule{Rule} reference{Reference} fact{Fact} procedure{Procedure} episode{Episode} other{Kind}}'**
+  String memoryKind(String value);
+
+  /// No description provided for @memoryState.
+  ///
+  /// In en, this message translates to:
+  /// **'{value, select, active{Active} candidate{Candidate} archived{Archived} superseded{Superseded} other{All statuses}}'**
+  String memoryState(String value);
+
   /// No description provided for @projectInstructions.
   ///
   /// In en, this message translates to:

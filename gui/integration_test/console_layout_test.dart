@@ -254,5 +254,78 @@ void main() {
     await waitForEdit('');
     await tester.pumpAndSettle();
     expect(instructions.readAsStringSync(), '# Updated elsewhere\n');
+
+    await tester.tap(find.widgetWithText(TextButton, 'Close'));
+    await tester.pumpAndSettle();
+    final geminiSettings = File('${project.path}/.gemini/settings.json');
+    geminiSettings.parent.createSync();
+    geminiSettings.writeAsStringSync('{"context":{"fileName":["CUSTOM.md"]}}');
+    final customInstructions = File('${project.path}/CUSTOM.md');
+    customInstructions.writeAsStringSync('# Before\r\n');
+    final agentSelector = find.byType(DropdownMenu<String>);
+    tester.widget<DropdownMenu<String>>(agentSelector).onSelected!('gemini');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(strings.projectInstructions));
+    await tester.pumpAndSettle();
+    await tester.enterText(fields.first, project.path);
+    await tester.tap(find.text(strings.openProject));
+    await waitForEdit('');
+    await tester.enterText(fields.last, 'Use the custom instructions file.');
+    await tester.pump();
+    await tester.tap(save);
+    await waitForEdit('Use the custom instructions file.');
+    expect(customInstructions.readAsStringSync(), contains('# Before\r\n'));
+    expect(
+      customInstructions.readAsStringSync(),
+      contains('Use the custom instructions file.\r\n'),
+    );
+    expect(File('${project.path}/GEMINI.md').existsSync(), isFalse);
+    await tester.tap(find.widgetWithText(TextButton, 'Close'));
+    await tester.pumpAndSettle();
+
+    final openMemory = find.widgetWithText(TextButton, strings.memoryLibrary);
+    await tester.ensureVisible(openMemory);
+    await tester.tap(openMemory);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, strings.addMemory));
+    await tester.pumpAndSettle();
+    const memory = 'Use one isolated configuration for each run.';
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField && widget.decoration?.labelText == 'Markdown',
+      ),
+      memory,
+    );
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    final memoryTile = find.widgetWithText(ListTile, memory);
+    final memoryDeadline = DateTime.now().add(const Duration(seconds: 10));
+    while (memoryTile.evaluate().isEmpty &&
+        DateTime.now().isBefore(memoryDeadline)) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(memoryTile, findsOneWidget);
+    expect(Directory('${home.path}/memory').listSync().single, isA<File>());
+    final memoryDialog = find.byType(Dialog);
+    final wasGrid = find
+        .descendant(of: memoryDialog, matching: find.byType(GridView))
+        .evaluate()
+        .isNotEmpty;
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: memoryDialog,
+        matching: find.byTooltip(wasGrid ? strings.listView : strings.gridView),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: memoryDialog,
+        matching: wasGrid ? find.byType(ListView) : find.byType(GridView),
+      ),
+      findsOneWidget,
+    );
   });
 }

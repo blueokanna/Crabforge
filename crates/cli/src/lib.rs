@@ -5,6 +5,7 @@ use crabforge_core::{config, peer, service::Service};
 use std::{net::SocketAddr, path::PathBuf};
 mod agent;
 mod groups;
+mod memory;
 
 #[derive(Parser)]
 #[command(
@@ -50,6 +51,16 @@ enum Command {
         /// Reject the edit if the file has changed since this revision was read.
         #[arg(long)]
         revision: Option<String>,
+    },
+    /// Search, create and edit local Agent memories.
+    Memory {
+        #[command(subcommand)]
+        command: memory::Command,
+    },
+    /// Run a local MCP server over standard input and output.
+    Mcp {
+        #[command(subcommand)]
+        command: memory::McpCommand,
     },
     /// List Oh My Pi profiles, the active profile and each agent directory.
     OmpProfiles,
@@ -768,6 +779,8 @@ pub async fn run() -> Result<()> {
                 nextjson::to_string(&view).map_err(anyhow::Error::msg)?
             );
         }
+        Command::Memory { command } => memory::run(&dir, command)?,
+        Command::Mcp { command } => memory::serve(&dir, command)?,
         Command::Config { file: None } => println!("{}", config::snapshot(&dir)?),
         Command::Config { file: Some(path) } => {
             use std::io::Read;

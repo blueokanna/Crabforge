@@ -10,6 +10,69 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get memoryLibrary => 'Memória';
+
+  @override
+  String get searchMemories => 'Pesquisar na memória';
+
+  @override
+  String get unreadableMemories => 'Arquivos de memória ilegíveis';
+
+  @override
+  String get noMemoriesFound => 'Nenhum resultado na memória';
+
+  @override
+  String get addMemory => 'Adicionar à memória';
+
+  @override
+  String get editMemory => 'Editar memória';
+
+  @override
+  String get memoryScope => 'Escopo';
+
+  @override
+  String get memoryTags => 'Etiquetas, uma por linha';
+
+  @override
+  String get memoryWhy => 'Motivo (opcional)';
+
+  @override
+  String get memoryKindLabel => 'Tipo';
+
+  @override
+  String get memoryStateLabel => 'Estado';
+
+  @override
+  String get pinMemory => 'Fixar entrada';
+
+  @override
+  String memoryKind(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'profile': 'Perfil',
+      'preference': 'Preferência',
+      'rule': 'Regra',
+      'reference': 'Referência',
+      'fact': 'Fato',
+      'procedure': 'Procedimento',
+      'episode': 'Evento',
+      'other': 'Tipo',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String memoryState(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'active': 'Ativo',
+      'candidate': 'Pendente',
+      'archived': 'Arquivado',
+      'superseded': 'Substituído',
+      'other': 'Todos os estados',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get projectInstructions => 'Instruções do projeto';
 
   @override

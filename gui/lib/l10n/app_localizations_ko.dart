@@ -10,6 +10,69 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get memoryLibrary => '메모리';
+
+  @override
+  String get searchMemories => '메모리 검색';
+
+  @override
+  String get unreadableMemories => '읽을 수 없는 메모리 파일';
+
+  @override
+  String get noMemoriesFound => '일치하는 메모리가 없습니다';
+
+  @override
+  String get addMemory => '메모리 추가';
+
+  @override
+  String get editMemory => '메모리 편집';
+
+  @override
+  String get memoryScope => '적용 범위';
+
+  @override
+  String get memoryTags => '태그, 한 줄에 하나씩';
+
+  @override
+  String get memoryWhy => '이유(선택 사항)';
+
+  @override
+  String get memoryKindLabel => '유형';
+
+  @override
+  String get memoryStateLabel => '상태';
+
+  @override
+  String get pinMemory => '메모리 고정';
+
+  @override
+  String memoryKind(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'profile': '프로필',
+      'preference': '선호',
+      'rule': '규칙',
+      'reference': '참조',
+      'fact': '사실',
+      'procedure': '절차',
+      'episode': '사건',
+      'other': '유형',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String memoryState(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'active': '활성',
+      'candidate': '검토 대기',
+      'archived': '보관됨',
+      'superseded': '대체됨',
+      'other': '모든 상태',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get projectInstructions => '프로젝트 지침';
 
   @override

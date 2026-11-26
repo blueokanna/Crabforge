@@ -10,6 +10,69 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get memoryLibrary => 'メモリ';
+
+  @override
+  String get searchMemories => 'メモリを検索';
+
+  @override
+  String get unreadableMemories => '読み取れないメモリファイル';
+
+  @override
+  String get noMemoriesFound => '該当するメモリがありません';
+
+  @override
+  String get addMemory => 'メモリを追加';
+
+  @override
+  String get editMemory => 'メモリを編集';
+
+  @override
+  String get memoryScope => '適用範囲';
+
+  @override
+  String get memoryTags => 'タグ（1 行に 1 つ）';
+
+  @override
+  String get memoryWhy => '理由（任意）';
+
+  @override
+  String get memoryKindLabel => '種類';
+
+  @override
+  String get memoryStateLabel => '状態';
+
+  @override
+  String get pinMemory => 'メモリを固定';
+
+  @override
+  String memoryKind(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'profile': 'プロフィール',
+      'preference': '設定の好み',
+      'rule': 'ルール',
+      'reference': '参照',
+      'fact': '事実',
+      'procedure': '手順',
+      'episode': '出来事',
+      'other': '種類',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String memoryState(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'active': '有効',
+      'candidate': '確認待ち',
+      'archived': 'アーカイブ済み',
+      'superseded': '置き換え済み',
+      'other': 'すべての状態',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get projectInstructions => 'プロジェクトの指示';
 
   @override

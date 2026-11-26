@@ -35,6 +35,16 @@ carbforge-cli project-instructions D:\Projects\app codex --from instructions.md
 carbforge-cli project-instructions D:\Projects\app codex --restore
 ```
 
+打开「客户端连接 → 记忆」可以添加、编辑、置顶和归档 Markdown 记忆。桌面支持文本搜索，CLI 还可按范围、类型和标签筛选。每条记忆以带 YAML 元数据的 Markdown 文件保存在 Crabforge 数据目录的 `memory/` 下。迁移 Magpie 的 Markdown 记忆时，将各条 `.md` 文件复制到该目录。
+
+```powershell
+carbforge-cli memory add preference.md --kind preference --tag workflows
+carbforge-cli memory search --kind preference --status active
+carbforge-cli memory edit <id> --status archived
+```
+
+要让 Agent 使用这些记录，在客户端添加本地 stdio MCP 服务，命令使用 `carbforge-cli.exe` 的完整路径，参数为 `mcp memory --agent <Agent ID> --project-key <项目键>`。使用自定义数据目录时，为客户端设置相同的 `CRABFORGE_HOME`。`memory_search` 搜索可用范围内的有效记忆，`memory_save` 创建记录或更新 Agent 写入的记忆，`memory_forget` 归档可见记录，`memory_context` 显示适用范围。省略两个可选参数即可只使用全局记忆。同一项目的不同客户端应填写同一个项目键。
+
 ## 协议与路由
 
 - 支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini 和 Ollama 客户端。目录、对话流、工具调用、媒体和鉴权的验证范围见验收记录。不同供应商及套餐开放的模型会变化。
@@ -50,7 +60,7 @@ carbforge-cli project-instructions D:\Projects\app codex --restore
 
 ## 构建 Windows x64 版本
 
-`a4a9e40` 解压版网关的空目录工作集和私有字节中位数为 7.53 和 1.42 MiB，Chat 负载为 8.82 和 1.86 MiB。三次末帧延后 700 毫秒，客户端首个完整 SSE 事件分别在 25、4、11 毫秒到达。七个工作区包共通过 28 组依赖审计，Windows x64 与 Cargo 全目标的常规、构建和测试依赖树均未启用 Serde、Hyper 或 Reqwest。[依赖审计](docs/validation/cf-windows-a4a9e40/dependency-audit.csv) · [Windows 验收记录](docs/crabforge-validation.md)
+`9aeb7e5` 解压版网关的空目录工作集和私有字节中位数为 7.53 和 1.42 MiB，Chat 负载为 8.85 和 1.86 MiB。三次末帧延后 700 毫秒，客户端首个完整 SSE 事件分别在 6、2、2 毫秒到达。解压版桌面三次冷启动的工作集和私有字节中位数为 154.39 和 227.91 MiB。冻结源码通过 113 项 Rust 测试和 28 组依赖审计，Windows x64 与 Cargo 全目标的常规、构建和测试依赖树均未启用 Serde、Hyper 或 Reqwest。[依赖审计](docs/validation/cf-windows-9aeb7e5/dependency-audit.csv) · [Windows 验收记录](docs/crabforge-validation.md)
 
 安装 Rust 的 MSVC 工具链、Flutter 和 Visual Studio 的「使用 C++ 的桌面开发」工作负载。已记录的构建环境为 Rust 1.99.1、Flutter 3.47.9 和 Dart 3.13.7。
 

@@ -10,6 +10,69 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get memoryLibrary => 'Memory';
+
+  @override
+  String get searchMemories => 'Search memories';
+
+  @override
+  String get unreadableMemories => 'Unreadable memory files';
+
+  @override
+  String get noMemoriesFound => 'No matching memories';
+
+  @override
+  String get addMemory => 'Add memory';
+
+  @override
+  String get editMemory => 'Edit memory';
+
+  @override
+  String get memoryScope => 'Scope';
+
+  @override
+  String get memoryTags => 'Tags, one per line';
+
+  @override
+  String get memoryWhy => 'Reason (optional)';
+
+  @override
+  String get memoryKindLabel => 'Kind';
+
+  @override
+  String get memoryStateLabel => 'Status';
+
+  @override
+  String get pinMemory => 'Pin memory';
+
+  @override
+  String memoryKind(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'profile': 'Profile',
+      'preference': 'Preference',
+      'rule': 'Rule',
+      'reference': 'Reference',
+      'fact': 'Fact',
+      'procedure': 'Procedure',
+      'episode': 'Episode',
+      'other': 'Kind',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String memoryState(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'active': 'Active',
+      'candidate': 'Candidate',
+      'archived': 'Archived',
+      'superseded': 'Superseded',
+      'other': 'All statuses',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get projectInstructions => 'Project instructions';
 
   @override

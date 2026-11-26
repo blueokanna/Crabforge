@@ -1,5 +1,26 @@
 # Crabforge 0.1.0 验收记录
 
+[English](crabforge-validation.en.md)
+
+### Windows x64 自定义项目指令（`9aeb7e5`）
+
+本地 ZIP 从 `9aeb7e58423929f0eabeac2b1be4f49fde085ccf` 离线构建，60,230,597 字节，SHA-256 为 `AB20EB4DEB65646DBBD174F8631B4FA9DFBDE4D266095DA7E5B59163F15318C9`。292 项构建输入前后一致，解压后逐一复核 666 个文件及 126 项应用资产，两个 CLI 各输出 97 项相同预设。包内附 308 个 Rust 依赖的许可资料。全量 Rust 串行回归 113 项通过、0 项失败、0 项跳过。全目标 Clippy、Flutter 分析和两项组件测试通过。Windows x64 和 Cargo 全目标的 28 组依赖树均无启用的 Serde、Hyper 或 Reqwest。[构建输入](validation/cf-windows-9aeb7e5/build-inputs.sha256) · [解压文件哈希](validation/cf-windows-9aeb7e5/SHA256SUMS) · [Rust 测试](validation/cf-windows-9aeb7e5/regression.log) · [依赖审计](validation/cf-windows-9aeb7e5/dependency-audit.csv)
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.53 / 1.42 | 57.33 / 91.20 |
+| Chat 网关 | 8.85 / 1.86 | 68.91 / 97.56 |
+| 桌面主进程 | 154.39 / 227.91 | 81.20 / 96.48 |
+| 桌面进程树 | 154.39 / 227.91 | 453.75 / 429.78 |
+
+Crabforge 桌面从解压目录以独立配置启动三次。Magpie 使用独立测试配置，三轮复用同一个可见窗口和七个 WebView2 子进程。Chat 网关共用本机上游夹具，Crabforge 公开两个模型 ID，Magpie 公开一个。[空目录](validation/cf-windows-9aeb7e5/catalog.csv) · [Chat](validation/cf-windows-9aeb7e5/chat.csv) · [桌面](validation/cf-windows-9aeb7e5/desktop-comparison.csv)
+
+解压 CLI 在 IPv6 回环、同机网卡全局 IPv6 直连、直连失败后经 Kubo 0.43.1 回退三条路径上均取得错误密钥 401、正确密钥 200，并核对了目录正文。本机 SSE 夹具将末帧延后 700 ms，三轮首个完整事件为 6、2、2 ms，末帧为 719、710、713 ms。独立公网主机间的 IPv6 和不同 NAT 下的 UDP 连通、打洞与回退仍待验收。[IPv6](validation/cf-windows-9aeb7e5/ipv6.csv) · [SSE](validation/cf-windows-9aeb7e5/forward-h1.csv)
+
+解压 CLI 针对 Gemini CLI、Qwen Code、Qoder 和 Qoder CN 均通过自定义 `context.fileName` 的 BOM 导入、CRLF 保留、过期修订拒绝及恢复。Gemini CLI 0.71.1 与 Qwen Code 0.28.4 的本机模型请求包含自定义文件原文。Gemini 同时提交了默认 `GEMINI.md`。Qoder 和 Qoder CN 的原生客户端尚待验证。[逐客户端结果](validation/cf-windows-9aeb7e5/custom-context.csv)
+
+Windows 调试控制台与 Oh My Pi 编辑器使用包内 Release CLI，分别通过首次使用及独立进程重启。控制台首轮的隧道按钮在测试视口外。固定测试视口并精确定位按钮后，同一冻结生产源码通过。[初次运行](validation/cf-windows-9aeb7e5/console-0.log) · [控制台](validation/cf-windows-9aeb7e5/console-retry-0.log) · [控制台重启](validation/cf-windows-9aeb7e5/console-retry-1.log) · [Oh My Pi](validation/cf-windows-9aeb7e5/omp_settings-retry-0.log) · [Oh My Pi 重启](validation/cf-windows-9aeb7e5/omp_settings-retry-1.log)
+
 ### Windows x64 控制台与自有 P2P 地址编解码器（`a4a9e40`）
 
 从 `a4a9e405a19b01e86957187ef3540644336f4aee` 归档构建。构建前后 292 项输入一致，解压后复核清单中 666 个文件和 126 项应用资产。两个 CLI 各列出 97 项相同的供应商预设。并行构建污染了桌面 Release 的 Flutter 中间产物，解压后启动的是集成测试入口。该 ZIP 的验收结论限于独立构建的 CLI 和网关。[构建输入](validation/cf-windows-a4a9e40/build-inputs.sha256) · [解压文件清单](validation/cf-windows-a4a9e40/SHA256SUMS)

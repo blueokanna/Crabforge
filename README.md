@@ -1,6 +1,6 @@
 # Crabforge
 
-[简体中文](README.zh-CN.md) · [Operator guide (Chinese)](CRABFORGE.md) · [Compatibility and validation](docs/crabforge-validation.md)
+[简体中文](README.zh-CN.md) · [Operator guide (Chinese)](CRABFORGE.md) · [Windows validation](docs/crabforge-validation.en.md)
 
 Crabforge runs an authenticated model gateway on your computer. Its Flutter desktop console and CLI share a Rust core. Agents can keep one API address and gateway key while you switch providers or route a request through several models. The gateway reads upstream credentials from the environment.
 
@@ -35,6 +35,16 @@ carbforge-cli project-instructions D:\Projects\app codex --from instructions.md
 carbforge-cli project-instructions D:\Projects\app codex --restore
 ```
 
+Open **Client connections → Memory** to add, edit, pin or archive Markdown memories. Search by text in the desktop console or filter by scope, kind and tags from the CLI. Each memory is a Markdown file with YAML front matter under `memory/` in the Crabforge data directory. To bring over Magpie Markdown memories, copy the individual `.md` files into that directory.
+
+```powershell
+carbforge-cli memory add preference.md --kind preference --tag workflows
+carbforge-cli memory search --kind preference --status active
+carbforge-cli memory edit <id> --status archived
+```
+
+To share those records with an Agent, register the full path to `carbforge-cli.exe` as a local stdio MCP server, with arguments `mcp memory --agent <agent-id> --project-key <project-key>`. Set the same `CRABFORGE_HOME` in the client environment if you use a custom data directory. `memory_search` reads active records in the available scopes. `memory_save` creates records and can update agent-created ones. `memory_forget` archives a visible record, and `memory_context` reports the scopes. Omit the two optional arguments for global memory only. Use the same project key for all clients working on one project.
+
 ## Protocols and routing
 
 - Clients can use OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Gemini and Ollama APIs. The validation record describes which streaming, tool, media and authentication paths have been exercised. Model availability depends on the provider and account.
@@ -50,7 +60,7 @@ Pass the full address advertised by the gateway to `carbforge-cli tunnel <addres
 
 ## Build for Windows x64
 
-The unpacked `a4a9e40` gateway used a median 7.53 MiB working set and 1.42 MiB private bytes with an empty catalog, and 8.82 / 1.86 MiB for Chat. With a 700 ms gap between upstream events, the client received the first complete SSE event in 25, 4 and 11 ms. The seven workspace packages passed 28 dependency checks across Windows x64 and all Cargo targets. The audited runtime, build and test trees were free of enabled Serde, Hyper and Reqwest packages. [Dependency audit](docs/validation/cf-windows-a4a9e40/dependency-audit.csv) · [Windows validation](docs/crabforge-validation.md)
+The unpacked `9aeb7e5` gateway had median working set and private bytes of 7.53 / 1.42 MiB for an empty catalog and 8.85 / 1.86 MiB for Chat. With a 700 ms delay between upstream events, the first complete SSE event arrived in 6, 2 and 2 ms. Three desktop cold starts from the unpacked ZIP had a median working set of 154.39 MiB and 227.91 MiB of private bytes. The frozen source passed 113 Rust tests and all 28 dependency checks across Windows x64 and all Cargo targets. The checked runtime, build and test trees had no enabled Serde, Hyper or Reqwest packages. [Dependency audit](docs/validation/cf-windows-9aeb7e5/dependency-audit.csv) · [Windows validation](docs/crabforge-validation.en.md)
 
 Install the Rust MSVC toolchain, Flutter and the Visual Studio Desktop development with C++ workload. The recorded Windows builds used Rust 1.99.1, Flutter 3.47.9 and Dart 3.13.7.
 

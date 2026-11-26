@@ -10,6 +10,69 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get memoryLibrary => '记忆';
+
+  @override
+  String get searchMemories => '搜索记忆';
+
+  @override
+  String get unreadableMemories => '无法读取的记忆文件';
+
+  @override
+  String get noMemoriesFound => '没有符合条件的记忆';
+
+  @override
+  String get addMemory => '添加记忆';
+
+  @override
+  String get editMemory => '编辑记忆';
+
+  @override
+  String get memoryScope => '适用范围';
+
+  @override
+  String get memoryTags => '标签，每行一个';
+
+  @override
+  String get memoryWhy => '原因（可选）';
+
+  @override
+  String get memoryKindLabel => '类型';
+
+  @override
+  String get memoryStateLabel => '状态';
+
+  @override
+  String get pinMemory => '置顶记忆';
+
+  @override
+  String memoryKind(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'profile': '个人信息',
+      'preference': '偏好',
+      'rule': '规则',
+      'reference': '参考',
+      'fact': '事实',
+      'procedure': '流程',
+      'episode': '事件',
+      'other': '类型',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String memoryState(String value) {
+    String _temp0 = intl.Intl.selectLogic(value, {
+      'active': '有效',
+      'candidate': '待确认',
+      'archived': '已归档',
+      'superseded': '已替代',
+      'other': '全部状态',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get projectInstructions => '项目指令';
 
   @override

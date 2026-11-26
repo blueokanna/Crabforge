@@ -100,6 +100,19 @@ Future<String> presets() => RustLib.instance.api.crateApiPresets();
 
 Future<String> agents() => RustLib.instance.api.crateApiAgents();
 
+Future<String> searchMemories({required String query}) =>
+    RustLib.instance.api.crateApiSearchMemories(query: query);
+
+Future<String> saveMemory({
+  String? id,
+  String? revision,
+  required String changes,
+}) => RustLib.instance.api.crateApiSaveMemory(
+  id: id,
+  revision: revision,
+  changes: changes,
+);
+
 Future<List<String>> projectInstructionAgents() =>
     RustLib.instance.api.crateApiProjectInstructionAgents();
 

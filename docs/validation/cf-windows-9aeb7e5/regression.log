@@ -1,0 +1,293 @@
+   Compiling multiaddr v0.19.1 (D:\RustProject\Crabforge\dist\cf-windows-9aeb7e5\source\crates\peer-address)
+   Compiling crabforge-core v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-9aeb7e5\source\crates\core)
+   Compiling crabforge-bridge v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-9aeb7e5\source\crates\bridge)
+   Compiling crabforge-test-support v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-9aeb7e5\source\crates\test-support)
+   Compiling crabforge-verify v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-9aeb7e5\source\tools\verify)
+   Compiling libp2p-core v0.44.0
+   Compiling libp2p-swarm v0.48.0
+   Compiling libp2p-tls v0.7.0
+   Compiling libp2p-yamux v0.48.0
+   Compiling libp2p-quic v0.14.0
+   Compiling libp2p-relay v0.22.0
+   Compiling libp2p-identify v0.48.0
+   Compiling libp2p-dcutr v0.15.0
+   Compiling libp2p-allow-block-list v0.7.0
+   Compiling libp2p-connection-limits v0.7.0
+   Compiling libp2p-stream v0.5.0-alpha
+   Compiling libp2p v0.57.1
+   Compiling crabforge-cli v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-9aeb7e5\source\crates\cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 50.13s
+     Running unittests src\lib.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\crabforge_bridge-a2a87529d53b545c.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\crabforge_cli-a4a1065d07632585.exe)
+
+running 1 test
+test agent::pi::tests::personal_api_keeps_its_url_and_compat_until_removed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src\bin\carbforge-cli.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\carbforge_cli-d873972046f4a77b.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\crabforge_cli-4279b7d1d9a37dc5.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\agents.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\agents-4263fa49bf9b68a5.exe)
+
+running 28 tests
+test claude_receives_text_through_the_gateway ... ok
+test codex_exec_receives_assistant_text_through_the_gateway ... ok
+test copilot_uses_the_gateway_in_offline_mode ... ok
+test crush_receives_text_through_the_gateway ... ok
+test deveco_loads_the_selected_model_and_authenticated_agent_endpoint ... ok
+test every_advertised_agent_root_forwards_and_records_its_own_name ... ok
+test gemini_receives_text_through_the_gateway ... ok
+test goose_receives_text_through_the_gateway ... ok
+test kimi_receives_text_through_the_gateway ... ok
+test mimocode_receives_text_through_the_gateway ... ok
+test mu_receives_text_through_the_gateway ... ok
+test nanobot_receives_text_through_the_gateway ... ok
+test omo_receives_text_through_the_gateway ... ok
+test omp_discovers_profiles_and_writes_the_directory_selected_by_native_flags ... ok
+test omp_protocol_picker_changes_the_native_wire_request ... ok
+test omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses ... ok
+test omp_reads_advisor_choices_and_resets_from_the_named_profile ... ok
+test omp_reads_thinking_levels_without_changing_fallback_roles ... ok
+test omp_receives_text_through_the_gateway ... ok
+test omp_starts_on_the_saved_role_and_restores_the_original_fallback ... ok
+test omp_sync_restores_available_models_to_the_effective_scope ... ok
+test opencode_receives_text_through_the_gateway ... ok
+test pi_receives_text_through_the_gateway ... ok
+test pi_returns_the_result_of_a_streamed_read_call ... ok
+test prime_agent_receives_text_through_the_gateway ... ok
+test qwen_receives_text_through_the_gateway ... ok
+test synced_relay_catalog_preserves_native_protocols_across_gateways ... ok
+test vibe_receives_text_through_the_gateway ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 352.99s
+
+     Running tests\anthropic_auth.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\anthropic_auth-b78b039412d84dde.exe)
+
+running 1 test
+test anthropic_relays_negotiate_replayable_requests_and_keep_explicit_choices ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\groups.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\groups-73b87719051b3820.exe)
+
+running 15 tests
+test a_pending_parent_request_keeps_its_original_manual_selection ... ok
+test automatic_groups_follow_catalog_changes_and_keep_user_edits ... ok
+test copying_groups_preserves_independent_strategies_labels_and_discovered_members ... ok
+test custom_catalogs_match_only_their_own_models_and_an_existing_group_owns_its_former_id ... ok
+test disabled_groups_release_their_models_and_preserve_saved_parent_routes ... ok
+test group_display_order_survives_rename_and_reaches_all_model_lists ... ok
+test group_spelling_prefers_vendor_ids_and_survives_provider_exclusion ... ok
+test listing_only_the_group_keeps_its_direct_members_callable ... ok
+test maker_prefixes_and_reserved_provider_follow_catalog_ownership ... ok
+test manual_group_switches_live_and_only_its_parent_can_fall_back ... ok
+test pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matches ... ok
+test provider_fallback_uses_the_selected_group_member_once_and_preserves_order ... ok
+test restricted_providers_only_take_fallbacks_from_other_restricted_providers ... ok
+test shares_remap_members_and_replace_only_the_requested_group ... ok
+test switched_off_members_keep_their_place_and_weight_and_manual_pick_overrides_them ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.10s
+
+     Running tests\magpie.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\magpie-25e4e0ca9568d1be.exe)
+
+running 2 tests
+test quic_client_reaches_a_native_magpie_upstream ... ok
+test quic_client_receives_real_model_output_via_magpie ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.15s
+
+     Running tests\vertex.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\vertex-80dac4bfca260d99.exe)
+
+running 1 test
+test project_gateway_selects_google_anthropic_and_partner_paths ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src\lib.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\crabforge_core-515f2110c8a659fb.exe)
+
+running 39 tests
+test agents::omp_catalog::tests::catalog_updates_keep_unrelated_yaml_and_preserve_legacy_json ... ok
+test agents::omp_catalog::tests::protocol_picks_override_hand_edits_and_restore_native_model_apis ... ok
+test agents::omp_catalog::tests::user_agent_follows_client_upgrades_and_preserves_custom_headers ... ok
+test agents::omp_profiles::tests::respects_native_launch_argument_boundaries ... ok
+test agents::omp_settings::registry::tests::packed_model_overrides_take_precedence_over_provider_defaults ... ok
+test agents::omp_settings::roles::tests::default_scope_and_advisor_follow_role_ownership ... ok
+test agents::omp_settings::roles::tests::editor_snapshots_preserve_null_and_compare_nested_objects_by_key ... ok
+test agents::omp_settings::roles::tests::restores_flow_and_block_fallbacks_after_multiple_picks ... ok
+test agents::omp_settings::roles::tests::retaking_an_externally_edited_role_backs_up_the_new_assignment ... ok
+test agents::omp_settings::scope::tests::removed_models_return_after_catalog_refresh_and_manual_removal_wins ... ok
+test agents::omp_settings::tests::advisor_accepts_new_and_comment_only_profiles_and_rejects_bad_input ... ok
+test agents::omp_settings::tests::advisor_changes_preserve_comments_types_and_the_previous_review_mode ... ok
+test agents::omp_settings::thinking::tests::role_suffix_edits_preserve_model_tags_fallback_lists_and_external_edits ... ok
+test agents::yaml::tests::profile_scalars_aliases_and_tags_keep_their_types_after_rendering ... ok
+test bedrock::tests::catalog_query_matches_aws_sdk_reference ... ok
+test bedrock::tests::rewritten_body_matches_botocore_reference ... ok
+test bedrock::tests::signing_scope_follows_aws_host ... ok
+test catalog::console_catalogs_deduplicate_by_plan_and_allow_an_explicit_override ... ok
+test config::origins::tests::origins_validate_extension_ids_and_keep_nondefault_ports ... ok
+test config::rename::tests::former_names_follow_the_provider_until_reclaimed ... ok
+test config::tests::api_key_headers_match_vendor_and_protocol ... ok
+test config::tests::legacy_settings_keep_defaults_wire_names_and_snapshot_equality ... ok
+test gateway::console_test::console_go_forwards_untranslatable_input_in_its_original_protocol ... ok
+test gateway::console_test::https_response_crosses_connect_and_no_proxy_bypasses_it ... ok
+test gateway::tests::bedrock_chooses_the_models_native_api_before_translation ... ok
+test gateway::tests::console_routes_by_plan_and_preserves_custom_endpoints ... ok
+test gateway::tests::relay_routes_use_the_incoming_protocol_or_the_advertised_native_api ... ok
+test gateway::tests::selection_locates_only_the_top_level_model_literal ... ok
+test opencode::tests::console_session_survives_turns_and_auth_uses_the_actual_destination ... ok
+test peer::tests::dcutr_upgrades_an_ipv6_circuit_to_authenticated_direct_quic ... ok
+test project_instructions::tests::created_file_can_be_cleared_and_restored_in_order ... ok
+test project_instructions::tests::shared_target_preserves_crlf_and_rejects_stale_snapshots ... ok
+test project_instructions::tests::uses_configured_instruction_names_and_rejects_escapes ... ok
+test project_instructions::tests::uses_existing_agent_files_and_respects_overrides ... ok
+test vertex::auth::tests::adc_exchanges_once_for_concurrent_requests_and_reloads_changed_credentials ... ok
+test vertex::auth::tests::refreshes_near_expiry_before_reusing_the_token ... ok
+test vertex::auth::tests::service_account_assertion_has_a_verifiable_signature_and_google_audience ... ok
+test webchat::tests::browser_reads_session_headers_only_from_a_listed_origin ... ok
+test webchat::tests::browser_submits_text_and_waits_for_the_completed_turn ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.92s
+
+     Running tests\catalog.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\catalog-5dcd947915840c9e.exe)
+
+running 4 tests
+test catalog_follows_vendor_cursors_and_rejects_incomplete_pages ... ok
+test plans_without_live_catalogs_use_their_own_model_lists ... ok
+test protocol_directories_merge_only_complete_lists_and_allow_an_override ... ok
+test redirects_stay_at_the_source_and_pages_share_a_byte_limit ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+     Running tests\gateway.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\gateway-a28a4c49fb7c0ec3.exe)
+
+running 6 tests
+test concurrent_edit_and_corrupt_file_preserve_disk_state ... ok
+test invalid_nested_group_edits_preserve_the_saved_graph ... ok
+test native_endpoints_follow_models_aliases_and_enabled_group_members ... ok
+test quic_peer_identity_and_gateway_key_are_both_required ... ok
+test rotating_groups_share_turns_only_among_compatible_members ... ok
+test route_group_streams_first_chunk_before_upstream_finishes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests\http1.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\http1-634275b9ac0856d6.exe)
+
+running 2 tests
+test continue_chunked_upload_and_next_request_share_one_connection ... ok
+test pending_upload_checks_credentials_and_size_before_continue ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\kubo.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\kubo-8095da1ea9191ff8.exe)
+
+running 1 test
+test go_and_rust_peers_exchange_authenticated_http_in_both_directions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+
+     Running tests\llama.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\llama-e277c5f7532f6078.exe)
+
+running 2 tests
+test local_weights_generate_text_for_each_client_protocol ... ok
+test official_ollama_client_lists_models_and_streams_real_tokens ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.68s
+
+     Running tests\media.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\media-516c27bfb4d0484a.exe)
+
+running 1 test
+test media_uploads_rewrite_model_and_preserve_binary_parts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\ollama.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\ollama-bc6e2ac9fe03a17f.exe)
+
+running 1 test
+test ollama_routes_preserve_streamed_calls_usage_and_fallback ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests\protocols.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\protocols-f9b37ef8affe8d0f.exe)
+
+running 4 tests
+test four_protocols_preserve_function_calls_and_usage_across_the_gateway ... ok
+test relay_uses_a_reachable_native_endpoint_for_the_actual_request ... ok
+test translated_streams_recover_before_output_and_release_slots_after_disconnect ... ok
+test translated_text_precedes_upstream_completion_in_all_twelve_directions ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests\relay.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\relay-0578db60b93c5e14.exe)
+
+running 2 tests
+test failed_direct_ipv6_dial_uses_the_same_gateways_relay ... ok
+test ipv6_relay_reservation_carries_authenticated_gateway_requests ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.53s
+
+     Running unittests src\lib.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\crabforge_test_support-3f48ba13f468aad3.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\crabforge_verify-484caeada8002bc5.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\multiaddr-a4f626631058ea7b.exe)
+
+running 3 tests
+test tests::peer_id_and_circuit_roundtrip_with_component_edits ... ok
+test tests::quic_addresses_match_the_wire_format ... ok
+test tests::rejects_truncated_and_noncanonical_wire_input ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests crabforge_bridge
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests crabforge_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests crabforge_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests crabforge_test_support
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests multiaddr
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

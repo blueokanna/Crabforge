@@ -12,6 +12,7 @@ import 'language.dart';
 import 'omp_settings.dart';
 import 'project_instructions.dart';
 import 'l10n/app_localizations.dart';
+import 'memory.dart';
 import 'src/rust/api.dart' as api;
 import 'src/rust/frb_generated.dart';
 import 'workspace.dart';
@@ -1450,6 +1451,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                   ),
                 ),
                 Text(context.strings.agentHelp),
+                TextButton.icon(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const MemoryLibrary(),
+                  ),
+                  icon: const Icon(Icons.bookmarks_outlined),
+                  label: Text(context.strings.memoryLibrary),
+                ),
                 if (projectAgents.contains(selectedAgent))
                   TextButton.icon(
                     onPressed: () => showDialog<void>(

@@ -40,6 +40,7 @@ pub mod config;
 pub mod gateway;
 pub mod json;
 mod media;
+pub mod memory;
 mod model_name;
 mod opencode;
 pub mod peer;
