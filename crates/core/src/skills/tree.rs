@@ -21,7 +21,7 @@ enum Entry {
 #[derive(Default)]
 pub(super) struct Tree(BTreeMap<PathBuf, Entry>);
 
-pub(super) fn is_link(metadata: &Metadata) -> bool {
+pub(crate) fn is_link(metadata: &Metadata) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;

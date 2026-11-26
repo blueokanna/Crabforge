@@ -10,6 +10,36 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get importSubagents => 'サブエージェントをインポート';
+
+  @override
+  String get subagentImportSource => 'Markdown ファイル、ローカルフォルダ、または Git URL';
+
+  @override
+  String get subagentChooseFile => 'Markdown ファイルを選択';
+
+  @override
+  String get subagentChooseFolder => 'ソースフォルダを選択';
+
+  @override
+  String get subagentScanSource => 'ソースをスキャン';
+
+  @override
+  String get subagentImportTruncated =>
+      'ソースの一部だけをスキャンしました。範囲の狭いフォルダを選ぶと、残りのファイルを確認できます。';
+
+  @override
+  String subagentImportStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'update': '更新あり',
+      'unchanged': 'インポート済み',
+      'edited': 'ローカルの編集を保持',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get findNativeResources => '既存のファイルを探す';
 
   @override

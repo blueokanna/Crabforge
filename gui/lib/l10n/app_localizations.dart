@@ -112,6 +112,48 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @importSubagents.
+  ///
+  /// In en, this message translates to:
+  /// **'Import subagents'**
+  String get importSubagents;
+
+  /// No description provided for @subagentImportSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown file, local folder, or Git URL'**
+  String get subagentImportSource;
+
+  /// No description provided for @subagentChooseFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Markdown file'**
+  String get subagentChooseFile;
+
+  /// No description provided for @subagentChooseFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose source folder'**
+  String get subagentChooseFolder;
+
+  /// No description provided for @subagentScanSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan source'**
+  String get subagentScanSource;
+
+  /// No description provided for @subagentImportTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Only part of this source was scanned. Choose a smaller folder to see more files.'**
+  String get subagentImportTruncated;
+
+  /// No description provided for @subagentImportStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'{status, select, update{Update available} unchanged{Already imported} edited{Local edits kept} other{}}'**
+  String subagentImportStatus(String status);
+
   /// No description provided for @findNativeResources.
   ///
   /// In en, this message translates to:

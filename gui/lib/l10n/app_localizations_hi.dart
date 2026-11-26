@@ -10,6 +10,37 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get importSubagents => 'सबएजेंट आयात करें';
+
+  @override
+  String get subagentImportSource =>
+      'Markdown फ़ाइल, स्थानीय फ़ोल्डर या Git URL';
+
+  @override
+  String get subagentChooseFile => 'Markdown फ़ाइल चुनें';
+
+  @override
+  String get subagentChooseFolder => 'स्रोत फ़ोल्डर चुनें';
+
+  @override
+  String get subagentScanSource => 'स्रोत स्कैन करें';
+
+  @override
+  String get subagentImportTruncated =>
+      'स्रोत का केवल एक भाग स्कैन किया गया। अधिक फ़ाइलें देखने के लिए छोटा फ़ोल्डर चुनें।';
+
+  @override
+  String subagentImportStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'update': 'अपडेट उपलब्ध है',
+      'unchanged': 'पहले से आयातित',
+      'edited': 'स्थानीय बदलाव सुरक्षित हैं',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get findNativeResources => 'मौजूदा फ़ाइलें ढूँढें';
 
   @override

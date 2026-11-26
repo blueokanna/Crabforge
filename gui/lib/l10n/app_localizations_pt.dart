@@ -10,6 +10,37 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get importSubagents => 'Importar subagentes';
+
+  @override
+  String get subagentImportSource =>
+      'Arquivo Markdown, pasta local ou URL do Git';
+
+  @override
+  String get subagentChooseFile => 'Escolher arquivo Markdown';
+
+  @override
+  String get subagentChooseFolder => 'Escolher pasta de origem';
+
+  @override
+  String get subagentScanSource => 'Examinar a origem';
+
+  @override
+  String get subagentImportTruncated =>
+      'Apenas parte da origem foi examinada. Escolha uma pasta menor para ver mais arquivos.';
+
+  @override
+  String subagentImportStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'update': 'Atualização disponível',
+      'unchanged': 'Já importado',
+      'edited': 'Alterações locais preservadas',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get findNativeResources => 'Buscar arquivos existentes';
 
   @override

@@ -17,7 +17,9 @@ use std::{
 mod catalog;
 mod remote;
 mod tree;
+pub(crate) use remote::{is_repository_url, visit_repository_markdown};
 use tree::Tree;
+pub(crate) use tree::is_link;
 
 const AGENTS: &[&str] = &["claude", "codex", "gemini", "opencode", "pi"];
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
@@ -499,7 +501,7 @@ pub fn discover(dir: &Path) -> Result<String> {
 }
 
 pub fn source_catalog(dir: &Path, source: &str) -> Result<String> {
-    let mut skills = if remote::is_url(source) {
+    let mut skills = if is_repository_url(source) {
         remote::catalog(source)?
     } else {
         catalog::folder(Path::new(source))?
@@ -544,7 +546,7 @@ pub fn check_update(dir: &Path, name: &str, expected: &str) -> Result<String> {
     let mut store = Store::load(&path)?;
     let skill = store.skill_mut(name, Some(expected))?;
     ensure!(
-        remote::is_url(&skill.source),
+        is_repository_url(&skill.source),
         "skill has no remote Git source"
     );
     let content = remote::read(&skill.source)?
@@ -623,7 +625,7 @@ fn discover_in(store: &Store, homes: &Homes) -> Result<Vec<Discovered>> {
 }
 
 fn load_source(source: &Path) -> Result<(String, Tree)> {
-    if let Some(url) = source.to_str().filter(|value| remote::is_url(value)) {
+    if let Some(url) = source.to_str().filter(|value| is_repository_url(value)) {
         return remote::load(url);
     }
     ensure!(

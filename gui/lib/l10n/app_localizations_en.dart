@@ -10,6 +10,36 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get importSubagents => 'Import subagents';
+
+  @override
+  String get subagentImportSource => 'Markdown file, local folder, or Git URL';
+
+  @override
+  String get subagentChooseFile => 'Choose Markdown file';
+
+  @override
+  String get subagentChooseFolder => 'Choose source folder';
+
+  @override
+  String get subagentScanSource => 'Scan source';
+
+  @override
+  String get subagentImportTruncated =>
+      'Only part of this source was scanned. Choose a smaller folder to see more files.';
+
+  @override
+  String subagentImportStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'update': 'Update available',
+      'unchanged': 'Already imported',
+      'edited': 'Local edits kept',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get findNativeResources => 'Find existing files';
 
   @override

@@ -10,6 +10,36 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get importSubagents => '하위 에이전트 가져오기';
+
+  @override
+  String get subagentImportSource => 'Markdown 파일, 로컬 폴더 또는 Git URL';
+
+  @override
+  String get subagentChooseFile => 'Markdown 파일 선택';
+
+  @override
+  String get subagentChooseFolder => '원본 폴더 선택';
+
+  @override
+  String get subagentScanSource => '원본 검색';
+
+  @override
+  String get subagentImportTruncated =>
+      '원본의 일부만 검색했습니다. 더 많은 파일을 보려면 범위가 좁은 폴더를 선택하세요.';
+
+  @override
+  String subagentImportStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'update': '업데이트 가능',
+      'unchanged': '이미 가져옴',
+      'edited': '로컬 편집 내용 유지',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get findNativeResources => '기존 파일 찾기';
 
   @override

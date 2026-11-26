@@ -10,6 +10,35 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get importSubagents => '导入子代理';
+
+  @override
+  String get subagentImportSource => 'Markdown 文件、本地文件夹或 Git 地址';
+
+  @override
+  String get subagentChooseFile => '选择 Markdown 文件';
+
+  @override
+  String get subagentChooseFolder => '选择来源文件夹';
+
+  @override
+  String get subagentScanSource => '扫描来源';
+
+  @override
+  String get subagentImportTruncated => '只扫描了部分来源。选择范围更小的文件夹可查看其余文件。';
+
+  @override
+  String subagentImportStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'update': '有可用更新',
+      'unchanged': '已导入',
+      'edited': '已保留本地编辑',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get findNativeResources => '查找已有文件';
 
   @override

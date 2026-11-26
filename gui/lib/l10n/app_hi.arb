@@ -1,4 +1,11 @@
 {
+  "importSubagents": "सबएजेंट आयात करें",
+  "subagentImportSource": "Markdown फ़ाइल, स्थानीय फ़ोल्डर या Git URL",
+  "subagentChooseFile": "Markdown फ़ाइल चुनें",
+  "subagentChooseFolder": "स्रोत फ़ोल्डर चुनें",
+  "subagentScanSource": "स्रोत स्कैन करें",
+  "subagentImportTruncated": "स्रोत का केवल एक भाग स्कैन किया गया। अधिक फ़ाइलें देखने के लिए छोटा फ़ोल्डर चुनें।",
+  "subagentImportStatus": "{status, select, update{अपडेट उपलब्ध है} unchanged{पहले से आयातित} edited{स्थानीय बदलाव सुरक्षित हैं} other{}}",
   "findNativeResources": "मौजूदा फ़ाइलें ढूँढें",
   "noNativeResources": "कोई मौजूदा फ़ाइल नहीं मिली",
   "nativeResourceScanLimit": "मिली हुई पहली 512 फ़ाइलें दिखाई जा रही हैं।",

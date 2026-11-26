@@ -1,5 +1,7 @@
 mod discovery;
+mod import;
 mod native;
+pub use import::Request as ImportRequest;
 
 use crate::{config::read_limited, native_settings, project_instructions::replace};
 use anyhow::{Context, Result, ensure};
@@ -54,6 +56,12 @@ impl Entry {
 pub enum Edit {
     Read,
     Discover,
+    ProbeSource {
+        source: String,
+    },
+    ImportSource {
+        request: ImportRequest,
+    },
     Adopt {
         agent: String,
         path: String,
@@ -102,12 +110,15 @@ struct Store {
     pending: Option<Pending>,
     #[nextjson(default)]
     adopted: BTreeMap<String, Adopted>,
+    #[nextjson(default)]
+    imported: BTreeMap<String, import::Origin>,
 }
 
 #[derive(NsonSerialize)]
 struct Saved<'a> {
     entry: &'a Entry,
     revision: String,
+    source: Option<&'a str>,
 }
 
 #[derive(NsonSerialize)]
@@ -393,10 +404,27 @@ fn library_in(
     profiles: &native::Profiles,
     edit: Edit,
 ) -> Result<String> {
+    let source = match &edit {
+        Edit::ProbeSource { source } => Some(source),
+        Edit::ImportSource { request } => Some(&request.source),
+        _ => None,
+    };
+    let scan = source
+        .map(|source| {
+            ensure!(
+                kind == Kind::Subagent && !profiles.project_scope,
+                "import subagents into the user library"
+            );
+            import::Scan::open(source)
+        })
+        .transpose()?;
     let _guard = native_settings::lock(dir)?;
     let mut store = Store::load(path)?;
     if matches!(edit, Edit::Discover) {
         return discovery::list(profiles, &store);
+    }
+    if matches!(edit, Edit::ProbeSource { .. }) {
+        return import::preview(&scan.expect("source scan"), &store, profiles.agents);
     }
     let sync = !matches!(edit, Edit::Read);
     if sync {
@@ -404,7 +432,16 @@ fn library_in(
     }
     match edit {
         Edit::Read | Edit::Sync => {}
-        Edit::Discover => unreachable!(),
+        Edit::Discover | Edit::ProbeSource { .. } => unreachable!(),
+        Edit::ImportSource { request } => {
+            import::apply(
+                scan.expect("source scan"),
+                request,
+                &mut store,
+                profiles.agents,
+            )?;
+            store.persist(path)?;
+        }
         Edit::Adopt {
             agent,
             path: file,
@@ -428,6 +465,9 @@ fn library_in(
             );
             if let Some((old, _)) = previous {
                 store.entries.remove(&old);
+                if let Some(origin) = store.imported.remove(&old) {
+                    store.imported.insert(entry.name.clone(), origin);
+                }
             }
             store.entries.insert(entry.name.clone(), entry);
             store.persist(path)?;
@@ -435,6 +475,7 @@ fn library_in(
         Edit::Remove { name, revision } => {
             store.check(&name, &revision)?;
             store.entries.remove(&name);
+            store.imported.remove(&name);
             store.persist(path)?;
         }
     }
@@ -446,6 +487,10 @@ fn library_in(
             Ok(Saved {
                 entry,
                 revision: revision(entry)?,
+                source: store
+                    .imported
+                    .get(&entry.name)
+                    .map(|origin| origin.source.as_str()),
             })
         })
         .collect::<Result<_>>()?;
@@ -898,6 +943,96 @@ mod tests {
         })?;
         assert_eq!(fs::read_to_string(&legacy)?, "External replacement");
         assert!(!qwen.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn source_import_rechecks_the_preview_and_preserves_user_edits() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path();
+        let source = root.join("source");
+        let input = source.join("agents");
+        let skill = source.join("skill");
+        fs::create_dir_all(&input)?;
+        fs::create_dir_all(&skill)?;
+        let file = input.join("review.md");
+        let write = |prompt| {
+            fs::write(
+                &file,
+                format!("---\ndescription: Review a change\n---\n{prompt}\n"),
+            )
+        };
+        fs::write(skill.join("SKILL.md"), "A skill")?;
+        fs::write(
+            skill.join("example.md"),
+            "---\nname: exclude\ndescription: Example\n---\nIgnore me",
+        )?;
+        write("Version one.")?;
+
+        let profiles = native::Profiles {
+            kind: Kind::Subagent,
+            agents: &["claude"],
+            project_scope: false,
+            homes: BTreeMap::from([("claude", vec![root.join("claude")])]),
+        };
+        let path = root.join("data/subagents/library.json");
+        let call = |edit| -> Result<Value> {
+            nextjson::from_str(&library_in(root, Kind::Subagent, &path, &profiles, edit)?)
+                .map_err(anyhow::Error::msg)
+        };
+        let source = source.to_str().unwrap();
+        let scan = || {
+            call(Edit::ProbeSource {
+                source: source.to_owned(),
+            })
+        };
+        let import = |preview: &Value| {
+            let chosen = &preview["candidates"][0];
+            let request = nextjson::json!({
+                "source": source,
+                "files": [{"path": chosen["path"].as_str().unwrap(), "revision": chosen["revision"].as_str().unwrap()}],
+                "agents": ["claude"],
+            });
+            call(Edit::ImportSource {
+                request: ImportRequest::from_json(&request.to_string())?,
+            })
+        };
+        let preview = scan()?;
+        assert_eq!(preview["candidates"].as_array().unwrap().len(), 1);
+        assert_eq!(preview["candidates"][0]["name"].as_str(), Some("review"));
+        assert!(!path.exists());
+        write("Version two.")?;
+        assert!(
+            import(&preview)
+                .unwrap_err()
+                .to_string()
+                .contains("changed")
+        );
+        let added = import(&scan()?)?;
+        assert_eq!(added["entries"].as_array().unwrap().len(), 1);
+        let target = root.join("claude/agents/review.md");
+        assert!(fs::read_to_string(&target)?.contains("Version two."));
+
+        write("Version three.")?;
+        let preview = scan()?;
+        assert_eq!(preview["candidates"][0]["status"].as_str(), Some("update"));
+        let updated = import(&preview)?;
+        assert!(fs::read_to_string(&target)?.contains("Version three."));
+        let mut entry = Store::load(&path)?.entries.remove("review").unwrap();
+        entry.prompt = "Local instructions.".into();
+        call(Edit::Save {
+            previous: Some((
+                "review".into(),
+                updated["entries"][0]["revision"].as_str().unwrap().into(),
+            )),
+            entry,
+        })?;
+        write("Version four.")?;
+        let preview = scan()?;
+        assert_eq!(preview["candidates"][0]["status"].as_str(), Some("edited"));
+        let kept = import(&preview)?;
+        assert_eq!(kept["entries"].as_array().unwrap().len(), 1);
+        assert!(fs::read_to_string(target)?.contains("Local instructions."));
         Ok(())
     }
 }

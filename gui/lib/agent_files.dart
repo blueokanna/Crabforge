@@ -136,6 +136,24 @@ class _AgentFilesState extends State<AgentFiles> {
     if (mounted && project != null) _scope(project);
   }
 
+  Future<void> _import([String? source]) async {
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _ImportSubagents(
+        source: source,
+        scan: (source) => _request('probe-source', source: source),
+        save: (source) => _request('import-source', source: source),
+      ),
+    );
+    if (mounted && result != null) {
+      setState(() {
+        _view = jsonDecode(result) as _Json;
+        _error = null;
+      });
+    }
+  }
+
   void _scope(String? path) {
     setState(() {
       _project = path;
@@ -291,6 +309,12 @@ class _AgentFilesState extends State<AgentFiles> {
                     icon: const Icon(Icons.folder_copy_outlined),
                     label: Text(strings.findNativeResources),
                   ),
+                  if (subagents && _project == null)
+                    TextButton.icon(
+                      onPressed: available ? _import : null,
+                      icon: const Icon(Icons.file_download_outlined),
+                      label: Text(strings.importSubagents),
+                    ),
                   TextButton.icon(
                     onPressed: available ? () => _load('sync') : null,
                     icon: const Icon(Icons.sync),
@@ -352,12 +376,22 @@ class _AgentFilesState extends State<AgentFiles> {
                                       .toSet()
                                       .join(' · '),
                                 ),
+                              if (row?['source'] case final String source)
+                                Tooltip(message: source, child: _line(source)),
                             ],
                           ),
                           onTap: available && row != null
                               ? () => _edit(row)
                               : null,
                           actions: [
+                            if (row?['source'] case final String source)
+                              IconButton(
+                                onPressed: available
+                                    ? () => _import(source)
+                                    : null,
+                                icon: const Icon(Icons.update_outlined),
+                                tooltip: strings.checkSkillUpdate,
+                              ),
                             if (status.isNotEmpty)
                               IconButton(
                                 onPressed: () => _placements(name, status),
@@ -390,6 +424,251 @@ class _AgentFilesState extends State<AgentFiles> {
                     MaterialLocalizations.of(context).closeButtonLabel,
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportSubagents extends StatefulWidget {
+  const _ImportSubagents({this.source, required this.scan, required this.save});
+
+  final String? source;
+  final Future<String> Function(String source) scan;
+  final Future<String> Function(String source) save;
+
+  @override
+  State<_ImportSubagents> createState() => _ImportSubagentsState();
+}
+
+class _ImportSubagentsState extends State<_ImportSubagents> {
+  late final _source = TextEditingController(text: widget.source);
+  final _selected = <String>{};
+  final _clients = <String>{};
+  _Json? _preview;
+  Object? _error;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _source.dispose();
+    super.dispose();
+  }
+
+  void _changeSource() => setState(() {
+    _preview = null;
+    _error = null;
+    _selected.clear();
+  });
+
+  Future<void> _pick({required bool folder}) async {
+    final path = folder
+        ? await getDirectoryPath()
+        : (await openFile(
+            acceptedTypeGroups: [
+              const XTypeGroup(label: 'Markdown', extensions: ['md']),
+            ],
+          ))?.path;
+    if (!mounted || path == null) return;
+    _source.text = path;
+    _changeSource();
+  }
+
+  Future<void> _scan() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+      _preview = null;
+      _selected.clear();
+    });
+    try {
+      final preview =
+          jsonDecode(await widget.scan(_source.text.trim())) as _Json;
+      if (mounted) setState(() => _preview = preview);
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _save(List<_Json> candidates) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final result = await widget.save(
+        jsonEncode({
+          'source': _source.text.trim(),
+          'agents': _clients.toList(),
+          'files': [
+            for (final row in candidates)
+              if (_selected.contains(row['path']))
+                {'path': row['path'], 'revision': row['revision']},
+          ],
+        }),
+      );
+      if (mounted) Navigator.pop(context, result);
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    final grid = CollectionLayout.of(context).grid;
+    final candidates =
+        (_preview?['candidates'] as List?)?.cast<_Json>() ?? const <_Json>[];
+    final agents =
+        (_preview?['agents'] as List?)?.cast<String>() ?? const <String>[];
+    final anyNew = candidates.any(
+      (row) => row['status'] == 'new' && _selected.contains(row['path']),
+    );
+    return Dialog(
+      key: const ValueKey('import-subagents'),
+      child: SizedBox(
+        width: 800,
+        height: 640,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 8,
+            children: [
+              DefaultTextStyle(
+                style: Theme.of(context).textTheme.titleLarge!,
+                child: EditorHeading(strings.importSubagents),
+              ),
+              TextField(
+                controller: _source,
+                enabled: !_busy,
+                onChanged: (_) => _changeSource(),
+                onSubmitted: (_) {
+                  if (_source.text.trim().isNotEmpty && !_busy) _scan();
+                },
+                decoration: InputDecoration(
+                  labelText: strings.subagentImportSource,
+                ),
+              ),
+              Wrap(
+                spacing: 8,
+                children: [
+                  IconButton(
+                    onPressed: _busy ? null : () => _pick(folder: true),
+                    tooltip: strings.subagentChooseFolder,
+                    icon: const Icon(Icons.folder_open_outlined),
+                  ),
+                  IconButton(
+                    onPressed: _busy ? null : () => _pick(folder: false),
+                    tooltip: strings.subagentChooseFile,
+                    icon: const Icon(Icons.insert_drive_file_outlined),
+                  ),
+                  OutlinedButton(
+                    onPressed: _busy || _source.text.trim().isEmpty
+                        ? null
+                        : _scan,
+                    child: Text(strings.subagentScanSource),
+                  ),
+                ],
+              ),
+              if (_busy) const LinearProgressIndicator(),
+              Expanded(
+                child: CustomScrollView(
+                  slivers: [
+                    if (_error != null)
+                      SliverToBoxAdapter(child: SelectableText('$_error')),
+                    if (_preview != null && candidates.isEmpty)
+                      SliverToBoxAdapter(
+                        child: Text(strings.noNativeResources),
+                      ),
+                    if (_preview?['truncated'] == true)
+                      SliverToBoxAdapter(
+                        child: Text(strings.subagentImportTruncated),
+                      ),
+                    if (anyNew)
+                      SliverToBoxAdapter(
+                        child: Wrap(
+                          spacing: 8,
+                          children: [
+                            for (final agent in agents)
+                              FilterChip(
+                                selected: _clients.contains(agent),
+                                label: Text(_agents[agent] ?? agent),
+                                onSelected: _busy
+                                    ? null
+                                    : (value) => setState(() {
+                                        if (value) {
+                                          _clients.add(agent);
+                                        } else {
+                                          _clients.remove(agent);
+                                        }
+                                      }),
+                              ),
+                          ],
+                        ),
+                      ),
+                    CollectionSliver.builder(
+                      grid: grid,
+                      height: 142,
+                      itemCount: candidates.length,
+                      itemBuilder: (context, index) {
+                        final row = candidates[index];
+                        final path = row['path'] as String;
+                        final status = row['status'] as String;
+                        final selectable =
+                            !_busy && (status == 'new' || status == 'update');
+                        return CollectionTile(
+                          grid: grid,
+                          leading: Checkbox(
+                            value: _selected.contains(path),
+                            onChanged: selectable
+                                ? (value) => setState(() {
+                                    if (value == true) {
+                                      _selected.add(path);
+                                    } else {
+                                      _selected.remove(path);
+                                    }
+                                  })
+                                : null,
+                          ),
+                          title: _line(row['name'] as String),
+                          detail: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Tooltip(message: path, child: _line(path)),
+                              _line(row['description'] as String),
+                              if (status != 'new')
+                                _line(strings.subagentImportStatus(status)),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              OverflowBar(
+                alignment: MainAxisAlignment.end,
+                spacing: 8,
+                children: [
+                  TextButton(
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                    child: Text(strings.cancel),
+                  ),
+                  FilledButton(
+                    onPressed: _busy || _selected.isEmpty
+                        ? null
+                        : () => _save(candidates),
+                    child: Text(strings.importSubagents),
+                  ),
+                ],
               ),
             ],
           ),

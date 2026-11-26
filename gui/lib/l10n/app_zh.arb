@@ -1,4 +1,11 @@
 {
+  "importSubagents": "导入子代理",
+  "subagentImportSource": "Markdown 文件、本地文件夹或 Git 地址",
+  "subagentChooseFile": "选择 Markdown 文件",
+  "subagentChooseFolder": "选择来源文件夹",
+  "subagentScanSource": "扫描来源",
+  "subagentImportTruncated": "只扫描了部分来源。选择范围更小的文件夹可查看其余文件。",
+  "subagentImportStatus": "{status, select, update{有可用更新} unchanged{已导入} edited{已保留本地编辑} other{}}",
   "findNativeResources": "查找已有文件",
   "noNativeResources": "未找到已有文件",
   "nativeResourceScanLimit": "显示扫描到的前 512 个文件。",

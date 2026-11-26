@@ -108,6 +108,10 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 选择 **查找已有文件** 可扫描支持的客户端目录并原址接管未改动的原生 Markdown 或 TOML 文件，包括 OpenCode 的旧版 `command/`、`agent/` 目录和 Qwen 的 TOML 命令。CLI 的 `discover` 返回客户端 ID、路径和修订，`adopt <客户端> <路径> --revision <修订>` 用于接管。接管保留原始字节，直至编辑资源。撤销分配可能移除对应的未修改文件。
 
+在用户子代理库选择 **导入子代理**，可扫描 Markdown 文件、本地文件夹或 Git 仓库。选择要复制的定义，并按需为新条目分配客户端。再次扫描同一来源可查看更新，已在本地修改的描述和提示词以及已保存的客户端分配会保留。导入会复制名称、描述和提示词。客户端专用选项可在编辑器中配置。
+
+运行 `carbforge-cli subagents probe-source <路径或地址>` 获取候选的相对路径 `path` 与修订 `revision`。将选中的文件作为 UTF-8 JSON 传给 `carbforge-cli subagents import-source` 的标准输入。请求包含 `source` 字符串、由 `{ "path": "…", "revision": "…" }` 对象组成的 `files` 数组，以及可选的 `agents` 客户端 ID 数组，用于分配新条目。
+
 `environment save <名称> --agent <claude|codex|pi>` 从标准输入读取原始 UTF-8 值。重复 `--agent` 可分配多个客户端。编辑时传入 `environment list` 返回的修订，改名另加 `--rename-from <旧名称>`。`environment remove <名称> --revision <修订>` 移除变量，`environment sync` 重试同步，`environment list --show-values` 显示变量值。
 
 在 **客户端连接** 选择支持的客户端，打开 **项目 MCP** 并选择项目文件夹。添加服务器时使用客户端的原生 JSON 配置，Codex 使用 TOML 表正文。编辑器显示将写入的文件，保存和删除前会核对文件修订。客户端打开项目时读取配置并启动服务器。
