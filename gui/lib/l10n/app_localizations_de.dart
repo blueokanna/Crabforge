@@ -10,6 +10,60 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get findNativeResources => 'Vorhandene Dateien suchen';
+
+  @override
+  String get noNativeResources => 'Keine vorhandenen Dateien gefunden';
+
+  @override
+  String get nativeResourceScanLimit =>
+      'Die ersten 512 gefundenen Dateien werden angezeigt.';
+
+  @override
+  String get adoptResourceDetails =>
+      'Crabforge verwaltet diese Datei an ihrem aktuellen Speicherort. Wird die Client-Zuweisung aufgehoben, kann die unveränderte Datei entfernt werden.';
+
+  @override
+  String get agentSubagents => 'Subagenten';
+
+  @override
+  String get agentCommands => 'Schrägstrichbefehle';
+
+  @override
+  String get addSubagent => 'Subagent hinzufügen';
+
+  @override
+  String get addSlashCommand => 'Schrägstrichbefehl hinzufügen';
+
+  @override
+  String get resourceUserScope => 'Benutzerprofile';
+
+  @override
+  String get noAgentResources => 'Keine Einträge gespeichert';
+
+  @override
+  String get resourcePlacements => 'Veröffentlichungsdetails';
+
+  @override
+  String get agentResourceName => 'Name';
+
+  @override
+  String get agentResourceDescription => 'Beschreibung';
+
+  @override
+  String get agentResourcePrompt => 'Prompt';
+
+  @override
+  String get resourceSkillNames => 'Skill-Namen, einer pro Zeile';
+
+  @override
+  String get resourceMcpNames => 'MCP-Servernamen, einer pro Zeile';
+
+  @override
+  String get commandArgumentHelp =>
+      'Verwende \$ARGUMENTS für alle Argumente und \$1, \$2 usw. für einzelne Argumente in kompatiblen Clients.';
+
+  @override
   String get agentHooks => 'Hooks';
 
   @override

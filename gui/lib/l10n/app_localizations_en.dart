@@ -10,6 +10,59 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get findNativeResources => 'Find existing files';
+
+  @override
+  String get noNativeResources => 'No existing files found';
+
+  @override
+  String get nativeResourceScanLimit => 'Showing the first 512 files found.';
+
+  @override
+  String get adoptResourceDetails =>
+      'Crabforge will manage this file at its current location. Unassigning the client can remove the unchanged file.';
+
+  @override
+  String get agentSubagents => 'Subagents';
+
+  @override
+  String get agentCommands => 'Slash commands';
+
+  @override
+  String get addSubagent => 'Add subagent';
+
+  @override
+  String get addSlashCommand => 'Add slash command';
+
+  @override
+  String get resourceUserScope => 'User profiles';
+
+  @override
+  String get noAgentResources => 'No entries saved';
+
+  @override
+  String get resourcePlacements => 'Publication details';
+
+  @override
+  String get agentResourceName => 'Name';
+
+  @override
+  String get agentResourceDescription => 'Description';
+
+  @override
+  String get agentResourcePrompt => 'Prompt';
+
+  @override
+  String get resourceSkillNames => 'Skill names, one per line';
+
+  @override
+  String get resourceMcpNames => 'MCP server names, one per line';
+
+  @override
+  String get commandArgumentHelp =>
+      'Use \$ARGUMENTS for all arguments and \$1, \$2, … for individual arguments in compatible clients.';
+
+  @override
   String get agentHooks => 'Hooks';
 
   @override

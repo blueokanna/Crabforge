@@ -211,6 +211,22 @@ Future<String> removeAgentHook({
 Future<String> syncAgentHooks() =>
     RustLib.instance.api.crateApiSyncAgentHooks();
 
+Future<String> agentFiles({
+  required bool subagents,
+  String? project,
+  required String action,
+  String? source,
+  String? name,
+  String? revision,
+}) => RustLib.instance.api.crateApiAgentFiles(
+  subagents: subagents,
+  project: project,
+  action: action,
+  source: source,
+  name: name,
+  revision: revision,
+);
+
 Future<String> adoptAgentSkill({
   required String agent,
   required String name,

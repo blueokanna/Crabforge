@@ -4,6 +4,7 @@ use crabforge_core::webchat::{Browser, Site};
 use crabforge_core::{config, peer, service::Service};
 use std::{net::SocketAddr, path::PathBuf};
 mod agent;
+mod agent_files;
 mod environment;
 mod groups;
 mod hooks;
@@ -82,6 +83,19 @@ enum Command {
     Hooks {
         #[command(subcommand)]
         command: hooks::Command,
+    },
+    /// Manage subagent definitions for native clients.
+    Subagents {
+        /// Publish in the selected project instead of the user profile.
+        #[arg(long, global = true)]
+        project: Option<PathBuf>,
+        #[command(subcommand)]
+        command: agent_files::Command,
+    },
+    /// Manage slash commands and prompt templates for native clients.
+    Commands {
+        #[command(subcommand)]
+        command: agent_files::Command,
     },
     /// Discover recent local Claude Code and Codex sessions.
     Sessions {
@@ -837,6 +851,18 @@ pub async fn run() -> Result<()> {
         Command::Skills { command } => skills::run(&dir, command)?,
         Command::Environment { command } => environment::run(&dir, command)?,
         Command::Hooks { command } => hooks::run(&dir, command)?,
+        Command::Subagents { project, command } => agent_files::run(
+            &dir,
+            crabforge_core::agent_files::Kind::Subagent,
+            project.as_deref(),
+            command,
+        )?,
+        Command::Commands { command } => agent_files::run(
+            &dir,
+            crabforge_core::agent_files::Kind::Command,
+            None,
+            command,
+        )?,
         Command::ProjectMcp { command } => project_mcp::run(&dir, command)?,
         Command::Sessions { agent, limit } => println!(
             "{}",

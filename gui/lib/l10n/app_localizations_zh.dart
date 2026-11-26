@@ -10,6 +10,59 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get findNativeResources => '查找已有文件';
+
+  @override
+  String get noNativeResources => '未找到已有文件';
+
+  @override
+  String get nativeResourceScanLimit => '显示扫描到的前 512 个文件。';
+
+  @override
+  String get adoptResourceDetails =>
+      'Crabforge 会在原位置管理此文件。取消分配给该客户端时，可能会移除未被修改的文件。';
+
+  @override
+  String get agentSubagents => '子代理';
+
+  @override
+  String get agentCommands => '斜杠命令';
+
+  @override
+  String get addSubagent => '添加子代理';
+
+  @override
+  String get addSlashCommand => '添加斜杠命令';
+
+  @override
+  String get resourceUserScope => '用户配置';
+
+  @override
+  String get noAgentResources => '暂无条目';
+
+  @override
+  String get resourcePlacements => '发布详情';
+
+  @override
+  String get agentResourceName => '名称';
+
+  @override
+  String get agentResourceDescription => '说明';
+
+  @override
+  String get agentResourcePrompt => '提示词';
+
+  @override
+  String get resourceSkillNames => '技能名称，每行一个';
+
+  @override
+  String get resourceMcpNames => 'MCP 服务器名称，每行一个';
+
+  @override
+  String get commandArgumentHelp =>
+      '用 \$ARGUMENTS 表示全部参数。在兼容客户端中，可以用 \$1、\$2 等表示单个参数。';
+
+  @override
   String get agentHooks => '钩子';
 
   @override

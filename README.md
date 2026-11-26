@@ -94,6 +94,20 @@ For other Git hosts, enter the repository's HTTPS or SSH clone URL. GitLab and G
 
 **Client connections → Hooks** saves lifecycle commands and publishes compatible events to Claude Code, Codex, Gemini CLI or Cursor. Gemini uses both its native and Crabforge profiles. The library can adopt a compatible command in place and reports conflicting or externally modified entries. Clients run commands according to their own hook and trust settings. Use `carbforge-cli hooks list` to see revisions and installed entries. Use `hooks save` with a UTF-8 JSON object on standard input containing `name`, `event`, `command` and `agents`. The optional fields are `description`, `matcher` and `timeout` in seconds. Portable events are `turn-end`, `after-tool`, `before-tool`, `prompt` and `session-start`. Use an event such as `claude:SessionStart` for a client-specific matcher. `hooks adopt <key> <name>` takes over an unchanged native entry, `hooks remove <name> --revision <revision>` withdraws managed copies, and `hooks sync` retries assignments.
 
+**Client connections → Subagents** publishes native Markdown or TOML to Claude Code, Codex, OpenCode, Gemini CLI, Qwen Code, Factory Droid, Grok Build, Cursor and Copilot CLI. Open a project in the same dialog to manage that folder's subagents. Project publication also supports Antigravity. Claude Code accepts skill references and reasoning effort. Claude Code and Factory Droid accept MCP server names. Codex accepts a model ID and reasoning effort.
+
+**Client connections → Slash commands** publishes reusable prompts to Claude Code, OpenCode, Pi, Gemini CLI, Qwen Code and Factory Droid. Use `$ARGUMENTS` for all arguments, or `$1`, `$2` and so on for individual arguments in Claude Code, OpenCode and Pi. Crabforge converts the placeholders for each client and reports assignments that use unsupported arguments. For Codex, use a skill for a reusable prompt.
+
+`carbforge-cli subagents` and `carbforge-cli commands` support `list`, `save`, `remove`, and `sync`. `subagents --project <folder>` selects a project library. `save` reads UTF-8 JSON from standard input with `name`, `prompt`, and `agents`. Supply `description` for subagents. Optional subagent fields are `model`, `effort`, `skills` and `mcp`. Save this example as `check.json` and run `cmd.exe /d /c "carbforge-cli commands save < check.json"` to publish it from Windows.
+
+```json
+{"name":"check","description":"Review a file","prompt":"Review $ARGUMENTS for correctness.","agents":["claude","opencode","pi"]}
+```
+
+Use `save --old <name> --revision <revision>` to edit or rename an entry and `remove <name> --revision <revision>` to withdraw it. `list` returns current revisions and per-file publication status. Existing files and external edits are preserved. `sync` retries publication.
+
+Choose **Find existing files** to scan the supported client directories. You can adopt an unchanged native Markdown or TOML file in place, including OpenCode's legacy `command/` and `agent/` directories and Qwen's TOML commands. In the CLI, `discover` returns each file's client ID, path and revision. Use `adopt <client> <path> --revision <revision>` to manage that file. Adoption keeps the original bytes until you edit the resource. Withdrawing an assignment can remove its unchanged file.
+
 The CLI reads the exact UTF-8 value from standard input with `environment save <name> --agent <claude|codex|pi>`. Repeat `--agent` to assign several clients. For edits, pass the revision from `environment list`. Add `--rename-from <old-name>` to rename, use `environment remove <name> --revision <revision>` to remove, and `environment sync` to retry publication. Use `environment list --show-values` to reveal values.
 
 For a supported client, open **Project MCP** under **Client connections** and select the project folder. Add a server using the client's native JSON format or a TOML table body for Codex. The editor shows the file it will update and checks its revision before saving or removing an entry. The client loads and runs the server when it opens the project.

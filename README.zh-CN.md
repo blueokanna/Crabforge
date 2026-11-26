@@ -94,6 +94,20 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 在 **客户端连接 → 钩子** 保存生命周期命令，可按事件分配给 Claude Code、Codex、Gemini CLI 或 Cursor。Gemini 同时使用原生和 Crabforge 配置。库可原址接管兼容的命令，并显示冲突及外部修改。客户端按自身的钩子和信任设置运行命令。`carbforge-cli hooks list` 可查看修订和已有条目。`hooks save` 从标准输入读取 UTF-8 JSON 对象，字段为 `name`、`event`、`command` 和 `agents`，可选字段为 `description`、`matcher` 和以秒为单位的 `timeout`。通用事件为 `turn-end`、`after-tool`、`before-tool`、`prompt` 和 `session-start`。使用 `claude:SessionStart` 等原生事件可指定客户端专用匹配条件。`hooks adopt <key> <name>` 接管未改动的原生条目，`hooks remove <name> --revision <revision>` 撤销受管理的副本，`hooks sync` 重试发布。
 
+在 **客户端连接 → 子代理** 向 Claude Code、Codex、OpenCode、Gemini CLI、Qwen Code、Factory Droid、Grok Build、Cursor 和 Copilot CLI 发布原生 Markdown 或 TOML。也可以在同一窗口选择项目文件夹，管理该项目的子代理。项目配置另支持 Antigravity。Claude Code 支持技能引用和推理级别，Claude Code 和 Factory Droid 支持 MCP 服务器名称，Codex 支持模型 ID 和推理级别。
+
+在 **客户端连接 → 斜杠命令** 向 Claude Code、OpenCode、Pi、Gemini CLI、Qwen Code 和 Factory Droid 发布可复用提示词。`$ARGUMENTS` 表示全部参数。Claude Code、OpenCode 和 Pi 也可用 `$1`、`$2` 等引用单个参数。Crabforge 按客户端格式转换占位符，并报告无法发布的分配。Codex 可用技能保存可复用提示词。
+
+`carbforge-cli subagents` 和 `carbforge-cli commands` 均支持 `list`、`save`、`remove` 和 `sync`。用 `subagents --project <文件夹>` 选择项目库。`save` 从标准输入读取 UTF-8 JSON，字段包括 `name`、`prompt` 和 `agents`。子代理还要求 `description`，可选字段为 `model`、`effort`、`skills` 和 `mcp`。将以下内容保存为 `check.json`，在 Windows 执行 `cmd.exe /d /c "carbforge-cli commands save < check.json"` 即可发布。
+
+```json
+{"name":"check","description":"检查文件","prompt":"检查 $ARGUMENTS 是否正确。","agents":["claude","opencode","pi"]}
+```
+
+用 `save --old <名称> --revision <修订>` 编辑或改名，用 `remove <名称> --revision <修订>` 撤销。`list` 显示修订和每个文件的发布状态。已有同名文件和外部修改会保留。`sync` 可重试发布。
+
+选择 **查找已有文件** 可扫描支持的客户端目录并原址接管未改动的原生 Markdown 或 TOML 文件，包括 OpenCode 的旧版 `command/`、`agent/` 目录和 Qwen 的 TOML 命令。CLI 的 `discover` 返回客户端 ID、路径和修订，`adopt <客户端> <路径> --revision <修订>` 用于接管。接管保留原始字节，直至编辑资源。撤销分配可能移除对应的未修改文件。
+
 `environment save <名称> --agent <claude|codex|pi>` 从标准输入读取原始 UTF-8 值。重复 `--agent` 可分配多个客户端。编辑时传入 `environment list` 返回的修订，改名另加 `--rename-from <旧名称>`。`environment remove <名称> --revision <修订>` 移除变量，`environment sync` 重试同步，`environment list --show-values` 显示变量值。
 
 在 **客户端连接** 选择支持的客户端，打开 **项目 MCP** 并选择项目文件夹。添加服务器时使用客户端的原生 JSON 配置，Codex 使用 TOML 表正文。编辑器显示将写入的文件，保存和删除前会核对文件修订。客户端打开项目时读取配置并启动服务器。

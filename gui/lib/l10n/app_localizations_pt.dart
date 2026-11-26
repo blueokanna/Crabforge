@@ -10,6 +10,60 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get findNativeResources => 'Buscar arquivos existentes';
+
+  @override
+  String get noNativeResources => 'Nenhum arquivo existente encontrado';
+
+  @override
+  String get nativeResourceScanLimit =>
+      'Os primeiros 512 arquivos encontrados são exibidos.';
+
+  @override
+  String get adoptResourceDetails =>
+      'O Crabforge gerenciará este arquivo no local atual. Remover a atribuição ao cliente pode excluir o arquivo se ele estiver intacto.';
+
+  @override
+  String get agentSubagents => 'Subagentes';
+
+  @override
+  String get agentCommands => 'Comandos de barra';
+
+  @override
+  String get addSubagent => 'Adicionar subagente';
+
+  @override
+  String get addSlashCommand => 'Adicionar comando de barra';
+
+  @override
+  String get resourceUserScope => 'Perfis de usuário';
+
+  @override
+  String get noAgentResources => 'Nenhuma entrada salva';
+
+  @override
+  String get resourcePlacements => 'Detalhes da publicação';
+
+  @override
+  String get agentResourceName => 'Nome';
+
+  @override
+  String get agentResourceDescription => 'Descrição';
+
+  @override
+  String get agentResourcePrompt => 'Instrução';
+
+  @override
+  String get resourceSkillNames => 'Nomes das habilidades, um por linha';
+
+  @override
+  String get resourceMcpNames => 'Nomes dos servidores MCP, um por linha';
+
+  @override
+  String get commandArgumentHelp =>
+      'Use \$ARGUMENTS para todos os argumentos e \$1, \$2, etc. para argumentos individuais em clientes compatíveis.';
+
+  @override
   String get agentHooks => 'Hooks';
 
   @override

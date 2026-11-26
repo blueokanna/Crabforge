@@ -10,6 +10,59 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get findNativeResources => '既存のファイルを探す';
+
+  @override
+  String get noNativeResources => '既存のファイルが見つかりませんでした';
+
+  @override
+  String get nativeResourceScanLimit => '見つかった最初の 512 件を表示しています。';
+
+  @override
+  String get adoptResourceDetails =>
+      'Crabforge はこのファイルを現在の場所で管理します。クライアントへの割り当てを解除すると、変更されていないファイルが削除されることがあります。';
+
+  @override
+  String get agentSubagents => 'サブエージェント';
+
+  @override
+  String get agentCommands => 'スラッシュコマンド';
+
+  @override
+  String get addSubagent => 'サブエージェントを追加';
+
+  @override
+  String get addSlashCommand => 'スラッシュコマンドを追加';
+
+  @override
+  String get resourceUserScope => 'ユーザープロファイル';
+
+  @override
+  String get noAgentResources => '保存された項目がありません';
+
+  @override
+  String get resourcePlacements => '公開の詳細';
+
+  @override
+  String get agentResourceName => '名前';
+
+  @override
+  String get agentResourceDescription => '説明';
+
+  @override
+  String get agentResourcePrompt => 'プロンプト';
+
+  @override
+  String get resourceSkillNames => 'スキル名（1 行に 1 件）';
+
+  @override
+  String get resourceMcpNames => 'MCP サーバー名（1 行に 1 件）';
+
+  @override
+  String get commandArgumentHelp =>
+      'すべての引数には \$ARGUMENTS、対応クライアントで個別の引数には \$1、\$2 などを使用します。';
+
+  @override
   String get agentHooks => 'フック';
 
   @override
