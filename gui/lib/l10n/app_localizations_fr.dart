@@ -10,6 +10,36 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get agentEnvironment => 'Variables d’environnement';
+
+  @override
+  String get noEnvironmentVariables => 'Aucune variable enregistrée';
+
+  @override
+  String get addVariable => 'Ajouter une variable';
+
+  @override
+  String get editVariable => 'Modifier la variable';
+
+  @override
+  String get variableName => 'Nom de la variable';
+
+  @override
+  String get variableValue => 'Valeur';
+
+  @override
+  String get showVariableValue => 'Afficher la valeur';
+
+  @override
+  String get hideVariableValue => 'Masquer la valeur';
+
+  @override
+  String get nativeVariableExists => 'Déjà définie';
+
+  @override
+  String get nativeVariableConflict => 'Valeur existante conservée';
+
+  @override
   String get memoryLibrary => 'Mémoire';
 
   @override

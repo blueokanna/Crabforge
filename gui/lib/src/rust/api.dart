@@ -157,6 +157,34 @@ Future<String> repositorySkillCatalog({required String source}) =>
 Future<void> dismissSkillCandidate({required String source}) =>
     RustLib.instance.api.crateApiDismissSkillCandidate(source: source);
 
+Future<String> agentEnvironment() =>
+    RustLib.instance.api.crateApiAgentEnvironment();
+
+Future<String> saveAgentVariable({
+  required String name,
+  required String value,
+  required List<String> agents,
+  String? oldName,
+  String? revision,
+}) => RustLib.instance.api.crateApiSaveAgentVariable(
+  name: name,
+  value: value,
+  agents: agents,
+  oldName: oldName,
+  revision: revision,
+);
+
+Future<String> removeAgentVariable({
+  required String name,
+  required String revision,
+}) => RustLib.instance.api.crateApiRemoveAgentVariable(
+  name: name,
+  revision: revision,
+);
+
+Future<String> syncAgentEnvironment() =>
+    RustLib.instance.api.crateApiSyncAgentEnvironment();
+
 Future<String> adoptAgentSkill({
   required String agent,
   required String name,

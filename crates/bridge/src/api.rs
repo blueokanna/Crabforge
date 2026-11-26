@@ -232,6 +232,46 @@ pub fn dismiss_skill_candidate(source: String) -> Result<()> {
     crabforge_core::skills::dismiss_candidate(&config::data_dir()?, &source)
 }
 
+pub fn agent_environment() -> Result<String> {
+    use crabforge_core::environment::{self, Edit};
+    environment::edit(&config::data_dir()?, Edit::Read, true)
+}
+
+pub fn save_agent_variable(
+    name: String,
+    value: String,
+    agents: Vec<String>,
+    old_name: Option<String>,
+    revision: Option<String>,
+) -> Result<String> {
+    use crabforge_core::environment::{self, Edit};
+    let previous = match (old_name, revision) {
+        (Some(name), Some(revision)) => Some((name, revision)),
+        (None, None) => None,
+        _ => anyhow::bail!("an edited variable needs its original name and revision"),
+    };
+    environment::edit(
+        &config::data_dir()?,
+        Edit::Save {
+            name,
+            value,
+            agents,
+            previous,
+        },
+        true,
+    )
+}
+
+pub fn remove_agent_variable(name: String, revision: String) -> Result<String> {
+    use crabforge_core::environment::{self, Edit};
+    environment::edit(&config::data_dir()?, Edit::Remove { name, revision }, true)
+}
+
+pub fn sync_agent_environment() -> Result<String> {
+    use crabforge_core::environment::{self, Edit};
+    environment::edit(&config::data_dir()?, Edit::Sync, true)
+}
+
 pub fn adopt_agent_skill(
     agent: String,
     name: String,

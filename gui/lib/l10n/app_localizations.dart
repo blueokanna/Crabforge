@@ -112,6 +112,66 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @agentEnvironment.
+  ///
+  /// In en, this message translates to:
+  /// **'Environment variables'**
+  String get agentEnvironment;
+
+  /// No description provided for @noEnvironmentVariables.
+  ///
+  /// In en, this message translates to:
+  /// **'No variables saved'**
+  String get noEnvironmentVariables;
+
+  /// No description provided for @addVariable.
+  ///
+  /// In en, this message translates to:
+  /// **'Add variable'**
+  String get addVariable;
+
+  /// No description provided for @editVariable.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit variable'**
+  String get editVariable;
+
+  /// No description provided for @variableName.
+  ///
+  /// In en, this message translates to:
+  /// **'Variable name'**
+  String get variableName;
+
+  /// No description provided for @variableValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get variableValue;
+
+  /// No description provided for @showVariableValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Show value'**
+  String get showVariableValue;
+
+  /// No description provided for @hideVariableValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide value'**
+  String get hideVariableValue;
+
+  /// No description provided for @nativeVariableExists.
+  ///
+  /// In en, this message translates to:
+  /// **'Already set'**
+  String get nativeVariableExists;
+
+  /// No description provided for @nativeVariableConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing value kept'**
+  String get nativeVariableConflict;
+
   /// No description provided for @memoryLibrary.
   ///
   /// In en, this message translates to:

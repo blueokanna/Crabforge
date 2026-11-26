@@ -7,7 +7,7 @@ use std::{collections::HashSet, ops::Range};
 
 const MAX_DEPTH: usize = 64;
 
-pub(super) struct Object {
+pub(crate) struct Object {
     members: Vec<Member>,
     close: usize,
 }
@@ -41,7 +41,7 @@ impl Cursor<'_> {
     fn expect(&mut self, byte: u8) -> Result<()> {
         ensure!(
             self.consume(byte),
-            "expected {} in MCP configuration near byte {}",
+            "expected {} in JSON configuration near byte {}",
             char::from(byte),
             self.index
         );
@@ -116,7 +116,7 @@ impl Cursor<'_> {
     fn value(&mut self, depth: usize) -> Result<()> {
         ensure!(
             depth <= MAX_DEPTH,
-            "MCP configuration has more than {MAX_DEPTH} nested levels"
+            "JSON configuration has more than {MAX_DEPTH} nested levels"
         );
         match self.peek() {
             Some(b'{') => {
@@ -160,7 +160,7 @@ impl Cursor<'_> {
             if collect {
                 ensure!(
                     keys.insert(key.clone()),
-                    "duplicate MCP configuration key {key:?}"
+                    "duplicate JSON configuration key {key:?}"
                 );
                 members.push(Member {
                     key,
@@ -181,7 +181,7 @@ impl Cursor<'_> {
     }
 }
 
-pub(super) fn parse(source: &str, path: &[&str]) -> Result<Option<Object>> {
+pub(crate) fn parse(source: &str, path: &[&str]) -> Result<Option<Object>> {
     let mut cursor = Cursor {
         source,
         index: if source.starts_with('\u{feff}') { 3 } else { 0 },
@@ -191,7 +191,7 @@ pub(super) fn parse(source: &str, path: &[&str]) -> Result<Option<Object>> {
     cursor.skip()?;
     ensure!(
         cursor.index == source.len(),
-        "unexpected content after MCP configuration object"
+        "unexpected content after JSON configuration object"
     );
     for key in path {
         let Some(member) = object
@@ -210,7 +210,7 @@ pub(super) fn parse(source: &str, path: &[&str]) -> Result<Option<Object>> {
 }
 
 impl Object {
-    pub(super) fn entries(self, source: &str) -> impl Iterator<Item = (String, &str)> {
+    pub(crate) fn entries(self, source: &str) -> impl Iterator<Item = (String, &str)> {
         self.members
             .into_iter()
             .map(|member| (member.key, &source[member.value]))
@@ -220,7 +220,7 @@ impl Object {
         nextjson::to_string(value).map_err(anyhow::Error::msg)
     }
 
-    pub(super) fn edit(
+    pub(crate) fn edit(
         self,
         source: &str,
         key: &str,

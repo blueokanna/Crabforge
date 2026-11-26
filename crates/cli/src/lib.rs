@@ -4,6 +4,7 @@ use crabforge_core::webchat::{Browser, Site};
 use crabforge_core::{config, peer, service::Service};
 use std::{net::SocketAddr, path::PathBuf};
 mod agent;
+mod environment;
 mod groups;
 mod memory;
 mod project_mcp;
@@ -69,6 +70,12 @@ enum Command {
     Skills {
         #[command(subcommand)]
         command: skills::Command,
+    },
+    /// Manage shared variables for Claude Code, Codex and Pi.
+    #[command(visible_alias = "env")]
+    Environment {
+        #[command(subcommand)]
+        command: environment::Command,
     },
     /// Discover recent local Claude Code and Codex sessions.
     Sessions {
@@ -822,6 +829,7 @@ pub async fn run() -> Result<()> {
         Command::Memory { command } => memory::run(&dir, command).await?,
         Command::Rules { command } => rules::run(&dir, command)?,
         Command::Skills { command } => skills::run(&dir, command)?,
+        Command::Environment { command } => environment::run(&dir, command)?,
         Command::ProjectMcp { command } => project_mcp::run(&dir, command)?,
         Command::Sessions { agent, limit } => println!(
             "{}",

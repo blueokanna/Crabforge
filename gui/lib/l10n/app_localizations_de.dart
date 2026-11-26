@@ -10,6 +10,36 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get agentEnvironment => 'Umgebungsvariablen';
+
+  @override
+  String get noEnvironmentVariables => 'Keine Variablen gespeichert';
+
+  @override
+  String get addVariable => 'Variable hinzufügen';
+
+  @override
+  String get editVariable => 'Variable bearbeiten';
+
+  @override
+  String get variableName => 'Variablenname';
+
+  @override
+  String get variableValue => 'Wert';
+
+  @override
+  String get showVariableValue => 'Wert anzeigen';
+
+  @override
+  String get hideVariableValue => 'Wert ausblenden';
+
+  @override
+  String get nativeVariableExists => 'Bereits gesetzt';
+
+  @override
+  String get nativeVariableConflict => 'Vorhandener Wert beibehalten';
+
+  @override
   String get memoryLibrary => 'Gedächtnis';
 
   @override
