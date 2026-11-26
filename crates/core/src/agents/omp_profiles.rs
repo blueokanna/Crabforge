@@ -60,7 +60,6 @@ fn config_path(command: &Command, profile: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
-#[derive(serde::Serialize)]
 pub struct Profile {
     pub name: String,
     pub active: bool,

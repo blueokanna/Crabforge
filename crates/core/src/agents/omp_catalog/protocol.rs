@@ -1,13 +1,18 @@
 use super::{Value, catalog_path};
 use anyhow::{Context, Result, ensure};
-use serde::{Deserialize, Serialize};
-use std::{collections::BTreeSet, fs, io::ErrorKind, path::Path};
+use nextjson::{NsonDeserialize, NsonSerialize};
+use std::{
+    collections::BTreeSet,
+    fs,
+    io::{ErrorKind, Write},
+    path::Path,
+};
 
 const HISTORY: &str = "crabforge-omp-protocol.json";
 pub(super) const AUTO: &str = "auto";
 const CHAT: &str = "openai-completions";
 
-#[derive(Serialize, Deserialize)]
+#[derive(NsonSerialize, NsonDeserialize)]
 pub(super) struct Preference {
     choice: String,
     generated: BTreeSet<String>,
@@ -18,10 +23,10 @@ pub(super) struct Preference {
 
 impl Preference {
     pub(super) fn load(home: &Path) -> Result<Self> {
-        match fs::File::open(home.join(HISTORY)) {
-            Ok(file) => {
-                Ok(serde_json::from_reader(file).context("invalid Oh My Pi protocol history")?)
-            }
+        match fs::read(home.join(HISTORY)) {
+            Ok(bytes) => nextjson::from_slice(&bytes)
+                .map_err(anyhow::Error::msg)
+                .context("invalid Oh My Pi protocol history"),
             Err(e) if e.kind() == ErrorKind::NotFound => Ok(Self {
                 choice: AUTO.to_owned(),
                 generated: BTreeSet::from([CHAT.to_owned()]),
@@ -64,7 +69,7 @@ impl Preference {
 
     pub(super) fn persist(&self, home: &Path) -> Result<()> {
         let mut tmp = tempfile::NamedTempFile::new_in(home)?;
-        serde_json::to_writer(&mut tmp, self)?;
+        tmp.write_all(&nextjson::to_vec(self).map_err(anyhow::Error::msg)?)?;
         tmp.as_file().sync_all()?;
         tmp.persist(home.join(HISTORY))?;
         Ok(())

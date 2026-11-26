@@ -39,6 +39,7 @@ mod bedrock;
 pub mod catalog;
 pub mod config;
 pub mod gateway;
+pub mod json;
 mod media;
 mod model_name;
 mod opencode;

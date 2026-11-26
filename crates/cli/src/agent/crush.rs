@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use serde_json::json;
+use nextjson::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
     fs,
@@ -44,10 +44,10 @@ pub(super) fn configure(
     })?;
     super::edit_json_object(&data.join("crush.json"), "models", |picks| {
         for size in ["large", "small"] {
-            if picks
-                .get(size)
-                .is_none_or(|pick| pick["provider"] != "crabforge" || pick["model"] != model)
-            {
+            if picks.get(size).is_none_or(|pick| {
+                pick.get("provider").and_then(Value::as_str) != Some("crabforge")
+                    || pick.get("model").and_then(Value::as_str) != Some(model)
+            }) {
                 picks.insert(size.into(), json!({"provider":"crabforge","model":model}));
             }
         }

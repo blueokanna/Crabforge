@@ -3,6 +3,7 @@ use clap::ValueEnum;
 use crabforge_core::agents::{omp_catalog, omp_profiles, pi_model};
 use crabforge_core::config;
 use crabforge_core::gateway::{NativeProtocols, native_protocols};
+use nextjson::{Map, Value, json};
 mod crush;
 mod kimi;
 mod nanobot;
@@ -152,14 +153,14 @@ impl Agent {
             Self::Opencode | Self::Deveco | Self::Mimocode => {
                 let models = ids
                     .into_iter()
-                    .map(|id| (id.clone(), serde_json::json!({"name":id})))
-                    .collect::<serde_json::Map<_, _>>();
+                    .map(|id| (id.clone(), json!({"name":id})))
+                    .collect::<Map>();
                 let selected = format!("crabforge/{model}");
                 let (variable, profile) = if matches!(self, Self::Opencode) {
                     command.arg("--standalone");
                     (
                         "OPENCODE_CONFIG",
-                        serde_json::json!({
+                        json!({
                         "model":selected, "agents":{"title":{"model":selected}},
                         "providers":{"crabforge":{
                             "name":"Crabforge", "env":["CRABFORGE_GATEWAY_KEY"],
@@ -176,7 +177,7 @@ impl Agent {
                     };
                     (
                         variable,
-                        serde_json::json!({
+                        json!({
                             "model":selected, "small_model":selected,
                             "provider":{"crabforge":{
                                 "npm":"@ai-sdk/openai-compatible", "name":"Crabforge",
@@ -191,7 +192,9 @@ impl Agent {
                     .prefix("gateway-")
                     .suffix(".json")
                     .tempfile_in(home)?;
-                serde_json::to_writer(opencode_config.as_file(), &profile)?;
+                opencode_config
+                    .as_file()
+                    .write_all(&nextjson::to_vec(&profile).map_err(anyhow::Error::msg)?)?;
                 command
                     .env(variable, opencode_config.path())
                     .env("CRABFORGE_GATEWAY_KEY", key);
@@ -361,11 +364,11 @@ impl Agent {
     }
 }
 
-fn write_catalog(path: &Path, catalog: &serde_json::Value) -> Result<()> {
+fn write_catalog(path: &Path, catalog: &impl nextjson::NsonSerialize) -> Result<()> {
     let folder = path.parent().context("missing catalog directory")?;
     fs::create_dir_all(folder)?;
     let mut file = tempfile::NamedTempFile::new_in(folder)?;
-    serde_json::to_writer_pretty(&mut file, catalog)?;
+    file.write_all(&nextjson::to_vec_pretty(catalog).map_err(anyhow::Error::msg)?)?;
     file.flush()?;
     file.persist(path)?;
     Ok(())
@@ -425,15 +428,14 @@ fn pi_profile(
         "${CRABFORGE_GATEWAY_KEY}"
     };
     edit_json_object(&home.join("models.json"), "providers", |providers| {
-        let provider = providers
-            .entry("crabforge")
-            .or_insert_with(|| serde_json::json!({}))
-            .as_object_mut()
-            .context("invalid Pi gateway provider")?;
+        let provider =
+            object_section(providers, "crabforge").context("invalid Pi gateway provider")?;
+        if !provider.contains_key("api") {
+            provider.insert("api".into(), "openai-completions".into());
+        }
         let api = provider
-            .entry("api")
-            .or_insert_with(|| "openai-completions".into())
-            .as_str()
+            .get("api")
+            .and_then(Value::as_str)
             .context("invalid Pi provider API")?;
         let base = match api {
             "openai-completions" | "openai-responses" => format!("{root}/v1"),
@@ -443,59 +445,61 @@ fn pi_profile(
         };
         let mut models: Vec<_> = ids
             .iter()
-            .map(|id| pi_model(id, root, api, protocols.get(id), binary))
-            .collect();
+            .map(|id| nextjson::to_value(&pi_model(id, root, api, protocols.get(id), binary)))
+            .collect::<nextjson::Result<_>>()
+            .map_err(anyhow::Error::msg)?;
         provider.insert("baseUrl".into(), base.into());
         provider.insert("apiKey".into(), key_ref.into());
         if binary == "pi" {
-            let compat = provider
-                .entry("compat")
-                .or_insert_with(|| serde_json::json!({}))
-                .as_object_mut()
+            let compat = object_section(provider, "compat")
                 .context("invalid Pi provider compatibility settings")?;
-            compat
-                .entry("sendSessionAffinityHeaders")
-                .or_insert(true.into());
+            if !compat.contains_key("sendSessionAffinityHeaders") {
+                compat.insert("sendSessionAffinityHeaders".into(), true.into());
+            }
         }
         pi::keep_model_apis(&home, provider.get("models"), &mut models)?;
-        provider.insert("models".into(), serde_json::Value::Array(models));
+        provider.insert("models".into(), Value::Array(models));
         Ok(())
     })?;
     Ok(home)
 }
 
+fn object_section<'a>(parent: &'a mut Map, key: &str) -> Result<&'a mut Map> {
+    if !parent.contains_key(key) {
+        parent.insert(key.into(), json!({}));
+    }
+    parent
+        .get_mut(key)
+        .and_then(Value::as_object_mut)
+        .with_context(|| format!("expected an object for {key}"))
+}
+
 fn edit_json_object(
     path: &Path,
     field: &str,
-    edit: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>) -> Result<()>,
+    edit: impl FnOnce(&mut Map) -> Result<()>,
 ) -> Result<()> {
-    use serde_json::{Map, Value, json};
     let original = match fs::read(path) {
-        Ok(bytes) => serde_json::from_slice::<Map<String, Value>>(&bytes)
+        Ok(bytes) => nextjson::from_slice::<Map>(&bytes)
+            .map_err(anyhow::Error::msg)
             .with_context(|| format!("invalid {}", path.display()))?,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Map::new(),
         Err(e) => return Err(e.into()),
     };
     let mut doc = original.clone();
-    let entries = doc
-        .entry(field)
-        .or_insert_with(|| json!({}))
-        .as_object_mut()
+    let entries = object_section(&mut doc, field)
         .with_context(|| format!("invalid {field} in {}", path.display()))?;
     edit(entries)?;
     if doc != original {
-        write_catalog(path, &Value::Object(doc))?;
+        write_catalog(path, &doc)?;
     }
     Ok(())
 }
 
 fn goose_profile(dir: &Path, ids: Vec<String>, root: &str) -> Result<PathBuf> {
     let home = std::path::absolute(dir.join("agents/goose"))?;
-    let models: Vec<_> = ids
-        .into_iter()
-        .map(|name| serde_json::json!({"name":name}))
-        .collect();
-    let catalog = serde_json::json!({"name":"crabforge", "engine":"openai", "display_name":"Crabforge", "base_url":format!("{root}/v1"), "api_key_env":"CRABFORGE_GATEWAY_KEY", "dynamic_models":false, "skip_canonical_filtering":true, "models":models});
+    let models: Vec<_> = ids.into_iter().map(|name| json!({"name":name})).collect();
+    let catalog = json!({"name":"crabforge", "engine":"openai", "display_name":"Crabforge", "base_url":format!("{root}/v1"), "api_key_env":"CRABFORGE_GATEWAY_KEY", "dynamic_models":false, "skip_canonical_filtering":true, "models":models});
     write_catalog(
         &home.join("config/custom_providers/crabforge.json"),
         &catalog,

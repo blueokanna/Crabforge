@@ -308,9 +308,12 @@ pub async fn run() -> Result<()> {
                     }
                 }
                 cfg.providers[index].fallback = fallback;
-                config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                config::save(&dir, &previous, &cfg.to_json()?)?;
             }
-            println!("{}", serde_json::to_string(&cfg.providers[index].fallback)?);
+            println!(
+                "{}",
+                nextjson::to_string(&cfg.providers[index].fallback).map_err(anyhow::Error::msg)?
+            );
         }
         Command::Provider {
             command: ProviderCommand::Set { id, setting },
@@ -323,7 +326,7 @@ pub async fn run() -> Result<()> {
                 .find(|p| p.id == id)
                 .context("unknown provider")?;
             provider.no_stand_in = !setting;
-            config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+            config::save(&dir, &previous, &cfg.to_json()?)?;
         }
         Command::Group { command } => {
             let previous = config::snapshot(&dir)?;
@@ -343,8 +346,11 @@ pub async fn run() -> Result<()> {
                         .take(config::MAX_CONFIG as u64 + 1)
                         .read_to_string(&mut text)?;
                     let (modified, report) = cfg.import_group(&text, replace)?;
-                    config::save(&dir, &previous, &serde_json::to_string(&modified)?)?;
-                    println!("{}", serde_json::to_string(&report)?);
+                    config::save(&dir, &previous, &modified.to_json()?)?;
+                    println!(
+                        "{}",
+                        nextjson::to_string(&report).map_err(anyhow::Error::msg)?
+                    );
                 }
                 GroupCommand::Show { id } => groups::show(&cfg, &id)?,
                 GroupCommand::ByName(args) => {
@@ -368,7 +374,7 @@ pub async fn run() -> Result<()> {
                     } else {
                         off.remove(&member);
                     }
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
                 GroupCommand::Switch { id, mode } => {
                     let name = cfg.group_name(&id);
@@ -381,21 +387,21 @@ pub async fn run() -> Result<()> {
                     } else {
                         cfg.disabled_groups.remove(&name);
                     }
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
                 GroupCommand::Copy { from, name } => {
                     let (updated, id) = cfg.copied_group(&from, &name.join(" "))?;
-                    config::save(&dir, &previous, &serde_json::to_string(&updated)?)?;
+                    config::save(&dir, &previous, &updated.to_json()?)?;
                     println!("{} (group/{id})", updated.group_labels[&id]);
                 }
                 GroupCommand::Pick { id, member } => {
                     let id = cfg.group_name(&id);
                     cfg.pick_member(&id, &member)?;
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
                 GroupCommand::Rename { from, to } => {
                     let updated = cfg.renamed_group(&from, &to)?;
-                    config::save(&dir, &previous, &serde_json::to_string(&updated)?)?;
+                    config::save(&dir, &previous, &updated.to_json()?)?;
                 }
                 GroupCommand::List => {
                     let groups = cfg.resolved_groups();
@@ -467,11 +473,11 @@ pub async fn run() -> Result<()> {
                             .cloned(),
                     );
                     cfg.group_display_order = order;
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
                 GroupCommand::Auto { mode } => {
                     cfg.no_auto_groups = mode == "off";
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
                 GroupCommand::Place { id, members } => {
                     let id = cfg.group_name(&id);
@@ -491,12 +497,12 @@ pub async fn run() -> Result<()> {
                     if !members.is_empty() {
                         cfg.group_placed.insert(id, members);
                     }
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
                 GroupCommand::Restore { id } => {
                     let id = cfg.group_name(&id);
                     ensure!(cfg.hidden_auto_groups.remove(&id), "group is not hidden");
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
                 GroupCommand::Set {
                     id,
@@ -576,7 +582,7 @@ pub async fn run() -> Result<()> {
                     cfg.groups.insert(id, named);
                     cfg.former_groups
                         .retain(|old, _| !cfg.groups.contains_key(old));
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
                 GroupCommand::Remove { id } => {
                     let id = cfg.group_name(&id);
@@ -602,7 +608,7 @@ pub async fn run() -> Result<()> {
                     cfg.group_last_weights.remove(&id);
                     cfg.group_picks.remove(&id);
                     cfg.group_last_picks.remove(&id);
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
             }
         }
@@ -637,7 +643,7 @@ pub async fn run() -> Result<()> {
                     if let Some(mode) = catalog.learned_auth {
                         p.endpoints.auth_header = mode;
                     }
-                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
                     catalog.models
                 } else {
                     crabforge_core::catalog::discover_provider(&dir, p).await?
@@ -668,7 +674,8 @@ pub async fn run() -> Result<()> {
             }
             println!(
                 "{}",
-                serde_json::to_string_pretty(&roles::read_roles(&home, &cfg)?)?
+                nextjson::to_string_pretty(&roles::read_roles(&home, &cfg)?)
+                    .map_err(anyhow::Error::msg)?
             );
         }
         Command::OmpSync { profile } => println!(
@@ -696,7 +703,8 @@ pub async fn run() -> Result<()> {
             };
             println!(
                 "{}",
-                serde_json::to_string_pretty(&omp_settings::save_thinking(&home, None, &changes)?)?
+                nextjson::to_string_pretty(&omp_settings::save_thinking(&home, None, &changes)?)
+                    .map_err(anyhow::Error::msg)?
             );
         }
         Command::OmpAdvisor {
@@ -710,7 +718,8 @@ pub async fn run() -> Result<()> {
             let changes = omp_settings::AdvisorChanges { review, wait, wake };
             println!(
                 "{}",
-                serde_json::to_string_pretty(&omp_settings::save_advisor(&home, None, &changes)?)?
+                nextjson::to_string_pretty(&omp_settings::save_advisor(&home, None, &changes)?)
+                    .map_err(anyhow::Error::msg)?
             );
         }
         Command::Catalog => println!("{}", crabforge_core::catalog::presets()?),

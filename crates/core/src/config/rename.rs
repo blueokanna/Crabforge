@@ -142,7 +142,7 @@ mod tests {
         )?;
         cfg.rename_provider("auto", "first")?;
         cfg.rename_provider("first", "second")?;
-        let mut cfg = Config::parse(&serde_json::to_string(&cfg)?)?;
+        let mut cfg = Config::parse(&cfg.to_json()?)?;
         assert_eq!(cfg.renamed_model("auto/m").as_deref(), Some("second/m"));
         assert!(cfg.renamed_model("first/n").is_none());
         cfg.rename_provider("other", "first")?;

@@ -1,44 +1,38 @@
 use super::{Config, merge_name};
 use anyhow::{Context, Result, ensure};
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use nextjson::{NsonDeserialize, NsonSerialize, Value, json};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-#[derive(Default, Serialize, Deserialize)]
-#[serde(default)]
+#[derive(Default, NsonSerialize, NsonDeserialize)]
+#[njson(default)]
 struct SharedGroup {
     id: String,
     name: String,
-    #[serde(deserialize_with = "nullable_members")]
-    members: Vec<String>,
-    #[serde(rename = "match", skip_serializing_if = "Vec::is_empty")]
+    members: Option<Vec<String>>,
+    #[njson(rename = "match", skip_serializing_if = "Vec::is_empty")]
     patterns: Vec<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[njson(skip_serializing_if = "Vec::is_empty")]
     placed: Vec<String>,
-    #[serde(skip_serializing)]
+    #[njson(skip_serializing)]
     matched: Vec<String>,
     routing: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
+    #[njson(skip_serializing_if = "String::is_empty")]
     note: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
+    #[njson(skip_serializing_if = "String::is_empty")]
     pick: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[njson(skip_serializing_if = "Vec::is_empty")]
     former: Vec<String>,
-    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[njson(skip_serializing_if = "BTreeSet::is_empty")]
     off: BTreeSet<String>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     weights: BTreeMap<String, u32>,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    #[njson(skip_serializing_if = "std::ops::Not::not")]
     unlists: bool,
-    #[serde(flatten, skip_serializing)]
+    #[njson(flatten, skip_serializing)]
     other: BTreeMap<String, Value>,
 }
 
-fn nullable_members<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
-    Ok(Option::<Vec<String>>::deserialize(d)?.unwrap_or_default())
-}
-
-#[derive(Default, Serialize)]
+#[derive(Default, nextjson::NsonSerialize)]
 pub struct ImportedGroup {
     pub id: String,
     pub name: String,
@@ -64,17 +58,20 @@ fn shared_text(text: &str) -> Result<SharedGroup> {
         .zip(text.rfind('}'))
         .and_then(|(a, b)| text.get(a..=b))
         .context("expected a shared routing group")?;
-    let doc: Value = serde_json::from_str(raw)?;
+    let doc: Value = nextjson::from_str(raw).map_err(anyhow::Error::msg)?;
     ensure!(
-        doc["magpie"] == "routing-group",
+        doc.get("magpie").and_then(Value::as_str) == Some("routing-group"),
         "expected a Magpie routing-group share"
     );
+    let version = doc.get("version").unwrap_or(&Value::Null);
     ensure!(
-        doc["version"] == 1,
+        matches!(version, Value::Number(n) if !n.is_f64() && n.as_u64() == Some(1)),
         "unsupported routing-group share version {}",
-        doc["version"]
+        version
     );
-    let group: SharedGroup = serde_json::from_value(doc["group"].clone())?;
+    let group: SharedGroup =
+        nextjson::from_value(doc.get("group").context("missing shared group")?.clone())
+            .map_err(anyhow::Error::msg)?;
     for field in group.other.keys() {
         // These fields are local, derived, or an edit timestamp. None is transferred by import.
         ensure!(
@@ -129,7 +126,7 @@ impl Config {
         };
         let group = SharedGroup {
             name: self.group_labels.get(&id).unwrap_or(&id).clone(),
-            members: members.clone(),
+            members: Some(members.clone()),
             patterns: self
                 .group_match
                 .get(&id)
@@ -162,6 +159,7 @@ impl Config {
             group
                 .members
                 .iter()
+                .flatten()
                 .chain(&group.placed)
                 .chain(&group.off)
                 .chain(group.weights.keys())
@@ -169,9 +167,8 @@ impl Config {
                 .all(|m| without_account(m) == m),
             "a member's literal # suffix cannot be represented in a Magpie share"
         );
-        Ok(serde_json::to_string(
-            &json!({"magpie":"routing-group","version":1,"group":group}),
-        )?)
+        nextjson::to_string(&json!({"magpie":"routing-group","version":1,"group":group}))
+            .map_err(anyhow::Error::msg)
     }
 
     pub fn import_group(&self, text: &str, replace: bool) -> Result<(Self, ImportedGroup)> {
@@ -210,7 +207,7 @@ impl Config {
         let mut members = Vec::new();
         let mut added = HashSet::new();
         let mut mapped = BTreeMap::new();
-        for member in &group.members {
+        for member in group.members.iter().flatten() {
             if group.matched.contains(member) {
                 continue;
             }
@@ -342,7 +339,7 @@ impl Config {
                 cfg.former_groups.entry(old).or_insert_with(|| id.clone());
             }
         }
-        let cfg = Config::parse(&serde_json::to_string(&cfg)?)?;
+        let cfg = Config::parse(&cfg.to_json()?)?;
         Ok((cfg, report))
     }
 }

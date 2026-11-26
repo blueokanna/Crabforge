@@ -1,11 +1,19 @@
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use crabforge_core::{config, gateway, peer, service::Service};
-use serde_json::json;
+use nextjson::{NsonDeserialize, NsonSerialize, json};
 use std::sync::LazyLock;
 use tokio::sync::Mutex;
 
 static SERVER: LazyLock<Mutex<Option<Service>>> = LazyLock::new(|| Mutex::new(None));
 static LOGIN: Mutex<Option<crabforge_core::webchat::Browser>> = Mutex::const_new(None);
+
+fn decode<'a, T: NsonDeserialize<'a>>(text: &'a str) -> Result<T> {
+    nextjson::from_str(text).map_err(anyhow::Error::msg)
+}
+
+fn encode<T: NsonSerialize>(value: &T) -> Result<String> {
+    nextjson::to_string(value).map_err(anyhow::Error::msg)
+}
 
 pub async fn web_login(site: String) -> Result<()> {
     let mut login = LOGIN.lock().await;
@@ -76,9 +84,9 @@ pub fn rename_provider(previous: String, from: String, to: String) -> Result<()>
 pub fn route_groups(configuration: String) -> Result<String> {
     let cfg = config::Config::parse(&configuration)?;
     let groups = cfg.resolved_groups();
-    Ok(serde_json::to_string(
-        &serde_json::json!({"members":groups.members,"expanded":groups.expanded,"public_refs":groups.public_refs,"order":groups.ordered_names(&cfg.group_display_order)}),
-    )?)
+    encode(
+        &json!({"members":groups.members,"expanded":groups.expanded,"public_refs":groups.public_refs,"order":groups.ordered_names(&cfg.group_display_order)}),
+    )
 }
 
 pub fn match_group_models(configuration: String, patterns: Vec<String>) -> Result<Vec<String>> {
@@ -89,12 +97,12 @@ pub fn match_group_models(configuration: String, patterns: Vec<String>) -> Resul
 
 pub fn renamed_group(configuration: String, from: String, to: String) -> Result<String> {
     let cfg = config::Config::parse(&configuration)?.renamed_group(&from, &to)?;
-    Ok(serde_json::to_string(&cfg)?)
+    cfg.to_json()
 }
 
 pub fn copied_group(configuration: String, from: String) -> Result<String> {
     let (cfg, _) = config::Config::parse(&configuration)?.copied_group(&from, "")?;
-    Ok(serde_json::to_string(&cfg)?)
+    cfg.to_json()
 }
 
 pub fn shared_group(configuration: String, id: String) -> Result<String> {
@@ -103,9 +111,7 @@ pub fn shared_group(configuration: String, id: String) -> Result<String> {
 
 pub fn imported_group(configuration: String, text: String, replace: bool) -> Result<String> {
     let (cfg, report) = config::Config::parse(&configuration)?.import_group(&text, replace)?;
-    Ok(serde_json::to_string(
-        &serde_json::json!({"configuration": cfg, "report": report}),
-    )?)
+    encode(&json!({"configuration": cfg, "report": report}))
 }
 
 pub fn ui_language() -> Result<String> {
@@ -160,30 +166,36 @@ pub fn agents() -> String {
 pub fn omp_profiles() -> Result<String> {
     use crabforge_core::agents::omp_profiles;
     let profiles = omp_profiles::list(&config::data_dir()?, &omp_profiles::installed()?)?;
-    Ok(serde_json::to_string(&profiles)?)
+    let profiles = profiles
+        .iter()
+        .map(|p| {
+            let directory = p
+                .directory
+                .to_str()
+                .context("profile path must be valid UTF-8")?;
+            Ok(json!({"name":p.name,"active":p.active,"directory":directory}))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    encode(&profiles)
 }
 
 pub fn omp_advisor(profile: String) -> Result<String> {
     use crabforge_core::agents::{omp_profiles, omp_settings};
     let home = omp_profiles::settings_directory(&config::data_dir()?, Some(&profile))?;
-    Ok(serde_json::to_string(&omp_settings::read_advisor(&home)?)?)
+    encode(&omp_settings::read_advisor(&home)?)
 }
 
 pub fn save_omp_advisor(profile: String, previous: String, changes: String) -> Result<()> {
     use crabforge_core::agents::{omp_profiles, omp_settings};
     let home = omp_profiles::settings_directory(&config::data_dir()?, Some(&profile))?;
-    omp_settings::save_advisor(
-        &home,
-        Some(&serde_json::from_str(&previous)?),
-        &serde_json::from_str(&changes)?,
-    )?;
+    omp_settings::save_advisor(&home, Some(&decode(&previous)?), &decode(&changes)?)?;
     Ok(())
 }
 
 pub fn omp_thinking(profile: String) -> Result<String> {
     use crabforge_core::agents::{omp_profiles, omp_settings};
     let home = omp_profiles::settings_directory(&config::data_dir()?, Some(&profile))?;
-    Ok(serde_json::to_string(&omp_settings::read_thinking(&home)?)?)
+    encode(&omp_settings::read_thinking(&home)?)
 }
 
 pub fn sync_omp_catalog(profile: String) -> Result<u32> {
@@ -208,10 +220,7 @@ pub fn omp_roles(profile: String) -> Result<String> {
     use crabforge_core::agents::{omp_profiles, omp_settings::roles};
     let dir = config::data_dir()?;
     let home = omp_profiles::settings_directory(&dir, Some(&profile))?;
-    Ok(serde_json::to_string(&roles::read_roles(
-        &home,
-        &config::load(&dir)?,
-    )?)?)
+    encode(&roles::read_roles(&home, &config::load(&dir)?)?)
 }
 
 pub fn save_omp_role(
@@ -228,30 +237,24 @@ pub fn save_omp_role(
         &config::load(&dir)?,
         &role,
         model.as_deref(),
-        Some(&serde_json::from_str(&previous)?),
+        Some(&decode(&previous)?),
     )
 }
 
 pub fn save_omp_thinking(profile: String, previous: String, changes: String) -> Result<()> {
     use crabforge_core::agents::{omp_profiles, omp_settings};
     let home = omp_profiles::settings_directory(&config::data_dir()?, Some(&profile))?;
-    omp_settings::save_thinking(
-        &home,
-        Some(&serde_json::from_str(&previous)?),
-        &serde_json::from_str(&changes)?,
-    )?;
+    omp_settings::save_thinking(&home, Some(&decode(&previous)?), &decode(&changes)?)?;
     Ok(())
 }
 
 pub async fn discover_models(endpoints: String, key_env: String) -> Result<Vec<String>> {
-    crabforge_core::catalog::discover(&serde_json::from_str(&endpoints)?, &key_env).await
+    crabforge_core::catalog::discover(&decode(&endpoints)?, &key_env).await
 }
 
 pub async fn discover_model_catalog(endpoints: String, key_env: String) -> Result<String> {
-    let catalog =
-        crabforge_core::catalog::discover_catalog(&serde_json::from_str(&endpoints)?, &key_env)
-            .await?;
-    Ok(serde_json::to_string(&catalog)?)
+    let catalog = crabforge_core::catalog::discover_catalog(&decode(&endpoints)?, &key_env).await?;
+    encode(&catalog)
 }
 pub fn gateway_key() -> Result<String> {
     config::token(&config::data_dir()?)
@@ -277,7 +280,7 @@ pub async fn save_configuration(previous: String, text: String) -> Result<()> {
             }
         }
         ensure!(
-            serde_json::to_vec(&allowed)? == serde_json::to_vec(&updated)?,
+            allowed.to_json()? == updated.to_json()?,
             "stop the gateway before editing settings other than manual selections"
         );
     }
@@ -305,14 +308,18 @@ pub async fn status() -> Result<String> {
         let history=s.history.lock().unwrap_or_else(|p|p.into_inner());
         history.iter().rev().map(|a|json!({"at":a.at,"agent":a.agent,"session":a.session,"native_session":a.native_session,"model":a.model,"provider":a.provider,"via":a.via,"status":a.status,"reason":gateway::status_text(a.status)})).collect::<Vec<_>>()
     }).unwrap_or_default();
-    let mut state = json!({"running":server.is_some_and(Service::running),"address":server.map(|s|s.addr),"peer":server.and_then(|s|s.peer.as_ref()).map(|p|p.address.to_string()),"attempts":attempts,"version":crabforge_core::VERSION});
+    let running = server.is_some_and(Service::running);
+    let address = server.map(|s| s.addr);
+    let peer = server
+        .and_then(|s| s.peer.as_ref())
+        .map(|p| p.address.to_string());
     drop(guard);
     let tunnel = TUNNEL.lock().await;
-    state["tunnel"] = json!(
-        tunnel
-            .as_ref()
-            .filter(|t| !t.task.is_finished())
-            .map(|t| t.address)
-    );
-    Ok(state.to_string())
+    let tunnel = tunnel
+        .as_ref()
+        .filter(|t| !t.task.is_finished())
+        .map(|t| t.address);
+    encode(
+        &json!({"running":running,"address":address,"peer":peer,"attempts":attempts,"version":crabforge_core::VERSION,"tunnel":tunnel}),
+    )
 }

@@ -206,11 +206,12 @@ fn write_provider_with_protocol(
             )
         })
         .collect();
+    let models = serde_yaml::to_value(models)?;
     provider.insert("api".into(), api.into());
     provider.remove("auth");
     provider.insert("baseUrl".into(), base.into());
     provider.insert("apiKey".into(), "CRABFORGE_GATEWAY_KEY".into());
-    provider.insert("models".into(), serde_yaml::to_value(models)?);
+    provider.insert("models".into(), models);
     sync_user_agent(provider, version)?;
     if version.is_some_and(|v| *v >= semver::Version::new(16, 0, 6)) {
         provider
@@ -275,7 +276,8 @@ pub(super) fn persist_catalog(
             .context("cannot edit providers")?;
         if let Some(provider) = expected["providers"].get("crabforge") {
             let fragment = if providers.is_flow_style() {
-                serde_json::to_string(provider)?
+                nextjson::to_string(&super::omp_settings::snapshot::json_node(provider)?)
+                    .map_err(anyhow::Error::msg)?
             } else {
                 serde_yaml::to_string(provider)?
             };

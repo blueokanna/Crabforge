@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, ensure};
-use serde::{Deserialize, Serialize};
+use nextjson::{NsonDeserialize, NsonSerialize};
 use serde_yaml::{Mapping, Value};
 use std::{
     fs,
@@ -13,20 +13,21 @@ mod rename;
 pub(crate) use rename::rename_provider;
 pub mod roles;
 mod scope;
+pub(super) mod snapshot;
 pub(super) use scope::sync_scope;
 mod thinking;
 pub use thinking::{Thinking, ThinkingChanges, read_thinking, save_thinking};
 
 /// `inherit` removes an explicit choice from the profile.
-#[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
+#[derive(NsonDeserialize, NsonSerialize, PartialEq, Eq, Debug)]
 pub struct Advisor {
     pub review: String,
     pub wait: String,
     pub wake: String,
 }
 
-#[derive(Default, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Default, NsonDeserialize)]
+#[njson(deny_unknown_fields)]
 pub struct AdvisorChanges {
     pub review: Option<String>,
     pub wait: Option<String>,

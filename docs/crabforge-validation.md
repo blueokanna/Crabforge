@@ -18,6 +18,8 @@
 
 ### 源码依赖审计与控制台视图（2026-11-26）
 
+CLI 和 Flutter 桥接层的直接运行依赖已切换到 NextJSON。配置修改、路由组分享和导入、状态记录、模型目录以及 Oh My Pi 角色快照、作用域恢复和协议历史均使用新编码。读入旧快照时按名称比较 JSON 对象字段，回退数组仍逐项按顺序比较。CLI 测试夹具和核心网关仍有 Serde 依赖。此批源码在上方 `e3726ad` 安装包之后。
+
 Windows x64 使用 `cargo tree --offline --locked -p <包名> --edges normal,build --prefix none` 检查解析后的依赖，再将 `--edges` 换为 `normal,build,dev` 复核开发和测试依赖。两次检查中，`libp2p` 和 `crabforge-verify` 均未引入名称含 `serde` 的包、Hyper 系列、Reqwest 或 Axum。`crabforge-core`、`crabforge-cli` 和 `crabforge-bridge` 仍引入 `serde`、`serde_core`、`serde_derive`、`serde_json`、`serde_path_to_error`、`serde_yaml`、`hyper`、`hyper-rustls`、`hyper-util`、`reqwest`、`axum` 和 `axum-core`。
 
 - `libp2p` 保持 `0.57.1`。根清单将 `multiaddr` 指向仓库内的 `0.19.1`，原 crates.io 压缩包 SHA-256 为 `fd707c05eadfb37577f01cbec206726feeecf0b9edea259aee6fc9bc541ee253`，上游提交为 `d5981da4b337d21807ee5869178fbaf3d5ec7e03`。与原包比较，源码差异仅为 `lib.rs` 删除 81 行 Serde 相关实现和引用。文本与二进制编解码和 MIT 许可证均来自原包。同机重跑 DCUtR 升级、中继预约与回退、Kubo 双向鉴权共四项，全部通过。[本地清单](../crates/vendor/multiaddr/Cargo.toml)

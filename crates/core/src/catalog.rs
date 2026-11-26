@@ -223,12 +223,12 @@ pub async fn discover(bases: &Endpoints, key_env: &str) -> Result<Vec<String>> {
     Ok(discover_catalog(bases, key_env).await?.models)
 }
 
-#[derive(Default, serde::Serialize)]
+#[derive(Default, nextjson::NsonSerialize)]
 pub struct ModelCatalog {
     pub models: Vec<String>,
     pub free_models: std::collections::BTreeSet<String>,
     pub model_protocols: BTreeMap<String, RelayProtocols>,
-    #[serde(skip)]
+    #[njson(skip)]
     pub learned_auth: Option<crate::config::AuthHeader>,
 }
 

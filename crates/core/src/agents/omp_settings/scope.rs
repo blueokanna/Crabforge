@@ -1,6 +1,6 @@
 use super::{configuration, persist, source, thinking::single_model};
 use anyhow::{Context, Result, ensure};
-use serde::{Deserialize, Serialize};
+use nextjson::{NsonDeserialize, NsonSerialize};
 use serde_yaml::Value;
 use std::{
     collections::HashSet,
@@ -10,22 +10,22 @@ use std::{
 };
 use yaml_edit::{Sequence, YamlFile};
 
-#[derive(Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Default, NsonDeserialize, NsonSerialize, PartialEq, Eq)]
 struct Remembered {
     entries: Vec<String>,
     emptied: bool,
 }
 
 // Keep enough information to resume if a process exits between the YAML and history writes.
-#[derive(Deserialize, Serialize)]
+#[derive(NsonDeserialize, NsonSerialize)]
 struct History {
     saved: Remembered,
     pending: Option<Pending>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(NsonDeserialize, NsonSerialize)]
 struct Pending {
-    before: Option<Value>,
+    before: Option<nextjson::Value>,
     after: Remembered,
 }
 
@@ -38,12 +38,12 @@ fn write_history(path: &Path, saved: &Remembered, pending: Option<Pending>) -> R
     }
     let mut tmp =
         tempfile::NamedTempFile::new_in(path.parent().context("missing profile directory")?)?;
-    serde_json::to_writer(
-        &mut tmp,
-        &History {
+    tmp.write_all(
+        &nextjson::to_vec(&History {
             saved: saved.clone(),
             pending,
-        },
+        })
+        .map_err(anyhow::Error::msg)?,
     )?;
     tmp.flush()?;
     tmp.as_file().sync_all()?;
@@ -62,16 +62,24 @@ pub(super) fn rename_history(
     rename: impl Fn(&str) -> String,
 ) -> Result<()> {
     let path = home.join("crabforge-scope-history.json");
-    let file = match fs::File::open(&path) {
-        Ok(file) => file,
+    let bytes = match fs::read(&path) {
+        Ok(bytes) => bytes,
         Err(e) if e.kind() == ErrorKind::NotFound => return Ok(()),
         Err(e) => return Err(e.into()),
     };
-    let History { saved, pending } = serde_json::from_reader(file)?;
+    let History { saved, pending } = nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?;
     let recovering = pending.is_some();
-    let mut saved = pending
-        .filter(|p| p.before.as_ref() != before)
-        .map_or(saved, |p| p.after);
+    let mut saved = match pending {
+        Some(p)
+            if !super::snapshot::same(
+                p.before.as_ref(),
+                before.map(super::snapshot::json_node).transpose()?.as_ref(),
+            ) =>
+        {
+            p.after
+        }
+        _ => saved,
+    };
     let renamed: Vec<_> = saved.entries.iter().map(|entry| rename(entry)).collect();
     if recovering || renamed != saved.entries {
         saved.entries = renamed;
@@ -213,12 +221,18 @@ pub(crate) fn sync_scope(home: &Path, ids: &[String]) -> Result<()> {
     let mut expected = configuration(&text)?;
     let before = expected.get("enabledModels").cloned();
     let history_file = home.join("crabforge-scope-history.json");
-    let saved = match fs::File::open(&history_file) {
-        Ok(f) => {
-            let History { saved, pending } =
-                serde_json::from_reader(f).context("invalid Crabforge scope history")?;
+    let saved = match fs::read(&history_file) {
+        Ok(bytes) => {
+            let History { saved, pending } = nextjson::from_slice(&bytes)
+                .map_err(anyhow::Error::msg)
+                .context("invalid Crabforge scope history")?;
             if let Some(pending) = pending {
-                let recovered = if pending.before == before {
+                let current = before
+                    .as_ref()
+                    .map(super::snapshot::json_node)
+                    .transpose()?;
+                let recovered = if super::snapshot::same(pending.before.as_ref(), current.as_ref())
+                {
                     saved
                 } else {
                     pending.after
@@ -315,7 +329,10 @@ pub(crate) fn sync_scope(home: &Path, ids: &[String]) -> Result<()> {
         &history_file,
         &saved,
         Some(Pending {
-            before,
+            before: before
+                .as_ref()
+                .map(super::snapshot::json_node)
+                .transpose()?,
             after: after.clone(),
         }),
     )?;

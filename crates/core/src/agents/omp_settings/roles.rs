@@ -4,7 +4,7 @@ use crate::{
     config::Config,
 };
 use anyhow::{Context, Result, ensure};
-use serde::{Deserialize, Serialize};
+use nextjson::{NsonDeserialize, NsonSerialize};
 use serde_yaml::{Mapping, Value};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -18,9 +18,9 @@ pub const ROLES: &[&str] = &[
     "default", "task", "smol", "slow", "plan", "vision", "advisor", "commit", "tiny", "memory",
 ];
 
-#[derive(Deserialize, Serialize)]
+#[derive(NsonDeserialize, NsonSerialize)]
 pub struct Roles {
-    pub assignments: BTreeMap<String, Option<Value>>,
+    pub assignments: BTreeMap<String, Option<nextjson::Value>>,
     pub models: Vec<String>,
 }
 
@@ -40,10 +40,10 @@ pub fn read_roles(home: &Path, cfg: &Config) -> Result<Roles> {
         .get("modelRoles")
         .map(|v| v.as_mapping().context("modelRoles must be a mapping"))
         .transpose()?;
-    let assignments: BTreeMap<String, Option<Value>> = ROLES
+    let assignments: BTreeMap<String, Option<nextjson::Value>> = ROLES
         .iter()
-        .map(|&name| (name.into(), roles.and_then(|r| r.get(name)).cloned()))
-        .collect();
+        .map(|&name| Ok((name.into(), assignment(roles.and_then(|r| r.get(name)))?)))
+        .collect::<Result<_>>()?;
     let mut models: BTreeSet<_> = gateway_ids(cfg)
         .into_iter()
         .map(|id| format!("crabforge/{id}"))
@@ -69,12 +69,12 @@ pub fn read_roles(home: &Path, cfg: &Config) -> Result<Roles> {
     let mut providers = BTreeSet::new();
     for assigned in assignments.values().flatten() {
         let values = assigned
-            .as_sequence()
+            .as_array()
             .map(Vec::as_slice)
             .unwrap_or(std::slice::from_ref(assigned));
         for entry in values
             .iter()
-            .filter_map(Value::as_str)
+            .filter_map(nextjson::Value::as_str)
             .flat_map(|v| v.split(','))
         {
             let entry = entry.trim();
@@ -93,6 +93,13 @@ pub fn read_roles(home: &Path, cfg: &Config) -> Result<Roles> {
         assignments,
         models: models.into_iter().collect(),
     })
+}
+
+fn assignment(node: Option<&Value>) -> Result<Option<nextjson::Value>> {
+    Ok(node
+        .map(super::snapshot::json_node)
+        .transpose()?
+        .filter(|v| !v.is_null()))
 }
 
 fn remove_file(path: &Path) -> Result<()> {
@@ -202,10 +209,15 @@ pub fn save_role(
         .transpose()?
         .and_then(|v| v.get(name))
         .cloned();
-    ensure!(
-        previous.is_none_or(|old| old.assignments.get(name) == Some(&current)),
-        "{name} role changed on disk; reopen the profile"
-    );
+    if let Some(old) = previous {
+        let current = assignment(current.as_ref())?;
+        ensure!(
+            old.assignments
+                .get(name)
+                .is_some_and(|v| super::snapshot::same(v.as_ref(), current.as_ref())),
+            "{name} role changed on disk; reopen the profile"
+        );
+    }
     let yaml: YamlFile = text.parse()?;
     let doc = yaml.ensure_document();
     let backup = home.join(format!("crabforge-role-{name}.yml"));

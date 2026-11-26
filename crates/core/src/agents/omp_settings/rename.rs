@@ -133,7 +133,7 @@ fn edit_refs(value: &mut Value, node: YamlNode, rename: &impl Fn(&str) -> String
         (Value::String(original), YamlNode::Scalar(scalar)) => {
             let new = rename(original);
             if *original != new {
-                scalar.set_value(&serde_json::to_string(&new)?);
+                scalar.set_value(&nextjson::to_string(&new).map_err(anyhow::Error::msg)?);
                 *original = new;
             }
         }

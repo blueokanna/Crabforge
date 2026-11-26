@@ -785,7 +785,7 @@ dependencies = [
  "anyhow",
  "crabforge-core",
  "flutter_rust_bridge",
- "serde_json",
+ "nextjson",
  "tempfile",
  "tokio",
 ]
@@ -800,6 +800,7 @@ dependencies = [
  "crabforge-core",
  "futures-util",
  "hex",
+ "nextjson",
  "reqwest",
  "serde_json",
  "serde_yaml",

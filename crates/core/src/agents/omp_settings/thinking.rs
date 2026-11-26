@@ -1,6 +1,6 @@
 use super::{configuration, persist, source};
 use anyhow::{Context, Result, ensure};
-use serde::{Deserialize, Serialize};
+use nextjson::{NsonDeserialize, NsonSerialize};
 use serde_yaml::{Mapping, Value};
 use std::{collections::BTreeMap, path::Path};
 use yaml_edit::YamlFile;
@@ -10,23 +10,23 @@ const ROLES: &[&str] = &[
 ];
 const LEVELS: &[&str] = &["auto", "minimal", "low", "medium", "high", "xhigh", "max"];
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, NsonDeserialize, NsonSerialize, PartialEq, Eq)]
 pub struct RoleThinking {
     pub model: String,
     pub level: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, NsonDeserialize, NsonSerialize, PartialEq, Eq)]
 pub struct Thinking {
     pub session: Option<String>,
     pub roles: BTreeMap<String, RoleThinking>,
 }
 
-#[derive(Default, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Default, NsonDeserialize)]
+#[njson(deny_unknown_fields)]
 pub struct ThinkingChanges {
     pub session: Option<String>,
-    #[serde(default)]
+    #[njson(default)]
     pub roles: BTreeMap<String, String>,
 }
 

@@ -1,4 +1,4 @@
-use serde_json::Value;
+use nextjson::Value;
 use std::{
     collections::BTreeSet,
     env, fs,
@@ -24,8 +24,8 @@ fn load_registry() -> Option<Value> {
         modules.join("@oh-my-pi/pi-coding-agent/node_modules"),
         modules.to_owned(),
     ] {
-        if let Ok(file) = fs::File::open(dir.join("@oh-my-pi/pi-catalog/src/models.json"))
-            && let Ok(data) = serde_json::from_reader(file)
+        if let Ok(bytes) = fs::read(dir.join("@oh-my-pi/pi-catalog/src/models.json"))
+            && let Ok(data) = nextjson::from_slice(&bytes)
         {
             return Some(data);
         }
@@ -37,8 +37,10 @@ fn load_registry() -> Option<Value> {
 fn packed_field<'a>(catalog: &'a Value, encoded: &Value, key: usize) -> Option<&'a Value> {
     let node = catalog
         .get("nodes")?
-        .get(usize::try_from(encoded.get(0)?.as_u64()?).ok()?)?;
+        .as_array()?
+        .get(usize::try_from(encoded.as_array()?.first()?.as_u64()?).ok()?)?;
     let pair = node
+        .as_array()?
         .get(1)?
         .as_array()?
         .as_chunks::<2>()
@@ -56,15 +58,17 @@ fn chat_ids<'a>(catalog: &'a Value, provider: &str) -> Vec<&'a str> {
         };
         let Some(row) = rows
             .iter()
-            .find(|r| r.get(0).and_then(Value::as_str) == Some(provider))
+            .filter_map(Value::as_array)
+            .find(|r| r.first().and_then(Value::as_str) == Some(provider))
         else {
             return Vec::new();
         };
         let field = |name| {
-            let index = catalog["keys"]
-                .as_array()
-                .and_then(|v| v.iter().position(|k| k == name));
-            let base = index.and_then(|i| packed_field(catalog, &row[1], i));
+            let index = catalog
+                .get("keys")
+                .and_then(Value::as_array)
+                .and_then(|v| v.iter().position(|k| k.as_str() == Some(name)));
+            let base = index.and_then(|i| packed_field(catalog, row.get(1)?, i));
             move |model: &Value| {
                 index
                     .and_then(|i| packed_field(catalog, model, i))
@@ -75,17 +79,19 @@ fn chat_ids<'a>(catalog: &'a Value, provider: &str) -> Vec<&'a str> {
         let kind = field("kind");
         let model_type = field("type");
         let id = field("id");
-        return row[2]
-            .as_array()
+        return row
+            .get(2)
+            .and_then(Value::as_array)
             .into_iter()
             .flatten()
             .filter_map(|model| {
-                let overrides = &model[1];
+                let model = model.as_array()?;
+                let overrides = model.get(1).unwrap_or(&Value::Null);
                 if chat(kind(overrides))
                     && matches!(model_type(overrides), None | Some("" | "chat"))
                 {
                     id(overrides)
-                        .or(model[0].as_str())
+                        .or_else(|| model.first().and_then(Value::as_str))
                         .filter(|id| !id.is_empty())
                 } else {
                     None
@@ -99,9 +105,13 @@ fn chat_ids<'a>(catalog: &'a Value, provider: &str) -> Vec<&'a str> {
         .into_iter()
         .flat_map(|m| m.values())
         .filter(|m| {
-            chat(m["kind"].as_str()) && matches!(m["type"].as_str(), None | Some("" | "chat"))
+            chat(m.get("kind").and_then(Value::as_str))
+                && matches!(
+                    m.get("type").and_then(Value::as_str),
+                    None | Some("" | "chat")
+                )
         })
-        .filter_map(|m| m["id"].as_str().filter(|s| !s.is_empty()))
+        .filter_map(|m| m.get("id")?.as_str().filter(|s| !s.is_empty()))
         .collect()
 }
 
@@ -127,7 +137,7 @@ mod tests {
 
     #[test]
     fn packed_model_overrides_take_precedence_over_provider_defaults() {
-        let compact = serde_json::json!({
+        let compact = nextjson::json!({
             "version": 1, "keys": ["kind", "type", "id"],
             "nodes": [[0,[0,"image"],0,[]],[0,[0,"tiny",2,"chat"],0,[]],
                       [0,[],0,[]],[0,[0,"tiny",1,"embedding"],0,[]]],
@@ -135,7 +145,7 @@ mod tests {
         });
         assert_eq!(chat_ids(&compact, "example"), ["chat"]);
         let legacy =
-            serde_json::json!({"example":{"m":{"id":"chat"},"v":{"id":"voice","kind":"tts"}}});
+            nextjson::json!({"example":{"m":{"id":"chat"},"v":{"id":"voice","kind":"tts"}}});
         assert_eq!(chat_ids(&legacy, "example"), ["chat"]);
     }
 }

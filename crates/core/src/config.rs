@@ -702,6 +702,10 @@ pub fn snapshot(dir: &Path) -> Result<String> {
 }
 
 impl Config {
+    pub fn to_json(&self) -> Result<String> {
+        nextjson::to_string(self).map_err(anyhow::Error::msg)
+    }
+
     fn formatted(&self) -> Result<String> {
         nextjson::to_string_pretty(self).map_err(anyhow::Error::msg)
     }
@@ -713,8 +717,10 @@ impl Config {
         }
         // An already-open client may have a snapshot formatted by an earlier release.
         let same = previous.len() <= MAX_CONFIG
-            && nextjson::from_str::<nextjson::Value>(previous)
-                .is_ok_and(|old| nextjson::to_value(self).is_ok_and(|current| current == old));
+            && nextjson::from_str::<nextjson::Value>(previous).is_ok_and(|old| {
+                nextjson::to_value(self)
+                    .is_ok_and(|current| crate::json::equivalent(&current, &old))
+            });
         ensure!(same, "configuration changed on disk; reload before saving");
         Ok(())
     }
@@ -832,6 +838,8 @@ mod tests {
         let previous = serde_json::to_string_pretty(&cfg)?;
         let before = snapshot(dir.path())?;
         save(dir.path(), &previous, legacy)?;
+        let sorted: serde_json::Value = serde_json::from_str(&previous)?;
+        save(dir.path(), &sorted.to_string(), legacy)?;
         assert_eq!(snapshot(dir.path())?, before);
         assert!(save(dir.path(), "{}", legacy).is_err());
         assert_eq!(Config::parse("{}")?.listen, Config::default().listen);

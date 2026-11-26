@@ -113,14 +113,36 @@ pub use command::installed_command;
 pub(crate) use user_agent::client_name;
 
 /// Model configuration shared by the Pi clients and Oh My Pi.
-pub fn pi_model(
-    id: &str,
+#[derive(nextjson::NsonSerialize, serde::Serialize)]
+pub struct PiModel<'a> {
+    id: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    api: Option<&'a str>,
+    #[serde(rename = "baseUrl", skip_serializing_if = "Option::is_none")]
+    base_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    compat: Option<PiCompatibility>,
+}
+
+#[derive(nextjson::NsonSerialize, serde::Serialize)]
+struct PiCompatibility {
+    #[serde(rename = "supportsStrictMode")]
+    supports_strict_mode: bool,
+}
+
+pub fn pi_model<'a>(
+    id: &'a str,
     root: &str,
-    api: &str,
+    api: &'a str,
     protocols: Option<&crate::gateway::NativeProtocols>,
     binary: &str,
-) -> serde_json::Value {
-    let mut model = serde_json::json!({"id":id});
+) -> PiModel<'a> {
+    let mut model = PiModel {
+        id,
+        api: None,
+        base_url: None,
+        compat: None,
+    };
     let selected = if api == "openai-completions" {
         protocols.copied().unwrap_or_default().pi_api()
     } else {
@@ -134,15 +156,17 @@ pub fn pi_model(
         return model;
     }
     if selected != api {
-        model["api"] = selected.into();
-        match selected {
-            "anthropic-messages" => model["baseUrl"] = root.into(),
-            "google-generative-ai" => model["baseUrl"] = format!("{root}/v1beta").into(),
-            _ => (),
-        }
+        model.api = Some(selected);
+        model.base_url = match selected {
+            "anthropic-messages" => Some(root.into()),
+            "google-generative-ai" => Some(format!("{root}/v1beta")),
+            _ => None,
+        };
     }
     if selected == "openai-responses" && binary != "omp" {
-        model["compat"] = serde_json::json!({"supportsStrictMode":true});
+        model.compat = Some(PiCompatibility {
+            supports_strict_mode: true,
+        });
     }
     model
 }
@@ -154,9 +178,12 @@ pub fn gemini_home(dir: &std::path::Path) -> anyhow::Result<std::path::PathBuf> 
     let settings = crate::config::private_file(&home.join(".gemini"), "settings.json", || {
         Ok(br#"{"security":{"auth":{"selectedType":"gemini-api-key"}}}"#.to_vec())
     })?;
-    let settings: serde_json::Value = serde_json::from_slice(&settings)?;
+    let settings: nextjson::Value = nextjson::from_slice(&settings).map_err(anyhow::Error::msg)?;
     anyhow::ensure!(
-        settings["security"]["auth"]["selectedType"] == "gemini-api-key",
+        settings
+            .pointer("/security/auth/selectedType")
+            .and_then(nextjson::Value::as_str)
+            == Some("gemini-api-key"),
         "select gemini-api-key in the Crabforge Gemini profile"
     );
     Ok(home)
