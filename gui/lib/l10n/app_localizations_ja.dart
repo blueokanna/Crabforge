@@ -10,6 +10,36 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get agentEnvironment => '環境変数';
+
+  @override
+  String get noEnvironmentVariables => '保存済みの変数がありません';
+
+  @override
+  String get addVariable => '変数を追加';
+
+  @override
+  String get editVariable => '変数を編集';
+
+  @override
+  String get variableName => '変数名';
+
+  @override
+  String get variableValue => '値';
+
+  @override
+  String get showVariableValue => '値を表示';
+
+  @override
+  String get hideVariableValue => '値を非表示';
+
+  @override
+  String get nativeVariableExists => '設定済み';
+
+  @override
+  String get nativeVariableConflict => '既存の値を保持しました';
+
+  @override
   String get memoryLibrary => 'メモリ';
 
   @override

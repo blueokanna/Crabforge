@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'brand_icon.dart';
+import 'agent_environment.dart';
 import 'agent_rules.dart';
 import 'agent_sessions.dart';
 import 'agent_skills.dart';
@@ -1483,6 +1484,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                       ),
                       icon: const Icon(Icons.extension_outlined),
                       label: Text(context.strings.agentSkills),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => const AgentEnvironment(),
+                      ),
+                      icon: const Icon(Icons.terminal_outlined),
+                      label: Text(context.strings.agentEnvironment),
                     ),
                     if (projectAgents.contains(selectedAgent))
                       TextButton.icon(

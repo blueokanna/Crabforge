@@ -10,6 +10,36 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get agentEnvironment => '环境变量';
+
+  @override
+  String get noEnvironmentVariables => '尚未保存环境变量';
+
+  @override
+  String get addVariable => '添加变量';
+
+  @override
+  String get editVariable => '编辑变量';
+
+  @override
+  String get variableName => '变量名称';
+
+  @override
+  String get variableValue => '值';
+
+  @override
+  String get showVariableValue => '显示值';
+
+  @override
+  String get hideVariableValue => '隐藏值';
+
+  @override
+  String get nativeVariableExists => '已设置';
+
+  @override
+  String get nativeVariableConflict => '已保留现有值';
+
+  @override
   String get memoryLibrary => '记忆';
 
   @override

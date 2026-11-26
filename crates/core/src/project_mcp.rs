@@ -14,7 +14,7 @@ use std::{
 };
 use toml_edit::{DocumentMut, Item, Table};
 
-mod jsonc;
+pub(crate) mod jsonc;
 pub mod library;
 
 const MAX_CONFIG: usize = 1024 * 1024;

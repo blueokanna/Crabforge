@@ -90,6 +90,10 @@ For other Git hosts, enter the repository's HTTPS or SSH clone URL. GitLab and G
 
 **Browse source skills** lists available skills in a local collection folder or at the selected Git ref. Skills already in the library and candidates you set aside stay out of later scans. Choose a skill, select clients and confirm the import. `skills catalog <folder or Git URL>` returns the candidates with their import sources, and `skills dismiss <source from catalog>` sets a candidate aside. Its source remains available for direct import.
 
+**Client connections → Environment variables** saves a variable once and assigns it to Claude Code, Codex or Pi. Crabforge edits Claude’s `env` and Codex’s `shell_environment_policy.set`, and writes a managed extension for the native and gateway Pi profiles. Pi keeps values inherited from its shell. Crabforge preserves existing values and external edits in client settings. Values are stored in the local library and native configuration and are masked by default in the desktop editor.
+
+The CLI reads the exact UTF-8 value from standard input with `environment save <name> --agent <claude|codex|pi>`. Repeat `--agent` to assign several clients. For edits, pass the revision from `environment list`. Add `--rename-from <old-name>` to rename, use `environment remove <name> --revision <revision>` to remove, and `environment sync` to retry publication. Use `environment list --show-values` to reveal values.
+
 For a supported client, open **Project MCP** under **Client connections** and select the project folder. Add a server using the client's native JSON format or a TOML table body for Codex. The editor shows the file it will update and checks its revision before saving or removing an entry. The client loads and runs the server when it opens the project.
 
 ```powershell

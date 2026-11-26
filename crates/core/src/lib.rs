@@ -37,6 +37,7 @@ mod anthropic_auth;
 mod bedrock;
 pub mod catalog;
 pub mod config;
+pub mod environment;
 pub mod gateway;
 pub mod json;
 mod media;

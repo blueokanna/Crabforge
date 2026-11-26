@@ -10,6 +10,36 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get agentEnvironment => '환경 변수';
+
+  @override
+  String get noEnvironmentVariables => '저장된 변수가 없습니다';
+
+  @override
+  String get addVariable => '변수 추가';
+
+  @override
+  String get editVariable => '변수 편집';
+
+  @override
+  String get variableName => '변수 이름';
+
+  @override
+  String get variableValue => '값';
+
+  @override
+  String get showVariableValue => '값 표시';
+
+  @override
+  String get hideVariableValue => '값 숨기기';
+
+  @override
+  String get nativeVariableExists => '이미 설정됨';
+
+  @override
+  String get nativeVariableConflict => '기존 값 유지';
+
+  @override
   String get memoryLibrary => '메모리';
 
   @override

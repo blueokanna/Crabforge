@@ -90,6 +90,10 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 **浏览来源技能** 列出本地集合文件夹或选定 Git 引用中的技能。已入库或已忽略的候选不会在下次扫描中出现。选择技能和客户端后确认导入。`skills catalog <文件夹或 Git URL>` 返回候选及其导入来源，`skills dismiss <catalog 返回的 source>` 可忽略候选。仍可用该来源直接导入。
 
+在 **客户端连接 → 环境变量** 保存变量后，可分配给 Claude Code、Codex 或 Pi。Crabforge 写入 Claude 的 `env`、Codex 的 `shell_environment_policy.set`，并为 Pi 的原生和网关配置发布受管理的扩展。Pi 保留从 Shell 继承的值。Crabforge 保留客户端配置中的已有值和外部修改。变量值存于本地库和客户端配置，桌面编辑器默认隐藏值。
+
+`environment save <名称> --agent <claude|codex|pi>` 从标准输入读取原始 UTF-8 值。重复 `--agent` 可分配多个客户端。编辑时传入 `environment list` 返回的修订，改名另加 `--rename-from <旧名称>`。`environment remove <名称> --revision <修订>` 移除变量，`environment sync` 重试同步，`environment list --show-values` 显示变量值。
+
 在 **客户端连接** 选择支持的客户端，打开 **项目 MCP** 并选择项目文件夹。添加服务器时使用客户端的原生 JSON 配置，Codex 使用 TOML 表正文。编辑器显示将写入的文件，保存和删除前会核对文件修订。客户端打开项目时读取配置并启动服务器。
 
 ```powershell

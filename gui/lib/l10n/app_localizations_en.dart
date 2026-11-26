@@ -10,6 +10,36 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get agentEnvironment => 'Environment variables';
+
+  @override
+  String get noEnvironmentVariables => 'No variables saved';
+
+  @override
+  String get addVariable => 'Add variable';
+
+  @override
+  String get editVariable => 'Edit variable';
+
+  @override
+  String get variableName => 'Variable name';
+
+  @override
+  String get variableValue => 'Value';
+
+  @override
+  String get showVariableValue => 'Show value';
+
+  @override
+  String get hideVariableValue => 'Hide value';
+
+  @override
+  String get nativeVariableExists => 'Already set';
+
+  @override
+  String get nativeVariableConflict => 'Existing value kept';
+
+  @override
   String get memoryLibrary => 'Memory';
 
   @override

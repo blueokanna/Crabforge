@@ -10,6 +10,36 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get agentEnvironment => 'Variáveis de ambiente';
+
+  @override
+  String get noEnvironmentVariables => 'Nenhuma variável salva';
+
+  @override
+  String get addVariable => 'Adicionar variável';
+
+  @override
+  String get editVariable => 'Editar variável';
+
+  @override
+  String get variableName => 'Nome da variável';
+
+  @override
+  String get variableValue => 'Valor';
+
+  @override
+  String get showVariableValue => 'Mostrar valor';
+
+  @override
+  String get hideVariableValue => 'Ocultar valor';
+
+  @override
+  String get nativeVariableExists => 'Já definida';
+
+  @override
+  String get nativeVariableConflict => 'Valor existente preservado';
+
+  @override
   String get memoryLibrary => 'Memória';
 
   @override

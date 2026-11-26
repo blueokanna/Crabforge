@@ -10,6 +10,36 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get agentEnvironment => 'एनवायरनमेंट वैरिएबल';
+
+  @override
+  String get noEnvironmentVariables => 'कोई वैरिएबल सेव नहीं है';
+
+  @override
+  String get addVariable => 'वैरिएबल जोड़ें';
+
+  @override
+  String get editVariable => 'वैरिएबल संपादित करें';
+
+  @override
+  String get variableName => 'वैरिएबल का नाम';
+
+  @override
+  String get variableValue => 'मान';
+
+  @override
+  String get showVariableValue => 'मान दिखाएँ';
+
+  @override
+  String get hideVariableValue => 'मान छिपाएँ';
+
+  @override
+  String get nativeVariableExists => 'पहले से सेट है';
+
+  @override
+  String get nativeVariableConflict => 'मौजूदा मान रखा गया';
+
+  @override
   String get memoryLibrary => 'स्मृति';
 
   @override
