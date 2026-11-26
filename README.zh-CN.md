@@ -40,11 +40,11 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 
 ## 构建 Windows x64 版本
 
-`a86a49c` 解压包中的桌面程序三次从新配置启动，工作集和私有字节中位数分别为 153.70 和 267.39 MiB。Magpie 复用可见窗口，主进程为 115.32 / 218.82 MiB，计入七个 WebView2 子进程后为 376.53 / 915.74 MiB。[桌面原始采样](docs/validation/cf-yaml-a86a49c/desktop-comparison.csv)
+`076480f` 解压包中的桌面程序三次从新配置启动，工作集和私有字节中位数分别为 152.24 和 265.69 MiB。Magpie 复用可见窗口，主进程为 148.55 / 152.03 MiB，计入七个 WebView2 子进程后为 585.77 / 688.68 MiB。[桌面原始采样](docs/validation/cf-forward-076480f/desktop-comparison.csv)
 
 安装 Rust 的 MSVC 工具链、Flutter 和 Visual Studio 的「使用 C++ 的桌面开发」工作负载。已记录的构建环境为 Rust 1.99.1、Flutter 3.47.9 和 Dart 3.13.7。
 
-冻结源码的 102 项 Rust 测试全部通过，包括已安装的真实客户端。两套 Windows 编辑器集成测试均通过首次使用和冷启动。空目录网关三轮工作集和私有字节中位数为 7.88 和 1.47 MiB，Chat 负载为 8.88 和 1.54 MiB。验收记录包含 ZIP 校验值、依赖审计和同机 IPv6 结果。[Windows 验收记录](docs/crabforge-validation.md)
+冻结源码的 102 项 Rust 测试全部通过，包括已安装的真实客户端。空目录网关三轮工作集和私有字节中位数为 7.67 和 1.39 MiB，Chat 负载为 8.98 和 1.88 MiB。三轮 HTTP/1.1 测试中，上游将末帧延后 700 毫秒，客户端均在 1–12 毫秒内收到首个 SSE 事件。验收记录包含 ZIP 校验值、编辑器测试、依赖审计和同机 IPv6 结果。[Windows 验收记录](docs/crabforge-validation.md)
 
 ```powershell
 cargo build --release --locked -p crabforge-cli

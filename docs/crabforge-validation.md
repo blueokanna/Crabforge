@@ -1,5 +1,26 @@
 # Crabforge 0.1.0 验收记录
 
+### Windows x64 上游流式转发（`076480f`）
+
+`076480faa8f3fa03872fe560e3ff55ce3e2c7900` 的 ZIP 共 59,972,145 字节，SHA-256 为 `B04680E5B13E40D13CC02B33AE8A4B75C24C59E39556C47A42B26BEB1B527239`。构建前后 285 个输入的哈希一致。解压后逐项复核 143 个文件及校验清单，126 项随包资产与源码逐字节相同。两个 CLI 分别列出 97 项预设。[构建输入](validation/cf-forward-076480f/build-inputs.sha256) · [包内文件](validation/cf-forward-076480f/SHA256SUMS)
+
+三轮回环 HTTP/1.1 测量均通过解压版 CLI。上游写出首个 SSE 事件后等待 700 毫秒。客户端分别在 8、1、12 毫秒收到首个完整事件，在 711、702、713 毫秒收到末帧。设置代理时，回环请求直连；另一次 HTTPS 请求抵达本机 CONNECT 代理，代理返回 407 后网关报告 502。十二个跨协议方向的首帧时机、断开连接后并发槽释放、Anthropic 鉴权重试、Bedrock 签名、二进制媒体均纳入 Rust 回归。[HTTP/1.1 采样](validation/cf-forward-076480f/forward-h1.csv)
+
+Windows x64 核心、CLI 和桥接的生产及构建依赖树已移除 Reqwest 和 `hyper-rustls`，仍含 Axum、Hyper、`hyper-util` 与 `serde_core`。核心和 CLI 的开发树仍含 Reqwest、`serde_json` 和 `serde_path_to_error`。模型目录与令牌交换使用 Courierust 1.1.3，实时上游请求使用 ureq 3.5.2。[逐包依赖审计](validation/cf-forward-076480f/dependency-audit.csv)
+
+冻结源码的 Rust 串行回归通过 102 项，0 项失败，0 项跳过。全目标 Clippy、Flutter 分析及两项组件测试通过。Windows 控制台的首次使用与冷启动均通过。Oh My Pi 首轮未配置原生 Bun 路径与隔离的 `PI_CONFIG_DIR`，编辑器未显示 `work` profile；补齐测试环境后，首次使用与独立冷启动均通过。窗口集成测试使用调试桌面和包内 Release CLI，桌面内存采样使用解压版 Release 程序。
+
+| 三轮中位数（工作集 / 私有字节，MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.67 / 1.39 | 61.42 / 94.38 |
+| Chat 网关 | 8.98 / 1.88 | 69.88 / 97.41 |
+| 桌面主进程 | 152.24 / 265.69 | 148.55 / 152.03 |
+| 桌面进程树 | 152.24 / 265.69 | 585.77 / 688.68 |
+
+网关使用相同本机负载，按轮交替运行。桌面每轮从新配置启动 Crabforge。Magpie 在采样前打开，三轮复用同一窗口，进程树包含七个 WebView2 子进程。[空目录](validation/cf-forward-076480f/catalog.csv) · [Chat](validation/cf-forward-076480f/chat.csv) · [桌面](validation/cf-forward-076480f/desktop-comparison.csv)
+
+解压版 CLI 通过 IPv6 回环、同机网卡全局单播 IPv6、直连失败后经 Kubo 0.43.1 回退三条路径，逐一核对错误密钥的 401、正确密钥的 200 和目录内容。跨机公网 IPv6 及不同 NAT 后的直连、打洞与回退仍待实测。[P2P 采样](validation/cf-forward-076480f/ipv6.csv)
+
 ### Windows x64 Oh My Pi YAML 迁移版（`a86a49c`）
 
 从 `a86a49c4beed124fb407ff3ed8c505bf828b1169` 构建的 ZIP 为 60,124,742 字节，SHA-256 为 `FA6893DB4D306C97D3B8FDF9E2C0E1D5990C2BC62B9A93FF3B2E09EC486D222A`。284 个输入在构建前后逐项一致。解压后核对了全部 144 个文件，126 项资产与源码一致，两个 CLI 各列出 97 项预设。[冻结输入](validation/cf-yaml-a86a49c/build-inputs.sha256) · [包内文件](validation/cf-yaml-a86a49c/SHA256SUMS)

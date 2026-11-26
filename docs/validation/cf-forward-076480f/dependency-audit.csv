@@ -1,0 +1,19 @@
+package,target,edges,flagged_packages
+crabforge-core,x86_64-pc-windows-msvc,"normal,build",axum axum-core hyper hyper-util serde_core
+crabforge-core,x86_64-pc-windows-msvc,"normal,build,dev",axum axum-core hyper hyper-rustls hyper-util reqwest serde_core serde_json serde_path_to_error
+crabforge-cli,x86_64-pc-windows-msvc,"normal,build",axum axum-core hyper hyper-util serde_core
+crabforge-cli,x86_64-pc-windows-msvc,"normal,build,dev",axum axum-core hyper hyper-util reqwest serde_core serde_json serde_path_to_error
+crabforge-bridge,x86_64-pc-windows-msvc,"normal,build",axum axum-core hyper hyper-util serde_core
+crabforge-bridge,x86_64-pc-windows-msvc,"normal,build,dev",axum axum-core hyper hyper-util serde_core
+crabforge-verify,x86_64-pc-windows-msvc,"normal,build",
+crabforge-verify,x86_64-pc-windows-msvc,"normal,build,dev",
+crabforge-runner,x86_64-pc-windows-msvc,"normal,build",
+crabforge-runner,x86_64-pc-windows-msvc,"normal,build,dev",
+libp2p,x86_64-pc-windows-msvc,"normal,build",
+libp2p,x86_64-pc-windows-msvc,"normal,build,dev",
+ureq,x86_64-pc-windows-msvc,"normal,build",
+ureq,x86_64-pc-windows-msvc,"normal,build,dev",
+no-proxy,x86_64-pc-windows-msvc,"normal,build",
+no-proxy,x86_64-pc-windows-msvc,"normal,build,dev",
+saphyr,x86_64-pc-windows-msvc,"normal,build",
+saphyr,x86_64-pc-windows-msvc,"normal,build,dev",

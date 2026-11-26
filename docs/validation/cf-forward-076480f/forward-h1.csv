@@ -1,0 +1,4 @@
+Path,Round,DelayMs,ResponseHeadMs,FirstEventMs,FinalEventMs,Status
+direct,1,700,8,8,711,200
+direct,2,700,1,1,702,200
+direct,3,700,12,12,713,200
