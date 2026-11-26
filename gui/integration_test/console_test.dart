@@ -168,8 +168,9 @@ void main() {
       }),
     );
     Future<void> tapText(String text) async {
-      final finder = find.text(text).last;
-      await waitFor(finder);
+      final matches = find.text(text);
+      await waitFor(matches);
+      final finder = matches.last;
       await tester.ensureVisible(finder);
       await tester.tap(finder);
       await tester.pumpAndSettle();
@@ -250,7 +251,7 @@ void main() {
       'magpie_prefers': '/v1/messages',
     });
     await tapText('DeepSeek 网页');
-    await waitFor(find.text('deepseek-web').first);
+    await waitFor(find.text('deepseek-web'));
     expect(
       jsonDecode(settings.readAsStringSync())['providers'].last['web_site'],
       'deepseek',

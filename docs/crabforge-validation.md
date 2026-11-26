@@ -1,8 +1,24 @@
 # Crabforge 0.1.0 验收记录
 
+### Windows x64 配置与 ADC 迁移版（`cf-nextjson-594fadc304`）
+
+从提交 `e3726ad969bed6ad216b4374904cd47b42f94672` 的 278 个输入构建。冻结清单、生成本地化文件后的清单，以及构建完成后的清单一致，SHA-256 为 `594FADC3041F9A76D307742BCDDD87091FB3A1344CEEDE3A47133E7B7408F208`。ZIP 位于 `dist/cf-nextjson-594fadc304/crabforge-0.1.0-windows-x64.zip`，共 62,254,055 字节，SHA-256 为 `F4D26E028532E7D85780AF80D416F15C24B42F64917F5E8E3F31A4B51A581D40`。解压后核对了 140 个文件的哈希和随包清单，126 项声明的品牌、图标、字体和许可证逐字节匹配。两个 CLI 分别读出了 97 条内置预设。[构建输入](validation/cf-nextjson-594fadc304/build-inputs.sha256) · [包内文件哈希](validation/cf-nextjson-594fadc304/SHA256SUMS)
+
+冻结源码的 Rust 全量串行回归 **98 项通过，0 项跳过**。首次测试误用了 npm 中的 Bun 占位文件，修正 PATH，使 `@oven/bun-windows-x64/bin/bun.exe` 优先后重新运行了整套测试。Flutter 分析和两项组件测试通过。Windows 控制台集成测试使用解压出的 CLI，修正测试中先取 `.last` 后等待控件的竞态后，首次使用及独立进程冷启动均通过。
+
+| 三轮中位数（工作集 / 私有字节，MiB） | Crabforge | Magpie 0.1.4744 |
+| --- | ---: | ---: |
+| 空目录网关 | 7.85 / 1.45 | 58.27 / 91.04 |
+| Chat 网关 | 8.86 / 1.57 | 69.32 / 97.39 |
+| 桌面 | 128.61 / 219.41 | 采样时无可见窗口 |
+
+两个网关在独立数据目录下交替运行，Chat 使用同一上游夹具。桌面每轮从解压目录冷启动。[空目录 CSV](validation/cf-nextjson-594fadc304/catalog.csv) · [Chat CSV](validation/cf-nextjson-594fadc304/chat.csv) · [桌面 CSV](validation/cf-nextjson-594fadc304/desktop.csv)
+
+发布 CLI 在同一台 Windows 主机上完成 IPv6 回环、网卡全局单播 IPv6 直连，以及直连失败后回退至 Kubo 0.43.1 中继的测试。三条路径均以错误和正确网关密钥分别取得 HTTP 401 和 200，并核对了目录内容。不同 NAT 和跨公网主机的连通性仍待实测。[IPv6 结果](validation/cf-nextjson-594fadc304/ipv6.csv)
+
 ### 源码依赖审计与控制台视图（2026-11-26）
 
-Windows x64 使用 `cargo tree --offline --locked -p <包名> --edges normal,build --prefix none` 检查解析后的依赖，再将 `--edges` 换为 `normal,build,dev` 复核开发和测试依赖。两次检查中，`libp2p` 和 `crabforge-verify` 均未引入名称含 `serde` 的包、Hyper 系列、Reqwest 或 Axum。`crabforge-core`、`crabforge-cli` 和 `crabforge-bridge` 仍引入 `serde`、`serde_core`、`serde_derive`、`serde_json`、`serde_path_to_error`、`serde_urlencoded`、`serde_yaml`、`hyper`、`hyper-rustls`、`hyper-util`、`reqwest` 和 `axum`。
+Windows x64 使用 `cargo tree --offline --locked -p <包名> --edges normal,build --prefix none` 检查解析后的依赖，再将 `--edges` 换为 `normal,build,dev` 复核开发和测试依赖。两次检查中，`libp2p` 和 `crabforge-verify` 均未引入名称含 `serde` 的包、Hyper 系列、Reqwest 或 Axum。`crabforge-core`、`crabforge-cli` 和 `crabforge-bridge` 仍引入 `serde`、`serde_core`、`serde_derive`、`serde_json`、`serde_path_to_error`、`serde_yaml`、`hyper`、`hyper-rustls`、`hyper-util`、`reqwest`、`axum` 和 `axum-core`。
 
 - `libp2p` 保持 `0.57.1`。根清单将 `multiaddr` 指向仓库内的 `0.19.1`，原 crates.io 压缩包 SHA-256 为 `fd707c05eadfb37577f01cbec206726feeecf0b9edea259aee6fc9bc541ee253`，上游提交为 `d5981da4b337d21807ee5869178fbaf3d5ec7e03`。与原包比较，源码差异仅为 `lib.rs` 删除 81 行 Serde 相关实现和引用。文本与二进制编解码和 MIT 许可证均来自原包。同机重跑 DCUtR 升级、中继预约与回退、Kubo 双向鉴权共四项，全部通过。[本地清单](../crates/vendor/multiaddr/Cargo.toml)
 - 验收工具的 HTTP 客户端和测试服务使用 Courierust，模型目录和内存探针使用 NextJSON。使用 `cf-dcutr-1031922879` 的 `carbforge-cli` 与 Magpie 分别重跑一轮空目录及 Chat 负载，四次均完成。网页对话的 ChromeDriver 请求、模型输入和响应改用 NextJSON 后，两个真实 Chrome 本地夹具通过。
@@ -10,7 +26,7 @@ Windows x64 使用 `cargo tree --offline --locked -p <包名> --edges normal,bui
 - 配置解析、快照、原子保存及内置预设输出使用 NextJSON。与旧版 CLI 对照，97 项预设的全部 JSON 字段相等。旧版快照测试覆盖 IPv6 监听地址、`noStandIn` 别名、显式空协议列表、匹配规则，以及过期快照、未知字段和重复字段的拒绝。15 项路由组专项和 Anthropic 中转鉴权专项通过。
 - Vertex ADC 的凭据解析、JWT、IAM JSON 及 Claude 请求体使用 NextJSON，OAuth 表单和 IAM 请求通过 Courierust 发送，限制响应体为 64 KiB。本机实测并发刷新、凭据更改、两级 IAM 委派、提前续期和 JWT 签名校验。通过 Windows 系统根证书和 HTTP CONNECT 代理向 `oauth2.googleapis.com/token` 发送刻意无效的测试凭据，Google 返回 HTTP 401。真实账户的令牌签发和云端推理仍待验证。
 
-下方 `cf-dcutr-1031922879` 的 ZIP、三轮内存数据和 97 项全量回归对应较早的冻结源码。
+在 `e3726ad` 之后，模型目录 GET 请求、分页、鉴权头协商和 Bedrock 目录签名改经 Courierust 发送。通过 CLI 从 OpenCode Go、Zen 公网目录分别收到 37、108 个模型 ID。本机测试覆盖多协议合并、显式目录、分页失败、鉴权冲突和 ADC。关闭 Axum 的表单和查询提取功能后，`serde_urlencoded` 已从锁文件及上述两类 Windows 依赖树中移除。
 
 ### Windows x64 直连升级与中继回退版（`cf-dcutr-1031922879`）
 

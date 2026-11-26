@@ -42,6 +42,8 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 
 安装 Rust 的 MSVC 工具链、Flutter 和 Visual Studio 的「使用 C++ 的桌面开发」工作负载。已记录的构建环境为 Rust 1.99.1、Flutter 3.47.9 和 Dart 3.13.7。
 
+Windows 快照 `e3726ad` 通过 98 项 Rust 测试，包含默认忽略的真实客户端集成用例。三轮中位数中，空目录网关的工作集和私有字节为 7.85 和 1.45 MiB，Chat 负载为 8.86 和 1.57 MiB。验收记录附 ZIP 校验值、原始采样和同机 IPv6 结果。[Windows 验收记录](docs/crabforge-validation.md)
+
 ```powershell
 cargo build --release --locked -p crabforge-cli
 cd gui

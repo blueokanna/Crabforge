@@ -1,10 +1,7 @@
 use super::{Vertex, account};
 use anyhow::{Context, Result, bail, ensure};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use courierust::{
-    courierust_client::{Client, ClientConfig, TlsSettings, no_proxy_from_env},
-    courierust_http::Method,
-};
+use courierust::courierust_http::{HeaderValue, Method};
 use nextjson::{NsonDeserialize, Value, json};
 use ring::{
     rand::SystemRandom,
@@ -309,36 +306,16 @@ async fn reply<T: for<'de> NsonDeserialize<'de>>(
     bearer: Option<String>,
 ) -> Result<T> {
     let bytes = tokio::task::spawn_blocking(move || -> Result<_> {
-        let https = url.scheme() == "https";
-        let tls = https
-            .then(TlsSettings::with_system_roots)
-            .transpose()
-            .map_err(anyhow::Error::msg)?;
-        let proxy = if https {
-            ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"]
-                .iter()
-                .find_map(|name| env::var(name).ok().filter(|v| !v.is_empty()))
-        } else {
-            None
-        };
-        let client = Client::with_config(ClientConfig {
-            tls,
-            http2: https,
-            proxy,
-            no_proxy: no_proxy_from_env(),
-            max_redirects: 0,
-            max_body: MAX_REPLY,
-            accept_encoding: false,
-            connect_timeout: Some(EXCHANGE_TIMEOUT),
-            read_timeout: Some(EXCHANGE_TIMEOUT),
-            ..Default::default()
-        });
+        let client = crate::upstream::client(&url, MAX_REPLY, EXCHANGE_TIMEOUT)?;
         let mut request = client
             .request(url.as_str(), Method::POST)
             .header("content-type", content_type)
             .body(body);
         if let Some(token) = bearer {
-            request = request.bearer_auth(&token);
+            request = request.header(
+                "authorization",
+                HeaderValue::from_bytes(format!("Bearer {token}").as_bytes())?,
+            );
         }
         let response = request.send().context("Google token request failed")?;
         ensure!(

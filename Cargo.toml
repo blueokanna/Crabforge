@@ -12,6 +12,7 @@ edition = "2024"
 
 [workspace.dependencies]
 anyhow = "1.0.105"
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "original-uri", "tokio"] }
 crabforge-core = { path = "crates/core" }
 tokio = { version = "1", features = [
     "macros",

@@ -23,7 +23,7 @@ impl AuthHeader {
     }
 }
 
-fn conflict(body: &[u8]) -> bool {
+pub(crate) fn conflict(body: &[u8]) -> bool {
     let text = String::from_utf8_lossy(body).to_ascii_lowercase();
     text.contains("x-api-key")
         && text.contains("authorization")

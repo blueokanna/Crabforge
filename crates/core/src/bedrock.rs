@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use aws_credential_types::Credentials;
 use aws_sigv4::{
-    http_request::{SignableBody, SignableRequest, SigningSettings, sign},
+    http_request::{SignableBody, SignableRequest, SigningInstructions, SigningSettings, sign},
     sign::v4,
 };
 use http_body_util::BodyExt;
@@ -29,22 +29,25 @@ pub(crate) async fn send(builder: RequestBuilder, key_env: &str) -> Result<Respo
     let (client, request) = builder.build_split();
     let mut request = request?;
     if key_env.is_empty() && scope(request.url()).is_some() {
-        let required = |name| {
-            env::var(name)
-                .ok()
-                .filter(|v| !v.is_empty())
-                .with_context(|| format!("Bedrock signing requires {name}"))
-        };
-        let credentials = Credentials::new(
-            required("AWS_ACCESS_KEY_ID")?,
-            required("AWS_SECRET_ACCESS_KEY")?,
-            env::var("AWS_SESSION_TOKEN").ok().filter(|v| !v.is_empty()),
-            None,
-            "environment",
-        );
-        sign_request(&mut request, credentials, SystemTime::now()).await?;
+        sign_request(&mut request, credentials()?, SystemTime::now()).await?;
     }
     Ok(client.execute(request).await?)
+}
+
+pub(crate) fn credentials() -> Result<Credentials> {
+    let required = |name| {
+        env::var(name)
+            .ok()
+            .filter(|v| !v.is_empty())
+            .with_context(|| format!("Bedrock signing requires {name}"))
+    };
+    Ok(Credentials::new(
+        required("AWS_ACCESS_KEY_ID")?,
+        required("AWS_SECRET_ACCESS_KEY")?,
+        env::var("AWS_SESSION_TOKEN").ok().filter(|v| !v.is_empty()),
+        None,
+        "environment",
+    ))
 }
 
 async fn sign_request(
@@ -58,27 +61,17 @@ async fn sign_request(
         let body = request.body_mut().take().expect("checked above");
         *request.body_mut() = Some(body.collect().await?.to_bytes().into());
     }
-    let (region, service) = scope(request.url()).context("invalid Bedrock signing host")?;
-    let identity = credentials.into();
-    let params = v4::SigningParams::builder()
-        .identity(&identity)
-        .region(region)
-        .name(service)
-        .time(now)
-        .settings(SigningSettings::default())
-        .build()?
-        .into();
     let body = request
         .body()
-        .and_then(|body| body.as_bytes())
+        .and_then(|b| b.as_bytes())
         .unwrap_or_default();
-    let signable = SignableRequest::new(
+    let instructions = signature(
         request.method().as_str(),
-        request.url().as_str(),
-        std::iter::empty(),
-        SignableBody::Bytes(body),
+        request.url(),
+        body,
+        credentials,
+        now,
     )?;
-    let (instructions, _) = sign(signable, &params)?.into_parts();
     for (name, value) in instructions.headers() {
         let mut value = HeaderValue::from_str(value)?;
         value.set_sensitive(
@@ -90,6 +83,33 @@ async fn sign_request(
             .insert(HeaderName::from_bytes(name.as_bytes())?, value);
     }
     Ok(())
+}
+
+pub(crate) fn signature(
+    method: &str,
+    url: &Url,
+    body: &[u8],
+    credentials: Credentials,
+    now: SystemTime,
+) -> Result<SigningInstructions> {
+    let (region, service) = scope(url).context("invalid Bedrock signing host")?;
+    let identity = credentials.into();
+    let params = v4::SigningParams::builder()
+        .identity(&identity)
+        .region(region)
+        .name(service)
+        .time(now)
+        .settings(SigningSettings::default())
+        .build()?
+        .into();
+    let signable = SignableRequest::new(
+        method,
+        url.as_str(),
+        std::iter::empty(),
+        SignableBody::Bytes(body),
+    )?;
+    let (instructions, _) = sign(signable, &params)?.into_parts();
+    Ok(instructions)
 }
 
 #[cfg(test)]

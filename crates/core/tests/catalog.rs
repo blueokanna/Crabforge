@@ -196,3 +196,55 @@ async fn catalog_follows_vendor_cursors_and_rejects_incomplete_pages() -> Result
     let _ = server.await;
     Ok(())
 }
+
+#[tokio::test]
+async fn redirects_stay_at_the_source_and_pages_share_a_byte_limit() -> Result<()> {
+    use axum::response::Redirect;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let root = format!("http://{}", listener.local_addr()?);
+    let hits = Arc::new(AtomicUsize::new(0));
+    let counter = hits.clone();
+    let app = Router::new()
+        .route(
+            "/redirect",
+            get(|| async { Redirect::temporary("/target") }),
+        )
+        .route(
+            "/target",
+            get(move || {
+                counter.fetch_add(1, Ordering::Relaxed);
+                async { Json(json!({"data":[{"id":"redirected"}]})) }
+            }),
+        )
+        .route(
+            "/pages",
+            get(|OriginalUri(uri): OriginalUri| async move {
+                let mut text = if uri.query().is_none() {
+                    r#"{"data":[{"id":"partial"}],"has_more":true,"last_id":"p"}"#
+                } else {
+                    r#"{"data":[{"id":"end"}]}"#
+                }
+                .to_owned();
+                text.extend(std::iter::repeat_n(' ', 2 * 1024 * 1024));
+                text
+            }),
+        );
+    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    for (path, error) in [("redirect", "HTTP 307"), ("pages", "exceeds 4 MiB")] {
+        let source = Endpoints {
+            anthropic: root.clone(),
+            models_url: format!("{root}/{path}"),
+            ..Default::default()
+        };
+        let message = discover(&source, "").await.unwrap_err().to_string();
+        assert!(message.contains(error), "{message}");
+    }
+    assert_eq!(hits.load(Ordering::Relaxed), 0);
+    server.abort();
+    Ok(())
+}

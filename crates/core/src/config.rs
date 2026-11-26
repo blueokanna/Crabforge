@@ -266,17 +266,32 @@ pub(crate) fn mantle(url: &Url) -> bool {
 }
 
 pub(crate) fn authenticate(
-    request: RequestBuilder,
+    mut request: RequestBuilder,
     url: &Url,
     protocol: &str,
     key: &str,
     mode: AuthHeader,
 ) -> RequestBuilder {
+    for &name in api_key_headers(url, protocol, mode) {
+        request = if name == "authorization" {
+            request.bearer_auth(key)
+        } else {
+            request.header(name, key)
+        };
+    }
+    request
+}
+
+pub(crate) fn api_key_headers(
+    url: &Url,
+    protocol: &str,
+    mode: AuthHeader,
+) -> &'static [&'static str] {
     if azure(url) && protocol != "anthropic" {
-        return request.header("api-key", key);
+        return &["api-key"];
     }
     if url.path().starts_with("/inference/") && crate::opencode::Console::request(url).is_some() {
-        return request.bearer_auth(key);
+        return &["authorization"];
     }
     match protocol {
         "anthropic" => {
@@ -290,17 +305,17 @@ pub(crate) fn authenticate(
                 || host == "anthropic.com"
                 || host.ends_with(".anthropic.com")
             {
-                request.header("x-api-key", key)
+                &["x-api-key"]
             } else {
                 match mode {
-                    AuthHeader::ApiKey => request.header("x-api-key", key),
-                    AuthHeader::Bearer => request.bearer_auth(key),
-                    AuthHeader::Both => request.header("x-api-key", key).bearer_auth(key),
+                    AuthHeader::ApiKey => &["x-api-key"],
+                    AuthHeader::Bearer => &["authorization"],
+                    AuthHeader::Both => &["x-api-key", "authorization"],
                 }
             }
         }
-        "gemini" => request.header("x-goog-api-key", key),
-        _ => request.bearer_auth(key),
+        "gemini" => &["x-goog-api-key"],
+        _ => &["authorization"],
     }
 }
 

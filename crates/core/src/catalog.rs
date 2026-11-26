@@ -1,12 +1,15 @@
-use crate::config::{Endpoints, api_base, authenticate};
+use crate::config::{AuthHeader, Endpoints, api_base, api_key_headers};
 use anyhow::{Context, Result, bail, ensure};
-use futures_util::StreamExt;
-use reqwest::{Client, Url};
+use courierust::{
+    courierust_client::Client,
+    courierust_http::{HeaderMap, HeaderName, HeaderValue, Method},
+};
 use serde::Deserialize;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
-    time::Duration,
+    time::{Duration, SystemTime},
 };
+use url::Url;
 mod builtin;
 pub use builtin::fixed_models;
 
@@ -230,7 +233,6 @@ pub struct ModelCatalog {
 }
 
 pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelCatalog> {
-    let learned = std::sync::OnceLock::new();
     if let Some(v) = &bases.vertex {
         v.validate(!key_env.is_empty(), &bases.models_url)?;
     }
@@ -251,10 +253,6 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
                 .context("provider key environment variable is missing or empty")?,
         )
     };
-    let client = Client::builder()
-        .timeout(Duration::from_secs(20))
-        .redirect(reqwest::redirect::Policy::none())
-        .build()?;
     let mut errors = Vec::new();
     let mut catalog = ModelCatalog::default();
     let mut seen = HashSet::new();
@@ -266,18 +264,14 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
         ),
         _ => None,
     };
+    let mut auth = CatalogAuth {
+        key: key.as_deref(),
+        bearer: bearer.as_deref(),
+        mode: bases.auth_header,
+        learned: None,
+    };
     for source in sources {
-        match fetch(
-            &client,
-            &source,
-            key.as_deref(),
-            key_env,
-            bearer.as_deref(),
-            bases.auth_header,
-            &learned,
-        )
-        .await
-        {
+        match fetch(&source, &mut auth).await {
             Ok(page) => {
                 catalog
                     .models
@@ -295,7 +289,7 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
         }
     }
     ensure!(!catalog.models.is_empty(), "{}", errors.join("; "));
-    catalog.learned_auth = learned.into_inner();
+    catalog.learned_auth = auth.learned;
     Ok(catalog)
 }
 
@@ -310,21 +304,122 @@ pub async fn discover_provider(
     Ok(catalog.models)
 }
 
-async fn fetch(
-    client: &Client,
-    source: &Source,
-    key: Option<&str>,
-    key_env: &str,
-    bearer: Option<&str>,
-    mode: crate::config::AuthHeader,
-    learned: &std::sync::OnceLock<crate::config::AuthHeader>,
-) -> Result<ModelCatalog> {
+const MAX_CATALOG: usize = 4 * 1024 * 1024;
+const PAGE_TIMEOUT: Duration = Duration::from_secs(20);
+
+struct CatalogAuth<'a> {
+    key: Option<&'a str>,
+    bearer: Option<&'a str>,
+    mode: AuthHeader,
+    learned: Option<AuthHeader>,
+}
+
+impl CatalogAuth<'_> {
+    async fn page(
+        &mut self,
+        client: &Client,
+        url: &Url,
+        api: &str,
+    ) -> Result<(u16, courierust::Bytes)> {
+        let mut headers = HeaderMap::new();
+        if crate::opencode::Console::request(url).is_some() {
+            headers.insert(
+                "user-agent".into(),
+                crate::opencode::USER_AGENT_VALUE.into(),
+            );
+        }
+        if api == "anthropic" {
+            headers.insert("anthropic-version".into(), "2023-06-01".into());
+        }
+        if let Some(token) = self.bearer {
+            headers.insert(
+                "authorization".into(),
+                HeaderValue::from_bytes(format!("Bearer {token}").as_bytes())?,
+            );
+        } else if let Some(key) = self.key {
+            for &name in api_key_headers(url, api, self.learned.unwrap_or(self.mode)) {
+                let value = if name == "authorization" {
+                    HeaderValue::from_bytes(format!("Bearer {key}").as_bytes())?
+                } else {
+                    HeaderValue::from_bytes(key.as_bytes())?
+                };
+                headers.insert(name.into(), value);
+            }
+        } else if crate::bedrock::scope(url).is_some() {
+            let signature = crate::bedrock::signature(
+                "GET",
+                url,
+                &[],
+                crate::bedrock::credentials()?,
+                SystemTime::now(),
+            )?;
+            for (name, value) in signature.headers() {
+                headers.insert(
+                    HeaderName::from_bytes(name.as_bytes())?,
+                    HeaderValue::from_bytes(value.as_bytes())?,
+                );
+            }
+        }
+        let negotiate = api == "anthropic"
+            && headers.contains_key("authorization")
+            && headers.contains_key("x-api-key");
+        let mut reply = get(client, url, headers.clone()).await?;
+        if negotiate
+            && reply.0 == 401
+            && crate::anthropic_auth::conflict(&reply.1[..reply.1.len().min(64 * 1024)])
+        {
+            for (mode, remove) in [
+                (AuthHeader::ApiKey, "authorization"),
+                (AuthHeader::Bearer, "x-api-key"),
+            ] {
+                let mut single = headers.clone();
+                single.remove(remove);
+                reply = get(client, url, single).await?;
+                if (200..300).contains(&reply.0) {
+                    self.learned = Some(mode);
+                }
+                if !matches!(reply.0, 401 | 403) {
+                    break;
+                }
+            }
+        }
+        Ok(reply)
+    }
+}
+
+async fn get(client: &Client, url: &Url, headers: HeaderMap) -> Result<(u16, courierust::Bytes)> {
+    let client = client.clone();
+    let url = url.to_string();
+    tokio::time::timeout(
+        PAGE_TIMEOUT,
+        tokio::task::spawn_blocking(move || {
+            let mut request = client.request(&url, Method::GET);
+            for (name, value) in headers.iter() {
+                request = request.header(name.clone(), value.clone());
+            }
+            let response = request.send().context("model catalog request failed")?;
+            Ok((
+                response.status.as_u16(),
+                response.body.collect_limited(MAX_CATALOG)?,
+            ))
+        }),
+    )
+    .await
+    .context("model catalog request timed out")??
+}
+
+async fn fetch(source: &Source, auth: &mut CatalogAuth<'_>) -> Result<ModelCatalog> {
     let Source {
         ref url,
         api,
         deployments,
     } = *source;
-    let mut budget = 4 * 1024 * 1024;
+    let endpoint = url.clone();
+    let client = tokio::task::spawn_blocking(move || {
+        crate::upstream::client(&endpoint, MAX_CATALOG, PAGE_TIMEOUT)
+    })
+    .await??;
+    let mut budget = MAX_CATALOG;
     let mut cursors = HashSet::new();
     let mut catalog = ModelCatalog::default();
     let mut page = url.clone();
@@ -333,44 +428,17 @@ async fn fetch(
         page.set_query(Some("api-version=2022-12-01"));
     }
     for _ in 0..32 {
-        let mut req = client.get(page.clone());
-        if crate::opencode::Console::request(&page).is_some() {
-            req = req.header(
-                reqwest::header::USER_AGENT,
-                crate::opencode::USER_AGENT_VALUE,
-            );
-        }
-        if api == "anthropic" {
-            req = req.header("anthropic-version", "2023-06-01");
-        }
-        if let Some(token) = bearer {
-            req = req.bearer_auth(token);
-        } else if let Some(k) = key {
-            req = authenticate(req, url, api, k, mode);
-        }
-        let response = if api == "anthropic" && key.is_some() {
-            crate::anthropic_auth::send(req, learned).await
-        } else {
-            crate::bedrock::send(req, key_env).await
-        }
-        .context("model catalog request failed")?;
-        if deployments && page.path() == "/openai/deployments" && !response.status().is_success() {
+        let (status, bytes) = auth.page(&client, &page, api).await?;
+        if deployments && page.path() == "/openai/deployments" && !(200..300).contains(&status) {
             page = url.clone();
             continue;
         }
         ensure!(
-            response.status().is_success(),
-            "model catalog returned HTTP {}",
-            response.status()
+            (200..300).contains(&status),
+            "model catalog returned HTTP {status}"
         );
-        let mut bytes = Vec::new();
-        let mut stream = response.bytes_stream();
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.context("could not read the model catalog body")?;
-            ensure!(chunk.len() <= budget, "model catalog exceeds 4 MiB");
-            budget -= chunk.len();
-            bytes.extend_from_slice(&chunk);
-        }
+        ensure!(bytes.len() <= budget, "model catalog exceeds 4 MiB");
+        budget -= bytes.len();
         let entries: List = nextjson::from_slice(&bytes)
             .map_err(|e| anyhow::anyhow!("invalid model catalog: {e}"))?;
         for entry in entries.data.into_iter().chain(entries.models) {

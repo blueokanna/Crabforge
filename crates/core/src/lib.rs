@@ -45,6 +45,7 @@ mod opencode;
 pub mod peer;
 pub mod service;
 mod translate;
+mod upstream;
 mod vertex;
 pub mod webchat;
 

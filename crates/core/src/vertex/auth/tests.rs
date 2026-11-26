@@ -1,5 +1,5 @@
 use super::*;
-use axum::{Form, Json, Router, extract::OriginalUri, http::HeaderMap, routing::post};
+use axum::{Json, Router, body::Bytes, extract::OriginalUri, http::HeaderMap, routing::post};
 use serde_json::{Value, json};
 use std::{
     collections::HashMap,
@@ -11,6 +11,11 @@ use std::{
 };
 use tokio::net::TcpListener;
 
+fn oauth_form(headers: &HeaderMap, bytes: &[u8]) -> HashMap<String, String> {
+    assert_eq!(headers["content-type"], "application/x-www-form-urlencoded");
+    url::form_urlencoded::parse(bytes).into_owned().collect()
+}
+
 #[tokio::test]
 async fn adc_exchanges_once_for_concurrent_requests_and_reloads_changed_credentials() -> Result<()>
 {
@@ -18,7 +23,8 @@ async fn adc_exchanges_once_for_concurrent_requests_and_reloads_changed_credenti
     let root = format!("http://{}", listener.local_addr()?);
     let hits = Arc::new(AtomicUsize::new(0));
     let counter = hits.clone();
-    let app = Router::new().route("/token",post(move |Form(form):Form<HashMap<String,String>>| {
+    let app = Router::new().route("/token",post(move |headers:HeaderMap, bytes:Bytes| {
+        let form = oauth_form(&headers, &bytes);
         counter.fetch_add(1,Ordering::SeqCst);
         async move {
             assert_eq!(form["grant_type"],"refresh_token");
@@ -113,7 +119,8 @@ async fn service_account_assertion_has_a_verifiable_signature_and_google_audienc
     let expected_audience = oauth.clone();
     let app = Router::new().route(
         "/token",
-        post(move |Form(form): Form<HashMap<String, String>>| {
+        post(move |headers: HeaderMap, bytes: Bytes| {
+            let form = oauth_form(&headers, &bytes);
             assert_eq!(
                 form["grant_type"],
                 "urn:ietf:params:oauth:grant-type:jwt-bearer"
