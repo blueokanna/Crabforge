@@ -1,8 +1,8 @@
 use super::*;
 use super::{sse, stream_input::Decoder, stream_output::Encoder};
 use axum::{
-    Json,
     body::Body,
+    http::StatusCode,
     response::{IntoResponse, Response},
 };
 use futures_util::StreamExt;
@@ -23,33 +23,38 @@ impl Reply {
     fn read(format: Format, v: &Value) -> Result<Self> {
         let (parts, end, input, output) = match format {
             Format::Chat => {
-                let c = &v["choices"][0];
-                let m = &c["message"];
-                ensure!(
-                    m["refusal"].is_null(),
-                    "upstream refused the request: {}",
-                    m["refusal"]
-                );
+                let c = array(v, "choices")?
+                    .first()
+                    .context("empty upstream choices")?;
+                let m = field(c, "message");
+                let refusal = field(m, "refusal");
+                ensure!(refusal.is_null(), "upstream refused the request: {refusal}");
                 (
                     read_turn(format, m)?.parts,
                     text(c, "finish_reason")?,
-                    &v["usage"]["prompt_tokens"],
-                    &v["usage"]["completion_tokens"],
+                    v.pointer("/usage/prompt_tokens"),
+                    v.pointer("/usage/completion_tokens"),
                 )
             }
             Format::Messages => (
-                read_parts(format, &v["content"])?,
+                read_parts(format, field(v, "content"))?,
                 text(v, "stop_reason")?,
-                &v["usage"]["input_tokens"],
-                &v["usage"]["output_tokens"],
+                v.pointer("/usage/input_tokens"),
+                v.pointer("/usage/output_tokens"),
             ),
             Format::Gemini => {
-                let c = &v["candidates"][0];
+                let c = array(v, "candidates")?
+                    .first()
+                    .context("empty Gemini candidates")?;
                 (
-                    read_parts(format, &c["content"]["parts"])?,
+                    read_parts(
+                        format,
+                        c.pointer("/content/parts")
+                            .context("missing Gemini parts")?,
+                    )?,
                     text(c, "finishReason")?,
-                    &v["usageMetadata"]["promptTokenCount"],
-                    &v["usageMetadata"]["candidatesTokenCount"],
+                    v.pointer("/usageMetadata/promptTokenCount"),
+                    v.pointer("/usageMetadata/candidatesTokenCount"),
                 )
             }
             Format::Responses => {
@@ -59,14 +64,14 @@ impl Reply {
                 }
                 let end = match text(v, "status")? {
                     "completed" => "stop",
-                    "incomplete" => text(&v["incomplete_details"], "reason")?,
+                    "incomplete" => text(field(v, "incomplete_details"), "reason")?,
                     s => bail!("upstream response status {s}"),
                 };
                 (
                     parts,
                     end,
-                    &v["usage"]["input_tokens"],
-                    &v["usage"]["output_tokens"],
+                    v.pointer("/usage/input_tokens"),
+                    v.pointer("/usage/output_tokens"),
                 )
             }
         };
@@ -97,8 +102,8 @@ impl Reply {
             parts,
             limited,
             filtered,
-            input: input.as_u64().unwrap_or(0),
-            output: output.as_u64().unwrap_or(0),
+            input: input.and_then(crate::json::unsigned).unwrap_or(0),
+            output: output.and_then(crate::json::unsigned).unwrap_or(0),
             id: format!("cf_{}", now.as_nanos()),
             created: now.as_secs(),
         })
@@ -135,18 +140,19 @@ impl Reply {
                     "completed"
                 };
                 for (n, item) in items.iter_mut().enumerate() {
-                    item["id"] = json!(format!(
-                        "{}_{id}_{n}",
-                        if item["type"] == "message" {
-                            "msg"
-                        } else {
-                            "fc"
-                        }
-                    ));
-                    item["status"] = json!(state);
-                    if let Some(content) = item["content"].as_array_mut() {
+                    let prefix = if text(item, "type")? == "message" {
+                        "msg"
+                    } else {
+                        "fc"
+                    };
+                    let item = item.as_object_mut().context("expected output item")?;
+                    item.insert("id".into(), format!("{prefix}_{id}_{n}").into());
+                    item.insert("status".into(), state.into());
+                    if let Some(content) = item.get_mut("content").and_then(Value::as_array_mut) {
                         for p in content {
-                            p["annotations"] = json!([]);
+                            p.as_object_mut()
+                                .context("expected output part")?
+                                .insert("annotations".into(), json!([]));
                         }
                     }
                 }
@@ -221,9 +227,15 @@ pub async fn convert_reply(
         );
         bytes.extend_from_slice(&chunk);
     }
-    let reply = Reply::read(from, &serde_json::from_slice(&bytes)?)?;
+    let reply = Reply::read(
+        from,
+        &nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?,
+    )?;
     if !stream {
-        return Ok(Json(reply.encode(to, model)?).into_response());
+        return Ok(crate::gateway::json_response(
+            StatusCode::OK,
+            &reply.encode(to, model)?,
+        ));
     }
     let mut encoder = Encoder::new(to, model)?;
     encoder.start(reply.input);

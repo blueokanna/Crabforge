@@ -1,5 +1,10 @@
 use nextjson::Value;
 
+/// Read an unsigned JSON integer without truncating a fractional number.
+pub(crate) fn unsigned(value: &Value) -> Option<u64> {
+    value.as_number().filter(|n| !n.is_f64())?.as_u64()
+}
+
 /// JSON objects compare by field name, while array positions carry meaning.
 pub fn equivalent(a: &Value, b: &Value) -> bool {
     match (a, b) {

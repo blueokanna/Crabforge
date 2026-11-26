@@ -13,16 +13,16 @@ fn read_tools(format: Format, request: &Value) -> Result<Vec<Map>> {
     for tool in tools.as_array().context("expected tools array")? {
         let schema = match format {
             Format::Chat => {
-                ensure!(text(tool,"type")? == "function", "unsupported hosted tool");
-                field(tool,"function")
+                ensure!(text(tool, "type")? == "function", "unsupported hosted tool");
+                field(tool, "function")
             }
             Format::Responses => {
-                ensure!(text(tool,"type")? == "function", "unsupported hosted tool");
+                ensure!(text(tool, "type")? == "function", "unsupported hosted tool");
                 tool
             }
             Format::Messages => {
                 ensure!(
-                    tool.get("type").is_none() || field(tool,"type").as_str() == Some("custom"),
+                    tool.get("type").is_none() || field(tool, "type").as_str() == Some("custom"),
                     "unsupported hosted tool"
                 );
                 tool
@@ -30,18 +30,30 @@ fn read_tools(format: Format, request: &Value) -> Result<Vec<Map>> {
             Format::Gemini => {
                 keys(tool, &["functionDeclarations"])?;
                 for declaration in array(tool, "functionDeclarations")? {
-                    definitions.push(declaration.as_object().context("expected a function declaration object")?.clone());
+                    definitions.push(
+                        declaration
+                            .as_object()
+                            .context("expected a function declaration object")?
+                            .clone(),
+                    );
                 }
                 continue;
             }
         };
         ensure!(
-            field(schema,"strict").as_bool() != Some(true),
+            field(schema, "strict").as_bool() != Some(true),
             "strict tool validation requires a native endpoint"
         );
         let mut def = Map::new();
-        def.insert("name".into(),text(schema,"name")?.into());
-        def.insert("parameters".into(),schema.get("input_schema").or_else(||schema.get("parameters")).cloned().unwrap_or_else(||json!({"type":"object","properties":{}})));
+        def.insert("name".into(), text(schema, "name")?.into());
+        def.insert(
+            "parameters".into(),
+            schema
+                .get("input_schema")
+                .or_else(|| schema.get("parameters"))
+                .cloned()
+                .unwrap_or_else(|| json!({"type":"object","properties":{}})),
+        );
         if let Some(d) = schema.get("description") {
             def.insert("description".into(), d.clone());
         }
@@ -63,9 +75,10 @@ fn write_tools(format: Format, defs: Vec<Map>) -> Value {
                     d.into()
                 }
                 Format::Messages => {
-                    let parameters = d.remove("parameters")
+                    let parameters = d
+                        .remove("parameters")
                         .unwrap_or_else(|| json!({"type":"object"}));
-                    d.insert("input_schema".into(),parameters);
+                    d.insert("input_schema".into(), parameters);
                     d.into()
                 }
                 Format::Gemini => unreachable!(),
@@ -77,22 +90,27 @@ fn write_tools(format: Format, defs: Vec<Map>) -> Value {
 fn choice(from: Format, to: Format, v: &Value) -> Result<Value> {
     let mode = match from {
         Format::Messages => text(v, "type")?,
-        Format::Gemini => text(field(v,"functionCallingConfig"), "mode")?,
+        Format::Gemini => text(field(v, "functionCallingConfig"), "mode")?,
         _ => v
             .as_str()
-            .or_else(|| field(v,"type").as_str())
+            .or_else(|| field(v, "type").as_str())
             .context("invalid tool choice")?,
     };
     let name = match from {
-        Format::Messages | Format::Responses => field(v,"name").as_str(),
+        Format::Messages | Format::Responses => field(v, "name").as_str(),
         Format::Chat => v.pointer("/function/name").and_then(Value::as_str),
         Format::Gemini => {
-            let names = v.pointer("/functionCallingConfig/allowedFunctionNames").unwrap_or(&Value::Null);
+            let names = v
+                .pointer("/functionCallingConfig/allowedFunctionNames")
+                .unwrap_or(&Value::Null);
             ensure!(
                 names.is_null() || names.as_array().is_some_and(|n| n.len() == 1),
                 "cannot translate multiple allowed functions"
             );
-            names.as_array().and_then(|v| v.first()).and_then(Value::as_str)
+            names
+                .as_array()
+                .and_then(|v| v.first())
+                .and_then(Value::as_str)
         }
     };
     let mode = match mode {
@@ -176,17 +194,17 @@ pub fn convert_request(
     };
     keys(&v, allowed)?;
     ensure!(
-        matches!(field(&v,"store"), Value::Null | Value::Bool(false)),
+        matches!(field(&v, "store"), Value::Null | Value::Bool(false)),
         "translated requests only support store: false"
     );
     ensure!(
-        field(&v,"n").is_null() || field(&v,"n") == &Value::from(1_u64),
+        field(&v, "n").is_null() || field(&v, "n") == &Value::from(1_u64),
         "only one translated completion is supported"
     );
     if let Some(options) = v.get("stream_options").filter(|v| !v.is_null()) {
         keys(options, &["include_usage"])?;
     }
-    let stream = stream_in_path || field(&v,"stream").as_bool() == Some(true);
+    let stream = stream_in_path || field(&v, "stream").as_bool() == Some(true);
     let mut turns = vec![];
     let system = match from {
         Format::Messages => v.get("system"),
@@ -200,11 +218,14 @@ pub fn convert_request(
             parts: read_parts(from, s)?,
         });
     }
-    let input = field(&v,match from {
-        Format::Responses => "input",
-        Format::Gemini => "contents",
-        _ => "messages",
-    });
+    let input = field(
+        &v,
+        match from {
+            Format::Responses => "input",
+            Format::Gemini => "contents",
+            _ => "messages",
+        },
+    );
     if from == Format::Responses
         && let Some(t) = input.as_str()
     {
@@ -221,11 +242,11 @@ pub fn convert_request(
     if stream && to != Format::Gemini {
         out.insert("stream".into(), true.into());
         if to == Format::Chat {
-            out.insert("stream_options".into(),json!({"include_usage": true}));
+            out.insert("stream_options".into(), json!({"include_usage": true}));
         }
     }
     if to != Format::Gemini {
-        out.insert("model".into(),model.into());
+        out.insert("model".into(), model.into());
     }
     if matches!(to, Format::Gemini | Format::Messages) {
         let leading = turns
@@ -244,7 +265,10 @@ pub fn convert_request(
         );
         if !instructions.is_empty() {
             if to == Format::Gemini {
-                out.insert("systemInstruction".into(), json!({"parts":[{"text":instructions.join("\n\n")}]}));
+                out.insert(
+                    "systemInstruction".into(),
+                    json!({"parts":[{"text":instructions.join("\n\n")}]}),
+                );
             } else {
                 out.insert("system".into(), instructions.join("\n\n").into());
             }
@@ -257,9 +281,9 @@ pub fn convert_request(
         Format::Gemini => "contents",
         _ => "messages",
     };
-    out.insert(message_key.into(),Value::Array(messages));
+    out.insert(message_key.into(), Value::Array(messages));
     let src = if from == Format::Gemini {
-        field(&v,"generationConfig")
+        field(&v, "generationConfig")
     } else {
         &v
     };
@@ -304,7 +328,7 @@ pub fn convert_request(
     ] {
         if let Some(val) = aliases
             .iter()
-            .find_map(|k| src.get(*k))
+            .find_map(|k| src.get(k))
             .filter(|v| !v.is_null())
         {
             ensure!(
@@ -316,11 +340,11 @@ pub fn convert_request(
             } else {
                 val.clone()
             };
-            options.insert(dest.into(),value);
+            options.insert(dest.into(), value);
         }
     }
     if to == Format::Messages && options.get("max_tokens").is_none() {
-        options.insert("max_tokens".into(),4096.into());
+        options.insert("max_tokens".into(), 4096.into());
     }
     if to == Format::Gemini {
         if !options.is_empty() {
@@ -349,7 +373,7 @@ pub fn convert_request(
         } else {
             "tool_choice"
         };
-        out.insert(key.into(),choice(from, to, c)?);
+        out.insert(key.into(), choice(from, to, c)?);
     }
     Ok(Converted {
         body: nextjson::to_vec(&out).map_err(anyhow::Error::msg)?,

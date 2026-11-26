@@ -1,3 +1,4 @@
+use crate::json::unsigned;
 use nextjson::Value;
 use std::{
     collections::BTreeSet,
@@ -38,7 +39,7 @@ fn packed_field<'a>(catalog: &'a Value, encoded: &Value, key: usize) -> Option<&
     let node = catalog
         .get("nodes")?
         .as_array()?
-        .get(usize::try_from(encoded.as_array()?.first()?.as_u64()?).ok()?)?;
+        .get(usize::try_from(unsigned(encoded.as_array()?.first()?)?).ok()?)?;
     let pair = node
         .as_array()?
         .get(1)?
@@ -46,13 +47,13 @@ fn packed_field<'a>(catalog: &'a Value, encoded: &Value, key: usize) -> Option<&
         .as_chunks::<2>()
         .0
         .iter()
-        .find(|pair| pair[0].as_u64() == Some(key as u64))?;
+        .find(|pair| unsigned(&pair[0]) == Some(key as u64))?;
     Some(&pair[1])
 }
 
 fn chat_ids<'a>(catalog: &'a Value, provider: &str) -> Vec<&'a str> {
     let chat = |kind: Option<&str>| matches!(kind, None | Some("" | "tiny"));
-    if catalog.get("version").and_then(Value::as_u64) == Some(1) {
+    if catalog.get("version").and_then(unsigned) == Some(1) {
         let Some(rows) = catalog.get("providers").and_then(Value::as_array) else {
             return Vec::new();
         };

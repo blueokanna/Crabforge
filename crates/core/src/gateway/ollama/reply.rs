@@ -48,13 +48,13 @@ impl Completion {
         }
         if let Some(n) = value
             .pointer("/usage/prompt_tokens")
-            .and_then(Value::as_u64)
+            .and_then(crate::json::unsigned)
         {
             self.input = n;
         }
         if let Some(n) = value
             .pointer("/usage/completion_tokens")
-            .and_then(Value::as_u64)
+            .and_then(crate::json::unsigned)
         {
             self.output = n;
         }
@@ -78,7 +78,7 @@ impl Completion {
                     .calls
                     .entry(
                         call.get("index")
-                            .and_then(Value::as_u64)
+                            .and_then(crate::json::unsigned)
                             .unwrap_or(i as u64),
                     )
                     .or_default();

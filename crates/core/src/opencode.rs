@@ -1,6 +1,7 @@
 use crate::{config::Endpoints, translate::Format};
+use nextjson::Value;
 use reqwest::{RequestBuilder, Url, header::USER_AGENT};
-use serde_json::Value;
+use std::collections::BTreeMap;
 
 include!(concat!(env!("OUT_DIR"), "/opencode_models.rs"));
 
@@ -121,6 +122,18 @@ impl Console {
 
 pub(crate) const USER_AGENT_VALUE: &str = concat!("crabforge/", env!("CARGO_PKG_VERSION"));
 
+// Existing conversation IDs hash the opening turn with its object keys sorted.
+fn ordered_turn(value: &Value) -> Value {
+    match value {
+        Value::Object(obj) => {
+            let fields: BTreeMap<_, _> = obj.iter().map(|(k, v)| (k, ordered_turn(v))).collect();
+            Value::Object(fields.into_iter().collect())
+        }
+        Value::Array(items) => Value::Array(items.iter().map(ordered_turn).collect()),
+        other => other.clone(),
+    }
+}
+
 /// Keep the client's conversation ID across protocol conversion. When it has
 /// none, derive an opaque local ID from the cache key or first user turn.
 pub(crate) fn conversation(
@@ -133,7 +146,7 @@ pub(crate) fn conversation(
     if let Some(id) = session {
         return request.header("x-opencode-session", id);
     }
-    let json: Value = serde_json::from_slice(body).unwrap_or(Value::Null);
+    let json: Value = nextjson::from_slice(body).unwrap_or(Value::Null);
     let opening = ["input", "messages", "contents"]
         .iter()
         .filter_map(|k| json.get(k))
@@ -142,18 +155,22 @@ pub(crate) fn conversation(
                 return Some(input);
             }
             input.as_array()?.iter().find(|turn| {
-                turn["role"] == "user"
+                turn.get("role").and_then(Value::as_str) == Some("user")
                     || (turn.get("role").is_none() && turn.get("parts").is_some())
             })
         });
     let hash_key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, key.as_bytes());
     let mut hash = ring::hmac::Context::with_key(&hash_key);
-    if let Some(cache_key) = json["prompt_cache_key"].as_str().filter(|s| !s.is_empty()) {
+    if let Some(cache_key) = json
+        .get("prompt_cache_key")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+    {
         hash.update(b"cache\0");
         hash.update(cache_key.as_bytes());
     } else if let Some(turn) = opening {
         hash.update(b"opening\0");
-        hash.update(turn.to_string().as_bytes());
+        hash.update(ordered_turn(turn).to_string().as_bytes());
     } else {
         hash.update(b"request\0");
         hash.update(body);
@@ -190,6 +207,10 @@ mod tests {
                     .clone())
             };
         let first = build(None, br#"{"messages":[{"role":"user","content":"hello"}]}"#)?;
+        assert_eq!(
+            first["x-opencode-session"],
+            "2929c1e92880a27ab1c601be63cc6f3e"
+        );
         let later = build(None, br#"{"messages":[{"role":"user","content":"hello"},{"role":"assistant","content":"hi"},{"role":"user","content":"again"}]}"#)?;
         assert_eq!(first["x-opencode-session"], later["x-opencode-session"]);
         assert_eq!(first["authorization"], "Bearer provider-key");

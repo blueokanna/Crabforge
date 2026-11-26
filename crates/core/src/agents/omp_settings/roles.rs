@@ -22,6 +22,8 @@ pub const ROLES: &[&str] = &[
 pub struct Roles {
     pub assignments: BTreeMap<String, Option<nextjson::Value>>,
     pub models: Vec<String>,
+    // Legacy editor snapshots used JSON null for both missing and explicit YAML null.
+    explicit_nulls: Option<BTreeSet<String>>,
 }
 
 fn gateway_ids(cfg: &Config) -> Vec<String> {
@@ -92,6 +94,14 @@ pub fn read_roles(home: &Path, cfg: &Config) -> Result<Roles> {
     Ok(Roles {
         assignments,
         models: models.into_iter().collect(),
+        explicit_nulls: Some(
+            ROLES
+                .iter()
+                .copied()
+                .filter(|name| roles.and_then(|r| r.get(*name)).is_some_and(Value::is_null))
+                .map(str::to_owned)
+                .collect(),
+        ),
     })
 }
 
@@ -210,11 +220,16 @@ pub fn save_role(
         .and_then(|v| v.get(name))
         .cloned();
     if let Some(old) = previous {
+        let explicit_null = current.as_ref().is_some_and(Value::is_null);
         let current = assignment(current.as_ref())?;
         ensure!(
-            old.assignments
-                .get(name)
-                .is_some_and(|v| super::snapshot::same(v.as_ref(), current.as_ref())),
+            old.explicit_nulls
+                .as_ref()
+                .is_none_or(|nulls| nulls.contains(name) == explicit_null)
+                && old
+                    .assignments
+                    .get(name)
+                    .is_some_and(|v| super::snapshot::same(v.as_ref(), current.as_ref())),
             "{name} role changed on disk; reopen the profile"
         );
     }
@@ -419,6 +434,49 @@ mod tests {
             );
             save_role(home, &cfg, "slow", None, None)?;
         }
+        Ok(())
+    }
+
+    #[test]
+    fn editor_snapshots_preserve_null_and_compare_nested_objects_by_key() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let home = dir.path();
+        let path = home.join("config.yml");
+        let cfg = config();
+        let snapshot = || -> Result<Roles> {
+            let json = nextjson::to_string(&read_roles(home, &cfg)?).map_err(anyhow::Error::msg)?;
+            nextjson::from_str(&json).map_err(anyhow::Error::msg)
+        };
+        let missing = snapshot()?;
+        fs::write(&path, "modelRoles: {task: null}\n")?;
+        assert!(
+            save_role(
+                home,
+                &cfg,
+                "task",
+                Some("crabforge/local/a"),
+                Some(&missing)
+            )
+            .is_err()
+        );
+        let null = snapshot()?;
+        save_role(home, &cfg, "task", Some("crabforge/local/a"), Some(&null))?;
+        save_role(home, &cfg, "task", None, None)?;
+        assert_eq!(
+            configuration(&fs::read_to_string(&path)?)?["modelRoles"]["task"],
+            Value::Null
+        );
+        fs::write(&path, "modelRoles: {task: {models: [a,b], priority: 1}}\n")?;
+        let prior = snapshot()?;
+        fs::write(&path, "modelRoles: {task: {priority: 1, models: [b,a]}}\n")?;
+        assert!(save_role(home, &cfg, "task", Some("crabforge/local/a"), Some(&prior)).is_err());
+        fs::write(&path, "modelRoles: {task: {priority: 1, models: [a,b]}}\n")?;
+        save_role(home, &cfg, "task", Some("crabforge/local/a"), Some(&prior))?;
+        save_role(home, &cfg, "task", None, None)?;
+        assert_eq!(
+            fs::read_to_string(&path)?,
+            "modelRoles: {task: {priority: 1, models: [a,b]}}\n"
+        );
         Ok(())
     }
 

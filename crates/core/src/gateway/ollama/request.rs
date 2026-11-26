@@ -111,7 +111,7 @@ impl Input {
             .options
             .as_ref()
             .and_then(|o| o.get("num_predict"))
-            .and_then(Value::as_u64)
+            .and_then(crate::json::unsigned)
             .filter(|n| *n > 0)
         {
             out.insert("max_tokens".into(), n.into());

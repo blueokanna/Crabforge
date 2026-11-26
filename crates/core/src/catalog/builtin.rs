@@ -202,7 +202,7 @@ pub fn fixed_models(bases: &Endpoints) -> Option<&'static [&'static str]> {
             let base = [chat, &bases.responses, &bases.anthropic]
                 .into_iter()
                 .find(|url| !url.is_empty())?;
-            let url = reqwest::Url::parse(base).ok()?;
+            let url = url::Url::parse(base).ok()?;
             (crate::bedrock::scope(&url)?.1 == "bedrock"
                 && matches!(
                     url.path().trim_end_matches('/'),

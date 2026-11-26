@@ -526,7 +526,7 @@ fn failure(code: StatusCode, message: &str) -> Response {
     )
 }
 
-fn json_response(status: StatusCode, value: &impl NsonSerialize) -> Response {
+pub(crate) fn json_response(status: StatusCode, value: &impl NsonSerialize) -> Response {
     match nextjson::to_vec(value) {
         Ok(bytes) => (status, [(header::CONTENT_TYPE, "application/json")], bytes).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),

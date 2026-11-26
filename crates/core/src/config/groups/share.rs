@@ -65,7 +65,7 @@ fn shared_text(text: &str) -> Result<SharedGroup> {
     );
     let version = doc.get("version").unwrap_or(&Value::Null);
     ensure!(
-        matches!(version, Value::Number(n) if !n.is_f64() && n.as_u64() == Some(1)),
+        crate::json::unsigned(version) == Some(1),
         "unsupported routing-group share version {}",
         version
     );

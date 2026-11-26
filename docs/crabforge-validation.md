@@ -1,5 +1,15 @@
 # Crabforge 0.1.0 验收记录
 
+### Windows 桌面同期采样（2026-11-26）
+
+使用 `e3726ad` ZIP 解压出的桌面程序重测。Crabforge 每轮用新配置启动，Magpie 复用用户已经打开的可见窗口。每轮在同一台机器依次采样，三轮中位数如下。两个应用打开的页面和已有数据可能不同。[原始 CSV](validation/cf-nextjson-594fadc304/desktop-comparison.csv)
+
+| 桌面进程 | 进程数 | 工作集 MiB | 私有字节 MiB |
+| --- | ---: | ---: | ---: |
+| Crabforge | 1 | 152.41 | 263.36 |
+| Magpie 主进程 | 1 | 167.31 | 222.80 |
+| Magpie 主进程及 WebView2 子进程 | 8 | 370.04 | 793.39 |
+
 ### Windows x64 配置与 ADC 迁移版（`cf-nextjson-594fadc304`）
 
 从提交 `e3726ad969bed6ad216b4374904cd47b42f94672` 的 278 个输入构建。冻结清单、生成本地化文件后的清单，以及构建完成后的清单一致，SHA-256 为 `594FADC3041F9A76D307742BCDDD87091FB3A1344CEEDE3A47133E7B7408F208`。ZIP 位于 `dist/cf-nextjson-594fadc304/crabforge-0.1.0-windows-x64.zip`，共 62,254,055 字节，SHA-256 为 `F4D26E028532E7D85780AF80D416F15C24B42F64917F5E8E3F31A4B51A581D40`。解压后核对了 140 个文件的哈希和随包清单，126 项声明的品牌、图标、字体和许可证逐字节匹配。两个 CLI 分别读出了 97 条内置预设。[构建输入](validation/cf-nextjson-594fadc304/build-inputs.sha256) · [包内文件哈希](validation/cf-nextjson-594fadc304/SHA256SUMS)

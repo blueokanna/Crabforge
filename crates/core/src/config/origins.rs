@@ -1,6 +1,6 @@
 use anyhow::{Result, ensure};
-use reqwest::Url;
 use std::collections::BTreeSet;
+use url::Url;
 
 /// Store origins in the form a browser sends in its Origin header.
 pub(crate) fn clean(origins: &BTreeSet<String>) -> Result<BTreeSet<String>> {

@@ -40,6 +40,8 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 
 ## 构建 Windows x64 版本
 
+使用 `e3726ad` 解压包做了三轮桌面同期采样。Crabforge 的工作集和私有字节中位数分别为 152.41 和 263.36 MiB。Magpie 主进程及其七个 WebView2 子进程合计为 370.04 和 793.39 MiB。Crabforge 每轮从新配置启动，Magpie 复用已打开的可见窗口。[桌面原始采样](docs/validation/cf-nextjson-594fadc304/desktop-comparison.csv)
+
 安装 Rust 的 MSVC 工具链、Flutter 和 Visual Studio 的「使用 C++ 的桌面开发」工作负载。已记录的构建环境为 Rust 1.99.1、Flutter 3.47.9 和 Dart 3.13.7。
 
 Windows 快照 `e3726ad` 通过 98 项 Rust 测试，包含默认忽略的真实客户端集成用例。三轮中位数中，空目录网关的工作集和私有字节为 7.85 和 1.45 MiB，Chat 负载为 8.86 和 1.57 MiB。验收记录附 ZIP 校验值、原始采样和同机 IPv6 结果。[Windows 验收记录](docs/crabforge-validation.md)

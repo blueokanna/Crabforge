@@ -29,10 +29,13 @@ pub fn installed_command(binary: &str, package: &str, runtime: &str) -> Result<C
         if !manifest.is_file() {
             continue;
         }
-        let meta: serde_json::Value = serde_json::from_slice(&std::fs::read(manifest)?)?;
-        let entry = meta["bin"][binary]
-            .as_str()
-            .or_else(|| meta["bin"].as_str())
+        let meta: nextjson::Value =
+            nextjson::from_slice(&std::fs::read(manifest)?).map_err(anyhow::Error::msg)?;
+        let bin = meta.get("bin").context("missing npm client entry point")?;
+        let entry = bin
+            .get(binary)
+            .and_then(nextjson::Value::as_str)
+            .or_else(|| bin.as_str())
             .context("missing npm client entry point")?;
         let script = package_dir.join(entry);
         ensure!(

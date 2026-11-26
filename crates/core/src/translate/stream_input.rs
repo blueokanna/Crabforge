@@ -1,4 +1,5 @@
 use super::{Format, Part, array, field, read_parts, read_turn, text};
+use crate::json::unsigned;
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::Value;
 use std::collections::{BTreeMap, HashSet};
@@ -43,15 +44,15 @@ pub(super) struct Decoder {
 }
 
 fn index(v: &Value, key: &str) -> Result<u64> {
-    field(v,key).as_u64().context("missing stream index")
+    unsigned(field(v, key)).context("missing stream index")
 }
 
 impl Decoder {
     fn usage(&mut self, v: &Value, input: &str, output: &str) {
-        if let Some(n) = field(v,input).as_u64() {
+        if let Some(n) = unsigned(field(v, input)) {
             self.input = n;
         }
-        if let Some(n) = field(v,output).as_u64() {
+        if let Some(n) = unsigned(field(v, output)) {
             self.output = n;
         }
     }
@@ -72,22 +73,25 @@ impl Decoder {
     }
 
     fn chat(&mut self, v: &Value) -> Result<Vec<Part>> {
-        self.usage(field(v,"usage"), "prompt_tokens", "completion_tokens");
+        self.usage(field(v, "usage"), "prompt_tokens", "completion_tokens");
         let mut parts = vec![];
         for choice in array(v, "choices")? {
             ensure!(
-                field(choice,"index").as_u64().unwrap_or(0) == 0,
+                unsigned(field(choice, "index")).unwrap_or(0) == 0,
                 "multiple stream choices"
             );
-            let delta = field(choice,"delta");
-            ensure!(field(delta,"refusal").is_null(), "upstream refused the request");
-            if let Some(t) = field(delta,"content").as_str() {
+            let delta = field(choice, "delta");
+            ensure!(
+                field(delta, "refusal").is_null(),
+                "upstream refused the request"
+            );
+            if let Some(t) = field(delta, "content").as_str() {
                 parts.push(Part::Text(t.into()));
             }
-            if let Some(calls) = field(delta,"tool_calls").as_array() {
+            if let Some(calls) = field(delta, "tool_calls").as_array() {
                 for call in calls {
                     let f = self.functions.entry(index(call, "index")?).or_default();
-                    if let Some(s) = field(call,"id").as_str() {
+                    if let Some(s) = field(call, "id").as_str() {
                         f.id.push_str(s);
                     }
                     if let Some(s) = call.pointer("/function/name").and_then(Value::as_str) {
@@ -98,7 +102,7 @@ impl Decoder {
                     }
                 }
             }
-            if let Some(reason) = field(choice,"finish_reason").as_str() {
+            if let Some(reason) = field(choice, "finish_reason").as_str() {
                 self.reason = Some(reason.into());
                 for f in std::mem::take(&mut self.functions).into_values() {
                     parts.push(f.finish()?);
@@ -111,9 +115,13 @@ impl Decoder {
     fn messages(&mut self, v: &Value) -> Result<Vec<Part>> {
         let mut parts = vec![];
         match text(v, "type")? {
-            "message_start" => self.usage(v.pointer("/message/usage").unwrap_or(&Value::Null), "input_tokens", "output_tokens"),
+            "message_start" => self.usage(
+                v.pointer("/message/usage").unwrap_or(&Value::Null),
+                "input_tokens",
+                "output_tokens",
+            ),
             "content_block_start" => {
-                let block = field(v,"content_block");
+                let block = field(v, "content_block");
                 match text(block, "type")? {
                     "text" => parts.push(Part::Text(text(block, "text")?.into())),
                     "tool_use" => {
@@ -132,7 +140,7 @@ impl Decoder {
                 }
             }
             "content_block_delta" => {
-                let delta = field(v,"delta");
+                let delta = field(v, "delta");
                 match text(delta, "type")? {
                     "text_delta" => parts.push(Part::Text(text(delta, "text")?.into())),
                     "input_json_delta" => self
@@ -150,8 +158,8 @@ impl Decoder {
                 }
             }
             "message_delta" => {
-                self.usage(field(v,"usage"), "input_tokens", "output_tokens");
-                self.reason = Some(text(field(v,"delta"), "stop_reason")?.into());
+                self.usage(field(v, "usage"), "input_tokens", "output_tokens");
+                self.reason = Some(text(field(v, "delta"), "stop_reason")?.into());
             }
             "message_stop" => self.done = true,
             "ping" => (),
@@ -182,18 +190,18 @@ impl Decoder {
                 parts.push(Part::Text(text(v, "delta")?.into()));
             }
             "response.output_item.done" => {
-                self.completed_item(index(v, "output_index")?, field(v,"item"), &mut parts)?
+                self.completed_item(index(v, "output_index")?, field(v, "item"), &mut parts)?
             }
             "response.completed" | "response.incomplete" => {
-                let reply = field(v,"response");
+                let reply = field(v, "response");
                 for (i, item) in array(reply, "output")?.iter().enumerate() {
                     self.completed_item(i as u64, item, &mut parts)?;
                 }
-                self.usage(field(reply,"usage"), "input_tokens", "output_tokens");
+                self.usage(field(reply, "usage"), "input_tokens", "output_tokens");
                 self.reason = Some(
                     match text(reply, "status")? {
                         "completed" => "stop",
-                        "incomplete" => text(field(reply,"incomplete_details"), "reason")?,
+                        "incomplete" => text(field(reply, "incomplete_details"), "reason")?,
                         other => bail!("upstream response status {other}"),
                     }
                     .into(),
@@ -215,21 +223,21 @@ impl Decoder {
 
     fn gemini(&mut self, v: &Value) -> Result<Vec<Part>> {
         self.usage(
-            field(v,"usageMetadata"),
+            field(v, "usageMetadata"),
             "promptTokenCount",
             "candidatesTokenCount",
         );
         let mut parts = vec![];
-        if let Some(candidates) = field(v,"candidates").as_array() {
+        if let Some(candidates) = field(v, "candidates").as_array() {
             for candidate in candidates {
                 ensure!(
-                    field(candidate,"index").as_u64().unwrap_or(0) == 0,
+                    unsigned(field(candidate, "index")).unwrap_or(0) == 0,
                     "multiple Gemini candidates"
                 );
                 if let Some(content) = candidate.pointer("/content/parts") {
                     parts.extend(read_parts(Format::Gemini, content)?);
                 }
-                if let Some(reason) = field(candidate,"finishReason").as_str() {
+                if let Some(reason) = field(candidate, "finishReason").as_str() {
                     self.reason = Some(reason.into());
                 }
             }

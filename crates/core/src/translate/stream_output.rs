@@ -48,9 +48,9 @@ impl Encoder {
 
     fn event(&mut self, name: &str, mut data: Value) {
         let object = data.as_object_mut().expect("event payload is an object");
-        object.insert("type".into(),name.into());
+        object.insert("type".into(), name.into());
         if self.format == Format::Responses {
-            object.insert("sequence_number".into(),self.sequence.into());
+            object.insert("sequence_number".into(), self.sequence.into());
             self.sequence += 1;
         }
         writeln!(self.frames, "event: {name}").unwrap();
@@ -60,7 +60,10 @@ impl Encoder {
     fn chat(&mut self, choices: Value, usage: Option<Value>) {
         let mut chunk = json!({"id":format!("chatcmpl-{}",self.id),"object":"chat.completion.chunk","created":self.created,"model":self.model,"choices":choices});
         if let Some(usage) = usage {
-            chunk.as_object_mut().expect("chat chunk").insert("usage".into(),usage);
+            chunk
+                .as_object_mut()
+                .expect("chat chunk")
+                .insert("usage".into(), usage);
         }
         self.data(chunk);
     }
