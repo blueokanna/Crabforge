@@ -157,8 +157,32 @@ abstract class AppLocalizations {
   /// No description provided for @skillSourceFolder.
   ///
   /// In en, this message translates to:
-  /// **'Local folder or GitHub URL'**
+  /// **'Local folder or Git URL'**
   String get skillSourceFolder;
+
+  /// No description provided for @checkSkillUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get checkSkillUpdate;
+
+  /// No description provided for @skillUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'The skill files are current.'**
+  String get skillUpToDate;
+
+  /// No description provided for @skillUpdateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'New skill files are available. Use Reimport files to apply them.'**
+  String get skillUpdateAvailable;
+
+  /// No description provided for @skillRemovedUpstream.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected folder no longer contains SKILL.md.'**
+  String get skillRemovedUpstream;
 
   /// No description provided for @installedSkills.
   ///

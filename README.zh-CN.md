@@ -86,6 +86,8 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 **已安装的技能** 扫描原生及网关客户端配置中的兼容文件夹。选择 **交由 Crabforge 管理** 后，Crabforge 校验扫描时的内容哈希，将文件保存为库快照并在原址管理该文件夹。取消分配会移除内容未变的文件夹。CLI 对应 `skills discover` 和 `skills adopt <Agent> <名称> <路径> --content <discover 返回的 content>`。
 
+其他 Git 托管服务可使用 HTTPS 或 SSH 克隆链接，也支持 GitLab 和 Gitea 文件夹链接、`user@host:path` 形式的 SSH 地址和指向本地仓库的绝对 `file://` 链接。可加 `?ref=feature%2Fdocs#path/to/skill` 选择引用和技能目录。这些来源需要 `PATH` 上的 Git，并使用 Git 的凭据助手或 SSH Agent。**检查更新** 将来源文件与库快照比较，显示文件未变、有新内容或缺少 `SKILL.md`。**重新导入文件** 应用更新。CLI 对应 `skills check <名称> --revision <list 返回的 revision>`。
+
 在 **客户端连接** 选择支持的客户端，打开 **项目 MCP** 并选择项目文件夹。添加服务器时使用客户端的原生 JSON 配置，Codex 使用 TOML 表正文。编辑器显示将写入的文件，保存和删除前会核对文件修订。客户端打开项目时读取配置并启动服务器。
 
 ```powershell

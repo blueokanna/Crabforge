@@ -13,9 +13,18 @@ use tar::Archive;
 use ureq::tls::{RootCerts, TlsConfig};
 use url::Url;
 
+mod git;
+
 const MAX_DOWNLOAD: u64 = 32 * 1024 * 1024;
 const MAX_TAR: u64 = 128 * 1024 * 1024;
 const MAX_HEADERS: usize = 32_768;
+
+pub(super) fn is_url(input: &str) -> bool {
+    input.contains("://")
+        || input
+            .split_once(':')
+            .is_some_and(|(host, _)| host.contains('@') && !host.contains(['/', '\\']))
+}
 
 struct Source {
     owner: String,
@@ -185,10 +194,11 @@ fn relative(path: &[u8]) -> Result<&str> {
     Ok(nested)
 }
 
-fn find_folder(source: &Source, archive: &mut File) -> Result<String> {
-    if let Some(folder) = &source.folder {
-        return Ok(folder.clone());
-    }
+fn find_folder(
+    archive: &mut File,
+    requested: Option<&str>,
+    canonical: impl Fn(&str) -> String,
+) -> Result<Option<String>> {
     let mut folders = BTreeSet::new();
     for (index, entry) in Archive::new(archive).entries()?.enumerate() {
         ensure!(
@@ -198,31 +208,34 @@ fn find_folder(source: &Source, archive: &mut File) -> Result<String> {
         let entry = entry?;
         let path = entry.path_bytes();
         let path = relative(&path)?;
-        if entry.header().entry_type().is_file() {
-            if path == DOCUMENT {
-                return Ok(String::new());
+        if !entry.header().entry_type().is_file() {
+            continue;
+        }
+        let folder = if path == DOCUMENT {
+            Some("")
+        } else {
+            path.strip_suffix("/SKILL.md")
+                .filter(|path| valid_path(path))
+        };
+        if let Some(folder) = folder {
+            if requested == Some(folder) || (requested.is_none() && folder.is_empty()) {
+                return Ok(Some(folder.to_owned()));
             }
-            if let Some(parent) = path.strip_suffix("/SKILL.md")
-                && valid_path(parent)
-            {
-                folders.insert(parent.to_owned());
+            if requested.is_none() {
+                folders.insert(folder.to_owned());
             }
         }
     }
-    ensure!(
-        !folders.is_empty(),
-        "the GitHub repository does not contain a {DOCUMENT}"
-    );
-    if folders.len() == 1 {
-        return Ok(folders.pop_first().expect("one skill folder"));
+    if folders.len() <= 1 {
+        return Ok(folders.pop_first());
     }
     let examples = folders
         .iter()
         .take(12)
-        .map(|path| source.canonical(path))
+        .map(|path| canonical(path))
         .collect::<Vec<_>>();
     anyhow::bail!(
-        "the GitHub repository contains {} skill folders. Enter a folder or SKILL.md URL.\n{}",
+        "the repository contains {} skill folders. Enter a folder or SKILL.md URL.\n{}",
         folders.len(),
         examples.join("\n")
     );
@@ -309,12 +322,35 @@ fn extract(archive: &mut File, folder: &str, root: &Path) -> Result<Tree> {
 }
 
 pub(super) fn load(input: &str) -> Result<(String, Tree)> {
-    let source = Source::parse(input)?;
-    let mut archive = source.download()?;
-    let folder = find_folder(&source, &mut archive)?;
+    read(input)?.context("the selected Git source has no SKILL.md")
+}
+
+pub(super) fn read(input: &str) -> Result<Option<(String, Tree)>> {
+    if Url::parse(input).is_ok_and(|url| {
+        url.scheme() == "https" && matches!(url.host_str(), Some("github.com" | "www.github.com"))
+    }) {
+        let source = Source::parse(input)?;
+        return bundle(source.download()?, source.folder.as_deref(), |folder| {
+            source.canonical(folder)
+        });
+    }
+    let source = git::Source::parse(input)?;
+    bundle(source.fetch()?, source.folder.as_deref(), |folder| {
+        source.canonical(folder)
+    })
+}
+
+fn bundle(
+    mut archive: File,
+    requested: Option<&str>,
+    canonical: impl Fn(&str) -> String,
+) -> Result<Option<(String, Tree)>> {
+    let Some(folder) = find_folder(&mut archive, requested, &canonical)? else {
+        return Ok(None);
+    };
     let staging = tempfile::tempdir()?;
     let tree = extract(&mut archive, &folder, staging.path())?;
-    Ok((source.canonical(&folder), tree))
+    Ok(Some((canonical(&folder), tree)))
 }
 
 #[cfg(test)]
@@ -353,7 +389,10 @@ mod tests {
             ),
         ])?;
         let source = Source::parse("https://github.com/team/repo")?;
-        let folder = find_folder(&source, &mut archive)?;
+        let folder = find_folder(&mut archive, source.folder.as_deref(), |folder| {
+            source.canonical(folder)
+        })?
+        .context("missing test skill")?;
         assert_eq!(folder, "tools/report");
         let canonical = source.canonical(&folder);
         assert_eq!(
@@ -380,7 +419,9 @@ mod tests {
             ("repo-main/one/SKILL.md", b"one", EntryType::Regular),
             ("repo-main/two/SKILL.md", b"two", EntryType::Regular),
         ])?;
-        let error = find_folder(&source, &mut archive).unwrap_err().to_string();
+        let error = find_folder(&mut archive, None, |folder| source.canonical(folder))
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("/repo#one") && error.contains("/repo#two"));
         for (first, second, kind) in [
             (

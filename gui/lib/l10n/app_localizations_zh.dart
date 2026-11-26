@@ -31,7 +31,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editSkill => '编辑技能分配';
 
   @override
-  String get skillSourceFolder => '本地文件夹或 GitHub URL';
+  String get skillSourceFolder => '本地文件夹或 Git URL';
+
+  @override
+  String get checkSkillUpdate => '检查更新';
+
+  @override
+  String get skillUpToDate => '技能文件已是最新版本。';
+
+  @override
+  String get skillUpdateAvailable => '有新的技能文件。选择重新导入文件即可应用。';
+
+  @override
+  String get skillRemovedUpstream => '所选目录已不包含 SKILL.md。';
 
   @override
   String get installedSkills => '已安装的技能';

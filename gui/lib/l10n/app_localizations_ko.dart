@@ -31,7 +31,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get editSkill => '스킬 할당 편집';
 
   @override
-  String get skillSourceFolder => '로컬 폴더 또는 GitHub URL';
+  String get skillSourceFolder => '로컬 폴더 또는 Git URL';
+
+  @override
+  String get checkSkillUpdate => '업데이트 확인';
+
+  @override
+  String get skillUpToDate => '스킬 파일이 최신 상태입니다.';
+
+  @override
+  String get skillUpdateAvailable => '새 스킬 파일이 있습니다. 파일을 다시 가져와 적용하세요.';
+
+  @override
+  String get skillRemovedUpstream => '선택한 폴더에 SKILL.md가 더 이상 없습니다.';
 
   @override
   String get installedSkills => '설치된 스킬';

@@ -143,6 +143,14 @@ Future<String> agentSkills() => RustLib.instance.api.crateApiAgentSkills();
 Future<String> discoverAgentSkills() =>
     RustLib.instance.api.crateApiDiscoverAgentSkills();
 
+Future<String> checkAgentSkillUpdate({
+  required String name,
+  required String revision,
+}) => RustLib.instance.api.crateApiCheckAgentSkillUpdate(
+  name: name,
+  revision: revision,
+);
+
 Future<String> adoptAgentSkill({
   required String agent,
   required String name,

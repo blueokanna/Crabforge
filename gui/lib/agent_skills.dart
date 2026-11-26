@@ -272,6 +272,7 @@ class _SkillEditorState extends State<_SkillEditor> {
       (_skill?['agents'] as List?)?.cast<String>().toSet() ?? <String>{};
   bool _working = false;
   Object? _error;
+  String? _updateStatus;
 
   @override
   void dispose() {
@@ -281,13 +282,40 @@ class _SkillEditorState extends State<_SkillEditor> {
 
   Future<void> _chooseFolder() async {
     final path = await getDirectoryPath();
-    if (path != null && mounted) setState(() => _source.text = path);
+    if (path != null && mounted) {
+      setState(() {
+        _source.text = path;
+        _updateStatus = null;
+      });
+    }
+  }
+
+  Future<void> _checkUpdate() async {
+    setState(() {
+      _working = true;
+      _error = null;
+      _updateStatus = null;
+    });
+    try {
+      final result = jsonDecode(
+        await api.checkAgentSkillUpdate(
+          name: _skill!['name'] as String,
+          revision: widget.entry!['revision'] as String,
+        ),
+      ) as _Json;
+      if (mounted) setState(() => _updateStatus = result['status'] as String);
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
   }
 
   Future<void> _save({required bool reimport}) async {
     setState(() {
       _working = true;
       _error = null;
+      _updateStatus = null;
     });
     try {
       final revision = widget.entry?['revision'] as String?;
@@ -318,6 +346,11 @@ class _SkillEditorState extends State<_SkillEditor> {
   Widget build(BuildContext context) {
     final strings = context.strings;
     final ready = !_working && _source.text.trim().isNotEmpty;
+    final savedSource = _skill?['source'] as String?;
+    final canCheck =
+        savedSource != null &&
+        savedSource.contains('://') &&
+        _source.text.trim() == savedSource;
     return PopScope(
       canPop: !_working,
       child: AlertDialog(
@@ -336,7 +369,7 @@ class _SkillEditorState extends State<_SkillEditor> {
               TextField(
                 controller: _source,
                 enabled: !_working,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => setState(() => _updateStatus = null),
                 decoration: InputDecoration(
                   labelText: strings.skillSourceFolder,
                   suffixIcon: IconButton(
@@ -367,6 +400,18 @@ class _SkillEditorState extends State<_SkillEditor> {
                     ),
                 ],
               ),
+              if (canCheck)
+                TextButton.icon(
+                  onPressed: _working ? null : _checkUpdate,
+                  icon: const Icon(Icons.update_outlined),
+                  label: Text(strings.checkSkillUpdate),
+                ),
+              if (_updateStatus case final String status)
+                Text(switch (status) {
+                  'current' => strings.skillUpToDate,
+                  'gone' => strings.skillRemovedUpstream,
+                  _ => strings.skillUpdateAvailable,
+                }),
               if (_error != null) SelectableText('$_error'),
               if (_working) const LinearProgressIndicator(),
             ],

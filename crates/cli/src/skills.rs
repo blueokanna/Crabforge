@@ -17,7 +17,7 @@ pub(super) enum Command {
         #[arg(long)]
         content: String,
     },
-    /// Import a local folder or an HTTPS GitHub URL for a skill and its supporting files.
+    /// Import a local folder or a Git source for a skill and its supporting files.
     Import {
         source: PathBuf,
         /// Assign to claude, codex, gemini, opencode or pi. Repeat for each agent.
@@ -26,6 +26,12 @@ pub(super) enum Command {
         /// Require the revision from list when updating an existing skill.
         #[arg(long)]
         revision: Option<String>,
+    },
+    /// Compare a remote skill's files with the library snapshot without applying changes.
+    Check {
+        name: String,
+        #[arg(long)]
+        revision: String,
     },
     /// Replace the selected agents, or clear the assignments if none are given.
     Assign {
@@ -49,6 +55,10 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
     let edit = match command {
         Command::Discover => {
             println!("{}", skills::discover(dir)?);
+            return Ok(());
+        }
+        Command::Check { name, revision } => {
+            println!("{}", skills::check_update(dir, &name, &revision)?);
             return Ok(());
         }
         Command::Adopt {

@@ -220,6 +220,10 @@ pub fn discover_agent_skills() -> Result<String> {
     crabforge_core::skills::discover(&config::data_dir()?)
 }
 
+pub fn check_agent_skill_update(name: String, revision: String) -> Result<String> {
+    crabforge_core::skills::check_update(&config::data_dir()?, &name, &revision)
+}
+
 pub fn adopt_agent_skill(
     agent: String,
     name: String,

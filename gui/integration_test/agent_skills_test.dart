@@ -74,7 +74,7 @@ void main() {
     await tap(find.text('Import skill'));
     await waitFor(find.byType(AlertDialog));
     await tester.enterText(
-      find.widgetWithText(TextField, 'Local folder or GitHub URL'),
+      find.widgetWithText(TextField, 'Local folder or Git URL'),
       source.path,
     );
     await tap(find.widgetWithText(FilterChip, 'Claude Code'));
@@ -142,5 +142,56 @@ void main() {
     await tap(find.widgetWithText(TextButton, 'Remove'));
     await waitFor(find.text('No skills imported'));
     expect(own.existsSync(), isFalse);
+
+    final repository = Directory('${home.path}/skill-repository')..createSync();
+    Future<void> git(List<String> args) async {
+      final result = await Process.run('git', [
+        '-c',
+        'user.name=Crabforge fixture',
+        '-c',
+        'user.email=fixture@example.test',
+        '-c',
+        'commit.gpgSign=false',
+        ...args,
+      ], workingDirectory: repository.path);
+      expect(result.exitCode, 0, reason: '${result.stderr}');
+    }
+
+    final document = File('${repository.path}/SKILL.md')
+      ..writeAsStringSync(
+        doc.replaceFirst('name: diagnostics', 'name: git-fixture'),
+      );
+    await git(['init', '-q']);
+    await git(['add', 'SKILL.md']);
+    await git(['commit', '-qm', 'Add skill']);
+    await tap(find.text('Import skill'));
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Local folder or Git URL'),
+      repository.uri.toString(),
+    );
+    await tap(find.widgetWithText(FilledButton, 'Import skill'));
+    final fromGit = find.byKey(const ValueKey('git-fixture'));
+    await waitFor(fromGit);
+    await tap(
+      find.descendant(
+        of: fromGit,
+        matching: find.byTooltip('Edit skill assignments'),
+      ),
+    );
+    await tap(find.text('Check for updates'));
+    await waitFor(find.text('The skill files are current.'));
+    document.writeAsStringSync(
+      '${document.readAsStringSync()}\nUse SI units.\n',
+    );
+    await git(['add', 'SKILL.md']);
+    await git(['commit', '-qm', 'Update skill']);
+    await tap(find.text('Check for updates'));
+    await waitFor(
+      find.text(
+        'New skill files are available. Use Reimport files to apply them.',
+      ),
+    );
+    await tap(find.text('Reimport files'));
+    await waitFor(fromGit);
   });
 }

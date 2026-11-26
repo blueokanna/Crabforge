@@ -31,7 +31,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editSkill => 'スキルの割り当てを編集';
 
   @override
-  String get skillSourceFolder => 'ローカルフォルダーまたは GitHub URL';
+  String get skillSourceFolder => 'ローカルフォルダーまたは Git URL';
+
+  @override
+  String get checkSkillUpdate => '更新を確認';
+
+  @override
+  String get skillUpToDate => 'スキルファイルは最新です。';
+
+  @override
+  String get skillUpdateAvailable => '新しいスキルファイルがあります。ファイルを再インポートして適用できます。';
+
+  @override
+  String get skillRemovedUpstream => '選択したフォルダーに SKILL.md がありません。';
 
   @override
   String get installedSkills => 'インストール済みのスキル';

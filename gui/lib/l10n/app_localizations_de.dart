@@ -31,7 +31,21 @@ class AppLocalizationsDe extends AppLocalizations {
   String get editSkill => 'Skill-Zuweisungen bearbeiten';
 
   @override
-  String get skillSourceFolder => 'Lokaler Ordner oder GitHub-URL';
+  String get skillSourceFolder => 'Lokaler Ordner oder Git-URL';
+
+  @override
+  String get checkSkillUpdate => 'Nach Updates suchen';
+
+  @override
+  String get skillUpToDate => 'Die Skill-Dateien sind aktuell.';
+
+  @override
+  String get skillUpdateAvailable =>
+      'Neue Skill-Dateien sind verfügbar. Importieren Sie die Dateien erneut.';
+
+  @override
+  String get skillRemovedUpstream =>
+      'Der ausgewählte Ordner enthält keine SKILL.md mehr.';
 
   @override
   String get installedSkills => 'Installierte Skills';

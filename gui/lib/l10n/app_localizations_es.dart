@@ -31,7 +31,21 @@ class AppLocalizationsEs extends AppLocalizations {
   String get editSkill => 'Editar asignaciones de la habilidad';
 
   @override
-  String get skillSourceFolder => 'Carpeta local o URL de GitHub';
+  String get skillSourceFolder => 'Carpeta local o URL de Git';
+
+  @override
+  String get checkSkillUpdate => 'Buscar actualizaciones';
+
+  @override
+  String get skillUpToDate => 'Los archivos de la habilidad están al día.';
+
+  @override
+  String get skillUpdateAvailable =>
+      'Hay archivos nuevos. Vuelve a importarlos para aplicarlos.';
+
+  @override
+  String get skillRemovedUpstream =>
+      'La carpeta seleccionada ya no contiene SKILL.md.';
 
   @override
   String get installedSkills => 'Habilidades instaladas';

@@ -123,6 +123,12 @@ struct Discovered {
     content: String,
 }
 
+#[derive(NsonSerialize)]
+struct UpdateCheck {
+    status: &'static str,
+    content: Option<String>,
+}
+
 fn validate_name(name: &str) -> Result<()> {
     let alphanumeric = |b: u8| b.is_ascii_lowercase() || b.is_ascii_digit();
     ensure!(
@@ -484,6 +490,30 @@ pub fn discover(dir: &Path) -> Result<String> {
     encode(&discover_in(&store, &homes(dir)?)?)
 }
 
+pub fn check_update(dir: &Path, name: &str, expected: &str) -> Result<String> {
+    let path = dir.join("skills/library.json");
+    let mut store = Store::load(&path)?;
+    let skill = store.skill_mut(name, Some(expected))?;
+    ensure!(
+        remote::is_url(&skill.source),
+        "skill has no remote Git source"
+    );
+    let content = remote::read(&skill.source)?
+        .map(|(_, tree)| -> Result<String> {
+            ensure!(details(&tree)?.0 == name, "the upstream skill name changed");
+            Ok(tree.hash())
+        })
+        .transpose()?;
+    // The remote read runs without the library lock. Check again before showing the result.
+    Store::load(&path)?.skill_mut(name, Some(expected))?;
+    let status = match &content {
+        Some(hash) if hash == &skill.content => "current",
+        Some(_) => "update",
+        None => "gone",
+    };
+    encode(&UpdateCheck { status, content })
+}
+
 fn discover_in(store: &Store, homes: &Homes) -> Result<Vec<Discovered>> {
     let mut found = Vec::new();
     let mut seen = BTreeSet::new();
@@ -544,10 +574,7 @@ fn discover_in(store: &Store, homes: &Homes) -> Result<Vec<Discovered>> {
 }
 
 fn load_source(source: &Path) -> Result<(String, Tree)> {
-    if let Some(url) = source
-        .to_str()
-        .filter(|value| value.starts_with("https://"))
-    {
+    if let Some(url) = source.to_str().filter(|value| remote::is_url(value)) {
         return remote::load(url);
     }
     ensure!(
