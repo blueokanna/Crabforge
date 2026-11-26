@@ -1,0 +1,7 @@
+00:00 +0: loading D:/RustProject/Crabforge/dist/cf-windows-1ef0c50/source/gui/integration_test/omp_settings_test.dart
+Building Windows application...                                    26.0s
+√ Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: Edit Oh My Pi settings in an isolated profile
+00:19 +1: (tearDownAll)
+00:19 +1: All tests passed!

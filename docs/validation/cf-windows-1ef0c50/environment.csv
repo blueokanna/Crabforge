@@ -1,0 +1,4 @@
+Client,Write,Preserve external values,Rename and remove,Format
+Claude Code profile,pass,pass,pass,"JSONC with BOM, CRLF and comments"
+Codex profile,pass,pass,pass,"TOML inline set with BOM, CRLF and comments"
+Pi native and gateway profiles,pass,pass,pass,managed extension limited to Pi

@@ -6,6 +6,16 @@
 
 `assets/brands` 中的 119 个文件与本地 Magpie 参考快照的 `internal/gui/assets/icons` 逐文件 SHA-256 相同。包内附带 Magpie 与 Lobe Icons 的 MIT 声明。OpenAI 的标志使用另受品牌指南及其授权条款约束，Anthropic 商业服务条款第 F 节将知识产权授权限于条款明确授予的范围。正式售卖所需的品牌授权核定仍在进行。当前 Windows 用户没有可访问私钥的代码签名证书，冻结包的 Authenticode 状态为 `NotSigned`。[第三方声明](../THIRD_PARTY_NOTICES) · [OpenAI 品牌指南](https://openai.com/brand/#usage-terms) · [Anthropic 商业条款](https://www.anthropic.com/legal/commercial-terms#f-intellectual-property)
 
+### Windows x64 Hooks（`1ef0c50`）
+
+从 `1ef0c50d7c0c918283d2585b2821e4dd057e21ad` 离线构建的 ZIP 为 63,341,802 字节，SHA-256 为 `1437C6C0FAB40A80F6829B8CC91A950F314B4B6D2A7F790DB6FD4233C5B8DD2C`。核对 334 项构建输入、671 项解压清单、126 项资产，以及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。全目标 Clippy、Flutter 分析和两项组件测试通过。三个入口的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-1ef0c50/build-inputs.sha256) · [解压清单](validation/cf-windows-1ef0c50/SHA256SUMS) · [依赖审计](validation/cf-windows-1ef0c50/dependency-audit.csv)
+
+解压 CLI 发布的 `SessionStart` 由 Claude Code 2.1.332 执行，Gemini CLI 0.71.1 在原生及网关 profile 均执行，三个进程写入本机标记并收到了模型夹具响应。Codex 0.172.0 接受撤销后保留索引的空组，并完成本机模型回合。Cursor 核对了 `version: 1` 和扁平 `sessionStart` 配置，运行时执行仍待实测。解压 CLI 也通过了环境变量的格式和外部修改保护回归。[Hooks 客户端](validation/cf-windows-1ef0c50/hooks-process.csv) · [环境变量](validation/cf-windows-1ef0c50/environment.csv)
+
+三轮解压 Release 启动的工作集／私有字节中位数分别为 Crabforge 156.70/229.47 MiB、Magpie 主进程 80.98/96.92 MiB、含七个 WebView2 子进程的 Magpie 453.22/428.58 MiB。三轮本机 SSE 首事件为 25、17、29 ms，末事件为 741、732、732 ms，上游等待 700 ms。同机 IPv6 回环、网卡全局 IPv6 地址及 Kubo 回退均核对了 401/200。[内存](validation/cf-windows-1ef0c50/desktop-comparison.csv) · [SSE](validation/cf-windows-1ef0c50/forward-h1.csv) · [IPv6](validation/cf-windows-1ef0c50/ipv6.csv)
+
+139 项 Rust 全量回归和十一轮 Windows Debug 集成通过，覆盖控制台和 Oh My Pi 重启、宽窄布局及客户端资源。Hooks 用例在两个布局中完成发布、撤销和外部修改保留。Profile 采集到 581 帧，UI 构建 P90/P99 为 1.150/6.632 ms，帧总跨度为 2.900/7.650 ms。计时来自 Flutter 帧回调。[Rust 回归](validation/cf-windows-1ef0c50/regression.log) · [Hooks 桌面用例](validation/cf-windows-1ef0c50/agent-hooks.log) · [Profile 日志](validation/cf-windows-1ef0c50/profile.log) · [逐帧数据](validation/cf-windows-1ef0c50/profile-frames.json)
+
 ### Windows x64 环境变量（`8064053`）
 
 从 `806405399a164f9184fa1fa6530b416ab9aa1c48` 离线构建的 ZIP 为 62,982,543 字节，SHA-256 为 `A389FEADE3B16C4E9CFE31DE260896603F9E581D1663635DD2CE184B5D210027`。核对 328 项构建输入、671 项解压清单、126 项资产和双 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。全目标 Clippy、Flutter 分析、两项组件测试和 136 项 Rust 全量回归通过。三个入口的 Authenticode 状态均为 `NotSigned`。[解压清单](validation/cf-windows-8064053/SHA256SUMS) · [依赖审计](validation/cf-windows-8064053/dependency-audit.csv) · [Rust 回归](validation/cf-windows-8064053/regression.log)
