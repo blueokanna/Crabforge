@@ -10,6 +10,72 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get agentHooks => 'フック';
+
+  @override
+  String get addHook => 'フックを追加';
+
+  @override
+  String get editHook => 'フックを編集';
+
+  @override
+  String get adoptHook => 'フックを引き継ぐ';
+
+  @override
+  String get noHooks => '保存済みのフックはありません';
+
+  @override
+  String get installedHooks => 'クライアント設定のフック';
+
+  @override
+  String get hookName => 'フック名';
+
+  @override
+  String get hookDescription => '説明（任意）';
+
+  @override
+  String get hookEvent => 'イベント';
+
+  @override
+  String get hookMatcher => '一致条件';
+
+  @override
+  String get hookAllTools => 'すべてのツール';
+
+  @override
+  String get hookShellTool => 'シェルコマンド';
+
+  @override
+  String get hookEditTool => 'ファイル編集';
+
+  @override
+  String get hookCommand => 'クライアントが実行するコマンド';
+
+  @override
+  String get hookTimeout => 'タイムアウト秒数（任意）';
+
+  @override
+  String get hookTurnEnd => 'ターン終了';
+
+  @override
+  String get hookAfterTool => 'ツール使用後';
+
+  @override
+  String get hookBeforeTool => 'ツール使用前';
+
+  @override
+  String get hookPrompt => 'プロンプト送信時';
+
+  @override
+  String get hookSessionStart => 'セッション開始';
+
+  @override
+  String get hookExisting => '同じフックが既にあります';
+
+  @override
+  String get hookConflict => '既存のフックを保持しました';
+
+  @override
   String get agentEnvironment => '環境変数';
 
   @override

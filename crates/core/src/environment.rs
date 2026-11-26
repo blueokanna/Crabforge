@@ -1,22 +1,22 @@
 use crate::{
-    agents::NativeAgent, config::read_limited, project_instructions::replace,
-    rules::resolved_folder,
+    agents::NativeAgent,
+    config::read_limited,
+    native_settings::{self, read, write},
+    project_instructions::replace,
 };
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env,
-    fs::{self, File},
-    io::{ErrorKind, Write},
+    env, fs,
+    io::ErrorKind,
     path::{Path, PathBuf},
 };
 
 mod native;
 
 const AGENTS: &[&str] = &["claude", "codex", "pi"];
-const MAX_CONFIG: usize = 1024 * 1024;
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
 pub const MAX_VALUE: usize = 8192;
 type Values = BTreeMap<String, String>;
@@ -136,12 +136,7 @@ fn name_key(name: &str) -> String {
 }
 
 fn destination(agent: &str, home: &Path, file: &str) -> Result<Destination> {
-    let path = std::path::absolute(home.join(file))?;
-    let parent = resolved_folder(path.parent().context("missing environment config folder")?)?;
-    let path = parent.join(
-        path.file_name()
-            .context("missing environment config filename")?,
-    );
+    let path = native_settings::path(&home.join(file))?;
     Ok(Destination {
         agent: agent.to_owned(),
         path: path
@@ -173,61 +168,6 @@ fn destinations(dir: &Path) -> Result<BTreeSet<Destination>> {
     .into_iter()
     .map(|(agent, home, file)| destination(agent, &home, file))
     .collect()
-}
-
-fn read(path: &Path) -> Result<Option<String>> {
-    let parent = path.parent().context("missing environment config folder")?;
-    ensure!(
-        resolved_folder(parent)? == parent,
-        "environment config folder moved"
-    );
-    match fs::symlink_metadata(path) {
-        Ok(metadata) => ensure!(
-            metadata.is_file(),
-            "expected a regular environment config file"
-        ),
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(error.into()),
-    }
-    Ok(Some(
-        String::from_utf8(read_limited(path, MAX_CONFIG)?)
-            .map_err(|_| anyhow::anyhow!("environment settings must be UTF-8"))?,
-    ))
-}
-
-fn write(path: &Path, before: Option<&str>, after: Option<&str>) -> Result<()> {
-    let parent = path.parent().context("missing environment config folder")?;
-    fs::create_dir_all(parent)?;
-    let staged = if let Some(after) = after {
-        ensure!(
-            after.len() <= MAX_CONFIG,
-            "environment config exceeds 1 MiB"
-        );
-        let mut file = tempfile::NamedTempFile::new_in(parent)?;
-        if before.is_some() {
-            file.as_file()
-                .set_permissions(path.metadata()?.permissions())?;
-        }
-        file.write_all(after.as_bytes())?;
-        file.as_file().sync_all()?;
-        Some(file)
-    } else {
-        None
-    };
-    ensure!(
-        resolved_folder(parent)? == parent && read(path)?.as_deref() == before,
-        "native environment config changed; reload it"
-    );
-    match staged {
-        Some(file) if before.is_some() => {
-            file.persist(path)?;
-        }
-        Some(file) => {
-            file.persist_noclobber(path)?;
-        }
-        None => fs::remove_file(path)?,
-    }
-    Ok(())
 }
 
 impl Store {
@@ -383,13 +323,7 @@ fn edit_in(
 ) -> Result<String> {
     let library = dir.join("environment");
     fs::create_dir_all(&library)?;
-    let lock = File::options()
-        .create(true)
-        .truncate(false)
-        .read(true)
-        .write(true)
-        .open(library.join("library.lock"))?;
-    lock.lock()?;
+    let _lock = native_settings::lock(dir)?;
     let path = library.join("library.json");
     let mut store = Store::load(&path)?;
     let sync = !matches!(edit, Edit::Read);

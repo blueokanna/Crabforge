@@ -10,6 +10,72 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get agentHooks => '훅';
+
+  @override
+  String get addHook => '훅 추가';
+
+  @override
+  String get editHook => '훅 편집';
+
+  @override
+  String get adoptHook => '훅 가져오기';
+
+  @override
+  String get noHooks => '저장된 훅 없음';
+
+  @override
+  String get installedHooks => '클라이언트 설정의 훅';
+
+  @override
+  String get hookName => '훅 이름';
+
+  @override
+  String get hookDescription => '설명(선택 사항)';
+
+  @override
+  String get hookEvent => '이벤트';
+
+  @override
+  String get hookMatcher => '일치 조건';
+
+  @override
+  String get hookAllTools => '모든 도구';
+
+  @override
+  String get hookShellTool => '셸 명령';
+
+  @override
+  String get hookEditTool => '파일 편집';
+
+  @override
+  String get hookCommand => '클라이언트가 실행하는 명령';
+
+  @override
+  String get hookTimeout => '제한 시간(초, 선택 사항)';
+
+  @override
+  String get hookTurnEnd => '턴 종료';
+
+  @override
+  String get hookAfterTool => '도구 사용 후';
+
+  @override
+  String get hookBeforeTool => '도구 사용 전';
+
+  @override
+  String get hookPrompt => '프롬프트 제출';
+
+  @override
+  String get hookSessionStart => '세션 시작';
+
+  @override
+  String get hookExisting => '일치하는 훅이 이미 있음';
+
+  @override
+  String get hookConflict => '기존 훅을 유지함';
+
+  @override
   String get agentEnvironment => '환경 변수';
 
   @override

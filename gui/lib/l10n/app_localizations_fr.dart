@@ -10,6 +10,72 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get agentHooks => 'Hooks';
+
+  @override
+  String get addHook => 'Ajouter un hook';
+
+  @override
+  String get editHook => 'Modifier le hook';
+
+  @override
+  String get adoptHook => 'Adopter le hook';
+
+  @override
+  String get noHooks => 'Aucun hook enregistré';
+
+  @override
+  String get installedHooks => 'Hooks des paramètres clients';
+
+  @override
+  String get hookName => 'Nom du hook';
+
+  @override
+  String get hookDescription => 'Description (facultative)';
+
+  @override
+  String get hookEvent => 'Événement';
+
+  @override
+  String get hookMatcher => 'Filtre';
+
+  @override
+  String get hookAllTools => 'Tous les outils';
+
+  @override
+  String get hookShellTool => 'Commandes shell';
+
+  @override
+  String get hookEditTool => 'Modifications de fichiers';
+
+  @override
+  String get hookCommand => 'Commande exécutée par le client';
+
+  @override
+  String get hookTimeout => 'Délai en secondes (facultatif)';
+
+  @override
+  String get hookTurnEnd => 'Fin du tour';
+
+  @override
+  String get hookAfterTool => 'Après l’appel d’un outil';
+
+  @override
+  String get hookBeforeTool => 'Avant l’appel d’un outil';
+
+  @override
+  String get hookPrompt => 'Envoi de la requête';
+
+  @override
+  String get hookSessionStart => 'Début de session';
+
+  @override
+  String get hookExisting => 'Un hook identique existe déjà';
+
+  @override
+  String get hookConflict => 'Hooks existants conservés';
+
+  @override
   String get agentEnvironment => 'Variables d’environnement';
 
   @override

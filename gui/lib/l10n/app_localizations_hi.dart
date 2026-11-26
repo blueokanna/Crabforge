@@ -10,6 +10,72 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get agentHooks => 'हुक';
+
+  @override
+  String get addHook => 'हुक जोड़ें';
+
+  @override
+  String get editHook => 'हुक संपादित करें';
+
+  @override
+  String get adoptHook => 'हुक का प्रबंधन करें';
+
+  @override
+  String get noHooks => 'कोई हुक सहेजा नहीं गया है';
+
+  @override
+  String get installedHooks => 'क्लाइंट सेटिंग में हुक';
+
+  @override
+  String get hookName => 'हुक का नाम';
+
+  @override
+  String get hookDescription => 'विवरण (वैकल्पिक)';
+
+  @override
+  String get hookEvent => 'इवेंट';
+
+  @override
+  String get hookMatcher => 'मिलान की शर्त';
+
+  @override
+  String get hookAllTools => 'सभी टूल';
+
+  @override
+  String get hookShellTool => 'शेल कमांड';
+
+  @override
+  String get hookEditTool => 'फ़ाइल संपादन';
+
+  @override
+  String get hookCommand => 'क्लाइंट द्वारा चलाई जाने वाली कमांड';
+
+  @override
+  String get hookTimeout => 'सेकंड में समय सीमा (वैकल्पिक)';
+
+  @override
+  String get hookTurnEnd => 'टर्न का अंत';
+
+  @override
+  String get hookAfterTool => 'टूल के इस्तेमाल के बाद';
+
+  @override
+  String get hookBeforeTool => 'टूल के इस्तेमाल से पहले';
+
+  @override
+  String get hookPrompt => 'प्रॉम्प्ट भेजने पर';
+
+  @override
+  String get hookSessionStart => 'सेशन शुरू होने पर';
+
+  @override
+  String get hookExisting => 'ऐसा हुक पहले से मौजूद है';
+
+  @override
+  String get hookConflict => 'मौजूदा हुक बनाए रखे गए';
+
+  @override
   String get agentEnvironment => 'एनवायरनमेंट वैरिएबल';
 
   @override

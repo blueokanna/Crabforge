@@ -272,6 +272,45 @@ pub fn sync_agent_environment() -> Result<String> {
     environment::edit(&config::data_dir()?, Edit::Sync, true)
 }
 
+pub fn agent_hooks() -> Result<String> {
+    use crabforge_core::hooks::{self, Edit};
+    hooks::edit(&config::data_dir()?, Edit::Read)
+}
+
+pub fn save_agent_hook(
+    source: String,
+    old: Option<String>,
+    revision: Option<String>,
+) -> Result<String> {
+    use crabforge_core::hooks::{self, Edit};
+    anyhow::ensure!(
+        old.is_some() == revision.is_some(),
+        "an edited hook needs its original name and revision"
+    );
+    hooks::edit(
+        &config::data_dir()?,
+        Edit::Save {
+            source,
+            previous: old.zip(revision),
+        },
+    )
+}
+
+pub fn adopt_agent_hook(key: String, name: String) -> Result<String> {
+    use crabforge_core::hooks::{self, Edit};
+    hooks::edit(&config::data_dir()?, Edit::Adopt { key, name })
+}
+
+pub fn remove_agent_hook(name: String, revision: String) -> Result<String> {
+    use crabforge_core::hooks::{self, Edit};
+    hooks::edit(&config::data_dir()?, Edit::Remove { name, revision })
+}
+
+pub fn sync_agent_hooks() -> Result<String> {
+    use crabforge_core::hooks::{self, Edit};
+    hooks::edit(&config::data_dir()?, Edit::Sync)
+}
+
 pub fn adopt_agent_skill(
     agent: String,
     name: String,

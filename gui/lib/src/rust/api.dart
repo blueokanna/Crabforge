@@ -185,6 +185,32 @@ Future<String> removeAgentVariable({
 Future<String> syncAgentEnvironment() =>
     RustLib.instance.api.crateApiSyncAgentEnvironment();
 
+Future<String> agentHooks() => RustLib.instance.api.crateApiAgentHooks();
+
+Future<String> saveAgentHook({
+  required String source,
+  String? old,
+  String? revision,
+}) => RustLib.instance.api.crateApiSaveAgentHook(
+  source: source,
+  old: old,
+  revision: revision,
+);
+
+Future<String> adoptAgentHook({required String key, required String name}) =>
+    RustLib.instance.api.crateApiAdoptAgentHook(key: key, name: name);
+
+Future<String> removeAgentHook({
+  required String name,
+  required String revision,
+}) => RustLib.instance.api.crateApiRemoveAgentHook(
+  name: name,
+  revision: revision,
+);
+
+Future<String> syncAgentHooks() =>
+    RustLib.instance.api.crateApiSyncAgentHooks();
+
 Future<String> adoptAgentSkill({
   required String agent,
   required String name,

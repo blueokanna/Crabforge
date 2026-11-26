@@ -10,6 +10,72 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get agentHooks => '钩子';
+
+  @override
+  String get addHook => '添加钩子';
+
+  @override
+  String get editHook => '编辑钩子';
+
+  @override
+  String get adoptHook => '接管钩子';
+
+  @override
+  String get noHooks => '尚未保存钩子';
+
+  @override
+  String get installedHooks => '客户端配置中的钩子';
+
+  @override
+  String get hookName => '钩子名称';
+
+  @override
+  String get hookDescription => '说明（可选）';
+
+  @override
+  String get hookEvent => '触发事件';
+
+  @override
+  String get hookMatcher => '匹配条件';
+
+  @override
+  String get hookAllTools => '所有工具';
+
+  @override
+  String get hookShellTool => 'Shell 命令';
+
+  @override
+  String get hookEditTool => '文件编辑';
+
+  @override
+  String get hookCommand => '客户端执行的命令';
+
+  @override
+  String get hookTimeout => '超时秒数（可选）';
+
+  @override
+  String get hookTurnEnd => '回合结束';
+
+  @override
+  String get hookAfterTool => '工具运行后';
+
+  @override
+  String get hookBeforeTool => '工具运行前';
+
+  @override
+  String get hookPrompt => '提交提示词时';
+
+  @override
+  String get hookSessionStart => '会话开始';
+
+  @override
+  String get hookExisting => '已有相同钩子';
+
+  @override
+  String get hookConflict => '已保留现有钩子';
+
+  @override
   String get agentEnvironment => '环境变量';
 
   @override

@@ -10,6 +10,72 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get agentHooks => 'Hooks';
+
+  @override
+  String get addHook => 'Add hook';
+
+  @override
+  String get editHook => 'Edit hook';
+
+  @override
+  String get adoptHook => 'Adopt hook';
+
+  @override
+  String get noHooks => 'No hooks saved';
+
+  @override
+  String get installedHooks => 'Hooks in client settings';
+
+  @override
+  String get hookName => 'Hook name';
+
+  @override
+  String get hookDescription => 'Description (optional)';
+
+  @override
+  String get hookEvent => 'Event';
+
+  @override
+  String get hookMatcher => 'Matcher';
+
+  @override
+  String get hookAllTools => 'All tools';
+
+  @override
+  String get hookShellTool => 'Shell commands';
+
+  @override
+  String get hookEditTool => 'File edits';
+
+  @override
+  String get hookCommand => 'Command run by the client';
+
+  @override
+  String get hookTimeout => 'Timeout in seconds (optional)';
+
+  @override
+  String get hookTurnEnd => 'End of turn';
+
+  @override
+  String get hookAfterTool => 'After tool use';
+
+  @override
+  String get hookBeforeTool => 'Before tool use';
+
+  @override
+  String get hookPrompt => 'Prompt submitted';
+
+  @override
+  String get hookSessionStart => 'Session start';
+
+  @override
+  String get hookExisting => 'Matching hook already exists';
+
+  @override
+  String get hookConflict => 'Existing hooks kept';
+
+  @override
   String get agentEnvironment => 'Environment variables';
 
   @override
