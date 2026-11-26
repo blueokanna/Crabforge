@@ -151,6 +151,12 @@ Future<String> checkAgentSkillUpdate({
   revision: revision,
 );
 
+Future<String> repositorySkillCatalog({required String source}) =>
+    RustLib.instance.api.crateApiRepositorySkillCatalog(source: source);
+
+Future<void> dismissSkillCandidate({required String source}) =>
+    RustLib.instance.api.crateApiDismissSkillCandidate(source: source);
+
 Future<String> adoptAgentSkill({
   required String agent,
   required String name,

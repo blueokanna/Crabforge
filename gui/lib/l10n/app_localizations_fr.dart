@@ -37,6 +37,16 @@ class AppLocalizationsFr extends AppLocalizations {
   String get checkSkillUpdate => 'Rechercher des mises à jour';
 
   @override
+  String get browseRepositorySkills => 'Parcourir les compétences de la source';
+
+  @override
+  String get noRepositorySkills =>
+      'Aucune autre compétence à importer depuis cette source.';
+
+  @override
+  String get dismissSkillCandidate => 'Mettre la compétence de côté';
+
+  @override
   String get skillUpToDate => 'Les fichiers de la compétence sont à jour.';
 
   @override

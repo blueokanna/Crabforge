@@ -37,6 +37,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get checkSkillUpdate => 'Buscar actualizaciones';
 
   @override
+  String get browseRepositorySkills => 'Explorar habilidades del origen';
+
+  @override
+  String get noRepositorySkills =>
+      'No se encontraron más habilidades en este origen.';
+
+  @override
+  String get dismissSkillCandidate => 'Ocultar habilidad';
+
+  @override
   String get skillUpToDate => 'Los archivos de la habilidad están al día.';
 
   @override

@@ -37,6 +37,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get checkSkillUpdate => '업데이트 확인';
 
   @override
+  String get browseRepositorySkills => '소스에서 스킬 찾아보기';
+
+  @override
+  String get noRepositorySkills => '이 소스에서 추가로 가져올 스킬이 없습니다.';
+
+  @override
+  String get dismissSkillCandidate => '스킬 숨기기';
+
+  @override
   String get skillUpToDate => '스킬 파일이 최신 상태입니다.';
 
   @override

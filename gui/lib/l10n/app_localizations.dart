@@ -166,6 +166,24 @@ abstract class AppLocalizations {
   /// **'Check for updates'**
   String get checkSkillUpdate;
 
+  /// No description provided for @browseRepositorySkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse source skills'**
+  String get browseRepositorySkills;
+
+  /// No description provided for @noRepositorySkills.
+  ///
+  /// In en, this message translates to:
+  /// **'No additional skills found in this source.'**
+  String get noRepositorySkills;
+
+  /// No description provided for @dismissSkillCandidate.
+  ///
+  /// In en, this message translates to:
+  /// **'Set skill aside'**
+  String get dismissSkillCandidate;
+
   /// No description provided for @skillUpToDate.
   ///
   /// In en, this message translates to:

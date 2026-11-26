@@ -33,6 +33,10 @@ pub(super) enum Command {
         #[arg(long)]
         revision: String,
     },
+    /// List available skills in a local collection or at a Git ref.
+    Catalog { source: String },
+    /// Set aside a candidate using its source from the catalog.
+    Dismiss { source: String },
     /// Replace the selected agents, or clear the assignments if none are given.
     Assign {
         name: String,
@@ -59,6 +63,14 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
         }
         Command::Check { name, revision } => {
             println!("{}", skills::check_update(dir, &name, &revision)?);
+            return Ok(());
+        }
+        Command::Catalog { source } => {
+            println!("{}", skills::source_catalog(dir, &source)?);
+            return Ok(());
+        }
+        Command::Dismiss { source } => {
+            skills::dismiss_candidate(dir, &source)?;
             return Ok(());
         }
         Command::Adopt {

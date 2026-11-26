@@ -33,6 +33,45 @@ struct Source {
     folder: Option<String>,
 }
 
+enum Repository {
+    GitHub(Source),
+    Git(git::Source),
+}
+
+impl Repository {
+    fn open(input: &str) -> Result<Self> {
+        if Url::parse(input).is_ok_and(|url| {
+            url.scheme() == "https"
+                && matches!(url.host_str(), Some("github.com" | "www.github.com"))
+        }) {
+            Ok(Self::GitHub(Source::parse(input)?))
+        } else {
+            Ok(Self::Git(git::Source::parse(input)?))
+        }
+    }
+
+    fn folder(&self) -> Option<&str> {
+        match self {
+            Self::GitHub(source) => source.folder.as_deref(),
+            Self::Git(source) => source.folder.as_deref(),
+        }
+    }
+
+    fn archive(&self) -> Result<File> {
+        match self {
+            Self::GitHub(source) => source.download(),
+            Self::Git(source) => source.fetch(),
+        }
+    }
+
+    fn canonical(&self, folder: &str) -> String {
+        match self {
+            Self::GitHub(source) => source.canonical(folder),
+            Self::Git(source) => source.canonical(folder),
+        }
+    }
+}
+
 fn unescape(text: &str) -> Result<String> {
     Ok(percent_decode_str(text).decode_utf8()?.into_owned())
 }
@@ -194,6 +233,15 @@ fn relative(path: &[u8]) -> Result<&str> {
     Ok(nested)
 }
 
+fn document_folder(path: &str) -> Option<&str> {
+    if path == DOCUMENT {
+        Some("")
+    } else {
+        path.strip_suffix("/SKILL.md")
+            .filter(|path| valid_path(path))
+    }
+}
+
 fn find_folder(
     archive: &mut File,
     requested: Option<&str>,
@@ -211,13 +259,7 @@ fn find_folder(
         if !entry.header().entry_type().is_file() {
             continue;
         }
-        let folder = if path == DOCUMENT {
-            Some("")
-        } else {
-            path.strip_suffix("/SKILL.md")
-                .filter(|path| valid_path(path))
-        };
-        if let Some(folder) = folder {
+        if let Some(folder) = document_folder(path) {
             if requested == Some(folder) || (requested.is_none() && folder.is_empty()) {
                 return Ok(Some(folder.to_owned()));
             }
@@ -326,18 +368,37 @@ pub(super) fn load(input: &str) -> Result<(String, Tree)> {
 }
 
 pub(super) fn read(input: &str) -> Result<Option<(String, Tree)>> {
-    if Url::parse(input).is_ok_and(|url| {
-        url.scheme() == "https" && matches!(url.host_str(), Some("github.com" | "www.github.com"))
-    }) {
-        let source = Source::parse(input)?;
-        return bundle(source.download()?, source.folder.as_deref(), |folder| {
-            source.canonical(folder)
-        });
-    }
-    let source = git::Source::parse(input)?;
-    bundle(source.fetch()?, source.folder.as_deref(), |folder| {
-        source.canonical(folder)
+    let repo = Repository::open(input)?;
+    bundle(repo.archive()?, repo.folder(), |folder| {
+        repo.canonical(folder)
     })
+}
+
+pub(super) fn catalog(input: &str) -> Result<Vec<super::catalog::Candidate>> {
+    let repo = Repository::open(input)?;
+    let mut archive = repo.archive()?;
+    let mut catalog = super::catalog::Catalog::default();
+    let mut seen = BTreeSet::new();
+    for (index, entry) in Archive::new(&mut archive).entries()?.enumerate() {
+        ensure!(index < MAX_HEADERS, "too many entries in the Git archive");
+        let entry = entry?;
+        if !entry.header().entry_type().is_file() {
+            continue;
+        }
+        let raw = entry.path_bytes();
+        let Some(folder) = relative(&raw).ok().and_then(document_folder) else {
+            continue;
+        };
+        let source = repo.canonical(folder);
+        ensure!(
+            seen.len() < MAX_ENTRIES && seen.insert(source.clone()),
+            "too many or duplicate skill documents in the Git archive"
+        );
+        let folder = folder.to_owned();
+        let length = entry.size();
+        catalog.inspect(entry, length, source, folder)?;
+    }
+    Ok(catalog.finish())
 }
 
 fn bundle(

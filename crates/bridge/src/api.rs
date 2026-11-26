@@ -224,6 +224,14 @@ pub fn check_agent_skill_update(name: String, revision: String) -> Result<String
     crabforge_core::skills::check_update(&config::data_dir()?, &name, &revision)
 }
 
+pub fn repository_skill_catalog(source: String) -> Result<String> {
+    crabforge_core::skills::source_catalog(&config::data_dir()?, &source)
+}
+
+pub fn dismiss_skill_candidate(source: String) -> Result<()> {
+    crabforge_core::skills::dismiss_candidate(&config::data_dir()?, &source)
+}
+
 pub fn adopt_agent_skill(
     agent: String,
     name: String,
