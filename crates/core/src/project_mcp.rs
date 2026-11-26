@@ -15,6 +15,7 @@ use std::{
 use toml_edit::{DocumentMut, Item, Table};
 
 mod jsonc;
+pub mod library;
 
 const MAX_CONFIG: usize = 1024 * 1024;
 const MAX_SERVER: usize = 64 * 1024;
@@ -139,6 +140,7 @@ fn revision(path: &Path, content: Option<&str>) -> String {
 
 #[derive(NsonSerialize)]
 struct View {
+    project: String,
     path: String,
     syntax: &'static str,
     revision: String,
@@ -201,36 +203,18 @@ fn json_path(value: &Value, target: Target) -> &'static [&'static str] {
     }
 }
 
-fn json_entry(value: &Value, path: &[&str]) -> Result<BTreeMap<String, String>> {
-    let mut current = value;
-    for &key in path {
-        let object = current
-            .as_object()
-            .context("MCP settings must be an object")?;
-        let Some(next) = object.get(key) else {
-            return Ok(BTreeMap::new());
-        };
-        current = next;
-    }
-    current
-        .as_object()
-        .context("MCP servers must be an object")?
-        .iter()
-        .map(|(key, entry)| {
-            Ok((
-                key.to_owned(),
-                nextjson::to_string_pretty(entry).map_err(anyhow::Error::msg)?,
-            ))
-        })
-        .collect()
-}
-
-fn json_entries(value: &Value, target: Target) -> Result<BTreeMap<String, String>> {
+fn json_entries(text: &str, value: &Value, target: Target) -> Result<BTreeMap<String, String>> {
+    let entries_at = |path| -> Result<_> {
+        Ok(jsonc::parse(text, path)?
+            .into_iter()
+            .flat_map(|object| object.entries(text))
+            .map(|(name, source)| (name, source.to_owned())))
+    };
     let keys = json_path(value, target);
-    let mut entries = json_entry(value, target.container)?;
+    let mut entries = entries_at(target.container)?.collect::<BTreeMap<_, _>>();
     if keys != target.container {
         entries.remove("servers");
-        entries.extend(json_entry(value, keys)?);
+        entries.extend(entries_at(keys)?);
     }
     Ok(entries)
 }
@@ -341,6 +325,25 @@ fn toml_edit(
 }
 
 pub fn edit(dir: &Path, project: &Path, agent: &str, edit: Edit) -> Result<String> {
+    let mut view = edit_native(dir, project, agent, edit, |_| Ok(()))?;
+    if view.syntax == "json" {
+        for source in view.servers.values_mut() {
+            let value: Value = Json5
+                .decode(source.as_bytes())
+                .map_err(anyhow::Error::msg)?;
+            *source = nextjson::to_string_pretty(&value).map_err(anyhow::Error::msg)?;
+        }
+    }
+    nextjson::to_string(&view).map_err(anyhow::Error::msg)
+}
+
+fn edit_native(
+    dir: &Path,
+    project: &Path,
+    agent: &str,
+    edit: Edit,
+    before_write: impl FnOnce(&View) -> Result<()>,
+) -> Result<View> {
     let target = target(agent)?;
     let root = project.canonicalize().context("open the project folder")?;
     ensure!(root.is_dir(), "expected a project folder");
@@ -365,7 +368,7 @@ pub fn edit(dir: &Path, project: &Path, agent: &str, edit: Edit) -> Result<Strin
         None
     };
     let before = optional(&path)?;
-    let mut version = revision(&path, before.as_deref());
+    let version = revision(&path, before.as_deref());
     let toml = target.file.ends_with(".toml");
     let text = before.as_deref().unwrap_or(if toml { "" } else { "{}\n" });
     let settings = if toml {
@@ -381,12 +384,9 @@ pub fn edit(dir: &Path, project: &Path, agent: &str, edit: Edit) -> Result<Strin
     } else {
         None
     };
-    let mut servers = match &document {
+    let servers = match &document {
         Some(document) => toml_entries(document)?,
-        None => {
-            jsonc::parse(text, keys)?;
-            json_entries(settings.as_ref().expect("JSON settings"), target)?
-        }
+        None => json_entries(text, settings.as_ref().expect("JSON settings"), target)?,
     };
     let update = match edit {
         Edit::Read => None,
@@ -437,6 +437,18 @@ pub fn edit(dir: &Path, project: &Path, agent: &str, edit: Edit) -> Result<Strin
             Some((server, None))
         }
     };
+    let mut view = View {
+        project: root.display().to_string(),
+        path: path.display().to_string(),
+        syntax: if toml { "toml" } else { "json" },
+        revision: version,
+        template: if target.file == "opencode.json" && keys.len() > 1 {
+            OPENCODE_STDIO
+        } else {
+            target.template
+        },
+        servers,
+    };
     if let Some((server, source)) = update {
         let after = match document {
             Some(document) => toml_edit(document, text, &server, source.as_deref())?,
@@ -449,10 +461,10 @@ pub fn edit(dir: &Path, project: &Path, agent: &str, edit: Edit) -> Result<Strin
             after.len() <= MAX_CONFIG,
             "project MCP file exceeds {MAX_CONFIG} bytes"
         );
-        servers = if toml {
+        view.servers = if toml {
             toml_entries(&toml_document(&after)?)?
         } else {
-            json_entries(&json_document(&after)?, target)?
+            json_entries(&after, &json_document(&after)?, target)?
         };
         let parent = path.parent().context("missing MCP config parent")?;
         fs::create_dir_all(parent)?;
@@ -468,25 +480,19 @@ pub fn edit(dir: &Path, project: &Path, agent: &str, edit: Edit) -> Result<Strin
             config_path(&root, target)? == path && optional(&path)? == before,
             "project MCP settings changed; reload them"
         );
+        view.revision = revision(&path, Some(&after));
+        before_write(&view)?;
+        ensure!(
+            config_path(&root, target)? == path && optional(&path)? == before,
+            "project MCP settings changed; reload them"
+        );
         if before.is_some() {
             staged.persist(&path)?;
         } else {
             staged.persist_noclobber(&path)?;
         }
-        version = revision(&path, Some(&after));
     }
-    nextjson::to_string(&View {
-        path: path.display().to_string(),
-        syntax: if toml { "toml" } else { "json" },
-        revision: version,
-        template: if target.file == "opencode.json" && keys.len() > 1 {
-            OPENCODE_STDIO
-        } else {
-            target.template
-        },
-        servers,
-    })
-    .map_err(anyhow::Error::msg)
+    Ok(view)
 }
 
 #[cfg(test)]

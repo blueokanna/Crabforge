@@ -140,6 +140,44 @@ Future<String> removeProjectMcpServer({
 
 Future<String> agentSkills() => RustLib.instance.api.crateApiAgentSkills();
 
+Future<String> projectMcpLibrary() =>
+    RustLib.instance.api.crateApiProjectMcpLibrary();
+
+Future<String> saveMcpLibraryServer({
+  required String name,
+  required String source,
+  String? revision,
+}) => RustLib.instance.api.crateApiSaveMcpLibraryServer(
+  name: name,
+  source: source,
+  revision: revision,
+);
+
+Future<String> assignMcpLibraryServer({
+  required String name,
+  required String project,
+  required String agent,
+  required bool enabled,
+  required String revision,
+}) => RustLib.instance.api.crateApiAssignMcpLibraryServer(
+  name: name,
+  project: project,
+  agent: agent,
+  enabled: enabled,
+  revision: revision,
+);
+
+Future<String> removeMcpLibraryServer({
+  required String name,
+  required String revision,
+}) => RustLib.instance.api.crateApiRemoveMcpLibraryServer(
+  name: name,
+  revision: revision,
+);
+
+Future<String> syncMcpLibrary() =>
+    RustLib.instance.api.crateApiSyncMcpLibrary();
+
 Future<String> importAgentSkill({
   required String source,
   required List<String> agents,

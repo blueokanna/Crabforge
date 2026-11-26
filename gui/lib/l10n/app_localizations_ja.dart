@@ -34,6 +34,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get skillSourceFolder => 'ローカルフォルダーまたは GitHub URL';
 
   @override
+  String get mcpLibrary => 'MCP ライブラリ';
+
+  @override
+  String get assignMcpServer => 'このプロジェクトに割り当てる';
+
+  @override
+  String get unassignMcpServer => 'このプロジェクトへの割り当てを解除';
+
+  @override
+  String get syncMcpLibrary => '割り当てを同期';
+
+  @override
   String get refreshSkill => 'ファイルを再インポート';
 
   @override

@@ -94,6 +94,14 @@ carbforge-cli project-mcp remove . gemini diagnostics --revision '<列表返回�
 
 在 CLI 中编辑已有条目时，向 `project-mcp save` 传入 `--replace --revision <修订>`。
 
+项目加载后，打开 **MCP 库**，可保存复用的服务器并分配给所选客户端。库中的定义用 `transport` 指定 `stdio`、`http` 或 `sse`。stdio 使用 `command`、`args` 和 `env`，远端服务器使用 `url` 和 `headers`。Crabforge 按各客户端的原生格式写入分配项。同步会保留已有同名条目和外部编辑过的副本，并显示冲突。
+
+```powershell
+carbforge-cli project-mcp library save diagnostics --from .\shared-server.json
+carbforge-cli project-mcp library assign diagnostics . gemini --revision '<library list 返回的修订>'
+carbforge-cli project-mcp library sync
+```
+
 ## 协议与路由
 
 - 支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini 和 Ollama 客户端。目录、对话流、工具调用、媒体和鉴权的验证范围见验收记录。不同供应商及套餐开放的模型会变化。

@@ -216,6 +216,63 @@ pub fn agent_skills() -> Result<String> {
     crabforge_core::skills::library(&config::data_dir()?, crabforge_core::skills::Edit::Read)
 }
 
+pub fn project_mcp_library() -> Result<String> {
+    use crabforge_core::project_mcp::library::{self, Edit};
+    library::edit(&config::data_dir()?, Edit::Read)
+}
+
+pub fn save_mcp_library_server(
+    name: String,
+    source: String,
+    revision: Option<String>,
+) -> Result<String> {
+    use crabforge_core::project_mcp::library::{self, Edit};
+    library::edit(
+        &config::data_dir()?,
+        Edit::Save {
+            name,
+            source,
+            expected: revision,
+        },
+    )
+}
+
+pub fn assign_mcp_library_server(
+    name: String,
+    project: String,
+    agent: String,
+    enabled: bool,
+    revision: String,
+) -> Result<String> {
+    use crabforge_core::project_mcp::library::{self, Edit};
+    library::edit(
+        &config::data_dir()?,
+        Edit::Assign {
+            name,
+            project: project.into(),
+            agent,
+            enabled,
+            expected: revision,
+        },
+    )
+}
+
+pub fn remove_mcp_library_server(name: String, revision: String) -> Result<String> {
+    use crabforge_core::project_mcp::library::{self, Edit};
+    library::edit(
+        &config::data_dir()?,
+        Edit::Remove {
+            name,
+            expected: revision,
+        },
+    )
+}
+
+pub fn sync_mcp_library() -> Result<String> {
+    use crabforge_core::project_mcp::library::{self, Edit};
+    library::edit(&config::data_dir()?, Edit::Sync)
+}
+
 pub fn import_agent_skill(
     source: String,
     agents: Vec<String>,

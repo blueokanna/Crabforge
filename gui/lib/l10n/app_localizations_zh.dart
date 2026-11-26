@@ -34,6 +34,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillSourceFolder => '本地文件夹或 GitHub URL';
 
   @override
+  String get mcpLibrary => 'MCP 库';
+
+  @override
+  String get assignMcpServer => '分配到此项目';
+
+  @override
+  String get unassignMcpServer => '取消此项目的分配';
+
+  @override
+  String get syncMcpLibrary => '同步分配';
+
+  @override
   String get refreshSkill => '重新导入文件';
 
   @override

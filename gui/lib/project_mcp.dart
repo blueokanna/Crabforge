@@ -7,6 +7,8 @@ import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
 
+part 'project_mcp_library.dart';
+
 const projectMcpAgents = {
   'agy',
   'antigravity',
@@ -142,6 +144,17 @@ class _ProjectMcpState extends State<ProjectMcp> {
     );
   }
 
+  Future<void> _library() async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _ProjectMcpLibrary(
+        project: _view!['project'] as String,
+        agent: widget.agent,
+      ),
+    );
+    if (mounted) await _open();
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
@@ -195,6 +208,12 @@ class _ProjectMcpState extends State<ProjectMcp> {
                       onPressed: editable ? () => _edit() : null,
                       icon: const Icon(Icons.add),
                       label: Text(strings.addMcpServer),
+                    ),
+                  if (loaded)
+                    TextButton.icon(
+                      onPressed: editable ? _library : null,
+                      icon: const Icon(Icons.dns_outlined),
+                      label: Text(strings.mcpLibrary),
                     ),
                 ],
               ),

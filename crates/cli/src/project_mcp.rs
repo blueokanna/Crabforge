@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use crabforge_core::{
     project_instructions::read_markdown,
-    project_mcp::{self, Edit},
+    project_mcp::{self, Edit, library},
 };
 use std::path::{Path, PathBuf};
 
@@ -30,10 +30,83 @@ pub(super) enum Command {
         #[arg(long)]
         revision: String,
     },
+    /// Manage reusable servers and their native project assignments.
+    Library {
+        #[command(subcommand)]
+        command: LibraryCommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub(super) enum LibraryCommand {
+    /// List shared servers, revisions, assignments and placement statuses.
+    List,
+    /// Create or update a shared server from a transport JSON object.
+    Save {
+        name: String,
+        #[arg(long)]
+        from: PathBuf,
+        #[arg(long)]
+        revision: Option<String>,
+    },
+    /// Assign or unassign a shared server for one project and agent.
+    Assign {
+        name: String,
+        project: PathBuf,
+        agent: String,
+        #[arg(long)]
+        revision: String,
+        #[arg(long)]
+        remove: bool,
+    },
+    /// Remove an entry and its unchanged managed placements.
+    Remove {
+        name: String,
+        #[arg(long)]
+        revision: String,
+    },
+    /// Apply pending library placements.
+    Sync,
+}
+
+fn run_library(dir: &Path, command: LibraryCommand) -> Result<()> {
+    let edit = match command {
+        LibraryCommand::List => library::Edit::Read,
+        LibraryCommand::Save {
+            name,
+            from,
+            revision,
+        } => library::Edit::Save {
+            name,
+            source: read_markdown(&from)?,
+            expected: revision,
+        },
+        LibraryCommand::Assign {
+            name,
+            project,
+            agent,
+            revision,
+            remove,
+        } => library::Edit::Assign {
+            name,
+            project,
+            agent,
+            enabled: !remove,
+            expected: revision,
+        },
+        LibraryCommand::Remove { name, revision } => library::Edit::Remove {
+            name,
+            expected: revision,
+        },
+        LibraryCommand::Sync => library::Edit::Sync,
+    };
+    println!("{}", library::edit(dir, edit)?);
+    Ok(())
 }
 
 pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
     let (project, agent, edit) = match command {
+        Command::Library { command } => return run_library(dir, command),
         Command::List { project, agent } => (project, agent, Edit::Read),
         Command::Save {
             project,

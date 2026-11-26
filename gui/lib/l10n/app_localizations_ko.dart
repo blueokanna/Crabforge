@@ -34,6 +34,18 @@ class AppLocalizationsKo extends AppLocalizations {
   String get skillSourceFolder => '로컬 폴더 또는 GitHub URL';
 
   @override
+  String get mcpLibrary => 'MCP 라이브러리';
+
+  @override
+  String get assignMcpServer => '이 프로젝트에 할당';
+
+  @override
+  String get unassignMcpServer => '이 프로젝트에서 할당 해제';
+
+  @override
+  String get syncMcpLibrary => '할당 동기화';
+
+  @override
   String get refreshSkill => '파일 다시 가져오기';
 
   @override

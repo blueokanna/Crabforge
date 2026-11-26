@@ -160,6 +160,30 @@ abstract class AppLocalizations {
   /// **'Local folder or GitHub URL'**
   String get skillSourceFolder;
 
+  /// No description provided for @mcpLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP library'**
+  String get mcpLibrary;
+
+  /// No description provided for @assignMcpServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign to this project'**
+  String get assignMcpServer;
+
+  /// No description provided for @unassignMcpServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Unassign from this project'**
+  String get unassignMcpServer;
+
+  /// No description provided for @syncMcpLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync assignments'**
+  String get syncMcpLibrary;
+
   /// No description provided for @refreshSkill.
   ///
   /// In en, this message translates to:

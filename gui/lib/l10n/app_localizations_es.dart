@@ -34,6 +34,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get skillSourceFolder => 'Carpeta local o URL de GitHub';
 
   @override
+  String get mcpLibrary => 'Biblioteca de MCP';
+
+  @override
+  String get assignMcpServer => 'Asignar a este proyecto';
+
+  @override
+  String get unassignMcpServer => 'Quitar la asignación de este proyecto';
+
+  @override
+  String get syncMcpLibrary => 'Sincronizar asignaciones';
+
+  @override
   String get refreshSkill => 'Volver a importar archivos';
 
   @override

@@ -108,5 +108,31 @@ void main() {
     await tap(find.widgetWithText(TextButton, 'Remove'));
     expect(servers().keys, ['existing']);
     expect(servers()['existing']['command'], 'external');
+
+    await tap(find.text('MCP library'));
+    final library = find.byKey(const ValueKey('project-mcp-library'));
+    Finder inLibrary(Finder target) =>
+        find.descendant(of: library, matching: target);
+    await tap(inLibrary(find.text('Add MCP server')));
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Server name'),
+      'shared-diagnostics',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'JSON'),
+      '{"transport":"stdio","command":"shared-fixture"}',
+    );
+    await tap(find.widgetWithText(FilledButton, 'Save'));
+    await tap(find.byTooltip('Assign to this project'));
+    await waitFor(find.byTooltip('Unassign from this project'));
+    expect(servers()['shared-diagnostics']['command'], 'shared-fixture');
+    await tap(inLibrary(find.byTooltip('Grid view')));
+    expect(inLibrary(find.byType(SliverGrid)), findsOneWidget);
+    tester.view.physicalSize = const Size(560, 800);
+    await tester.pumpAndSettle();
+    await tap(find.byTooltip('Unassign from this project'));
+    await waitFor(find.byTooltip('Assign to this project'));
+    expect(servers().keys, ['existing']);
+    expect(servers()['existing']['command'], 'external');
   });
 }

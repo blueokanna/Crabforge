@@ -210,6 +210,12 @@ pub(super) fn parse(source: &str, path: &[&str]) -> Result<Option<Object>> {
 }
 
 impl Object {
+    pub(super) fn entries(self, source: &str) -> impl Iterator<Item = (String, &str)> {
+        self.members
+            .into_iter()
+            .map(|member| (member.key, &source[member.value]))
+    }
+
     fn encode(value: &Value) -> Result<String> {
         nextjson::to_string(value).map_err(anyhow::Error::msg)
     }

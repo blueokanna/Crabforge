@@ -94,6 +94,14 @@ carbforge-cli project-mcp remove . gemini diagnostics --revision '<revision from
 
 To edit an existing entry with the CLI, pass `--replace --revision <revision>` to `project-mcp save`.
 
+Open **MCP library** from a loaded project to save a reusable server and assign it to the selected client. A library definition uses `transport` (`stdio`, `http` or `sse`) with `command`, `args` and `env` for stdio, or `url` and `headers` for a remote server. Crabforge writes each assignment in the client's native format. Sync preserves existing same-name entries and externally edited placements and reports conflicts.
+
+```powershell
+carbforge-cli project-mcp library save diagnostics --from .\shared-server.json
+carbforge-cli project-mcp library assign diagnostics . gemini --revision '<revision from library list>'
+carbforge-cli project-mcp library sync
+```
+
 ## Protocols and routing
 
 - Clients can use OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Gemini and Ollama APIs. The validation record describes which streaming, tool, media and authentication paths have been exercised. Model availability depends on the provider and account.
