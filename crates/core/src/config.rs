@@ -8,6 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail, ensure};
+use nextjson::{NsonDeserialize, NsonSerialize};
 use reqwest::{RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
@@ -22,7 +23,7 @@ pub const MAX_CONFIG: usize = 1024 * 1024;
 pub const MAX_MEMBER_WEIGHT: u32 = 1000;
 pub const PRESETS: &str = include_str!("presets.json");
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, NsonSerialize, NsonDeserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Endpoints {
     #[serde(skip_serializing_if = "AuthHeader::is_default")]
@@ -37,7 +38,7 @@ pub struct Endpoints {
     pub models_url: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, NsonSerialize, NsonDeserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Provider {
     pub id: String,
@@ -68,8 +69,9 @@ pub struct Provider {
     pub model_protocols: BTreeMap<String, crate::catalog::RelayProtocols>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, NsonSerialize, NsonDeserialize)]
 #[serde(default, deny_unknown_fields)]
+#[njson(default = "Config::default")]
 pub struct Config {
     pub listen: SocketAddr,
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
@@ -584,7 +586,7 @@ impl Config {
 
     pub fn parse(text: &str) -> Result<Self> {
         ensure!(text.len() <= MAX_CONFIG, "configuration exceeds 1 MiB");
-        let mut config: Self = serde_json::from_str(text)?;
+        let mut config: Self = nextjson::from_str(text).map_err(anyhow::Error::msg)?;
         for provider in &mut config.providers {
             let mut seen = HashSet::new();
             provider.fallback = std::mem::take(&mut provider.fallback)
@@ -681,7 +683,26 @@ pub fn load(dir: &Path) -> Result<Config> {
 }
 
 pub fn snapshot(dir: &Path) -> Result<String> {
-    Ok(serde_json::to_string_pretty(&load(dir)?)?)
+    load(dir)?.formatted()
+}
+
+impl Config {
+    fn formatted(&self) -> Result<String> {
+        nextjson::to_string_pretty(self).map_err(anyhow::Error::msg)
+    }
+
+    fn check_snapshot(&self, previous: &str) -> Result<()> {
+        let formatted = self.formatted()?;
+        if formatted == previous {
+            return Ok(());
+        }
+        // An already-open client may have a snapshot formatted by an earlier release.
+        let same = previous.len() <= MAX_CONFIG
+            && nextjson::from_str::<nextjson::Value>(previous)
+                .is_ok_and(|old| nextjson::to_value(self).is_ok_and(|current| current == old));
+        ensure!(same, "configuration changed on disk; reload before saving");
+        Ok(())
+    }
 }
 
 /// Persist a learned choice only while the configured provider and endpoint still match.
@@ -716,10 +737,7 @@ pub fn save(dir: &Path, previous: &str, text: &str) -> Result<()> {
     let cfg = Config::parse(text)?;
     let _lock = settings_lock(dir)?;
     let current = load(dir)?;
-    ensure!(
-        serde_json::to_string_pretty(&current)? == previous,
-        "configuration changed on disk; reload before saving"
-    );
+    current.check_snapshot(previous)?;
     ensure!(
         !cfg.providers.iter().any(|p| p.id == "auto")
             || current.providers.iter().any(|p| p.id == "auto"),
@@ -729,7 +747,7 @@ pub fn save(dir: &Path, previous: &str, text: &str) -> Result<()> {
 }
 
 fn write_settings(dir: &Path, cfg: &Config) -> Result<()> {
-    let bytes = serde_json::to_vec_pretty(cfg)?;
+    let bytes = cfg.formatted()?.into_bytes();
     ensure!(
         bytes.len() <= MAX_CONFIG,
         "formatted configuration exceeds 1 MiB"
@@ -789,6 +807,24 @@ pub fn open_web(site: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_settings_keep_defaults_wire_names_and_snapshot_equality() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let legacy = r#"{"listen":"[::1]:3425","providers":[{"id":"relay","models":["m"],"noStandIn":true,"endpoints":{"chat":"http://127.0.0.1:1/v1","auth_header":"both"},"model_protocols":{"m":{"native_endpoints":[],"magpie_prefers":"/v1/messages"}}}],"groups":{"g":[]},"group_match":{"g":["relay/*"]}}"#;
+        fs::write(dir.path().join("settings.json"), legacy)?;
+        let cfg = load(dir.path())?;
+        let previous = serde_json::to_string_pretty(&cfg)?;
+        let before = snapshot(dir.path())?;
+        save(dir.path(), &previous, legacy)?;
+        assert_eq!(snapshot(dir.path())?, before);
+        assert!(save(dir.path(), "{}", legacy).is_err());
+        assert_eq!(Config::parse("{}")?.listen, Config::default().listen);
+        for invalid in [r#"{"providers":[],"providers":[]}"#, r#"{"unknown":0}"#] {
+            assert!(Config::parse(invalid).is_err(), "{invalid}");
+        }
+        Ok(())
+    }
 
     #[test]
     fn api_key_headers_match_vendor_and_protocol() -> Result<()> {

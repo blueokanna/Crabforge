@@ -17,11 +17,12 @@ use tokio::{
 };
 use url::Url;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Site {
-    DeepSeek,
-    ChatGLM,
+string_enum! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Site {
+        DeepSeek => "deepseek",
+        ChatGLM => "chatglm",
+    }
 }
 
 impl Site {

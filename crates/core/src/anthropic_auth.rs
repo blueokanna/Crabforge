@@ -6,18 +6,15 @@ use axum::{
 use futures_util::{StreamExt, stream};
 use http_body_util::BodyExt;
 use reqwest::{Body, RequestBuilder, Response};
-use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AuthHeader {
-    #[default]
-    #[serde(rename = "", alias = "both")]
-    Both,
-    #[serde(rename = "x-api-key")]
-    ApiKey,
-    #[serde(rename = "bearer")]
-    Bearer,
+string_enum! {
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    pub enum AuthHeader {
+        #[default] Both => "" | "both",
+        ApiKey => "x-api-key",
+        Bearer => "bearer",
+    }
 }
 
 impl AuthHeader {

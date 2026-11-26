@@ -7,6 +7,8 @@ Windows x64 使用 `cargo tree --offline --locked -p <包名> --edges normal,bui
 - `libp2p` 保持 `0.57.1`。根清单将 `multiaddr` 指向仓库内的 `0.19.1`，原 crates.io 压缩包 SHA-256 为 `fd707c05eadfb37577f01cbec206726feeecf0b9edea259aee6fc9bc541ee253`，上游提交为 `d5981da4b337d21807ee5869178fbaf3d5ec7e03`。与原包比较，源码差异仅为 `lib.rs` 删除 81 行 Serde 相关实现和引用。文本与二进制编解码和 MIT 许可证均来自原包。同机重跑 DCUtR 升级、中继预约与回退、Kubo 双向鉴权共四项，全部通过。[本地清单](../crates/vendor/multiaddr/Cargo.toml)
 - 验收工具的 HTTP 客户端和测试服务使用 Courierust，模型目录和内存探针使用 NextJSON。使用 `cf-dcutr-1031922879` 的 `carbforge-cli` 与 Magpie 分别重跑一轮空目录及 Chat 负载，四次均完成。网页对话的 ChromeDriver 请求、模型输入和响应改用 NextJSON 后，两个真实 Chrome 本地夹具通过。
 - 六个控制台页面共用列表或网格偏好，Rust 将选择原子写入数据目录的 `ui-layout`。Windows 桌面集成测试覆盖供应商、路由组、Agent、网关和模型的视图切换或沿用，另核对深色主题、系统剪贴板和独立进程重新启动后的布局。Flutter 静态分析和两个组件测试通过。
+- 配置解析、快照、原子保存及内置预设输出使用 NextJSON。与旧版 CLI 对照，97 项预设的全部 JSON 字段相等。旧版快照测试覆盖 IPv6 监听地址、`noStandIn` 别名、显式空协议列表、匹配规则，以及过期快照、未知字段和重复字段的拒绝。15 项路由组专项和 Anthropic 中转鉴权专项通过。
+- Vertex ADC 的凭据解析、JWT、IAM JSON 及 Claude 请求体使用 NextJSON，OAuth 表单和 IAM 请求通过 Courierust 发送，限制响应体为 64 KiB。本机实测并发刷新、凭据更改、两级 IAM 委派、提前续期和 JWT 签名校验。通过 Windows 系统根证书和 HTTP CONNECT 代理向 `oauth2.googleapis.com/token` 发送刻意无效的测试凭据，Google 返回 HTTP 401。真实账户的令牌签发和云端推理仍待验证。
 
 下方 `cf-dcutr-1031922879` 的 ZIP、三轮内存数据和 97 项全量回归对应较早的冻结源码。
 

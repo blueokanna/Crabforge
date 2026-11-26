@@ -3,12 +3,22 @@ use fancy_regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashSet};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, nextjson::NsonDeserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct MemberPattern {
     text: String,
     ids: Regex,
     free: bool,
+}
+
+impl nextjson::NsonSchema for MemberPattern {
+    const SCHEMA: nextjson::TypeSchema = nextjson::TypeSchema::Str;
+}
+
+impl nextjson::NsonSerialize for MemberPattern {
+    fn nextencode<E: nextjson::FormatEncoder>(&self, encoder: &mut E) -> Result<(), E::Error> {
+        encoder.write_str(&self.text)
+    }
 }
 
 impl From<MemberPattern> for String {

@@ -1,5 +1,6 @@
 use super::*;
 use axum::{Form, Json, Router, extract::OriginalUri, http::HeaderMap, routing::post};
+use serde_json::{Value, json};
 use std::{
     collections::HashMap,
     fs,
@@ -48,10 +49,9 @@ async fn adc_exchanges_once_for_concurrent_requests_and_reloads_changed_credenti
         ..Default::default()
     };
     let cache = TokenCache::default();
-    let client = Client::builder().no_proxy().build()?;
     let oauth = format!("{root}/token");
     let iam = format!("{root}/iam/");
-    let calls = (0..8).map(|_| cache.exchange(&client, &v, &oauth, &iam));
+    let calls = (0..8).map(|_| cache.exchange(&v, &oauth, &iam));
     for result in futures_util::future::join_all(calls).await {
         assert_eq!(result?, "source-a");
     }
@@ -59,11 +59,11 @@ async fn adc_exchanges_once_for_concurrent_requests_and_reloads_changed_credenti
     source["refresh_token"] = json!("b");
     fs::write(&path, json!({"type":"impersonated_service_account","service_account_impersonation_url":"https://unused.invalid/serviceAccounts/first%40example.com:generateAccessToken","delegates":["delegate@example.com"],"source_credentials":source}).to_string())?;
     v.impersonate = "final@example.com".into();
-    assert_eq!(cache.exchange(&client, &v, &oauth, &iam).await?, "final");
+    assert_eq!(cache.exchange(&v, &oauth, &iam).await?, "final");
     assert_eq!(hits.load(Ordering::SeqCst), 2);
     source["universe_domain"] = json!("example.org");
     fs::write(path, source.to_string())?;
-    assert!(cache.exchange(&client, &v, &oauth, &iam).await.is_err());
+    assert!(cache.exchange(&v, &oauth, &iam).await.is_err());
     assert_eq!(hits.load(Ordering::SeqCst), 2);
     server.abort();
     Ok(())
@@ -130,11 +130,7 @@ async fn service_account_assertion_has_a_verifiable_signature_and_google_audienc
         }),
     );
     let server = tokio::spawn(async move { axum::serve(listener, app).await });
-    let client = Client::builder().no_proxy().build()?;
-    assert_eq!(
-        credentials.grant(&client, &oauth).await?.value,
-        "account-token"
-    );
+    assert_eq!(credentials.grant(&oauth).await?.value, "account-token");
     server.abort();
     Ok(())
 }
@@ -167,12 +163,8 @@ async fn refreshes_near_expiry_before_reusing_the_token() -> Result<()> {
         ..Default::default()
     };
     let cache = TokenCache::default();
-    let client = Client::builder().no_proxy().build()?;
     for expected in ["0", "1", "1"] {
-        assert_eq!(
-            cache.exchange(&client, &vertex, &oauth, IAM).await?,
-            expected
-        );
+        assert_eq!(cache.exchange(&vertex, &oauth, IAM).await?, expected);
     }
     assert_eq!(calls.load(Ordering::SeqCst), 2);
     server.abort();

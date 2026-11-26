@@ -905,7 +905,7 @@ async fn forward(
                 crate::config::authenticate(request, &url, protocol, &key, p.endpoints.auth_header)
             };
         } else if let Some(v) = &p.endpoints.vertex {
-            match gw.vertex_tokens[&p.id].token(&gw.client, v).await {
+            match gw.vertex_tokens[&p.id].token(v).await {
                 Ok(token) => request = request.bearer_auth(token),
                 Err(e) => {
                     record(503);

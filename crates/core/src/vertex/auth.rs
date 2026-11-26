@@ -1,15 +1,16 @@
 use super::{Vertex, account};
 use anyhow::{Context, Result, bail, ensure};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use futures_util::StreamExt;
-use reqwest::{Client, RequestBuilder, Url};
+use courierust::{
+    courierust_client::{Client, ClientConfig, TlsSettings, no_proxy_from_env},
+    courierust_http::Method,
+};
+use nextjson::{NsonDeserialize, Value, json};
 use ring::{
     rand::SystemRandom,
     signature::{RSA_PKCS1_SHA256, RsaKeyPair},
 };
 use rustls_pki_types::{PrivateKeyDer, pem::PemObject};
-use serde::{Deserialize, de::DeserializeOwned};
-use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
     env,
@@ -18,12 +19,15 @@ use std::{
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use tokio::sync::Mutex;
+use url::{Url, form_urlencoded};
 
 const SCOPE: &str = "https://www.googleapis.com/auth/cloud-platform";
 #[cfg(test)]
 mod tests;
 const OAUTH: &str = "https://oauth2.googleapis.com/token";
 const IAM: &str = "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/";
+const MAX_REPLY: usize = 64 * 1024;
+const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(30);
 
 fn absolute(path: &Path) -> Result<PathBuf> {
     if let Ok(rest) = path.strip_prefix("~") {
@@ -76,17 +80,11 @@ struct Cached {
 pub(crate) struct TokenCache(Mutex<Option<Cached>>);
 
 impl TokenCache {
-    pub(crate) async fn token(&self, client: &Client, vertex: &Vertex) -> Result<String> {
-        self.exchange(client, vertex, OAUTH, IAM).await
+    pub(crate) async fn token(&self, vertex: &Vertex) -> Result<String> {
+        self.exchange(vertex, OAUTH, IAM).await
     }
 
-    async fn exchange(
-        &self,
-        client: &Client,
-        vertex: &Vertex,
-        oauth: &str,
-        iam: &str,
-    ) -> Result<String> {
+    async fn exchange(&self, vertex: &Vertex, oauth: &str, iam: &str) -> Result<String> {
         let file = credential_file(vertex)?;
         let mut cached = self.0.lock().await;
         let bytes = tokio::task::spawn_blocking(move || crate::config::read_limited(&file, 1024*1024)).await?.context("cannot read Google credentials; check the ADC path or sign in with gcloud auth application-default login")?;
@@ -104,8 +102,9 @@ impl TokenCache {
             }
         }
         let mint = async {
-            let credentials: Credentials =
-                serde_json::from_slice(&bytes).context("invalid Google credentials JSON")?;
+            let credentials: Credentials = nextjson::from_slice(&bytes)
+                .map_err(anyhow::Error::msg)
+                .context("invalid Google credentials JSON")?;
             credentials.check_universe()?;
             let mut token = if credentials.kind == "impersonated_service_account" {
                 let url = Url::parse(&credentials.service_account_impersonation_url)?;
@@ -122,17 +121,17 @@ impl TokenCache {
                     .source_credentials
                     .as_deref()
                     .context("missing impersonation source")?;
-                let source = source.grant(client, oauth).await?;
-                impersonate(client, iam, source, &name, &credentials.delegates).await?
+                let source = source.grant(oauth).await?;
+                impersonate(iam, source, &name, &credentials.delegates).await?
             } else {
-                credentials.grant(client, oauth).await?
+                credentials.grant(oauth).await?
             };
             if !vertex.impersonate.is_empty() {
-                token = impersonate(client, iam, token, &vertex.impersonate, &[]).await?;
+                token = impersonate(iam, token, &vertex.impersonate, &[]).await?;
             }
             Ok::<_, anyhow::Error>(token)
         };
-        let result = tokio::time::timeout(Duration::from_secs(30), mint)
+        let result = tokio::time::timeout(EXCHANGE_TIMEOUT, mint)
             .await
             .context("Google token exchange timed out")
             .and_then(|r| r);
@@ -148,10 +147,10 @@ impl TokenCache {
     }
 }
 
-#[derive(Default, Deserialize)]
-#[serde(default)]
+#[derive(Default, NsonDeserialize)]
+#[njson(default)]
 struct Credentials {
-    #[serde(rename = "type")]
+    #[njson(rename = "type")]
     kind: String,
     universe_domain: String,
     client_id: String,
@@ -184,15 +183,18 @@ impl Credentials {
             _ => bail!("service account requires an RSA key"),
         }
         .map_err(|_| anyhow::anyhow!("invalid service account RSA key"))?;
-        let mut head = json!({"alg":"RS256","typ":"JWT"});
-        if !self.private_key_id.is_empty() {
-            head["kid"] = json!(self.private_key_id);
-        }
+        let head = if self.private_key_id.is_empty() {
+            json!({"alg":"RS256","typ":"JWT"})
+        } else {
+            json!({"alg":"RS256","typ":"JWT","kid":self.private_key_id})
+        };
         let now = OffsetDateTime::now_utc().unix_timestamp() - 10;
         let claims =
             json!({"iss":self.client_email,"scope":SCOPE,"aud":audience,"iat":now,"exp":now+3600});
-        let encode = |v: Value| URL_SAFE_NO_PAD.encode(v.to_string().as_bytes());
-        let unsigned = format!("{}.{}", encode(head), encode(claims));
+        let encode = |v: &Value| -> Result<String> {
+            Ok(URL_SAFE_NO_PAD.encode(nextjson::to_vec(v).map_err(anyhow::Error::msg)?))
+        };
+        let unsigned = format!("{}.{}", encode(&head)?, encode(&claims)?);
         let mut signature = vec![0; key.public().modulus_len()];
         key.sign(
             &RSA_PKCS1_SHA256,
@@ -204,34 +206,42 @@ impl Credentials {
         Ok(format!("{unsigned}.{}", URL_SAFE_NO_PAD.encode(signature)))
     }
 
-    async fn grant(&self, client: &Client, oauth: &str) -> Result<Token> {
+    fn grant_form(&self, oauth: &str) -> Result<Vec<u8>> {
         self.check_universe()?;
-        let request = client.post(oauth);
-        let request = match self.kind.as_str() {
+        let mut form = form_urlencoded::Serializer::new(String::new());
+        match self.kind.as_str() {
             "authorized_user" => {
                 ensure!(
                     !self.client_id.is_empty() && !self.refresh_token.is_empty(),
                     "Google ADC lacks client ID or refresh token"
                 );
-                request.form(&[
-                    ("grant_type", "refresh_token"),
-                    ("refresh_token", &self.refresh_token),
-                    ("client_id", &self.client_id),
-                    ("client_secret", &self.client_secret),
-                ])
+                form.append_pair("grant_type", "refresh_token")
+                    .append_pair("refresh_token", &self.refresh_token)
+                    .append_pair("client_id", &self.client_id)
+                    .append_pair("client_secret", &self.client_secret);
             }
-            "service_account" => request.form(&[
-                ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
-                ("assertion", &self.assertion(oauth)?),
-            ]),
+            "service_account" => {
+                form.append_pair("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
+                    .append_pair("assertion", &self.assertion(oauth)?);
+            }
             _ => bail!("expected authorized_user or service_account Google credentials"),
-        };
-        #[derive(Deserialize)]
+        }
+        Ok(form.finish().into_bytes())
+    }
+
+    async fn grant(&self, oauth: &str) -> Result<Token> {
+        #[derive(NsonDeserialize)]
         struct Grant {
             access_token: String,
             expires_in: Option<i64>,
         }
-        let grant: Grant = reply(request).await?;
+        let grant: Grant = reply(
+            Url::parse(oauth)?,
+            "application/x-www-form-urlencoded",
+            self.grant_form(oauth)?,
+            None,
+        )
+        .await?;
         let ttl = grant.expires_in.unwrap_or(3600);
         ensure!(
             !grant.access_token.is_empty() && ttl > 0,
@@ -246,22 +256,17 @@ impl Credentials {
     }
 }
 
-async fn impersonate(
-    client: &Client,
-    iam: &str,
-    source: Token,
-    name: &str,
-    delegates: &[String],
-) -> Result<Token> {
+async fn impersonate(iam: &str, source: Token, name: &str, delegates: &[String]) -> Result<Token> {
     ensure!(account(name), "invalid Google impersonation account");
     let mut url = Url::parse(iam)?;
     url.path_segments_mut()
         .map_err(|_| anyhow::anyhow!("invalid IAM endpoint"))?
         .pop_if_empty()
         .push(&format!("{name}:generateAccessToken"));
-    let mut body = json!({"scope":[SCOPE],"lifetime":"3600s"});
-    if !delegates.is_empty() {
-        body["delegates"] = delegates
+    let body = if delegates.is_empty() {
+        json!({"scope":[SCOPE],"lifetime":"3600s"})
+    } else {
+        let delegates: Vec<_> = delegates
             .iter()
             .map(|d| {
                 if d.starts_with("projects/") {
@@ -271,19 +276,19 @@ async fn impersonate(
                 }
             })
             .collect();
-    }
-    #[derive(Deserialize)]
-    #[serde(rename_all = "camelCase")]
+        json!({"scope":[SCOPE],"lifetime":"3600s","delegates":delegates})
+    };
+    #[derive(NsonDeserialize)]
+    #[njson(rename_all = "camelCase")]
     struct Grant {
         access_token: String,
         expire_time: String,
     }
     let grant: Grant = reply(
-        client
-            .post(url)
-            .bearer_auth(source.value)
-            .header("content-type", "application/json")
-            .body(body.to_string()),
+        url,
+        "application/json",
+        nextjson::to_vec(&body).map_err(anyhow::Error::msg)?,
+        Some(source.value),
     )
     .await?;
     let expiry = OffsetDateTime::parse(&grant.expire_time, &Rfc3339)?.unix_timestamp();
@@ -297,25 +302,54 @@ async fn impersonate(
     })
 }
 
-async fn reply<T: DeserializeOwned>(request: RequestBuilder) -> Result<T> {
-    let resp = request
-        .send()
-        .await
-        .context("Google token request failed")?;
-    ensure!(
-        resp.status().is_success(),
-        "Google token endpoint returned HTTP {}",
-        resp.status()
-    );
-    let mut stream = resp.bytes_stream();
-    let mut body = Vec::new();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
+async fn reply<T: for<'de> NsonDeserialize<'de>>(
+    url: Url,
+    content_type: &'static str,
+    body: Vec<u8>,
+    bearer: Option<String>,
+) -> Result<T> {
+    let bytes = tokio::task::spawn_blocking(move || -> Result<_> {
+        let https = url.scheme() == "https";
+        let tls = https
+            .then(TlsSettings::with_system_roots)
+            .transpose()
+            .map_err(anyhow::Error::msg)?;
+        let proxy = if https {
+            ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"]
+                .iter()
+                .find_map(|name| env::var(name).ok().filter(|v| !v.is_empty()))
+        } else {
+            None
+        };
+        let client = Client::with_config(ClientConfig {
+            tls,
+            http2: https,
+            proxy,
+            no_proxy: no_proxy_from_env(),
+            max_redirects: 0,
+            max_body: MAX_REPLY,
+            accept_encoding: false,
+            connect_timeout: Some(EXCHANGE_TIMEOUT),
+            read_timeout: Some(EXCHANGE_TIMEOUT),
+            ..Default::default()
+        });
+        let mut request = client
+            .request(url.as_str(), Method::POST)
+            .header("content-type", content_type)
+            .body(body);
+        if let Some(token) = bearer {
+            request = request.bearer_auth(&token);
+        }
+        let response = request.send().context("Google token request failed")?;
         ensure!(
-            body.len() + chunk.len() <= 64 * 1024,
-            "Google token response exceeds 64 KiB"
+            response.status.is_success(),
+            "Google token endpoint returned HTTP {}",
+            response.status.as_u16()
         );
-        body.extend_from_slice(&chunk);
-    }
-    serde_json::from_slice(&body).context("invalid Google token response")
+        Ok(response.body.collect_limited(MAX_REPLY)?)
+    })
+    .await??;
+    nextjson::from_slice(&bytes)
+        .map_err(anyhow::Error::msg)
+        .context("invalid Google token response")
 }

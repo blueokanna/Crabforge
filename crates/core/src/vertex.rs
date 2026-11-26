@@ -1,12 +1,20 @@
 use anyhow::{Context, Result, ensure};
-use reqwest::Url;
+use nextjson::{Value, json};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value, json};
 use std::path::Path;
+use url::Url;
 
 pub(crate) mod auth;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    nextjson::NsonSerialize,
+    nextjson::NsonDeserialize,
+)]
 #[serde(default, deny_unknown_fields)]
 pub struct Vertex {
     pub project: String,
@@ -124,10 +132,15 @@ fn account(s: &str) -> bool {
 }
 
 pub(crate) fn claude_body(url: &mut Url, model: &str, count: bool, data: &[u8]) -> Result<Vec<u8>> {
-    let mut obj: Map<String, Value> =
-        serde_json::from_slice(data).context("invalid Vertex Messages request")?;
-    obj.entry("anthropic_version")
-        .or_insert_with(|| json!("vertex-2023-10-16"));
+    let value: Value = nextjson::from_slice(data)
+        .map_err(anyhow::Error::msg)
+        .context("invalid Vertex Messages request")?;
+    let mut obj = value
+        .into_object()
+        .context("expected a Vertex Messages request object")?;
+    if !obj.contains_key("anthropic_version") {
+        obj.insert("anthropic_version".into(), json!("vertex-2023-10-16"));
+    }
     if count {
         obj.insert("model".into(), json!(model));
     } else {
@@ -139,5 +152,5 @@ pub(crate) fn claude_body(url: &mut Url, model: &str, count: bool, data: &[u8]) 
                 .push(&format!("{model}:streamRawPredict"));
         }
     }
-    Ok(serde_json::to_vec(&obj)?)
+    nextjson::to_vec(&Value::Object(obj)).map_err(anyhow::Error::msg)
 }

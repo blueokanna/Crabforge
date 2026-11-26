@@ -5,10 +5,7 @@ use std::path::Path;
 pub fn rename_provider(dir: &Path, previous: &str, from: &str, to: &str) -> Result<()> {
     let _lock = settings_lock(dir)?;
     let mut cfg = load(dir)?;
-    ensure!(
-        serde_json::to_string_pretty(&cfg)? == previous,
-        "configuration changed on disk; reload before saving"
-    );
+    cfg.check_snapshot(previous)?;
     let to = to.trim();
     if from == to {
         ensure!(

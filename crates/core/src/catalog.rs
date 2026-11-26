@@ -12,17 +12,27 @@ pub use builtin::fixed_models;
 
 /// Include the local lists in the catalog shown by both the CLI and Flutter.
 pub fn presets() -> Result<String> {
-    let mut entries: Vec<serde_json::Value> = serde_json::from_str(crate::config::PRESETS)?;
+    use nextjson::{Value, json};
+    let mut entries: Vec<Value> =
+        nextjson::from_str(crate::config::PRESETS).map_err(anyhow::Error::msg)?;
     for entry in &mut entries {
-        let bases = Endpoints::deserialize(&entry["endpoints"])?;
-        if let Some(ids) = fixed_models(&bases) {
-            entry["models"] = serde_json::json!(ids);
-        }
-        if entry["id"] == "fireworks-nexus" {
-            entry["models"] = serde_json::json!(["auto"]);
+        let entry = entry
+            .as_object_mut()
+            .context("expected a provider preset object")?;
+        let bases = nextjson::from_value(
+            entry
+                .get("endpoints")
+                .context("missing preset endpoints")?
+                .clone(),
+        )
+        .map_err(anyhow::Error::msg)?;
+        if entry.get("id").and_then(Value::as_str) == Some("fireworks-nexus") {
+            entry.insert("models".into(), json!(["auto"]));
+        } else if let Some(ids) = fixed_models(&bases) {
+            entry.insert("models".into(), json!(ids));
         }
     }
-    Ok(serde_json::to_string_pretty(&entries)?)
+    nextjson::to_string_pretty(&entries).map_err(anyhow::Error::msg)
 }
 
 #[derive(nextjson::NsonDeserialize)]
@@ -47,17 +57,24 @@ struct Entry {
     methods: Option<Vec<String>>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, Deserialize)]
-pub enum RelayEndpoint {
-    #[serde(rename = "/v1/chat/completions")]
-    Chat,
-    #[serde(rename = "/v1/responses")]
-    Responses,
-    #[serde(rename = "/v1/messages")]
-    Messages,
+string_enum! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub enum RelayEndpoint {
+        Chat => "/v1/chat/completions",
+        Responses => "/v1/responses",
+        Messages => "/v1/messages",
+    }
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    serde::Serialize,
+    Deserialize,
+    nextjson::NsonSerialize,
+    nextjson::NsonDeserialize,
+)]
 #[serde(default, deny_unknown_fields)]
 pub struct RelayProtocols {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -68,12 +85,7 @@ pub struct RelayProtocols {
 
 impl Entry {
     fn relay_protocols(&self) -> Option<RelayProtocols> {
-        let known = |value: &nextjson::Value| match value.as_str()? {
-            "/v1/chat/completions" => Some(RelayEndpoint::Chat),
-            "/v1/responses" => Some(RelayEndpoint::Responses),
-            "/v1/messages" => Some(RelayEndpoint::Messages),
-            _ => None,
-        };
+        let known = |value: &nextjson::Value| RelayEndpoint::from_wire(value.as_str()?);
         let magpie_prefers = self.magpie_prefers.as_ref().and_then(known);
         let native_endpoints = self
             .native_endpoints
@@ -249,7 +261,7 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
     let bearer = match (&bases.vertex, &key) {
         (Some(vertex), None) => Some(
             crate::vertex::auth::TokenCache::default()
-                .token(&client, vertex)
+                .token(vertex)
                 .await?,
         ),
         _ => None,
