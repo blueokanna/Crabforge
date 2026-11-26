@@ -10,7 +10,7 @@
 
 从 `1ef0c50d7c0c918283d2585b2821e4dd057e21ad` 离线构建的 ZIP 为 63,341,802 字节，SHA-256 为 `1437C6C0FAB40A80F6829B8CC91A950F314B4B6D2A7F790DB6FD4233C5B8DD2C`。核对 334 项构建输入、671 项解压清单、126 项资产，以及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。全目标 Clippy、Flutter 分析和两项组件测试通过。三个入口的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-1ef0c50/build-inputs.sha256) · [解压清单](validation/cf-windows-1ef0c50/SHA256SUMS) · [依赖审计](validation/cf-windows-1ef0c50/dependency-audit.csv)
 
-解压 CLI 发布的 `SessionStart` 由 Claude Code 2.1.332 执行，Gemini CLI 0.71.1 在原生及网关 profile 均执行，三个进程写入本机标记并收到了模型夹具响应。Codex 0.172.0 接受撤销后保留索引的空组，并完成本机模型回合。Cursor 核对了 `version: 1` 和扁平 `sessionStart` 配置，运行时执行仍待实测。解压 CLI 也通过了环境变量的格式和外部修改保护回归。[Hooks 客户端](validation/cf-windows-1ef0c50/hooks-process.csv) · [环境变量](validation/cf-windows-1ef0c50/environment.csv)
+解压 CLI 发布的 `SessionStart` 由 Claude Code 2.1.332 执行，Gemini CLI 0.71.1 在原生及网关 profile 均执行，三个进程写入本机标记并收到了模型夹具响应。Codex 0.172.0 撤销首组后，下一组的原生 Hook 保留相同的键和已信任哈希，随后执行并完成本机模型回合。Cursor 核对了 `version: 1` 和扁平 `sessionStart` 配置，运行时执行仍待实测。解压 CLI 也通过了环境变量的格式和外部修改保护回归。[Hooks 客户端](validation/cf-windows-1ef0c50/hooks-process.csv) · [Codex 信任回归](validation/cf-windows-1ef0c50/hooks-trusted-followup.csv) · [环境变量](validation/cf-windows-1ef0c50/environment.csv)
 
 三轮解压 Release 启动的工作集／私有字节中位数分别为 Crabforge 156.70/229.47 MiB、Magpie 主进程 80.98/96.92 MiB、含七个 WebView2 子进程的 Magpie 453.22/428.58 MiB。三轮本机 SSE 首事件为 25、17、29 ms，末事件为 741、732、732 ms，上游等待 700 ms。同机 IPv6 回环、网卡全局 IPv6 地址及 Kubo 回退均核对了 401/200。[内存](validation/cf-windows-1ef0c50/desktop-comparison.csv) · [SSE](validation/cf-windows-1ef0c50/forward-h1.csv) · [IPv6](validation/cf-windows-1ef0c50/ipv6.csv)
 
