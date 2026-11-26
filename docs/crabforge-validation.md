@@ -6,6 +6,24 @@
 
 `assets/brands` 中的 119 个文件与本地 Magpie 参考快照的 `internal/gui/assets/icons` 逐文件 SHA-256 相同。包内附带 Magpie 与 Lobe Icons 的 MIT 声明。OpenAI 的标志使用另受品牌指南及其授权条款约束，Anthropic 商业服务条款第 F 节将知识产权授权限于条款明确授予的范围。正式售卖所需的品牌授权核定仍在进行。当前 Windows 用户没有可访问私钥的代码签名证书，冻结包的 Authenticode 状态为 `NotSigned`。[第三方声明](../THIRD_PARTY_NOTICES) · [OpenAI 品牌指南](https://openai.com/brand/#usage-terms) · [Anthropic 商业条款](https://www.anthropic.com/legal/commercial-terms#f-intellectual-property)
 
+### Windows x64 GitHub 技能（`04d3505`）
+
+从 `04d3505b02eb039e71af83cba0ecbcf4f00bf7eb` 离线构建的 ZIP 为 62,309,657 字节，SHA-256 为 `6BCB0EFD7F8089DCC9B4B82E29F3CBBC8462B0BC8AC25C5674ECAAA46616C329`。核对 317 项构建输入、671 项解压清单、126 项资产、311 组 Rust 许可及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。全目标 Clippy、Flutter 分析和两项组件测试通过。解压桌面和两个 CLI 的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-04d3505/build-inputs.sha256) · [解压清单](validation/cf-windows-04d3505/SHA256SUMS) · [依赖审计](validation/cf-windows-04d3505/dependency-audit.csv)
+
+解压 CLI 从公开的 `anthropics/skills` 仓库导入 skill creator，将 11,345 字节的许可附件写入隔离的 Claude 配置，按保存的链接重新获取，并移除内容未变的发布副本。Gemini CLI 0.71.1 和 Pi 1.6.0 的原生及网关配置都收到相同附件，两个客户端发往本机模型夹具的首个请求均包含技能描述。取消分配后移除了两处副本并保留源文件。另实测 Gemini 完成原生项目 MCP 工具回合。[GitHub 技能及附件哈希](validation/cf-windows-04d3505/github-skill-unpacked.csv) · [Gemini 和 Pi 配置](validation/cf-windows-04d3505/gateway-skill-profiles.csv) · [项目 MCP](validation/cf-windows-04d3505/project-mcp-process.csv)
+
+IPv6 回环、同机全局 IPv6 和直连失败后的 Kubo 中继，对无效密钥均返回 401，对有效密钥均返回 200。本机 SSE 三轮首事件为 8、1、16 ms，末事件为 713、713、731 ms，上游等待 700 ms。[IPv6 与回退](validation/cf-windows-04d3505/ipv6.csv) · [SSE](validation/cf-windows-04d3505/forward-h1.csv)
+
+### Windows x64 技能库与项目 MCP（`5fb7c7f`）
+
+从 `5fb7c7f119ce2f6cc5def7d2694de1aab056ca7d` 离线构建的 ZIP 为 61,947,901 字节，SHA-256 为 `7CC729D5C6630162720B25182797CD3E7B878FF6D66E07725BCC190F637DC0EA`。核对 316 项构建输入、667 项解压清单、126 项资产、309 组 Rust 许可及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。全目标 Clippy、Flutter 分析和两项组件测试通过。解压桌面和两个 CLI 的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-5fb7c7f/build-inputs.sha256) · [解压清单](validation/cf-windows-5fb7c7f/SHA256SUMS) · [依赖审计](validation/cf-windows-5fb7c7f/dependency-audit.csv)
+
+Claude Code 和 Codex 发往本机模型夹具的首个请求均包含已发布的技能描述。解压 CLI 保留二进制附件，拒绝过期分配，并移除内容未变的原生副本。Gemini CLI 0.71.1 从原生项目配置加载 stdio 服务器并向夹具返回工具结果。过期删除被拒绝，移除保留相邻设置。Windows Debug 验收覆盖宽窄窗口、列表和网格、技能发布与项目 MCP 编辑。解压版生产入口及控制台和 Oh My Pi 的独立重启通过。[Claude Code 和 Codex](validation/cf-windows-5fb7c7f/native-skill-process.csv) · [Gemini](validation/cf-windows-5fb7c7f/project-mcp-process.csv) · [技能桌面](validation/cf-windows-5fb7c7f/agent-skills.log) · [MCP 桌面](validation/cf-windows-5fb7c7f/project-mcp.log) · [控制台重启](validation/cf-windows-5fb7c7f/console-1.log) · [Oh My Pi 重启](validation/cf-windows-5fb7c7f/omp_settings-1.log)
+
+构建与验收的合并任务在 Rust 回归阶段达到时限。对同一冻结源码单独重跑，127 项串行测试全部通过。[中断日志](validation/cf-windows-5fb7c7f/regression-interrupted.log) · [完整回归](validation/cf-windows-5fb7c7f/regression.log)
+
+Profile 记录 584 帧，UI 构建 P90/P99 为 1.28/6.78 ms，总跨度 P90/P99 为 2.88/8.07 ms。三轮 Release 工作集／私有字节中位数，Crabforge 为 156.52/229.65 MiB，Magpie 主进程为 80.79/96.56 MiB，含七个 WebView2 子进程时为 462.48/427.54 MiB。本机 SSE 三轮首事件为 7、16、2 ms，末事件为 710、725、710 ms，上游等待 700 ms。IPv6 回环、同机全局 IPv6 和 Kubo 中继均通过无效和有效密钥校验。[Profile](validation/cf-windows-5fb7c7f/profile.json) · [内存采样](validation/cf-windows-5fb7c7f/desktop-comparison.csv) · [SSE](validation/cf-windows-5fb7c7f/forward-h1.csv) · [IPv6 与回退](validation/cf-windows-5fb7c7f/ipv6.csv)
+
 ### Windows x64 规则库（`8028b7a`）
 
 从 `8028b7a25dd7371c25e6d2ff693184df08acbded` 离线构建的 ZIP 为 61,517,175 字节，SHA-256 为 `FF8CF197742AB5E11C8493F03F4074B4A6A3F3A220B94BA3F8BDEBF298AC0B35`。核对 306 项构建输入、667 项解压清单、126 项资产、309 组 Rust 许可及两个 CLI 各 97 项相同预设。123 项串行 Rust 回归、全目标 Clippy、Flutter 分析及两项组件测试通过。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。解压桌面与 CLI 的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-8028b7a/build-inputs.sha256) · [解压清单](validation/cf-windows-8028b7a/SHA256SUMS) · [Rust 回归](validation/cf-windows-8028b7a/regression.log) · [依赖审计](validation/cf-windows-8028b7a/dependency-audit.csv)

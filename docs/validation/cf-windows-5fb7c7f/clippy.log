@@ -1,0 +1,20 @@
+    Checking multiaddr v0.19.1 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\crates\peer-address)
+   Compiling crabforge-core v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\crates\core)
+   Compiling crabforge-bridge v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\crates\bridge)
+    Checking crabforge-runner v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\crates\runner)
+    Checking crabforge-test-support v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\crates\test-support)
+    Checking crabforge-verify v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\tools\verify)
+    Checking libp2p-core v0.44.0
+    Checking libp2p-swarm v0.48.0
+    Checking libp2p-tls v0.7.0
+    Checking libp2p-yamux v0.48.0
+    Checking libp2p-quic v0.14.0
+    Checking libp2p-relay v0.22.0
+    Checking libp2p-allow-block-list v0.7.0
+    Checking libp2p-dcutr v0.15.0
+    Checking libp2p-connection-limits v0.7.0
+    Checking libp2p-identify v0.48.0
+    Checking libp2p-stream v0.5.0-alpha
+    Checking libp2p v0.57.1
+    Checking crabforge-cli v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\crates\cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.19s

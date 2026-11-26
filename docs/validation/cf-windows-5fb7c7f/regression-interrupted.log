@@ -1,0 +1,45 @@
+   Compiling crabforge-core v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\crates\core)
+   Compiling crabforge-cli v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\crates\cli)
+   Compiling crabforge-bridge v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-5fb7c7f\source\crates\bridge)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 26.62s
+     Running unittests src\lib.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\crabforge_bridge-a03160e0b32924a8.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\crabforge_cli-cfeeced41eeb5099.exe)
+
+running 1 test
+test agent::pi::tests::personal_api_keeps_its_url_and_compat_until_removed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src\bin\carbforge-cli.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\carbforge_cli-ade585c880f9059c.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\crabforge_cli-46395ad8e079e794.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\agents.rs (D:\RustProject\Crabforge\target\catalog-migration\debug\deps\agents-8fd479417b4ef45d.exe)
+
+running 28 tests
+test claude_receives_text_through_the_gateway ... ok
+test codex_exec_receives_assistant_text_through_the_gateway ... ok
+test copilot_uses_the_gateway_in_offline_mode ... ok
+test crush_receives_text_through_the_gateway ... ok
+test deveco_loads_the_selected_model_and_authenticated_agent_endpoint ... ok
+test every_advertised_agent_root_forwards_and_records_its_own_name ... ok
+test gemini_receives_text_through_the_gateway ... ok
+test goose_receives_text_through_the_gateway ... ok
+test kimi_receives_text_through_the_gateway ... ok
+test mimocode_receives_text_through_the_gateway ... ok
+test mu_receives_text_through_the_gateway ... ok
+test nanobot_receives_text_through_the_gateway ... ok
+test omo_receives_text_through_the_gateway ...

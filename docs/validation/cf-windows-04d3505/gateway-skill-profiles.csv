@@ -1,0 +1,3 @@
+Agent,Version,Native profile attachment,Gateway profile attachment,First localhost model request includes skill,"Both copies removed, source retained"
+gemini,0.71.1,pass,pass,pass,pass
+pi,1.6.0,pass,pass,pass,pass
