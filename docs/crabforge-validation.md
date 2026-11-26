@@ -2,6 +2,27 @@
 
 [English](crabforge-validation.en.md)
 
+### Windows x64 项目摘要与本地会话（`85fd8fa`）
+
+从 `85fd8fa556eb2448ed702ebbb59b0b38a4e426f8` 离线构建的 ZIP 为 60,726,090 字节，SHA-256 为 `42A5B7ED546586099C3708B4F184F8D13D96A8B59E85651D2C911B5FB20EEE45`。核对了 299 项构建输入、解压后的 666 个文件、126 项资产、308 个 Rust 依赖许可，以及两个 CLI 各自的 97 项相同预设。通过 118 项 Rust 串行回归、全目标 Clippy、Flutter 分析及两项组件测试。28 组 Windows x64 和 Cargo 全目标依赖树均无启用的 Serde、Hyper 或 Reqwest。首次 Release 构建的 Flutter assemble 停滞，结束对应子进程后，以相同源码重跑通过。[构建输入](validation/cf-windows-85fd8fa/build-inputs.sha256) · [解压清单](validation/cf-windows-85fd8fa/SHA256SUMS) · [Rust 回归](validation/cf-windows-85fd8fa/regression.log) · [依赖审计](validation/cf-windows-85fd8fa/dependency-audit.csv)
+
+解压 CLI 通过八项记忆进程检查，验证了 Git 项目键、发布摘要与 CRLF、过期修订、归档后重发及两次恢复。Gemini CLI 0.71.1 的首条本机模型请求携带已发布摘要，后续请求携带 stdio MCP `memory_search` 的 `functionResponse`。真实 Claude Code 和 Codex 各发起一次本机模型对话，解压 CLI 从生成的原生 JSONL 读到会话 ID、首条提示、工作目录并通过 Agent 筛选。[记忆](validation/cf-windows-85fd8fa/memory-process.csv) · [摘要](validation/cf-windows-85fd8fa/digest-publication.csv) · [Gemini MCP](validation/cf-windows-85fd8fa/mcp-client.csv) · [原生会话](validation/cf-windows-85fd8fa/sessions-process.csv)
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.62 / 1.50 | 58.60 / 92.81 |
+| Chat 网关 | 8.92 / 1.90 | 71.59 / 100.41 |
+| 桌面主进程 | 151.39 / 225.62 | 78.84 / 95.56 |
+| 桌面进程树 | 151.39 / 225.62 | 498.73 / 421.03 |
+
+Crabforge 桌面每轮从解压的 Release 程序和独立配置启动。Magpie 复用同一可见窗口及七个 WebView2 子进程。两种 Chat 网关使用同一本机上游，分别公开两个和一个模型 ID。[空目录](validation/cf-windows-85fd8fa/catalog.csv) · [Chat](validation/cf-windows-85fd8fa/chat.csv) · [桌面](validation/cf-windows-85fd8fa/desktop-comparison.csv)
+
+回环 SSE 首个完整事件分别为 5、29、15 ms，末帧分别为 713、740、724 ms，上游固定等待 700 ms。同机 IPv6 回环、网卡全局 IPv6 及直连失败后的 Kubo 回退均验证了错误密钥 401、有效密钥 200 和预期目录。独立公网主机以及不同 NAT 的连通性待实测。[SSE](validation/cf-windows-85fd8fa/forward-h1.csv) · [IPv6](validation/cf-windows-85fd8fa/ipv6.csv)
+
+Windows Graphics Capture 从解压的 Release 桌面采得 24 次切换和 297 次像素区域变化。点击到首次变化中位数为 41.88 ms，同次切换变化间隔的中位数为 16.67 ms、P90 为 16.68 ms、最大值为 33.34 ms。GPU 逐帧执行及物理显示输出仍待实测。[窗口采集](validation/cf-windows-85fd8fa/window-capture-frames.csv)
+
+冻结源码的 Windows Debug 测试通过了配置、网关与路由记录、独立重启、Oh My Pi 配置与重启及宽窄布局。Profile 测得 580 帧，UI 构建 P90 为 1.50 ms、P99 为 6.68 ms，总跨度 P90 为 2.96 ms、P99 为 7.58 ms，栅格时钟为 0–1 µs。[控制台](validation/cf-windows-85fd8fa/console-0.log) · [重启](validation/cf-windows-85fd8fa/console-1.log) · [Oh My Pi](validation/cf-windows-85fd8fa/omp_settings-0.log) · [Oh My Pi 重启](validation/cf-windows-85fd8fa/omp_settings-1.log) · [宽窄布局](validation/cf-windows-85fd8fa/console-layout.log) · [Profile 原始帧](validation/cf-windows-85fd8fa/profile.json)
+
 ### Windows x64 记忆管理（`c8eb96e`）
 
 从 `c8eb96e79048add9d1f94680cc5fd44c0d9f372b` 离线构建的 ZIP 为 60,611,407 字节，SHA-256 为 `4E1CD367471290B5617351A3C1A41DDFF7FDB22773A0484C3C749679C4899AA1`。复核了 296 项构建输入、解压后的 666 个文件、126 项资产和两个 CLI 各自的 97 项相同预设。包内附 308 个 Rust 依赖的许可资料。全量 Rust 串行回归 115 项通过，包含通常忽略的测试。全目标 Clippy、Flutter 分析和两项组件测试通过。Windows x64 和 Cargo 全目标的 28 组启用依赖树均无 Serde、Hyper 或 Reqwest。经指定代理推送后核对了远端 `main` 的完整提交哈希。[构建输入](validation/cf-windows-c8eb96e/build-inputs.sha256) · [解压清单](validation/cf-windows-c8eb96e/SHA256SUMS) · [Rust 测试](validation/cf-windows-c8eb96e/regression.log) · [依赖审计](validation/cf-windows-c8eb96e/dependency-audit.csv)

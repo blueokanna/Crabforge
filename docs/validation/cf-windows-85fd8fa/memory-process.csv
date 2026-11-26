@@ -1,0 +1,9 @@
+EntryPoint,Check,Result
+CLI,"add Unicode BOM Markdown, tags and scope",pass
+CLI,show and query by text and tag,pass
+CLI,edit and reject stale revision across processes,pass
+MCP stdio,"initialize, tools/list and scoped search",pass
+MCP stdio,reuse duplicate and update agent-created entry,pass
+MCP stdio,reject cross-project and cross-agent archive,pass
+MCP stdio,reject edits to user-created entry,pass
+MCP stdio,archive then hide from active search,pass

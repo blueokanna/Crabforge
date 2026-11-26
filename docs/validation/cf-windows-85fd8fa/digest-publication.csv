@@ -1,0 +1,7 @@
+Check,Result
+Git project key,example.test/team/fixture
+Scope and CRLF preserved,pass
+Stale publication rejected,pass
+Published digest in first native Gemini request,0.71.1: pass
+Archive and republish,pass
+Restore published and pre-publication revisions,pass

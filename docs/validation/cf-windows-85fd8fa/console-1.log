@@ -1,0 +1,7 @@
+00:00 +0: loading D:/RustProject/Crabforge/dist/cf-windows-85fd8fa/source/gui/integration_test/console_test.dart
+Building Windows application...                                    34.7s
+√ Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: 桌面配置、网关请求和路由记录通过真实 Rust 绑定工作
+00:03 +1: (tearDownAll)
+00:03 +1: All tests passed!

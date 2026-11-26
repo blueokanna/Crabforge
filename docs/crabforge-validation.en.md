@@ -2,6 +2,27 @@
 
 [简体中文](crabforge-validation.md)
 
+## Windows x64 project memory and local sessions snapshot `85fd8fa`
+
+The ZIP built offline from `85fd8fa556eb2448ed702ebbb59b0b38a4e426f8` is 60,726,090 bytes with SHA-256 `42A5B7ED546586099C3708B4F184F8D13D96A8B59E85651D2C911B5FB20EEE45`. Validation covered 299 inputs, 666 unpacked files, 126 app assets, 308 Rust dependency notices and the same 97 presets from both CLI names. All 118 serial Rust tests passed, along with all-target Clippy, Flutter analysis and both widget tests. All 28 enabled dependency trees across Windows x64 and all Cargo targets were clear of Serde, Hyper and Reqwest. Flutter assemble stalled on the first Release build. After stopping the affected subprocess, the same frozen source built successfully. [Inputs](validation/cf-windows-85fd8fa/build-inputs.sha256) · [Archive manifest](validation/cf-windows-85fd8fa/SHA256SUMS) · [Rust tests](validation/cf-windows-85fd8fa/regression.log) · [Dependency audit](validation/cf-windows-85fd8fa/dependency-audit.csv)
+
+The unpacked CLI passed eight memory process checks and verified Git project keys, digest publication with CRLF, stale revisions, republishing after archive and two consecutive restores. The first Gemini CLI 0.71.1 request to a localhost model fixture included the published digest. Its next request carried the stdio MCP `memory_search` result in a `functionResponse`. Claude Code and Codex each ran a localhost model turn. The unpacked CLI read the session IDs, first prompts and working directories from their native JSONL and filtered by agent. [Memory](validation/cf-windows-85fd8fa/memory-process.csv) · [Digest](validation/cf-windows-85fd8fa/digest-publication.csv) · [Gemini MCP](validation/cf-windows-85fd8fa/mcp-client.csv) · [Native sessions](validation/cf-windows-85fd8fa/sessions-process.csv)
+
+| Workload, median of three samples | Crabforge working set / private bytes (MiB) | Magpie working set / private bytes (MiB) |
+| --- | ---: | ---: |
+| Empty catalog gateway | 7.62 / 1.50 | 58.60 / 92.81 |
+| Chat gateway | 8.92 / 1.90 | 71.59 / 100.41 |
+| Desktop main process | 151.39 / 225.62 | 78.84 / 95.56 |
+| Desktop process tree | 151.39 / 225.62 | 498.73 / 421.03 |
+
+Crabforge started each desktop round from the unpacked Release executable with a fresh data directory. Magpie reused its visible window and seven WebView2 children. The Chat gateways used the same localhost fixture, with two model IDs from Crabforge and one from Magpie. [Catalog](validation/cf-windows-85fd8fa/catalog.csv) · [Chat](validation/cf-windows-85fd8fa/chat.csv) · [Desktop](validation/cf-windows-85fd8fa/desktop-comparison.csv)
+
+The first complete loopback SSE event arrived in 5, 29 and 15 ms. The final event arrived in 713, 740 and 724 ms with a fixed 700 ms upstream delay. IPv6 loopback, a global IPv6 address on the same host and Kubo fallback after a failed direct dial returned 401 for invalid keys and 200 with the expected catalog for valid keys. Cross-host public and different-NAT samples are pending. [SSE](validation/cf-windows-85fd8fa/forward-h1.csv) · [IPv6](validation/cf-windows-85fd8fa/ipv6.csv)
+
+Windows Graphics Capture recorded 297 pixel region changes over 24 transitions in the unpacked Release desktop. The median click-to-first-change time was 41.88 ms. Within a transition, the median interval between changes was 16.67 ms, P90 was 16.68 ms and the maximum was 33.34 ms. GPU execution and physical display output still need direct measurement. [Window capture](validation/cf-windows-85fd8fa/window-capture-frames.csv)
+
+Windows Debug integration tests from frozen source passed configuration, gateway routing, route history, an independent restart, Oh My Pi settings and restart, and wide and narrow layouts. Profile recorded 580 frames. UI build took 1.50 ms at P90 and 6.68 ms at P99. Total span was 2.96 ms at P90 and 7.58 ms at P99. Raster timings were 0–1 µs. [Console](validation/cf-windows-85fd8fa/console-0.log) · [Restart](validation/cf-windows-85fd8fa/console-1.log) · [Oh My Pi](validation/cf-windows-85fd8fa/omp_settings-0.log) · [Oh My Pi restart](validation/cf-windows-85fd8fa/omp_settings-1.log) · [Layout](validation/cf-windows-85fd8fa/console-layout.log) · [Profile frames](validation/cf-windows-85fd8fa/profile.json)
+
 ## Windows x64 memory snapshot `c8eb96e`
 
 The ZIP was built offline from `c8eb96e79048add9d1f94680cc5fd44c0d9f372b`. It is 60,611,407 bytes with SHA-256 `4E1CD367471290B5617351A3C1A41DDFF7FDB22773A0484C3C749679C4899AA1`. The build verified 296 inputs, 666 files after extraction, 126 app assets, 308 Rust dependency notices, and the same 97 presets from both CLI names. The serial Rust suite passed 115 tests, including ignored tests. Clippy, Flutter analysis and two widget tests passed. All 28 enabled dependency trees across Windows and all Cargo targets were clear of Serde, Hyper and Reqwest. The full commit was verified on remote `main` after pushing through the configured proxy. [Inputs](validation/cf-windows-c8eb96e/build-inputs.sha256) · [Archive manifest](validation/cf-windows-c8eb96e/SHA256SUMS) · [Rust tests](validation/cf-windows-c8eb96e/regression.log) · [Dependency audit](validation/cf-windows-c8eb96e/dependency-audit.csv)
