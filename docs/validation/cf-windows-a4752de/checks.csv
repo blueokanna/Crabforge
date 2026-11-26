@@ -1,0 +1,16 @@
+Check,Result,Scope
+Rust tests,106 passed; 0 failed; 0 ignored,frozen source; --include-ignored --test-threads=1
+Rust clippy,pass,--workspace --all-targets -- -D warnings
+Flutter analyze,pass,frozen source
+Flutter widget tests,2 passed,frozen source
+console first run,pass,frozen Windows debug GUI with unpacked release CLI
+console cold restart,pass,frozen Windows debug GUI with unpacked release CLI
+Oh My Pi first run,pass,frozen Windows debug GUI with unpacked release CLI
+Oh My Pi cold restart,pass,frozen Windows debug GUI with unpacked release CLI
+Console layout,24 PNGs,Windows debug renderer; 6 pages x 2 layouts x 2 viewport widths; English in dark theme
+CONNECT and NO_PROXY,pass,Rust test; TLS origin with fixture-only root; CONNECT relay then explicit hostname bypass
+Same-host Kubo fallback,pass,unpacked binary; single Windows host
+Build inputs,291 matched,SHA-256 before and after build
+Packaged files,143 matched,extracted ZIP excluding SHA256SUMS itself
+Assets,126 matched,packaged asset contents compared to source
+CLI presets,97 matched,unpacked carbforge-cli.exe and crabforge-cli.exe

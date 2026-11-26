@@ -1,5 +1,24 @@
 # Crabforge 0.1.0 验收记录
 
+### Windows x64 网关和依赖验收（`a4752de`）
+
+冻结提交 `a4752de6991f8cdef947ecdde6d5c06c1e5b7d51` 的 Windows ZIP 共 61,159,262 字节，SHA-256 为 `C8155FAC6A7002F334AFDFF1F9E6EA103876D2AE5176F545DF5B475B9B8F5A3D`。构建前后 291 项输入一致。从 ZIP 解压后核对了清单中的 143 个文件、126 项资产和两个 CLI 各自的 97 项预设。Rust 串行回归包含通常忽略的测试，106 项通过、0 失败、0 跳过。Clippy、Flutter 分析与两项组件测试通过。使用解压版 CLI，Windows 调试桌面的控制台和 Oh My Pi 编辑器均通过首次使用与独立重启测试。[验收项目](validation/cf-windows-a4752de/checks.csv) · [构建输入](validation/cf-windows-a4752de/build-inputs.sha256) · [解压文件哈希](validation/cf-windows-a4752de/SHA256SUMS)
+
+6 个工作区包分别检查 Windows x64 和 Cargo `--target all` 的 `normal,build`、`normal,build,dev`，24 组已启用依赖均无 Serde 系列、Hyper 或 Reqwest。`Cargo.lock` 仍记录可选包，例如 `igd-next` 关联的 Hyper，以及 `url` 和 `time` 关联的 Serde 包。Bedrock IAM 签名在本地匹配 AWS SDK 的目录查询向量和 botocore 的分段正文、临时令牌向量。AWS 账户签发和付费推理仍待实测。[逐包审计](validation/cf-windows-a4752de/dependency-audit.csv)
+
+解压版 CLI 在设置 `HTTP_PROXY` 时直连回环上游，三次均为 HTTP 200，代理接收 0 个连接。夹具将末帧延后 700 毫秒，三次首个完整 SSE 事件为 31、16、2 毫秒，末帧为 746、731、709 毫秒。独立 Rust 测试在测试专用信任根下经 CONNECT 完成 TLS 握手并逐字核对正文，随后对同一非回环域名设置 `NO_PROXY`，验证直连成功且代理没有收到连接。[流式采样](validation/cf-windows-a4752de/forward-h1.csv)
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.47 / 1.39 | 58.16 / 91.33 |
+| Chat 网关 | 8.81 / 1.85 | 69.73 / 98.61 |
+| 桌面主进程 | 151.29 / 263.99 | 76.91 / 93.57 |
+| 桌面进程树 | 151.29 / 263.99 | 440.50 / 424.93 |
+
+网关按相同请求交替采样。桌面每轮用独立配置启动解压版 Crabforge，Magpie 的三轮采样复用同一可见窗口，进程树包括七个 WebView2 子进程。同机 IPv6 回环、网卡全局单播 IPv6、直连失败后的 Kubo 0.43.1 回退均验证错误密钥 401、正确密钥 200 和目录正文。独立公网主机和不同 NAT 的连通性仍待实测。[空目录](validation/cf-windows-a4752de/catalog.csv) · [Chat](validation/cf-windows-a4752de/chat.csv) · [桌面](validation/cf-windows-a4752de/desktop-comparison.csv) · [IPv6](validation/cf-windows-a4752de/ipv6.csv)
+
+用与冻结包相同的界面代码，在 Windows 调试渲染器中拍摄英语深色主题的六个控制台页面，覆盖宽 560 和 1200、高 800 逻辑像素下的列表及网格，共 24 张原始截图。窄屏使用底部导航，宽屏使用左侧导航。截图中网关处于停止状态，路由页显示空历史。[窄屏列表](validation/cf-windows-a4752de/overview-560.png) · [宽屏列表](validation/cf-windows-a4752de/overview-1200.png) · [两种宽度的网格](validation/cf-windows-a4752de/grid-overview.png)
+
 ### Windows x64 上游流式转发（`076480f`）
 
 `076480faa8f3fa03872fe560e3ff55ce3e2c7900` 的 ZIP 共 59,972,145 字节，SHA-256 为 `B04680E5B13E40D13CC02B33AE8A4B75C24C59E39556C47A42B26BEB1B527239`。构建前后 285 个输入的哈希一致。解压后逐项复核 143 个文件及校验清单，126 项随包资产与源码逐字节相同。两个 CLI 分别列出 97 项预设。[构建输入](validation/cf-forward-076480f/build-inputs.sha256) · [包内文件](validation/cf-forward-076480f/SHA256SUMS)

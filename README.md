@@ -40,9 +40,9 @@ Pass the full address advertised by the gateway to `carbforge-cli tunnel <addres
 
 ## Build for Windows x64
 
-The unpacked `076480f` desktop used a median 152.24 MiB working set and 265.69 MiB private bytes across three starts with fresh settings. Magpie kept one window open. Its main process used 148.55 / 152.03 MiB and its process tree, including seven WebView2 children, used 585.77 / 688.68 MiB. [Desktop samples](docs/validation/cf-forward-076480f/desktop-comparison.csv)
+The unpacked `a4752de` desktop used a median 151.29 MiB working set and 263.99 MiB private bytes across three starts with fresh settings. Magpie kept one window open. Its main process used 76.91 / 93.57 MiB and its process tree, including seven WebView2 children, used 440.50 / 424.93 MiB. [Desktop samples](docs/validation/cf-windows-a4752de/desktop-comparison.csv)
 
-All 102 tests in the frozen Rust suite passed, including the installed-client fixtures. The unpacked gateway used a median 7.67 MiB working set and 1.39 MiB private bytes with an empty catalog, and 8.98 / 1.88 MiB for the Chat workload. In three HTTP/1.1 trials the client received the first SSE event in 1–12 ms while the upstream held the final event for 700 ms. The validation record includes the ZIP checksum, editor tests, dependency audit and same-host IPv6 results. [Windows validation](docs/crabforge-validation.md)
+All 106 frozen Rust tests passed, including the installed clients, HTTPS CONNECT and explicit `NO_PROXY` bypass. The unpacked gateway used a median 7.47 MiB working set and 1.39 MiB private bytes with an empty catalog, and 8.81 / 1.85 MiB for Chat. With a 700 ms gap between upstream events, the client received the first complete SSE event in 31, 16 and 2 ms. Both Windows x64 and all-target Cargo trees for six packages were free of enabled Serde, Hyper and Reqwest dependencies, including build and test dependencies. The lockfile retains optional packages. [Dependency audit](docs/validation/cf-windows-a4752de/dependency-audit.csv) · [Windows validation and ZIP checksum](docs/crabforge-validation.md)
 
 Install the Rust MSVC toolchain, Flutter and the Visual Studio Desktop development with C++ workload. The recorded Windows builds used Rust 1.99.1, Flutter 3.47.9 and Dart 3.13.7.
 
