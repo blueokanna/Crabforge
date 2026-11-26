@@ -11,7 +11,7 @@ use ureq::{
     tls::{Certificate, RootCerts, TlsConfig},
     unversioned::{
         resolver::{ResolvedSocketAddrs, Resolver},
-        transport::{DefaultConnector, NextTimeout},
+        transport::NextTimeout,
     },
 };
 
@@ -52,13 +52,7 @@ async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> 
         .tls_config(tls)
         .timeout_global(Some(Duration::from_secs(5)))
         .build();
-    let client = ForwardClient::with_factory(None, move || {
-        Agent::with_parts(
-            config.clone(),
-            DefaultConnector::default(),
-            FixtureAddress(address),
-        )
-    });
+    let client = ForwardClient::with_resolver(None, config, move || FixtureAddress(address));
     let server = rustls::ServerConfig::builder_with_provider(Arc::new(
         rustls::crypto::ring::default_provider(),
     ))

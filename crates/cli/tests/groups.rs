@@ -448,7 +448,10 @@ fn shares_remap_members_and_replace_only_the_requested_group() -> Result<()> {
     }
     let clean: Value = nextjson::from_str(&exported).map_err(anyhow::Error::msg)?;
     let expected = json!({"id":"work","name":"Parent 2","routing":"weight","members":["local/m","local/n"],"weights":{"local/m":5},"off":["local/m"],"pick":"local/n","note":"priority models","unlists":true});
-    assert!(crabforge_core::json::equivalent(&clean["group"], &expected), "{clean}");
+    assert!(
+        crabforge_core::json::equivalent(&clean["group"], &expected),
+        "{clean}"
+    );
     fs::write(&share, exported)?;
     let added: Value = nextjson::from_str(&run(false)?).map_err(anyhow::Error::msg)?;
     assert_eq!(added["id"], json!("parent-2-2"));

@@ -11,10 +11,13 @@ use std::{
 use tokio::sync::{Semaphore, mpsc, oneshot};
 use ureq::{
     Agent, Proxy, RequestExt, SendBody,
-    config::AutoHeaderValue,
+    config::{AutoHeaderValue, Config},
     tls::{RootCerts, TlsConfig},
+    unversioned::resolver::{DefaultResolver, Resolver},
 };
 use url::Url;
+
+mod socket;
 
 /// An agent is used by one exchange at a time so dropping a response can interrupt
 /// a blocked socket read without interrupting any other request to the same host.
@@ -54,15 +57,16 @@ impl ForwardClient {
             })
             .collect::<Vec<_>>()
             .join(",");
-        Self::with_factory(Some(bypass.into()), move || config.new_agent())
+        Self::with_resolver(Some(bypass.into()), config, DefaultResolver::default)
     }
 
-    pub(crate) fn with_factory(
+    pub(crate) fn with_resolver<R: Resolver>(
         bypass: Option<no_proxy::NoProxy>,
-        make_agent: impl Fn() -> Agent + Send + Sync + 'static,
+        config: Config,
+        resolver: impl Fn() -> R + Send + Sync + 'static,
     ) -> Self {
         Self {
-            make_agent: Box::new(make_agent),
+            make_agent: Box::new(move || socket::agent(config.clone(), resolver())),
             idle: Default::default(),
             bypass,
             workers: Arc::new(Semaphore::new(crate::gateway::MAX_IN_FLIGHT)),

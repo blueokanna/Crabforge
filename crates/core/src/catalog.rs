@@ -6,7 +6,7 @@ use courierust::{
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 use url::Url;
 mod builtin;
@@ -337,16 +337,9 @@ impl CatalogAuth<'_> {
                 headers.insert(name.into(), value);
             }
         } else if crate::bedrock::scope(url).is_some() {
-            let signature = crate::bedrock::signature(
-                "GET",
-                url,
-                aws_sigv4::http_request::SignableBody::Bytes(&[]),
-                crate::bedrock::credentials()?,
-                SystemTime::now(),
-            )?;
-            for (name, value) in signature.headers() {
+            for (name, value) in &crate::bedrock::catalog_headers(url)? {
                 headers.insert(
-                    HeaderName::from_bytes(name.as_bytes())?,
+                    HeaderName::from_bytes(name.as_str().as_bytes())?,
                     HeaderValue::from_bytes(value.as_bytes())?,
                 );
             }

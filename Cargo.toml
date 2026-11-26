@@ -4,6 +4,7 @@ members = [
     "crates/cli",
     "crates/bridge",
     "crates/runner",
+    "crates/test-support",
     "tools/verify",
 ]
 exclude = ["crates/vendor/multiaddr"]
@@ -19,12 +20,7 @@ rust-version = "1.95"
 
 [workspace.dependencies]
 anyhow = "1.0.105"
-nextjson = { version = "0.1.5", features = ["derive"] }
-axum = { version = "0.8", default-features = false, features = [
-    "http1",
-    "original-uri",
-    "tokio",
-] }
+nextjson = { version = "=0.1.5", features = ["derive"] }
 crabforge-core = { path = "crates/core" }
 tokio = { version = "1", features = [
     "macros",
