@@ -53,6 +53,8 @@ carbforge-cli memory publish D:\Projects\app codex
 
 To let an Agent search and save memories, register the full path to `carbforge-cli.exe` as a local stdio MCP server, with arguments `mcp memory --agent <agent-id> --project <folder>`. You can pass `--project-key <project-key>` in place of `--project <folder>`. Set the same `CRABFORGE_HOME` in the client environment if you use a custom data directory. `memory_search` reads active records in the available scopes. `memory_save` creates records and can update agent-created ones. `memory_forget` archives a visible record, and `memory_context` reports the scopes. Run `mcp memory` without arguments to expose only global memory.
 
+Run `carbforge-cli sessions --limit 50` to find recent local Claude Code and Codex sessions. Use `--agent claude` or `--agent codex` to filter. The command reads session IDs, the first prompt preview, timestamps, and working folders from the clients' native JSONL files under `CLAUDE_CONFIG_DIR` or `CODEX_HOME`, with `.claude` and `.codex` in the user home as defaults.
+
 ## Protocols and routing
 
 - Clients can use OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Gemini and Ollama APIs. The validation record describes which streaming, tool, media and authentication paths have been exercised. Model availability depends on the provider and account.

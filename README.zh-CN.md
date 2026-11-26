@@ -53,6 +53,8 @@ carbforge-cli memory publish D:\Projects\app codex
 
 要让 Agent 搜索和保存记忆，在客户端添加本地 stdio MCP 服务，命令使用 `carbforge-cli.exe` 的完整路径，参数为 `mcp memory --agent <Agent ID> --project <文件夹>`。也可将 `--project <文件夹>` 换成 `--project-key <项目键>`。使用自定义数据目录时，为客户端设置相同的 `CRABFORGE_HOME`。`memory_search` 搜索可用范围内的有效记忆，`memory_save` 创建记录或更新 Agent 写入的记忆，`memory_forget` 归档可见记录，`memory_context` 显示适用范围。直接运行 `mcp memory` 时仅开放全局记忆。
 
+运行 `carbforge-cli sessions --limit 50` 可发现近期 Claude Code 和 Codex 本地会话，使用 `--agent claude` 或 `--agent codex` 筛选。命令从 `CLAUDE_CONFIG_DIR` 或 `CODEX_HOME` 下的原生 JSONL 读取会话 ID、首条提示预览、时间和工作目录，默认目录为用户主目录下的 `.claude` 和 `.codex`。
+
 ## 协议与路由
 
 - 支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini 和 Ollama 客户端。目录、对话流、工具调用、媒体和鉴权的验证范围见验收记录。不同供应商及套餐开放的模型会变化。

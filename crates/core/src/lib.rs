@@ -46,6 +46,7 @@ mod opencode;
 pub mod peer;
 pub mod project_instructions;
 pub mod service;
+pub mod sessions;
 mod translate;
 mod upstream;
 mod vertex;

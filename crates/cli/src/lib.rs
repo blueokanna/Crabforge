@@ -57,6 +57,13 @@ enum Command {
         #[command(subcommand)]
         command: memory::Command,
     },
+    /// Discover recent local Claude Code and Codex sessions.
+    Sessions {
+        #[arg(long, value_enum)]
+        agent: Option<SessionAgent>,
+        #[arg(long, default_value_t = 50, value_parser = clap::value_parser!(u16).range(1..=500))]
+        limit: u16,
+    },
     /// Run a local MCP server over standard input and output.
     Mcp {
         #[command(subcommand)]
@@ -152,6 +159,21 @@ enum Command {
         #[arg(long)]
         login: bool,
     },
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum SessionAgent {
+    Claude,
+    Codex,
+}
+
+impl From<SessionAgent> for crabforge_core::sessions::Agent {
+    fn from(agent: SessionAgent) -> Self {
+        match agent {
+            SessionAgent::Claude => Self::Claude,
+            SessionAgent::Codex => Self::Codex,
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -780,6 +802,14 @@ pub async fn run() -> Result<()> {
             );
         }
         Command::Memory { command } => memory::run(&dir, command)?,
+        Command::Sessions { agent, limit } => println!(
+            "{}",
+            nextjson::to_string_pretty(&crabforge_core::sessions::list(
+                agent.map(Into::into),
+                usize::from(limit),
+            )?)
+            .map_err(anyhow::Error::msg)?
+        ),
         Command::Mcp { command } => memory::serve(&dir, command)?,
         Command::Config { file: None } => println!("{}", config::snapshot(&dir)?),
         Command::Config { file: Some(path) } => {

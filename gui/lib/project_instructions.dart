@@ -106,10 +106,14 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
     await load(current.folder);
   });
 
-  Future<void> previewMemory() => perform(() async {
+  Future<void> previewMemory() async {
     final current = document!;
-    final preview = await api.projectMemoryDigest(project: current.folder);
-    if (!mounted) return;
+    String? result;
+    await perform(() async {
+      result = await api.projectMemoryDigest(project: current.folder);
+    });
+    final preview = result;
+    if (!mounted || preview == null) return;
     final strings = context.strings;
     final canPublish = preview.trimRight() != current.memoryDigest;
     final confirmed = await showDialog<bool>(
@@ -146,14 +150,16 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
       ),
     );
     if (!mounted || confirmed != true) return;
-    await api.publishProjectMemory(
-      project: current.folder,
-      agent: widget.agent,
-      revision: current.revision,
-      preview: preview,
-    );
-    if (mounted) await load(current.folder);
-  });
+    await perform(() async {
+      await api.publishProjectMemory(
+        project: current.folder,
+        agent: widget.agent,
+        revision: current.revision,
+        preview: preview,
+      );
+      if (mounted) await load(current.folder);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
