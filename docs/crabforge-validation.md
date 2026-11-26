@@ -20,7 +20,7 @@ Profile 记录 577 帧，UI 构建 P90/P99 为 1.46/7.70 ms，帧总跨度为 2.
 
 解压 CLI 通过引用名含 `/` 的本地 Git 目录、元数据过滤、长文档选择、完整附件导入和本地集合持久忽略。直接导入被忽略技能仍然可用。公开 `anthropics/skills` 主分支返回 19 个候选。解压 CLI 也通过了 Git 技能更新及真实 Gemini CLI 的项目 MCP 回合。[来源目录](validation/cf-windows-1d072e8/git-catalog.csv) · [Git 技能](validation/cf-windows-1d072e8/git-skills.csv) · [共享 MCP](validation/cf-windows-1d072e8/project-mcp-library-process.csv)
 
-Windows Debug 在宽窄窗口验证了来源目录的 List/Grid 与候选分配，确认 Codex 原生技能落盘、本地集合忽略保留，以及被忽略技能仍可直接导入 Claude Code。用例来自仅修改测试的 `2dfb3c6f8c358f51c67debdd82b01d6cd6de258b`。[Windows 集成](validation/cf-windows-1d072e8/agent-skills.log)
+Windows Debug 在宽窄窗口验证了来源目录的 List/Grid 与候选分配，确认 Codex 原生技能落盘、本地集合忽略保留，以及被忽略技能仍可直接导入 Claude Code。用例来自仅修改测试的 `2dfb3c6f8c358f51c67debdd82b01d6cd6de258b`。冻结提交的 134 项 Rust 全量回归通过。[Windows 集成](validation/cf-windows-1d072e8/agent-skills.log) · [Rust 回归](validation/cf-windows-1d072e8/regression.log)
 
 Profile 记录 579 帧，UI 构建 P90/P99 为 1.66/7.64 ms，帧总跨度为 3.19/10.63 ms。三轮解压 Release 启动的工作集／私有字节中位数为 Crabforge 154.56/227.01 MiB、Magpie 主进程 84.08/100.48 MiB、含七个 WebView2 子进程的 Magpie 512.14/429.18 MiB。同机 IPv6 回环、网卡全局 IPv6 地址及 Kubo 回退通过 401/200 核对。本机 SSE 首事件为 32、13、16 ms，末事件为 744、728、717 ms。[Profile](validation/cf-windows-1d072e8/profile.json) · [内存采样](validation/cf-windows-1d072e8/desktop-comparison.csv) · [SSE](validation/cf-windows-1d072e8/forward-h1.csv) · [IPv6](validation/cf-windows-1d072e8/ipv6.csv)
 
