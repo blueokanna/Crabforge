@@ -1,0 +1,25 @@
+Building Windows application...                                   112.0s
+√ Built build\windows\x64\runner\Profile\crabforge.exe
+VMServiceFlutterDriver: Connecting to Flutter application at http://127.0.0.1:50718/hnf7fXmFUSc=/
+VMServiceFlutterDriver: Isolate found with number: 5581992743430135
+VMServiceFlutterDriver: Isolate 5581992743430135 is runnable.
+VMServiceFlutterDriver: Isolate is paused at start.
+VMServiceFlutterDriver: Attempting to resume isolate
+00:00 +0: (setUpAll)
+00:00 +1: Windows console pages adapt to both navigation layouts
+VMServiceFlutterDriver: Connected to Flutter application.
+00:14 +2: (tearDownAll)
+Warning: integration_test plugin was not detected.
+
+If you're running the tests with `flutter drive`, please make sure your tests
+are in the `integration_test/` directory of your package and use
+`flutter test $path_to_test` to run it instead.
+
+If you're running the tests with Android instrumentation or XCTest, this means
+that you are not capturing test results properly! See the following link for
+how to set up the integration_test plugin:
+
+https://docs.flutter.dev/testing/integration-tests
+
+00:14 +3: All tests passed!
+All tests passed.
