@@ -31,7 +31,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editSkill => '编辑技能分配';
 
   @override
-  String get skillSourceFolder => '包含 SKILL.md 的文件夹';
+  String get skillSourceFolder => '本地文件夹或 GitHub URL';
 
   @override
   String get refreshSkill => '重新导入文件';

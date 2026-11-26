@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 pub(super) enum Command {
     /// List skills, revisions and native folder statuses as JSON.
     List,
-    /// Import a folder containing SKILL.md and its supporting files.
+    /// Import a local folder or an HTTPS GitHub URL for a skill and its supporting files.
     Import {
         source: PathBuf,
         /// Assign to claude, codex, gemini, opencode or pi. Repeat for each agent.

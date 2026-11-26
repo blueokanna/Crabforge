@@ -6,7 +6,7 @@
   "applySkills": "Apply skills",
   "noSkills": "No skills imported",
   "editSkill": "Edit skill assignments",
-  "skillSourceFolder": "Folder containing SKILL.md",
+  "skillSourceFolder": "Local folder or GitHub URL",
   "refreshSkill": "Reimport files",
   "projectMcp": "Project MCP",
   "addMcpServer": "Add MCP server",

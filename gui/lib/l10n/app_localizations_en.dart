@@ -31,7 +31,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editSkill => 'Edit skill assignments';
 
   @override
-  String get skillSourceFolder => 'Folder containing SKILL.md';
+  String get skillSourceFolder => 'Local folder or GitHub URL';
 
   @override
   String get refreshSkill => 'Reimport files';

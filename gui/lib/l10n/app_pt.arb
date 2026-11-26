@@ -5,7 +5,7 @@
   "applySkills": "Aplicar habilidades",
   "noSkills": "Nenhuma habilidade importada",
   "editSkill": "Editar atribuições da habilidade",
-  "skillSourceFolder": "Pasta que contém SKILL.md",
+  "skillSourceFolder": "Pasta local ou URL do GitHub",
   "refreshSkill": "Reimportar arquivos",
   "projectMcp": "MCP do projeto",
   "addMcpServer": "Adicionar servidor MCP",

@@ -8,9 +8,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const MAX_BYTES: usize = 16 * 1024 * 1024;
-const MAX_ENTRIES: usize = 1024;
-const MAX_DEPTH: usize = 16;
+pub(super) const MAX_BYTES: usize = 16 * 1024 * 1024;
+pub(super) const MAX_ENTRIES: usize = 1024;
+pub(super) const MAX_DEPTH: usize = 16;
 pub(super) const DOCUMENT: &str = "SKILL.md";
 
 enum Entry {
@@ -46,7 +46,7 @@ fn executable(_metadata: &Metadata) -> bool {
     }
 }
 
-fn windows_filename(name: &str) -> bool {
+pub(super) fn windows_filename(name: &str) -> bool {
     let base = name.split('.').next().unwrap_or_default().trim_end();
     let upper = base.to_ascii_uppercase();
     !name.is_empty()

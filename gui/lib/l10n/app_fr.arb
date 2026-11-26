@@ -5,7 +5,7 @@
   "applySkills": "Appliquer les compétences",
   "noSkills": "Aucune compétence importée",
   "editSkill": "Modifier les agents associés",
-  "skillSourceFolder": "Dossier contenant SKILL.md",
+  "skillSourceFolder": "Dossier local ou URL GitHub",
   "refreshSkill": "Réimporter les fichiers",
   "projectMcp": "MCP du projet",
   "addMcpServer": "Ajouter un serveur MCP",

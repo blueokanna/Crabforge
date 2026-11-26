@@ -73,7 +73,7 @@ void main() {
     await tap(find.text('Import skill'));
     await waitFor(find.byType(AlertDialog));
     await tester.enterText(
-      find.widgetWithText(TextField, 'Folder containing SKILL.md'),
+      find.widgetWithText(TextField, 'Local folder or GitHub URL'),
       source.path,
     );
     await tap(find.widgetWithText(FilterChip, 'Claude Code'));

@@ -45,6 +45,8 @@ semver = "1"
 yaml-edit = { version = "0.3.6", default-features = false }
 subtle = "2"
 tempfile = "3"
+flate2 = "1"
+tar = { version = "0.4.46", default-features = false }
 open = "5"
 futures-util = "0.3"
 fancy-regex = "0.20.2"

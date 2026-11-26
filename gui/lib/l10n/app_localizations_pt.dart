@@ -31,7 +31,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get editSkill => 'Editar atribuições da habilidade';
 
   @override
-  String get skillSourceFolder => 'Pasta que contém SKILL.md';
+  String get skillSourceFolder => 'Pasta local ou URL do GitHub';
 
   @override
   String get refreshSkill => 'Reimportar arquivos';

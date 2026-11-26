@@ -31,7 +31,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get editSkill => 'कौशल असाइनमेंट संपादित करें';
 
   @override
-  String get skillSourceFolder => 'SKILL.md वाला फ़ोल्डर';
+  String get skillSourceFolder => 'स्थानीय फ़ोल्डर या GitHub URL';
 
   @override
   String get refreshSkill => 'फ़ाइलें फिर से आयात करें';

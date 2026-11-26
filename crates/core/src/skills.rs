@@ -14,6 +14,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod remote;
 mod tree;
 use tree::Tree;
 
@@ -458,7 +459,38 @@ pub fn library(dir: &Path, edit: Edit) -> Result<String> {
     library_in(dir, &homes(dir)?, edit)
 }
 
+fn load_source(source: &Path) -> Result<(String, Tree)> {
+    if let Some(url) = source
+        .to_str()
+        .filter(|value| value.starts_with("https://"))
+    {
+        return remote::load(url);
+    }
+    ensure!(
+        !tree::is_link(&fs::symlink_metadata(source).context("open the skill source folder")?),
+        "the skill source must be a regular directory"
+    );
+    let source = source
+        .canonicalize()
+        .context("open the skill source folder")?;
+    let tree = Tree::read(&source)?;
+    Ok((
+        source
+            .into_os_string()
+            .into_string()
+            .ok()
+            .context("skill source path is not UTF-8")?,
+        tree,
+    ))
+}
+
 fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
+    // A remote archive can take time to download. Check the library revision
+    // after reading it, under the same lock used for all local updates.
+    let imported = match &edit {
+        Edit::Import { source, .. } => Some(load_source(source)?),
+        _ => None,
+    };
     let library = dir.join("skills");
     fs::create_dir_all(&library)?;
     let lock = File::options()
@@ -478,21 +510,10 @@ fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
     match edit {
         Edit::Read | Edit::Sync => changed = false,
         Edit::Import {
-            source,
-            agents,
-            expected,
+            agents, expected, ..
         } => {
             let agents = normalize_agents(agents)?;
-            ensure!(
-                !tree::is_link(
-                    &fs::symlink_metadata(&source).context("open the skill source folder")?
-                ),
-                "the skill source must be a regular directory"
-            );
-            let source = source
-                .canonicalize()
-                .context("open the skill source folder")?;
-            let tree = Tree::read(&source)?;
+            let (source, tree) = imported.expect("skill import source loaded");
             let (name, description) = details(&tree)?;
             if expected.is_some() {
                 store.skill_mut(&name, expected.as_deref())?;
@@ -502,10 +523,6 @@ fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
                     "a skill named {name} already exists; reload its revision to update it"
                 );
             }
-            let source = source
-                .to_str()
-                .context("skill source path is not UTF-8")?
-                .to_owned();
             let content = tree.hash();
             snapshot(&library, &content, &tree)?;
             store.skills.insert(

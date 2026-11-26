@@ -157,7 +157,7 @@ abstract class AppLocalizations {
   /// No description provided for @skillSourceFolder.
   ///
   /// In en, this message translates to:
-  /// **'Folder containing SKILL.md'**
+  /// **'Local folder or GitHub URL'**
   String get skillSourceFolder;
 
   /// No description provided for @refreshSkill.

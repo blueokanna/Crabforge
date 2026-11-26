@@ -5,7 +5,7 @@
   "applySkills": "スキルを適用",
   "noSkills": "インポート済みのスキルはありません",
   "editSkill": "スキルの割り当てを編集",
-  "skillSourceFolder": "SKILL.md があるフォルダー",
+  "skillSourceFolder": "ローカルフォルダーまたは GitHub URL",
   "refreshSkill": "ファイルを再インポート",
   "projectMcp": "プロジェクト MCP",
   "addMcpServer": "MCP サーバーを追加",

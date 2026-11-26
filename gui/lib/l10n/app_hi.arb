@@ -5,7 +5,7 @@
   "applySkills": "कौशल लागू करें",
   "noSkills": "कोई कौशल आयात नहीं हुआ",
   "editSkill": "कौशल असाइनमेंट संपादित करें",
-  "skillSourceFolder": "SKILL.md वाला फ़ोल्डर",
+  "skillSourceFolder": "स्थानीय फ़ोल्डर या GitHub URL",
   "refreshSkill": "फ़ाइलें फिर से आयात करें",
   "projectMcp": "प्रोजेक्ट MCP",
   "addMcpServer": "MCP सर्वर जोड़ें",

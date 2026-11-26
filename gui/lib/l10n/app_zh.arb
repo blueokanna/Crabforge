@@ -5,7 +5,7 @@
   "applySkills": "应用技能",
   "noSkills": "尚未导入技能",
   "editSkill": "编辑技能分配",
-  "skillSourceFolder": "包含 SKILL.md 的文件夹",
+  "skillSourceFolder": "本地文件夹或 GitHub URL",
   "refreshSkill": "重新导入文件",
   "projectMcp": "项目 MCP",
   "addMcpServer": "添加 MCP 服务器",

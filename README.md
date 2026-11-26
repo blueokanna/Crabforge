@@ -82,6 +82,8 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<revision from
 
 Use `skills import` with `--revision` to update a skill of the same name. `skills remove <name>` removes it from the library and removes unchanged managed copies.
 
+For a public GitHub skill, paste its `SKILL.md` or folder URL into the source field or pass it to `skills import`. A repository URL selects the root skill or the only skill folder it contains. If the repository contains several skills, specify the folder you want. **Reimport files** fetches the saved ref and folder again. Use a commit URL to pin the source. For branch names that contain a slash, use `?ref=feature%2Fdocs#path/to/skill` on the repository URL.
+
 For a supported client, open **Project MCP** under **Client connections** and select the project folder. Add a server using the client's native JSON format or a TOML table body for Codex. The editor shows the file it will update and checks its revision before saving or removing an entry. The client loads and runs the server when it opens the project.
 
 ```powershell

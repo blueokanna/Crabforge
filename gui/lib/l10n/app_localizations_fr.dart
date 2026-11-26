@@ -31,7 +31,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get editSkill => 'Modifier les agents associés';
 
   @override
-  String get skillSourceFolder => 'Dossier contenant SKILL.md';
+  String get skillSourceFolder => 'Dossier local ou URL GitHub';
 
   @override
   String get refreshSkill => 'Réimporter les fichiers';

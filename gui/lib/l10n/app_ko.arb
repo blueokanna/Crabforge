@@ -5,7 +5,7 @@
   "applySkills": "스킬 적용",
   "noSkills": "가져온 스킬이 없습니다",
   "editSkill": "스킬 할당 편집",
-  "skillSourceFolder": "SKILL.md가 있는 폴더",
+  "skillSourceFolder": "로컬 폴더 또는 GitHub URL",
   "refreshSkill": "파일 다시 가져오기",
   "projectMcp": "프로젝트 MCP",
   "addMcpServer": "MCP 서버 추가",
