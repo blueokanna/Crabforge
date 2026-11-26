@@ -2,6 +2,12 @@
 
 [English](crabforge-validation.en.md)
 
+### Windows x64 会话浏览与用户摘要（`45a935b`）
+
+从 `45a935bf01d013027cbd83e821a078395a0ac0fb` 离线构建的 ZIP 为 60,925,796 字节，SHA-256 为 `BBC5029C89432867A163C5996C075DF7897A3C20D32755F3249CFCC204138B59`。解压校验覆盖 666 个文件、126 项资产及两个 CLI 的 97 项相同预设。[构建输入](validation/cf-windows-45a935b/build-inputs.sha256) · [解压清单](validation/cf-windows-45a935b/SHA256SUMS)
+
+解压 CLI 通过原生会话发现与用户摘要验收。Claude Code 和 Codex 各自向本机模型夹具发出的首条请求包含全局及该 Agent 的摘要。过期预览和修订被拒绝，恢复后的字节保留原始 BOM 与 CRLF。冻结源码的 560 像素 Windows Debug 集成覆盖桌面会话和用户摘要发布及恢复。[会话](validation/cf-windows-45a935b/sessions-process.csv) · [用户摘要](validation/cf-windows-45a935b/agent-memory-process.csv) · [Windows 集成](validation/cf-windows-45a935b/agent-resources.log)
+
 ### Windows x64 项目摘要与本地会话（`85fd8fa`）
 
 从 `85fd8fa556eb2448ed702ebbb59b0b38a4e426f8` 离线构建的 ZIP 为 60,726,090 字节，SHA-256 为 `42A5B7ED546586099C3708B4F184F8D13D96A8B59E85651D2C911B5FB20EEE45`。核对了 299 项构建输入、解压后的 666 个文件、126 项资产、308 个 Rust 依赖许可，以及两个 CLI 各自的 97 项相同预设。通过 118 项 Rust 串行回归、全目标 Clippy、Flutter 分析及两项组件测试。28 组 Windows x64 和 Cargo 全目标依赖树均无启用的 Serde、Hyper 或 Reqwest。首次 Release 构建的 Flutter assemble 停滞，结束对应子进程后，以相同源码重跑通过。[构建输入](validation/cf-windows-85fd8fa/build-inputs.sha256) · [解压清单](validation/cf-windows-85fd8fa/SHA256SUMS) · [Rust 回归](validation/cf-windows-85fd8fa/regression.log) · [依赖审计](validation/cf-windows-85fd8fa/dependency-audit.csv)

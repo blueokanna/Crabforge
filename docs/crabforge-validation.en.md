@@ -2,6 +2,12 @@
 
 [简体中文](crabforge-validation.md)
 
+## Windows x64 session browser and user digest snapshot `45a935b`
+
+The ZIP built offline from `45a935bf01d013027cbd83e821a078395a0ac0fb` is 60,925,796 bytes with SHA-256 `BBC5029C89432867A163C5996C075DF7897A3C20D32755F3249CFCC204138B59`. Checks covered 666 unpacked files, 126 assets and the same 97 presets from both CLI names. [Inputs](validation/cf-windows-45a935b/build-inputs.sha256) · [Archive manifest](validation/cf-windows-45a935b/SHA256SUMS)
+
+The unpacked CLI passed native session discovery and user digest checks. The first request from each of Claude Code and Codex to the localhost model fixture included the global digest and the corresponding agent's digest. Stale previews and revisions were rejected. Restoration preserved the original BOM and CRLF bytes. The frozen Windows Debug integration test used a 560-pixel window and covered session browsing, user digest publication and restore. [Sessions](validation/cf-windows-45a935b/sessions-process.csv) · [User digests](validation/cf-windows-45a935b/agent-memory-process.csv) · [Windows integration](validation/cf-windows-45a935b/agent-resources.log)
+
 ## Windows x64 project memory and local sessions snapshot `85fd8fa`
 
 The ZIP built offline from `85fd8fa556eb2448ed702ebbb59b0b38a4e426f8` is 60,726,090 bytes with SHA-256 `42A5B7ED546586099C3708B4F184F8D13D96A8B59E85651D2C911B5FB20EEE45`. Validation covered 299 inputs, 666 unpacked files, 126 app assets, 308 Rust dependency notices and the same 97 presets from both CLI names. All 118 serial Rust tests passed, along with all-target Clippy, Flutter analysis and both widget tests. All 28 enabled dependency trees across Windows x64 and all Cargo targets were clear of Serde, Hyper and Reqwest. Flutter assemble stalled on the first Release build. After stopping the affected subprocess, the same frozen source built successfully. [Inputs](validation/cf-windows-85fd8fa/build-inputs.sha256) · [Archive manifest](validation/cf-windows-85fd8fa/SHA256SUMS) · [Rust tests](validation/cf-windows-85fd8fa/regression.log) · [Dependency audit](validation/cf-windows-85fd8fa/dependency-audit.csv)

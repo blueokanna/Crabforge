@@ -1,0 +1,6 @@
+00:00 +0: loading D:/RustProject/Crabforge/dist/cf-windows-45a935b/source/gui/integration_test/agent_resources_test.dart
+Building Windows application...                                   143.0s
+00:00 +0: (setUpAll)
+00:00 +0: Local sessions and scoped user instructions
+00:08 +1: (tearDownAll)
+00:08 +1: All tests passed!
