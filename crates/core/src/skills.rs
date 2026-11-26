@@ -7,7 +7,7 @@ use nextjson::{NsonDeserialize, NsonSerialize};
 use saphyr::{LoadableYamlNode, YamlOwned};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     env,
     fs::{self, File},
     io::ErrorKind,
@@ -172,9 +172,9 @@ fn details(tree: &Tree) -> Result<(String, String)> {
     anyhow::bail!("SKILL.md front matter is missing its closing delimiter")
 }
 
-type Homes = BTreeMap<&'static str, PathBuf>;
+type Homes = BTreeMap<&'static str, Vec<PathBuf>>;
 
-fn homes() -> Result<Homes> {
+fn homes(dir: &Path) -> Result<Homes> {
     let home = env::home_dir().context("user home directory is unavailable")?;
     let setting = |key| {
         env::var_os(key)
@@ -197,19 +197,17 @@ fn homes() -> Result<Homes> {
     });
     let pi = setting("PI_CODING_AGENT_DIR").unwrap_or_else(|| home.join(".pi/agent"));
     Ok(BTreeMap::from([
-        ("claude", claude),
-        ("codex", codex),
-        ("gemini", gemini),
-        ("opencode", opencode),
-        ("pi", pi),
+        ("claude", vec![claude]),
+        ("codex", vec![codex]),
+        ("gemini", vec![gemini, dir.join("agents/gemini/.gemini")]),
+        ("opencode", vec![opencode]),
+        ("pi", vec![pi, dir.join("agents/pi")]),
     ]))
 }
 
-fn target(homes: &Homes, name: &str, agent: &str) -> Result<Target> {
+fn target(profile: &Path, name: &str, agent: &str) -> Result<Target> {
     validate_name(name)?;
-    let profile = resolved_folder(&std::path::absolute(
-        homes.get(agent).context("unsupported skill agent")?,
-    )?)?;
+    let profile = resolved_folder(&std::path::absolute(profile)?)?;
     let skills = resolved_folder(&profile.join("skills"))?;
     ensure!(
         skills.starts_with(&profile) && skills != profile,
@@ -457,7 +455,7 @@ impl Store {
 }
 
 pub fn library(dir: &Path, edit: Edit) -> Result<String> {
-    library_in(dir, &homes()?, edit)
+    library_in(dir, &homes(dir)?, edit)
 }
 
 fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
@@ -539,22 +537,40 @@ fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
     let mut wanted = BTreeMap::new();
     for skill in store.skills.values() {
         for agent in &skill.agents {
-            wanted.insert(
-                (skill.name.clone(), agent.clone()),
-                Some(skill.content.clone()),
-            );
+            for profile in homes.get(agent.as_str()).into_iter().flatten() {
+                wanted.insert((&skill.name, agent, profile), Some(skill.content.as_str()));
+            }
         }
     }
     for applied in &store.applied {
         let previous = &applied.target;
-        if target(homes, &previous.name, &previous.agent).is_ok_and(|now| now == *previous) {
-            wanted
-                .entry((previous.name.clone(), previous.agent.clone()))
-                .or_insert(None);
+        for profile in homes.get(previous.agent.as_str()).into_iter().flatten() {
+            if target(profile, &previous.name, &previous.agent).is_ok_and(|now| now == *previous) {
+                wanted
+                    .entry((&previous.name, &previous.agent, profile))
+                    .or_insert(None);
+            }
         }
     }
+    let wanted: Vec<_> = wanted
+        .into_iter()
+        .map(|((name, agent, profile), content)| {
+            (
+                name.clone(),
+                agent.clone(),
+                target(profile, name, agent),
+                content.map(str::to_owned),
+            )
+        })
+        .collect();
+    let mut seen = BTreeSet::new();
     let mut placements = Vec::new();
-    for ((name, agent), content) in wanted {
+    for (name, agent, destination, content) in wanted {
+        if let Ok(target) = &destination
+            && !seen.insert((agent.clone(), target.path.clone()))
+        {
+            continue;
+        }
         let mut placement = Placement {
             name,
             agent,
@@ -563,7 +579,7 @@ fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
             error: None,
         };
         let applied = (|| {
-            let target = target(homes, &placement.name, &placement.agent)?;
+            let target = destination?;
             placement.path = Some(target.path.clone());
             store.publish(&path, &target, content.as_deref(), sync)
         })();
@@ -632,7 +648,7 @@ mod tests {
         let codex_skill = codex.join("skills/diagnose");
         fs::create_dir_all(&codex_skill)?;
         fs::write(codex_skill.join("SKILL.md"), "External skill")?;
-        let homes = BTreeMap::from([("claude", claude), ("codex", codex)]);
+        let homes = BTreeMap::from([("claude", vec![claude]), ("codex", vec![codex])]);
         let agents = vec!["codex".into(), "claude".into()];
         let imported = report(
             &dir,
@@ -706,7 +722,7 @@ mod tests {
         let root = tempfile::tempdir()?;
         let dir = root.path().join("data");
         let source = source(root.path())?;
-        let homes = BTreeMap::from([("claude", root.path().join("claude"))]);
+        let homes = BTreeMap::from([("claude", vec![root.path().join("claude")])]);
         report(
             &dir,
             &homes,
@@ -718,7 +734,7 @@ mod tests {
         )?;
         let store_path = dir.join("skills/library.json");
         let mut store = Store::load(&store_path)?;
-        let target = target(&homes, "diagnose", "claude")?;
+        let target = target(&homes["claude"][0], "diagnose", "claude")?;
         let dest = Path::new(&target.path);
         let staging = dest
             .parent()
@@ -751,6 +767,49 @@ mod tests {
         )?;
         assert_eq!(statuses(&removed), ["removed"]);
         assert!(!dest.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn reconciles_the_native_and_gateway_profiles_for_one_agent() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let dir = root.path().join("data");
+        let native = root.path().join("native/.gemini");
+        let gateway = dir.join("agents/gemini/.gemini");
+        let homes = BTreeMap::from([("gemini", vec![native.clone(), gateway.clone()])]);
+        let imported = report(
+            &dir,
+            &homes,
+            Edit::Import {
+                source: source(root.path())?,
+                agents: vec!["gemini".into()],
+                expected: None,
+            },
+        )?;
+        assert_eq!(statuses(&imported), ["applied", "applied"]);
+        let folder = |profile: &Path| profile.join("skills/diagnose");
+        for profile in [&native, &gateway] {
+            assert_eq!(
+                fs::read(folder(profile).join("references/units.bin"))?,
+                [0, 100, 255]
+            );
+        }
+        let aliased = BTreeMap::from([("gemini", vec![gateway.clone(), gateway.canonicalize()?])]);
+        assert_eq!(statuses(&report(&dir, &aliased, Edit::Read)?), ["applied"]);
+        let edited = folder(&native).join("references/units.bin");
+        fs::write(&edited, b"local edit")?;
+        let removed = report(
+            &dir,
+            &homes,
+            Edit::Assign {
+                name: "diagnose".into(),
+                agents: vec![],
+                expected: Some(revision(&imported)),
+            },
+        )?;
+        assert_eq!(statuses(&removed), ["removed", "conflict"]);
+        assert!(!folder(&gateway).exists());
+        assert_eq!(fs::read(edited)?, b"local edit");
         Ok(())
     }
 }

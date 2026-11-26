@@ -72,7 +72,7 @@ carbforge-cli rules list
 
 使用 `--old <名称>` 编辑现有规则或改名，可加 `--revision <修订>` 核对 `rules list` 中读取的版本。`rules remove <名称>` 删除规则及内容未变化的托管副本。
 
-在 **客户端连接** 的 **技能** 中导入本地文件夹，包括 `SKILL.md` 和附属文件。选择 Claude Code、Codex、Gemini CLI、OpenCode 或 Pi，可将副本发布到当前配置。**重新导入文件** 会再次读取来源。**应用技能** 可重试待处理的更改。原生目录已有同名技能，或已发布的副本在本地被修改时，Crabforge 会保留目录并显示冲突。
+在 **客户端连接** 的 **技能** 中导入本地文件夹，包括 `SKILL.md` 和附属文件。选择 Claude Code、Codex、Gemini CLI、OpenCode 或 Pi，可将副本发布到当前配置。选择 Gemini CLI 或 Pi 时，Crabforge 也会向 `carbforge-cli agent` 使用的配置发布副本。**重新导入文件** 会再次读取来源。**应用技能** 可重试待处理的更改。原生目录已有同名技能，或已发布的副本在本地被修改时，Crabforge 会保留目录并显示冲突。
 
 ```powershell
 carbforge-cli skills import .\diagnostics --agent claude --agent codex

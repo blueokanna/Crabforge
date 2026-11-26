@@ -72,7 +72,7 @@ carbforge-cli rules list
 
 Pass `--old <name>` to edit an existing rule or rename it. Add `--revision <revision>` from `rules list` to require the same version. `rules remove <name>` removes the library entry and its unchanged managed copies.
 
-Open **Skills** under **Client connections** to import a local folder with `SKILL.md` and its supporting files. Select Claude Code, Codex, Gemini CLI, OpenCode or Pi to publish a copy to the current profile. **Reimport files** reads the source again. **Apply skills** retries pending changes. An existing native folder or a locally edited copy stays in place and appears as a conflict.
+Open **Skills** under **Client connections** to import a local folder with `SKILL.md` and its supporting files. Select Claude Code, Codex, Gemini CLI, OpenCode or Pi to publish a copy to the current profile. For Gemini CLI and Pi, Crabforge also publishes to the profile used by `carbforge-cli agent`. **Reimport files** reads the source again. **Apply skills** retries pending changes. An existing native folder or a locally edited copy stays in place and appears as a conflict.
 
 ```powershell
 carbforge-cli skills import .\diagnostics --agent claude --agent codex
