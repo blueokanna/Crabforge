@@ -239,8 +239,18 @@ void main() {
     await tap(
       find.descendant(of: catalog, matching: find.byTooltip('Import skill')),
     );
-    await tap(find.widgetWithText(FilterChip, 'Codex'));
-    await tap(find.widgetWithText(FilledButton, 'Import skill'));
+    final importAction = find.widgetWithText(FilledButton, 'Import skill');
+    final importDialog = find.ancestor(
+      of: importAction,
+      matching: find.byType(AlertDialog),
+    );
+    await tap(
+      find.descendant(
+        of: importDialog,
+        matching: find.widgetWithText(FilterChip, 'Codex'),
+      ),
+    );
+    await tap(importAction);
     await waitFor(find.byKey(const ValueKey('sibling-fixture')));
     expect(
       File('${home.path}/codex/skills/sibling-fixture/SKILL.md').existsSync(),
