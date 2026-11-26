@@ -1,0 +1,3 @@
+Command,Result
+agent-list,"error: You are not logged in, please log in with kiro-cli login"
+chat,Not logged in. Set the KIRO_API_KEY environment variable or run `kiro-cli login` first.

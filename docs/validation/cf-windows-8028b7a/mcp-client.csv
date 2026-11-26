@@ -1,0 +1,3 @@
+Agent,CustomFile,ImportBOM,PreserveCRLF,RejectStaleRevision,Restore,NativeClient,DefaultMarkerSeen
+gemini,MY_CONTEXT.md,pass,pass,pass,pass,0.71.1: observed in localhost model request,yes
+MCP server,local stdio,tools/list,observed,memory_search,functionResponse observed,fixture reply,yes

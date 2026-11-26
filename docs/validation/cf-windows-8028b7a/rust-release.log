@@ -1,0 +1,18 @@
+Blocking waiting for file lock on package cache
+   Compiling multiaddr v0.19.1 (D:\RustProject\Crabforge\dist\cf-windows-8028b7a\source\crates\peer-address)
+   Compiling crabforge-core v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-8028b7a\source\crates\core)
+   Compiling crabforge-verify v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-8028b7a\source\tools\verify)
+   Compiling libp2p-core v0.44.0
+   Compiling libp2p-swarm v0.48.0
+   Compiling libp2p-tls v0.7.0
+   Compiling libp2p-yamux v0.48.0
+   Compiling libp2p-quic v0.14.0
+   Compiling libp2p-relay v0.22.0
+   Compiling libp2p-connection-limits v0.7.0
+   Compiling libp2p-dcutr v0.15.0
+   Compiling libp2p-identify v0.48.0
+   Compiling libp2p-allow-block-list v0.7.0
+   Compiling libp2p-stream v0.5.0-alpha
+   Compiling libp2p v0.57.1
+   Compiling crabforge-cli v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-8028b7a\source\crates\cli)
+    Finished `release` profile [optimized] target(s) in 2m 46s

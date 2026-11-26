@@ -1,0 +1,37 @@
+00:00 +0: loading D:/RustProject/Crabforge/dist/cf-windows-8028b7a/source/gui/integration_test/agent_resources_test.dart
+Building Windows application...                                    57.9s
+√ Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: Local sessions and scoped user instructions
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Codex session fixture": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.waitFor (file:///D:/RustProject/Crabforge/dist/cf-windows-8028b7a/source/gui/integration_test/agent_resources_test.dart:110:7)
+<asynchronous suspension>
+#5      main.<anonymous closure> (file:///D:/RustProject/Crabforge/dist/cf-windows-8028b7a/source/gui/integration_test/agent_resources_test.dart:132:5)
+<asynchronous suspension>
+#6      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#7      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///D:/RustProject/Crabforge/dist/cf-windows-8028b7a/source/gui/integration_test/agent_resources_test.dart line 110
+The test description was:
+  Local sessions and scoped user instructions
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:14 +0 -1: Local sessions and scoped user instructions [E]
+  Test failed. See exception logs above.
+  The test description was: Local sessions and scoped user instructions
+
+00:14 +0 -1: (tearDownAll)
+00:14 +0 -1: Some tests failed.
+
+Failing tests:
+  D:/RustProject/Crabforge/dist/cf-windows-8028b7a/source/gui/integration_test/agent_resources_test.dart: Local sessions and scoped user instructions

@@ -1,0 +1,7 @@
+00:00 +0: loading D:/RustProject/Crabforge/dist/cf-windows-8028b7a/source/gui/integration_test/agent_rules_test.dart
+Building Windows application...                                    49.0s
+鈭?Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: Edit and apply rules in both window layouts
+00:07 +1: (tearDownAll)
+00:07 +1: All tests passed!

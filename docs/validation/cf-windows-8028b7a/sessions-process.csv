@@ -1,0 +1,3 @@
+Agent,Source,SessionID,Prompt,Folder,Agent filter
+claude,native JSONL,b51c6343-59eb-4dad-b2c6-499620515b4e,pass,pass,pass
+codex,native JSONL,01a2199e-5564-78a1-ad99-b25c10f95688,pass,pass,pass

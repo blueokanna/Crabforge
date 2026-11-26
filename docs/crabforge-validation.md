@@ -6,6 +6,16 @@
 
 `assets/brands` 中的 119 个文件与本地 Magpie 参考快照的 `internal/gui/assets/icons` 逐文件 SHA-256 相同。包内附带 Magpie 与 Lobe Icons 的 MIT 声明。OpenAI 的标志使用另受品牌指南及其授权条款约束，Anthropic 商业服务条款第 F 节将知识产权授权限于条款明确授予的范围。正式售卖所需的品牌授权核定仍在进行。当前 Windows 用户没有可访问私钥的代码签名证书，冻结包的 Authenticode 状态为 `NotSigned`。[第三方声明](../THIRD_PARTY_NOTICES) · [OpenAI 品牌指南](https://openai.com/brand/#usage-terms) · [Anthropic 商业条款](https://www.anthropic.com/legal/commercial-terms#f-intellectual-property)
 
+### Windows x64 规则库（`8028b7a`）
+
+从 `8028b7a25dd7371c25e6d2ff693184df08acbded` 离线构建的 ZIP 为 61,517,175 字节，SHA-256 为 `FF8CF197742AB5E11C8493F03F4074B4A6A3F3A220B94BA3F8BDEBF298AC0B35`。核对 306 项构建输入、667 项解压清单、126 项资产、309 组 Rust 许可及两个 CLI 各 97 项相同预设。123 项串行 Rust 回归、全目标 Clippy、Flutter 分析及两项组件测试通过。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。解压桌面与 CLI 的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-8028b7a/build-inputs.sha256) · [解压清单](validation/cf-windows-8028b7a/SHA256SUMS) · [Rust 回归](validation/cf-windows-8028b7a/regression.log) · [依赖审计](validation/cf-windows-8028b7a/dependency-audit.csv)
+
+560 和 1280 像素的 Windows Debug 集成覆盖规则创建、路径范围、列表／网格、编辑、应用、外部修改保护和删除。解压 CLI 发布的规则分别出现在真实 Claude Code 和 Cline CLI 3.0.76 的首个本机模型请求。Cline 拒绝路径规则并移除先前由 Crabforge 写入的全局副本。Kiro CLI 3.6.2 的 MSI 签名有效，发布者为 Amazon Web Services, Inc.。解压 CLI 写入了 `inclusion: fileMatch` 和 `fileMatchPattern`。Kiro 在隔离环境中停在登录检查，原生读取和请求仍待实测。[规则桌面](validation/cf-windows-8028b7a/agent-rules.log) · [Claude Code](validation/cf-windows-8028b7a/native-rule-process.csv) · [Cline](validation/cf-windows-8028b7a/cline-native-rules.csv) · [Kiro 安装与规则](validation/cf-windows-8028b7a/kiro-rules-process.csv) · [Kiro 登录检查](validation/cf-windows-8028b7a/kiro-auth.csv)
+
+解压版生产入口、控制台和 Oh My Pi 独立重启、宽窄布局均通过。会话桌面测试首轮未找到 Codex 夹具标题，用同一冻结源码和新隔离目录重跑通过。Profile 记录 584 帧，UI 构建 P90/P99 为 1.45/8.40 ms，总跨度 P90/P99 为 2.90/9.50 ms。解压 Release 桌面三轮工作集／私有字节中位数为 156.89/229.67 MiB，Magpie 主进程为 81.82/98.70 MiB，包含七个 WebView2 子进程时为 458.14/421.79 MiB。[首轮会话](validation/cf-windows-8028b7a/agent-resources.log) · [会话重跑](validation/cf-windows-8028b7a/agent-resources-retry.log) · [宽窄布局](validation/cf-windows-8028b7a/console-layout.log) · [Profile](validation/cf-windows-8028b7a/profile.json) · [内存采样](validation/cf-windows-8028b7a/desktop-comparison.csv)
+
+解压 CLI 通过八项记忆检查、原生会话提炼以及 Gemini CLI 的本机 MCP 工具回合。IPv6 回环、同机全局 IPv6 和直连失败后的 Kubo 中继均通过 401、200 和目录校验。回环 SSE 三轮首事件为 12、54、32 ms，末事件为 716、769、744 ms，上游等待 700 ms。[记忆](validation/cf-windows-8028b7a/memory-process.csv) · [提炼](validation/cf-windows-8028b7a/memory-distill-process.csv) · [Gemini MCP](validation/cf-windows-8028b7a/mcp-client.csv) · [IPv6 与回退](validation/cf-windows-8028b7a/ipv6.csv) · [SSE](validation/cf-windows-8028b7a/forward-h1.csv)
+
 ### Windows x64 手动会话提炼（`d53252f`）
 
 从 `d53252f1718f72454237782259dab20a4b0b6cbc` 离线构建的 ZIP 为 61,275,493 字节，SHA-256 为 `3741355AD8405F1C26D52D91B15589C1ACB7B6E8BEDC79914926BD39CAFF2E95`。核对 302 项构建输入、667 个清单文件、126 项资产、309 个 Rust 依赖许可及双 CLI 各 97 项相同预设。120 项串行 Rust 回归、全目标 Clippy、Flutter 分析和两项组件测试通过。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。解压桌面和 CLI 均为 `NotSigned`。[构建输入](validation/cf-windows-d53252f/build-inputs.sha256) · [解压清单](validation/cf-windows-d53252f/SHA256SUMS) · [Rust 回归](validation/cf-windows-d53252f/regression.log) · [依赖审计](validation/cf-windows-d53252f/dependency-audit.csv)

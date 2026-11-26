@@ -1,0 +1,2 @@
+"Agent","Version","InstallerSHA256","Publisher","InstallerSignature","NativeSteering","ConversationExit","Conversation"
+"Kiro CLI","kiro-cli 3.6.2","5234FBBE2D0820904962680570D81F6699EF7EB15ED40F8B4D99C3DBCB918637","Amazon Web Services, Inc.","Valid","applied","1","error: home directory not found"
