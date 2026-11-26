@@ -1,4 +1,8 @@
 {
+  "projectInstructions": "Instructions du projet",
+  "projectFolder": "Dossier du projet",
+  "openProject": "Ouvrir le projet",
+  "restoreInstructions": "Restaurer la version précédente",
   "relayFallback": "Adresse du circuit relais de secours (facultatif)",
   "listView": "Vue en liste",
   "gridView": "Vue en grille",

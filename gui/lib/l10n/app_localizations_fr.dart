@@ -10,6 +10,18 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get projectInstructions => 'Instructions du projet';
+
+  @override
+  String get projectFolder => 'Dossier du projet';
+
+  @override
+  String get openProject => 'Ouvrir le projet';
+
+  @override
+  String get restoreInstructions => 'Restaurer la version précédente';
+
+  @override
   String get relayFallback =>
       'Adresse du circuit relais de secours (facultatif)';
 

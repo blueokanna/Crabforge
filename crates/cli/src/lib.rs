@@ -36,6 +36,21 @@ enum Command {
     Catalog,
     /// List the agent-specific API roots accepted by this gateway.
     Agents,
+    /// Read the managed block in an agent's project file, edit it or undo the last edit.
+    ProjectInstructions {
+        project: PathBuf,
+        agent: String,
+        /// UTF-8 Markdown to put inside the managed block.
+        #[arg(long, group = "change")]
+        from: Option<PathBuf>,
+        #[arg(long, group = "change")]
+        clear: bool,
+        #[arg(long, group = "change")]
+        restore: bool,
+        /// Reject the edit if the file has changed since this revision was read.
+        #[arg(long)]
+        revision: Option<String>,
+    },
     /// List Oh My Pi profiles, the active profile and each agent directory.
     OmpProfiles,
     /// Show role assignments and available models, set one role, or restore its previous value.
@@ -723,6 +738,36 @@ pub async fn run() -> Result<()> {
             );
         }
         Command::Catalog => println!("{}", crabforge_core::catalog::presets()?),
+        Command::ProjectInstructions {
+            project,
+            agent,
+            from,
+            clear,
+            restore,
+            revision,
+        } => {
+            use crabforge_core::project_instructions::{edit, read, read_markdown};
+            let mut view = read(&dir, &project, &agent)?;
+            if from.is_some() || clear || restore {
+                let text = from
+                    .as_deref()
+                    .map(read_markdown)
+                    .transpose()?
+                    .unwrap_or_default();
+                edit(
+                    &dir,
+                    &project,
+                    &agent,
+                    revision.as_deref().unwrap_or(&view.revision),
+                    (!restore).then_some(text.as_str()),
+                )?;
+                view = read(&dir, &project, &agent)?;
+            }
+            println!(
+                "{}",
+                nextjson::to_string(&view).map_err(anyhow::Error::msg)?
+            );
+        }
         Command::Config { file: None } => println!("{}", config::snapshot(&dir)?),
         Command::Config { file: Some(path) } => {
             use std::io::Read;

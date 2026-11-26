@@ -43,6 +43,11 @@ pub fn identity(dir: &Path) -> Result<Keypair> {
 
 pub fn listen_address(s: &str) -> Result<Multiaddr> {
     let addr: Multiaddr = s.parse()?;
+    validate_listener(&addr)?;
+    Ok(addr)
+}
+
+fn validate_listener(addr: &Multiaddr) -> Result<()> {
     let mut parts = addr.iter();
     ensure!(
         matches!(parts.next(), Some(Protocol::Ip4(_) | Protocol::Ip6(_)))
@@ -58,7 +63,7 @@ pub fn listen_address(s: &str) -> Result<Multiaddr> {
             "relay address must end with /p2p/RELAY_ID/p2p-circuit"
         );
     }
-    Ok(addr)
+    Ok(())
 }
 
 fn relay_peer(addr: &Multiaddr) -> Option<PeerId> {
@@ -213,7 +218,8 @@ fn destination(remote: &str) -> Result<(Multiaddr, PeerId)> {
     let Some(Protocol::P2p(id)) = addr.pop() else {
         bail!("remote address must end with /p2p/PEER_ID");
     };
-    Ok((listen_address(&addr.to_string())?, id))
+    validate_listener(&addr)?;
+    Ok((addr, id))
 }
 
 async fn dial(key: Keypair, addr: Multiaddr, id: PeerId) -> Result<Swarm<Network>> {

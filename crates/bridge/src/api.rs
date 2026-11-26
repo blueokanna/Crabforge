@@ -163,6 +163,35 @@ pub fn agents() -> String {
     json!(crabforge_core::agents::CLIENTS).to_string()
 }
 
+pub fn project_instruction_agents() -> Vec<String> {
+    crabforge_core::project_instructions::agents()
+        .map(str::to_owned)
+        .collect()
+}
+
+pub fn project_instructions(project: String, agent: String) -> Result<String> {
+    encode(&crabforge_core::project_instructions::read(
+        &config::data_dir()?,
+        project.as_ref(),
+        &agent,
+    )?)
+}
+
+pub fn edit_project_instructions(
+    project: String,
+    agent: String,
+    revision: String,
+    text: Option<String>,
+) -> Result<()> {
+    crabforge_core::project_instructions::edit(
+        &config::data_dir()?,
+        project.as_ref(),
+        &agent,
+        &revision,
+        text.as_deref(),
+    )
+}
+
 pub fn omp_profiles() -> Result<String> {
     use crabforge_core::agents::omp_profiles;
     let profiles = omp_profiles::list(&config::data_dir()?, &omp_profiles::installed()?)?;

@@ -112,6 +112,30 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @projectInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Project instructions'**
+  String get projectInstructions;
+
+  /// No description provided for @projectFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Project folder'**
+  String get projectFolder;
+
+  /// No description provided for @openProject.
+  ///
+  /// In en, this message translates to:
+  /// **'Open project'**
+  String get openProject;
+
+  /// No description provided for @restoreInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore previous version'**
+  String get restoreInstructions;
+
   /// No description provided for @relayFallback.
   ///
   /// In en, this message translates to:

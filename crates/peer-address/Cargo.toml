@@ -1,0 +1,13 @@
+[package]
+# libp2p-core resolves this package by name and version.
+name = "multiaddr"
+version = "0.19.1"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+libp2p-identity = { version = "0.3", features = ["peerid"] }
+multibase = "0.9"
+multihash = "0.19"
+unsigned-varint = "0.8"

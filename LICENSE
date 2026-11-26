@@ -2,9 +2,8 @@
 
 <https://polyformproject.org/licenses/perimeter/1.0.0>
 
-This license applies to all source code in this repository — the `typebit`
-Rust engine crate and everything it contains. `Cargo.toml` references this
-file with `license-file = "LICENSE"`.
+This license applies to the original Crabforge source code. Third-party
+components and assets carry their own license terms.
 
 ## Acceptance
 

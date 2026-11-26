@@ -8,18 +8,15 @@ flutter:
     - brands/
     - crabforge.png
     - fonts/NotoSansKR-OFL.txt
+    - fonts/GoogleSans-OFL.txt
+    - fonts/HarmonyOS-Sans-LICENSE.txt
   fonts:
     - family: Google Sans
       fonts:
         - asset: fonts/GoogleSans-Variable.ttf
     - family: HarmonyOS Sans SC
       fonts:
-        - asset: fonts/HarmonyOS_SansSC_Regular.ttf
-          weight: 400
-        - asset: fonts/HarmonyOS_SansSC_Medium.ttf
-          weight: 500
-        - asset: fonts/HarmonyOS_SansSC_Bold.ttf
-          weight: 700
+        - asset: fonts/HarmonyOS_SansSC-Variable.ttf
     - family: Noto Sans KR
       fonts:
         - asset: fonts/NotoSansKR-Variable.ttf

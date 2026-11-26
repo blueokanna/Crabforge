@@ -10,6 +10,18 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get projectInstructions => 'Instruções do projeto';
+
+  @override
+  String get projectFolder => 'Pasta do projeto';
+
+  @override
+  String get openProject => 'Abrir projeto';
+
+  @override
+  String get restoreInstructions => 'Restaurar a versão anterior';
+
+  @override
   String get relayFallback =>
       'Endereço do circuito de retransmissão alternativo (opcional)';
 

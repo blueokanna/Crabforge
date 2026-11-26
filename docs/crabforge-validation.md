@@ -111,7 +111,7 @@ CLI 和 Flutter 桥接层的直接运行依赖已切换到 NextJSON。配置修�
 
 Windows x64 使用 `cargo tree --offline --locked -p <包名> --edges normal,build --prefix none` 检查解析后的依赖，再将 `--edges` 换为 `normal,build,dev` 复核开发和测试依赖。两次检查中，`libp2p` 和 `crabforge-verify` 均未引入名称含 `serde` 的包、Hyper 系列、Reqwest 或 Axum。`crabforge-core`、`crabforge-cli` 和 `crabforge-bridge` 仍引入 `serde`、`serde_core`、`serde_derive`、`serde_json`、`serde_path_to_error`、`serde_yaml`、`hyper`、`hyper-rustls`、`hyper-util`、`reqwest`、`axum` 和 `axum-core`。
 
-- `libp2p` 保持 `0.57.1`。根清单将 `multiaddr` 指向仓库内的 `0.19.1`，原 crates.io 压缩包 SHA-256 为 `fd707c05eadfb37577f01cbec206726feeecf0b9edea259aee6fc9bc541ee253`，上游提交为 `d5981da4b337d21807ee5869178fbaf3d5ec7e03`。与原包比较，源码差异仅为 `lib.rs` 删除 81 行 Serde 相关实现和引用。文本与二进制编解码和 MIT 许可证均来自原包。同机重跑 DCUtR 升级、中继预约与回退、Kubo 双向鉴权共四项，全部通过。[本地清单](../crates/vendor/multiaddr/Cargo.toml)
+- 此次历史构建以修改过的 `multiaddr 0.19.1` 接入 `libp2p 0.57.1`。原 crates.io 压缩包 SHA-256 为 `fd707c05eadfb37577f01cbec206726feeecf0b9edea259aee6fc9bc541ee253`，上游提交为 `d5981da4b337d21807ee5869178fbaf3d5ec7e03`。同机重跑 DCUtR 升级、中继预约与回退、Kubo 双向鉴权共四项，全部通过。当前构建使用 Crabforge 自有地址编解码器。[当前清单](../crates/peer-address/Cargo.toml)
 - 验收工具的 HTTP 客户端和测试服务使用 Courierust，模型目录和内存探针使用 NextJSON。使用 `cf-dcutr-1031922879` 的 `carbforge-cli` 与 Magpie 分别重跑一轮空目录及 Chat 负载，四次均完成。网页对话的 ChromeDriver 请求、模型输入和响应改用 NextJSON 后，两个真实 Chrome 本地夹具通过。
 - 六个控制台页面共用列表或网格偏好，Rust 将选择原子写入数据目录的 `ui-layout`。Windows 桌面集成测试覆盖供应商、路由组、Agent、网关和模型的视图切换或沿用，另核对深色主题、系统剪贴板和独立进程重新启动后的布局。Flutter 静态分析和两个组件测试通过。
 - 配置解析、快照、原子保存及内置预设输出使用 NextJSON。与旧版 CLI 对照，97 项预设的全部 JSON 字段相等。旧版快照测试覆盖 IPv6 监听地址、`noStandIn` 别名、显式空协议列表、匹配规则，以及过期快照、未知字段和重复字段的拒绝。15 项路由组专项和 Anthropic 中转鉴权专项通过。

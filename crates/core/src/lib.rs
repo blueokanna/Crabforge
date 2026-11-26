@@ -43,6 +43,7 @@ mod media;
 mod model_name;
 mod opencode;
 pub mod peer;
+pub mod project_instructions;
 pub mod service;
 mod translate;
 mod upstream;

@@ -7,7 +7,7 @@ import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `read_preference`, `write_preference`
+// These functions are ignored because they are not marked as `pub`: `decode`, `encode`, `read_preference`, `write_preference`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Tunnel`
 
 Future<void> webLogin({required String site}) =>
@@ -99,6 +99,29 @@ Future<void> setUiLayout({required bool grid}) =>
 Future<String> presets() => RustLib.instance.api.crateApiPresets();
 
 Future<String> agents() => RustLib.instance.api.crateApiAgents();
+
+Future<List<String>> projectInstructionAgents() =>
+    RustLib.instance.api.crateApiProjectInstructionAgents();
+
+Future<String> projectInstructions({
+  required String project,
+  required String agent,
+}) => RustLib.instance.api.crateApiProjectInstructions(
+  project: project,
+  agent: agent,
+);
+
+Future<void> editProjectInstructions({
+  required String project,
+  required String agent,
+  required String revision,
+  String? text,
+}) => RustLib.instance.api.crateApiEditProjectInstructions(
+  project: project,
+  agent: agent,
+  revision: revision,
+  text: text,
+);
 
 Future<String> ompProfiles() => RustLib.instance.api.crateApiOmpProfiles();
 

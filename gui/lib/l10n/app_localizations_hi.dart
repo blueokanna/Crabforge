@@ -10,6 +10,18 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get projectInstructions => 'प्रोजेक्ट निर्देश';
+
+  @override
+  String get projectFolder => 'प्रोजेक्ट फ़ोल्डर';
+
+  @override
+  String get openProject => 'प्रोजेक्ट खोलें';
+
+  @override
+  String get restoreInstructions => 'पिछला संस्करण बहाल करें';
+
+  @override
   String get relayFallback =>
       'सीधा कनेक्शन विफल होने पर रिले सर्किट का पता (वैकल्पिक)';
 

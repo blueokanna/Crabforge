@@ -1,4 +1,8 @@
 {
+  "projectInstructions": "项目指令",
+  "projectFolder": "项目文件夹",
+  "openProject": "打开项目",
+  "restoreInstructions": "恢复上一版本",
   "relayFallback": "直连失败时使用的中继电路地址（可选）",
   "listView": "列表视图",
   "gridView": "网格视图",

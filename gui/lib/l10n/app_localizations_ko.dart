@@ -10,6 +10,18 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get projectInstructions => '프로젝트 지침';
+
+  @override
+  String get projectFolder => '프로젝트 폴더';
+
+  @override
+  String get openProject => '프로젝트 열기';
+
+  @override
+  String get restoreInstructions => '이전 버전 복원';
+
+  @override
   String get relayFallback => '직접 연결 실패 시 사용할 릴레이 회로 주소(선택 사항)';
 
   @override

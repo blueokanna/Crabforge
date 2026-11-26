@@ -10,6 +10,18 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get projectInstructions => 'Project instructions';
+
+  @override
+  String get projectFolder => 'Project folder';
+
+  @override
+  String get openProject => 'Open project';
+
+  @override
+  String get restoreInstructions => 'Restore previous version';
+
+  @override
   String get relayFallback => 'Fallback relay circuit address (optional)';
 
   @override

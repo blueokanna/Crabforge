@@ -106,14 +106,36 @@ class CollectionSliver extends StatelessWidget {
     required this.children,
     this.minWidth = 290,
     required this.height,
-  });
+  }) : itemCount = null,
+       itemBuilder = null;
+
+  const CollectionSliver.builder({
+    super.key,
+    required this.grid,
+    required this.itemCount,
+    required this.itemBuilder,
+    this.minWidth = 290,
+    required this.height,
+  }) : children = null;
+
   final bool grid;
-  final List<Widget> children;
+  final List<Widget>? children;
+  final int? itemCount;
+  final IndexedWidgetBuilder? itemBuilder;
   final double minWidth, height;
 
   @override
   Widget build(BuildContext context) {
-    if (!grid) return SliverList.list(children: children);
+    final data = children;
+    final count = data?.length ?? itemCount!;
+    final builder = itemBuilder ?? (_, index) => data![index];
+    if (!grid) {
+      return SliverList.separated(
+        itemCount: count,
+        itemBuilder: builder,
+        separatorBuilder: (_, _) => const SizedBox(height: 6),
+      );
+    }
     return SliverLayoutBuilder(
       builder: (context, constraints) {
         final columns = (constraints.crossAxisExtent / minWidth).floor().clamp(
@@ -124,12 +146,30 @@ class CollectionSliver extends StatelessWidget {
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
             mainAxisExtent: height + MediaQuery.textScalerOf(context).scale(48),
-            crossAxisSpacing: 4,
-            mainAxisSpacing: 4,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
-          delegate: SliverChildListDelegate(children),
+          delegate: SliverChildBuilderDelegate(builder, childCount: count),
         );
       },
+    );
+  }
+}
+
+class CollectionGlyph extends StatelessWidget {
+  const CollectionGlyph(this.child, {super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: SizedBox.square(dimension: 40, child: Center(child: child)),
     );
   }
 }
@@ -151,15 +191,24 @@ class CollectionTile extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Card.filled(
-    clipBehavior: Clip.antiAlias,
+  Widget build(BuildContext context) => Card.outlined(
+    clipBehavior: Clip.hardEdge,
+    color: Theme.of(context).colorScheme.surfaceContainerLowest,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+    ),
     child: LayoutBuilder(
       builder: (context, bounds) {
         if (!grid) {
           final stacked =
               actions.isNotEmpty && bounds.maxWidth < 260 + actions.length * 48;
           return ListTile(
-            leading: leading,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 6,
+            ),
+            leading: leading == null ? null : CollectionGlyph(leading!),
             title: title,
             onTap: onTap,
             subtitle: stacked
@@ -186,8 +235,8 @@ class CollectionTile extends StatelessWidget {
                 Row(
                   children: [
                     if (leading != null) ...[
-                      leading!,
-                      const SizedBox(width: 10),
+                      CollectionGlyph(leading!),
+                      const SizedBox(width: 12),
                     ],
                     Expanded(
                       child: DefaultTextStyle.merge(
@@ -199,11 +248,14 @@ class CollectionTile extends StatelessWidget {
                 ),
                 if (detail != null)
                   Expanded(
-                    child: SingleChildScrollView(
-                      primary: false,
-                      child: Align(
-                        alignment: AlignmentDirectional.topStart,
-                        child: detail,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: SingleChildScrollView(
+                        primary: false,
+                        child: Align(
+                          alignment: AlignmentDirectional.topStart,
+                          child: detail,
+                        ),
                       ),
                     ),
                   ),

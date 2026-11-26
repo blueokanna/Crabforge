@@ -1,4 +1,8 @@
 {
+  "projectInstructions": "Project instructions",
+  "projectFolder": "Project folder",
+  "openProject": "Open project",
+  "restoreInstructions": "Restore previous version",
   "relayFallback": "Fallback relay circuit address (optional)",
   "listView": "List view",
   "gridView": "Grid view",

@@ -1,4 +1,8 @@
 {
+  "projectInstructions": "プロジェクトの指示",
+  "projectFolder": "プロジェクトフォルダー",
+  "openProject": "プロジェクトを開く",
+  "restoreInstructions": "前のバージョンを復元",
   "relayFallback": "直接接続失敗時のリレー回線アドレス（任意）",
   "listView": "リスト表示",
   "gridView": "グリッド表示",

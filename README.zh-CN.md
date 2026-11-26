@@ -25,6 +25,14 @@ carbforge-cli agent claude group/work
 
 Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\com.blue.crabforge`。设置绝对路径 `CRABFORGE_HOME` 或传入 `--data-dir` 可以使用独立配置。客户端访问网关时使用 `carbforge-cli key` 输出的密钥。
 
+在「客户端连接」中选定 Agent，打开「项目指令」并选择项目文件夹。Crabforge 在 Agent 的项目文件里维护与 Magpie 兼容的 Markdown 区块。「恢复上一版本」会先检查当前文件是否与备份对应，再恢复文件。
+
+```powershell
+carbforge-cli project-instructions D:\Projects\app codex
+carbforge-cli project-instructions D:\Projects\app codex --from instructions.md
+carbforge-cli project-instructions D:\Projects\app codex --restore
+```
+
 ## 协议与路由
 
 - 支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini 和 Ollama 客户端。目录、对话流、工具调用、媒体和鉴权的验证范围见验收记录。不同供应商及套餐开放的模型会变化。

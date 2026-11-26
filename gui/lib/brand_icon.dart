@@ -55,6 +55,7 @@ class BrandIcon extends StatelessWidget {
         package: package,
         width: size,
         height: size,
+        cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).ceil(),
         excludeFromSemantics: true,
       );
     }

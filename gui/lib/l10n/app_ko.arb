@@ -1,4 +1,8 @@
 {
+  "projectInstructions": "프로젝트 지침",
+  "projectFolder": "프로젝트 폴더",
+  "openProject": "프로젝트 열기",
+  "restoreInstructions": "이전 버전 복원",
   "relayFallback": "직접 연결 실패 시 사용할 릴레이 회로 주소(선택 사항)",
   "listView": "목록 보기",
   "gridView": "격자 보기",

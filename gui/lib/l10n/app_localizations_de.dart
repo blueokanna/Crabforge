@@ -10,6 +10,18 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get projectInstructions => 'Projektanweisungen';
+
+  @override
+  String get projectFolder => 'Projektordner';
+
+  @override
+  String get openProject => 'Projekt öffnen';
+
+  @override
+  String get restoreInstructions => 'Vorherige Version wiederherstellen';
+
+  @override
   String get relayFallback => 'Relay-Adresse bei Verbindungsfehlern (optional)';
 
   @override

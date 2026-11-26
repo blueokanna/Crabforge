@@ -10,6 +10,18 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get projectInstructions => 'プロジェクトの指示';
+
+  @override
+  String get projectFolder => 'プロジェクトフォルダー';
+
+  @override
+  String get openProject => 'プロジェクトを開く';
+
+  @override
+  String get restoreInstructions => '前のバージョンを復元';
+
+  @override
   String get relayFallback => '直接接続失敗時のリレー回線アドレス（任意）';
 
   @override

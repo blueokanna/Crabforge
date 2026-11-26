@@ -2472,16 +2472,10 @@ dependencies = [
 name = "multiaddr"
 version = "0.19.1"
 dependencies = [
- "byteorder",
- "bytes",
- "data-encoding",
  "libp2p-identity",
  "multibase",
  "multihash",
- "percent-encoding",
- "static_assertions",
  "unsigned-varint",
- "url",
 ]
 
 [[package]]

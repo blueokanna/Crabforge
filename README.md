@@ -25,6 +25,14 @@ carbforge-cli agent claude group/work
 
 On Windows, the configuration, gateway key and P2P identity live under `%LOCALAPPDATA%\com.blue.crabforge`. Set `CRABFORGE_HOME` to an absolute path or pass `--data-dir` to use an isolated configuration. `carbforge-cli key` prints the credential for clients of that gateway.
 
+Open **Client connections → Project instructions** for a supported agent, then choose a project folder. Crabforge edits the Magpie-compatible Markdown block in the selected agent's file. **Restore previous version** restores the previous file after checking that the current version still matches the backup.
+
+```powershell
+carbforge-cli project-instructions D:\Projects\app codex
+carbforge-cli project-instructions D:\Projects\app codex --from instructions.md
+carbforge-cli project-instructions D:\Projects\app codex --restore
+```
+
 ## Protocols and routing
 
 - Clients can use OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Gemini and Ollama APIs. The validation record describes which streaming, tool, media and authentication paths have been exercised. Model availability depends on the provider and account.

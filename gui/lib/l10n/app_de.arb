@@ -1,4 +1,8 @@
 {
+  "projectInstructions": "Projektanweisungen",
+  "projectFolder": "Projektordner",
+  "openProject": "Projekt öffnen",
+  "restoreInstructions": "Vorherige Version wiederherstellen",
   "relayFallback": "Relay-Adresse bei Verbindungsfehlern (optional)",
   "listView": "Listenansicht",
   "gridView": "Rasteransicht",

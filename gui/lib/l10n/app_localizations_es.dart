@@ -10,6 +10,18 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get projectInstructions => 'Instrucciones del proyecto';
+
+  @override
+  String get projectFolder => 'Carpeta del proyecto';
+
+  @override
+  String get openProject => 'Abrir proyecto';
+
+  @override
+  String get restoreInstructions => 'Restaurar la versión anterior';
+
+  @override
   String get relayFallback =>
       'Dirección del circuito de retransmisión alternativo (opcional)';
 

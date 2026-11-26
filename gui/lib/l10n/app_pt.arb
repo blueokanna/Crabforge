@@ -1,4 +1,8 @@
 {
+  "projectInstructions": "Instruções do projeto",
+  "projectFolder": "Pasta do projeto",
+  "openProject": "Abrir projeto",
+  "restoreInstructions": "Restaurar a versão anterior",
   "relayFallback": "Endereço do circuito de retransmissão alternativo (opcional)",
   "listView": "Visualização em lista",
   "gridView": "Visualização em grade",

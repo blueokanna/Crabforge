@@ -10,6 +10,18 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get projectInstructions => '项目指令';
+
+  @override
+  String get projectFolder => '项目文件夹';
+
+  @override
+  String get openProject => '打开项目';
+
+  @override
+  String get restoreInstructions => '恢复上一版本';
+
+  @override
   String get relayFallback => '直连失败时使用的中继电路地址（可选）';
 
   @override

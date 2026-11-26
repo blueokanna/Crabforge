@@ -3,7 +3,9 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:crabforge/l10n/app_localizations.dart';
+import 'package:crabforge/language.dart';
 import 'package:crabforge/main.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +14,7 @@ import 'package:integration_test/integration_test.dart';
 import 'desktop_widgets.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testDesktopWidgets('Windows console pages adapt to both navigation layouts', (
     tester,
   ) async {
@@ -62,7 +64,7 @@ void main() {
     }
     expect(find.text('Add provider'), findsOneWidget);
     final strings = lookupAppLocalizations(const Locale('en'));
-    final pages = [
+    List<String> labels(AppLocalizations strings) => [
       strings.providers,
       strings.routes,
       strings.groups,
@@ -70,51 +72,140 @@ void main() {
       strings.models,
       strings.clients,
     ];
-    for (final width in [1200, 560]) {
-      tester.view.physicalSize = Size(width.toDouble(), 800);
-      await tester.pumpAndSettle();
-      final nav = find.byType(width >= 820 ? NavigationRail : NavigationBar);
-      expect(nav, findsOneWidget);
+    final pages = labels(strings);
+    Finder navigation(int width) =>
+        find.byType(width >= 820 ? NavigationRail : NavigationBar);
+    Future<void> openPage(Finder nav, String label) async {
+      await tester.tap(
+        find.descendant(of: nav, matching: find.text(label)).first,
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 16));
+    }
+
+    if (Platform.environment['CRABFORGE_LAYOUT_PROFILE']
+        case final String file) {
+      expect(kProfileMode, isTrue);
+      final nav = navigation(1200);
       for (final label in pages) {
-        await tester.tap(
-          find.descendant(of: nav, matching: find.text(label)).first,
-        );
-        await tester.pumpAndSettle();
-        for (final grid in [false, true]) {
-          final toggle = find.byTooltip(
-            grid ? strings.listView : strings.gridView,
-          );
-          expect(toggle, findsOneWidget);
-          expect(tester.takeException(), isNull);
-          if (output != null) {
-            final boundary =
-                capture.currentContext!.findRenderObject()!
-                    as RenderRepaintBoundary;
-            final image = await boundary.toImage();
-            try {
-              expect(image.width, width);
-              expect(image.height, 800);
-              final bytes = (await image.toByteData(
-                format: ui.ImageByteFormat.png,
-              ))!;
-              final file = File(
-                '$output/$width-${pages.indexOf(label)}-${grid ? 'grid' : 'list'}.png',
-              );
-              await file.parent.create(recursive: true);
-              await file.writeAsBytes(
-                bytes.buffer.asUint8List(
-                  bytes.offsetInBytes,
-                  bytes.lengthInBytes,
-                ),
-              );
-            } finally {
-              image.dispose();
-            }
+        await openPage(nav, label);
+      }
+      await binding.watchPerformance(() async {
+        for (var round = 0; round < 4; round++) {
+          for (final label in pages) {
+            await openPage(nav, label);
           }
-          await tester.tap(toggle);
-          await tester.pumpAndSettle();
+        }
+      });
+      await File(file).writeAsString(
+        const JsonEncoder.withIndent('  ').convert(binding.reportData),
+      );
+      return;
+    }
+
+    addTearDown(
+      tester.binding.platformDispatcher.clearPlatformBrightnessTestValue,
+    );
+    for (final brightness in Brightness.values) {
+      tester.binding.platformDispatcher.platformBrightnessTestValue =
+          brightness;
+      for (final width in [1200, 560]) {
+        tester.view.physicalSize = Size(width.toDouble(), 800);
+        await tester.pumpAndSettle();
+        final nav = navigation(width);
+        expect(nav, findsOneWidget);
+        for (final label in pages) {
+          await openPage(nav, label);
+          for (final grid in [false, true]) {
+            final toggle = find.byTooltip(
+              grid ? strings.listView : strings.gridView,
+            );
+            expect(toggle, findsOneWidget);
+            expect(tester.takeException(), isNull);
+            if (output != null) {
+              final boundary =
+                  capture.currentContext!.findRenderObject()!
+                      as RenderRepaintBoundary;
+              final image = await boundary.toImage();
+              try {
+                expect(image.width, width);
+                expect(image.height, 800);
+                final bytes = (await image.toByteData(
+                  format: ui.ImageByteFormat.png,
+                ))!;
+                final file = File(
+                  '$output/${brightness.name}/$width-${pages.indexOf(label)}-${grid ? 'grid' : 'list'}.png',
+                );
+                await file.parent.create(recursive: true);
+                await file.writeAsBytes(
+                  bytes.buffer.asUint8List(
+                    bytes.offsetInBytes,
+                    bytes.lengthInBytes,
+                  ),
+                );
+              } finally {
+                image.dispose();
+              }
+            }
+            await tester.tap(toggle);
+            await tester.pumpAndSettle();
+          }
         }
       }
     }
+
+    final narrowNav = navigation(560);
+    for (final code in languageNames.keys) {
+      final locale = Locale(code);
+      final translated = lookupAppLocalizations(locale);
+      tester.binding.platformDispatcher.localesTestValue = [locale];
+      await tester.pumpAndSettle();
+      for (final label in labels(translated)) {
+        await openPage(narrowNav, label);
+        expect(tester.takeException(), isNull, reason: '$code / $label');
+      }
+    }
+    tester.binding.platformDispatcher.localesTestValue = [const Locale('en')];
+    await tester.pumpAndSettle();
+
+    final project = Directory('${home.path}/layout-project')..createSync();
+    final instructions = File('${project.path}/CLAUDE.md');
+    instructions.writeAsStringSync('# Existing instructions\n');
+    await tester.tap(find.text(strings.projectInstructions));
+    await tester.pumpAndSettle();
+    final editor = find.byType(AlertDialog);
+    final fields = find.descendant(
+      of: editor,
+      matching: find.byType(TextField),
+    );
+    expect(fields, findsOneWidget);
+    await tester.enterText(fields.first, project.path);
+    await tester.tap(find.text(strings.openProject));
+    await tester.pumpAndSettle();
+    expect(fields, findsNWidgets(2));
+    await tester.enterText(fields.last, 'Run the workspace tests.');
+    await tester.pump();
+    final save = find.widgetWithText(FilledButton, strings.save);
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(
+      instructions.readAsStringSync(),
+      contains('Run the workspace tests.'),
+    );
+    await tester.tap(find.text(strings.restoreInstructions));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(FilledButton, strings.restoreInstructions),
+    );
+    await tester.pumpAndSettle();
+    expect(instructions.readAsStringSync(), '# Existing instructions\n');
+
+    instructions.writeAsStringSync('# Updated elsewhere\n');
+    await tester.enterText(fields.last, 'Stale edit.');
+    await tester.pump();
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('instructions changed'), findsOneWidget);
+    expect(instructions.readAsStringSync(), '# Updated elsewhere\n');
   });
 }
