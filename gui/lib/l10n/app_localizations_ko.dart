@@ -10,6 +10,9 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get relayFallback => '직접 연결 실패 시 사용할 릴레이 회로 주소(선택 사항)';
+
+  @override
   String get listView => '목록 보기';
 
   @override

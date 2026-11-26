@@ -1,4 +1,5 @@
 {
+  "relayFallback": "Endereço do circuito de retransmissão alternativo (opcional)",
   "listView": "Visualização em lista",
   "gridView": "Visualização em grade",
   "gatewayProtocol": "Protocolo do gateway",

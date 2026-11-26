@@ -1,4 +1,5 @@
 {
+  "relayFallback": "Fallback relay circuit address (optional)",
   "listView": "List view",
   "gridView": "Grid view",
   "gatewayProtocol": "Gateway protocol",

@@ -10,6 +10,9 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get relayFallback => 'Fallback relay circuit address (optional)';
+
+  @override
   String get listView => 'List view';
 
   @override

@@ -854,10 +854,12 @@ class TunnelEditor extends StatefulWidget {
 
 class _TunnelEditorState extends State<TunnelEditor> {
   final remote = TextEditingController(),
+      relay = TextEditingController(),
       local = TextEditingController(text: '127.0.0.1:3426');
   @override
   void dispose() {
     remote.dispose();
+    relay.dispose();
     local.dispose();
     super.dispose();
   }
@@ -872,6 +874,7 @@ class _TunnelEditorState extends State<TunnelEditor> {
           mainAxisSize: MainAxisSize.min,
           children: [
             field(context, remote, context.strings.remoteQuic),
+            field(context, relay, context.strings.relayFallback),
             field(context, local, context.strings.localTunnel),
             Padding(
               padding: const EdgeInsets.only(top: 16),
@@ -887,8 +890,11 @@ class _TunnelEditorState extends State<TunnelEditor> {
         child: Text(context.strings.cancel),
       ),
       FilledButton(
-        onPressed: () =>
-            Navigator.pop(context, (remote.text.trim(), local.text.trim())),
+        onPressed: () => Navigator.pop(context, (
+          remote.text.trim(),
+          local.text.trim(),
+          relay.text.trim(),
+        )),
         child: Text(context.strings.connect),
       ),
     ],

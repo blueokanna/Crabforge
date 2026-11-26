@@ -10,6 +10,9 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get relayFallback => 'Relay-Adresse bei Verbindungsfehlern (optional)';
+
+  @override
   String get listView => 'Listenansicht';
 
   @override

@@ -112,6 +112,12 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @relayFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Fallback relay circuit address (optional)'**
+  String get relayFallback;
+
   /// No description provided for @listView.
   ///
   /// In en, this message translates to:

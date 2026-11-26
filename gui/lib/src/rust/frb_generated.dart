@@ -88,6 +88,7 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiConnectPeer({
     required String remote,
     required String listen,
+    String? relayFallback,
   });
 
   Future<String> crateApiCopiedGroup({
@@ -268,6 +269,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<void> crateApiConnectPeer({
     required String remote,
     required String listen,
+    String? relayFallback,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -275,6 +277,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(remote, serializer);
           sse_encode_String(listen, serializer);
+          sse_encode_opt_String(relayFallback, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -287,7 +290,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiConnectPeerConstMeta,
-        argValues: [remote, listen],
+        argValues: [remote, listen, relayFallback],
         apiImpl: this,
       ),
     );
@@ -295,7 +298,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiConnectPeerConstMeta => const TaskConstMeta(
     debugName: "connect_peer",
-    argNames: ["remote", "listen"],
+    argNames: ["remote", "listen", "relayFallback"],
   );
 
   @override

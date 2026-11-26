@@ -10,6 +10,9 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get relayFallback => '直接接続失敗時のリレー回線アドレス（任意）';
+
+  @override
   String get listView => 'リスト表示';
 
   @override

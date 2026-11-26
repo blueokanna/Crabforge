@@ -1,4 +1,5 @@
 {
+  "relayFallback": "直接接続失敗時のリレー回線アドレス（任意）",
   "listView": "リスト表示",
   "gridView": "グリッド表示",
   "gatewayProtocol": "ゲートウェイのプロトコル",

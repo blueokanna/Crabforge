@@ -35,7 +35,7 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 
 在客户端运行 `carbforge-cli peer-id`，将其输出加入服务端的受信 Peer ID。服务端在网络设置中填写监听地址，然后启动网关。对于直连，使用可达的 IPv4 或 IPv6 地址和 UDP 端口。通过 Circuit Relay v2 连接时，先准备双方均可访问的中继，并在服务端填写中继预约地址，例如 `/ip6/RELAY_IP/udp/PORT/quic-v1/p2p/RELAY_ID/p2p-circuit`。
 
-在客户端将网关显示的完整 P2P 地址传给 `carbforge-cli tunnel <地址>`。本地入口默认为 `http://127.0.0.1:3426/v1`，使用远端网关密钥。已验证同机 Kubo 双向 QUIC 和 IPv6 回环中继；独立公网主机之间的直连及 NAT 打洞仍待验证。
+在客户端将网关显示的完整 P2P 地址传给 `carbforge-cli tunnel <地址>`。同时拥有直连和中继地址时，使用 `carbforge-cli tunnel <直连地址> --relay-fallback <中继电路地址>`。两者须以同一网关 Peer ID 结尾。桌面的连接窗口也提供可选中继地址。本地入口默认为 `http://127.0.0.1:3426/v1`，使用远端网关密钥。同机已验证 Kubo 双向 QUIC、IPv6 中继回退，以及 DCUtR 升级为直连后在中继下线时发起新的鉴权请求。独立公网主机之间的直连及 NAT 打洞仍待验证。
 
 ## 构建 Windows x64 版本
 

@@ -1,4 +1,5 @@
 {
+  "relayFallback": "直连失败时使用的中继电路地址（可选）",
   "listView": "列表视图",
   "gridView": "网格视图",
   "gatewayProtocol": "网关协议",

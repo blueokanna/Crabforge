@@ -696,7 +696,12 @@ void main() {
       matching: find.byType(TextField),
     );
     await tester.enterText(inputs.at(0), address.substring(4));
-    await tester.enterText(inputs.at(1), '127.0.0.1:0');
+    final remotePeer = address.split('/').last;
+    await tester.enterText(
+      inputs.at(1),
+      '/ip4/127.0.0.1/udp/1/quic-v1/p2p/${await native.nodeId()}/p2p-circuit/p2p/$remotePeer',
+    );
+    await tester.enterText(inputs.at(2), '127.0.0.1:0');
     await tapText('连接');
     await waitFor(find.text('断开'));
     final local = jsonDecode(await native.status())['tunnel'];

@@ -1,4 +1,5 @@
 {
+  "relayFallback": "Adresse du circuit relais de secours (facultatif)",
   "listView": "Vue en liste",
   "gridView": "Vue en grille",
   "gatewayProtocol": "Protocole de la passerelle",

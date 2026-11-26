@@ -10,6 +10,10 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get relayFallback =>
+      'Adresse du circuit relais de secours (facultatif)';
+
+  @override
   String get listView => 'Vue en liste';
 
   @override

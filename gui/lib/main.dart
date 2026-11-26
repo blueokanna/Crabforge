@@ -1360,7 +1360,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                     });
                     return;
                   }
-                  final address = await showDialog<(String, String)>(
+                  final address = await showDialog<(String, String, String)>(
                     context: context,
                     builder: (_) => const TunnelEditor(),
                   );
@@ -1369,6 +1369,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                       await api.connectPeer(
                         remote: address.$1,
                         listen: address.$2,
+                        relayFallback: address.$3.isEmpty ? null : address.$3,
                       );
                       final updated = jsonDecode(await api.status());
                       if (mounted) setState(() => status = updated);

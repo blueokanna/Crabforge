@@ -1,8 +1,28 @@
 # Crabforge 0.1.0 验收记录
 
+### Windows x64 直连升级与中继回退版（`cf-dcutr-1031922879`）
+
+Windows 包 `dist/cf-dcutr-1031922879/crabforge-0.1.0-windows-x64.zip` 共 62,207,857 字节，SHA-256 为 `B674CA946F26730D462A4DAEDE387405A1AEDBC33C8D5312460A97C0457AD953`。解压到新目录后核对全部 141 个文件，分别运行双 CLI 并启动桌面三次。包内 126 项品牌图标、字体、应用图标和许可证与源码一致。[逐文件 SHA-256](validation/cf-dcutr-1031922879/SHA256SUMS)
+
+原始 270 项源码清单的 SHA-256 为 `10319228792AC69D3AF1A18C8148ADAEEEAF2163B5079315EF7626D774C61ADB`。Flutter 在第一次构建中重新生成了 10 个本地化 Dart 文件。对生成后的实际输入重新取哈希并再次离线构建 Windows Release，构建前后 270 项完全一致，清单 SHA-256 为 `42A3BBE7441BA2F51074ED2F77A473C79842D0D9628A0DDDB62C1A356E4EFBC9`。[实际构建输入清单](validation/cf-dcutr-1031922879/build-inputs.sha256)
+
+Rust 工作区一次串行跑完 **97 项，全部通过，0 跳过**，包含默认忽略的真实客户端用例。全目标 Clippy、Flutter 静态分析、两个组件测试，以及 Windows 控制台首次使用和独立进程冷启动均通过。
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie 0.1.4744 |
+| --- | ---: | ---: |
+| 空目录网关 | 7.85 / 1.45 | 58.11 / 92.21 |
+| Chat 网关 | 8.86 / 1.59 | 66.98 / 96.43 |
+| 解压后桌面 | 129.26 / 220.52 | 本轮无可见窗口 |
+
+网关在独立数据目录按轮交替启动。Chat 使用同一上游夹具，Crabforge 展示两个模型 ID，Magpie 展示一个。桌面各轮使用新配置，等待可见窗口和节点身份就绪后采样。[空目录](validation/cf-dcutr-1031922879/catalog.csv) · [Chat](validation/cf-dcutr-1031922879/chat.csv) · [桌面](validation/cf-dcutr-1031922879/desktop.csv)
+
+- 三个 Rust libp2p 节点在 `::1` 上建立中继电路。客户端观察到 DCUtR 成功事件，核对其连接 ID 对应非中继 QUIC。关闭中继并观察到电路断开后，从新开的直连流读取受密钥保护的目录。中继以原身份、原端口重启后观察到网关再次预约成功。
+- 两个发布版 CLI 通过 IPv6 回环和网卡全局单播地址分别完成直连。随后让首选地址指向仅占用 UDP 端口的本地套接字，客户端通过 `--relay-fallback` 自动经独立的 Kubo 0.43.1 进程建立隧道。三次均检查 401、200 和响应目录。Kubo 仅监听 `::1` 时返回的预约未包含可用地址，成功用例使用本机网卡分配的全局 IPv6。Rust 夹具另验证拒绝不同网关 Peer ID 的备用地址。[发布版请求结果](validation/cf-dcutr-1031922879/ipv6.csv)
+- 上述试验全部在同一台 Windows 主机上完成。跨公网 UDP 可达性、不同 NAT 后的打洞与回退仍需第二台独立网络主机实测。
+
 ### Windows x64 回退链、中继与品牌图标版（`cf-relay-a78f732cf2`）
 
-从 269 个构建输入生成的清单 SHA-256 为 `A78F732CF27C47E85C34DB4FB620F32D0DA1A0EF39D01F14DF4EBBE40FA70CE9`。从该目录离线构建了双 CLI 和 Flutter Windows Release。`dist/cf-relay-a78f732cf2/crabforge-0.1.0-windows-x64.zip` 的 SHA-256 为 `4D510F0CE7FFB42292CA546BF5F1B599207328654073B10448AC6276E7CEA431`。压缩包内有 140 个运行文件和一份逐文件 `SHA256SUMS`。已核对 119 个品牌资产及 7 个应用图标、字体和许可证文件，解包后的桌面程序通过三次可见窗口启动采样。
+从 269 个构建输入生成的清单 SHA-256 为 `A78F732CF27C47E85C34DB4FB620F32D0DA1A0EF39D01F14DF4EBBE40FA70CE9`。从该目录离线构建了双 CLI 和 Flutter Windows Release。`dist/cf-relay-a78f732cf2/crabforge-0.1.0-windows-x64.zip` 的 SHA-256 为 `4D510F0CE7FFB42292CA546BF5F1B599207328654073B10448AC6276E7CEA431`。压缩包内有 140 个运行文件和一份逐文件 `SHA256SUMS`。已核对 119 个品牌资产及 7 个应用图标、字体和许可证文件。三轮桌面数据来自发布目录，另从新解压的 ZIP 复核了 140 项哈希，启动两个 CLI 及一次可见桌面窗口。
 
 | 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie 0.1.4744 |
 | --- | ---: | ---: |

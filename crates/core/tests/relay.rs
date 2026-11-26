@@ -20,6 +20,15 @@ async fn catalog(tunnel: SocketAddr, key: &str) -> Result<String> {
 
 #[tokio::test]
 async fn ipv6_relay_reservation_carries_authenticated_gateway_requests() -> Result<()> {
+    check_circuit(false).await
+}
+
+#[tokio::test]
+async fn failed_direct_ipv6_dial_uses_the_same_gateways_relay() -> Result<()> {
+    check_circuit(true).await
+}
+
+async fn check_circuit(fallback: bool) -> Result<()> {
     let mut relay = SwarmBuilder::with_new_identity()
         .with_tokio()
         .with_quic()
@@ -64,7 +73,20 @@ async fn ipv6_relay_reservation_carries_authenticated_gateway_requests() -> Resu
         .context("missing relay listener")?
         .address;
     assert_eq!(address.to_string(), format!("{circuit}/p2p/{gateway_id}"));
-    let (addr, tunnel) = peer::tunnel(client, &address.to_string(), local).await?;
+    let remote = address.to_string();
+    let (addr, tunnel) = if fallback {
+        let unavailable = tokio::net::UdpSocket::bind("[::1]:0").await?;
+        let port = unavailable.local_addr()?.port();
+        let direct = format!("/ip6/::1/udp/{port}/quic-v1/p2p/{gateway_id}");
+        let wrong_destination = format!("{circuit}/p2p/{client_id}");
+        let err = peer::tunnel_with_relay(client.clone(), &direct, Some(&wrong_destination), local)
+            .await
+            .unwrap_err();
+        ensure!(err.to_string().contains("same gateway Peer ID"));
+        peer::tunnel_with_relay(client, &direct, Some(&remote), local).await?
+    } else {
+        peer::tunnel(client, &remote, local).await?
+    };
     assert_eq!(
         timeout(Duration::from_secs(5), accepted.recv()).await?,
         Some((client_id, gateway_id))

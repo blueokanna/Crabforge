@@ -35,14 +35,19 @@ struct Tunnel {
 }
 static TUNNEL: Mutex<Option<Tunnel>> = Mutex::const_new(None);
 
-pub async fn connect_peer(remote: String, listen: String) -> Result<()> {
+pub async fn connect_peer(
+    remote: String,
+    listen: String,
+    relay_fallback: Option<String>,
+) -> Result<()> {
     let mut tunnel = TUNNEL.lock().await;
     ensure!(
         tunnel.as_ref().is_none_or(|t| t.task.is_finished()),
         "a P2P tunnel is already open"
     );
     let key = peer::identity(&config::data_dir()?)?;
-    let (address, task) = peer::tunnel(key, &remote, listen.parse()?).await?;
+    let (address, task) =
+        peer::tunnel_with_relay(key, &remote, relay_fallback.as_deref(), listen.parse()?).await?;
     *tunnel = Some(Tunnel { address, task });
     Ok(())
 }

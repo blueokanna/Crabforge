@@ -186,6 +186,16 @@ carbforge-cli tunnel /ip4/192.168.1.10/udp/3427/quic-v1/p2p/服务端PeerID --li
 
 应用随后访问 `http://127.0.0.1:3426/v1`，使用服务端的网关密钥。桌面端「远端网关隧道」提供相同操作。已验证同机独立进程间的直连，公网直连依赖服务端 UDP 地址可达。
 
+服务端也可以向双方都能访问的 Circuit Relay v2 中继预约。在网络设置的 P2P 监听地址中填写 `/ip6/中继IPv6/udp/端口/quic-v1/p2p/中继PeerID/p2p-circuit`。网关启动后显示的预约地址以 `/p2p/服务端PeerID` 结尾。客户端可以直接拨这个地址，双方会尝试用 DCUtR 升级为直连。
+
+如果已知服务端的直连地址和预约地址，可在连接时同时填写。CLI 接受以下参数，桌面「远端网关隧道」提供相应的可选字段。
+
+```powershell
+carbforge-cli tunnel $directAddress --relay-fallback $reservedAddress --listen 127.0.0.1:3426
+```
+
+客户端首先校验两个地址指向相同的服务端身份。在首选地址拨号失败后才尝试预约地址。中继中断时，已经升级的直连仍可接受新的 HTTP 请求；中继恢复后，网关自动尝试重新预约。IPv6 回环专项可用 `cargo test --locked -p crabforge-core --test relay` 和 `cargo test --locked -p crabforge-core --lib dcutr_upgrades` 复现。跨机 IPv6 和不同 NAT 后的成功率仍需独立网络实测。
+
 ## 构建与验证
 
 Windows 构建需要 Rust MSVC 工具链、Flutter Windows 桌面工具链及 Visual Studio C++ 桌面开发组件。桥接生成文件已纳入工作区。修改桥接 API 后，在 `gui` 目录使用与 `gui/pubspec.yaml` 同版的 `flutter_rust_bridge_codegen generate`。
@@ -201,6 +211,8 @@ flutter build windows --release --no-pub
 ```
 
 Windows 集成测试使用一个新的 `CRABFORGE_HOME` 目录，目录名以 `crabforge-gui-test-` 开头。`CRABFORGE_TEST_CLI` 指向构建好的 CLI 绝对路径。在 `gui` 目录执行 `flutter test integration_test/console_test.dart -d windows --no-pub`。第一次通过后，复用该目录，设置 `CRABFORGE_RESTART_CHECK=1` 并再次执行，以验证新进程恢复中文以及跟随系统语言。
+
+Oh My Pi 桌面专项另用新的测试目录。将 `PI_CONFIG_DIR` 设为从 Windows 用户主目录到 `$env:CRABFORGE_HOME\omp` 的相对路径，将 `bun` 和 `omp` 加入 `PATH`。`omp --profile work config path` 应指向测试目录下的 `omp\profiles\work\agent`。在相同环境中运行 `flutter test integration_test/omp_settings_test.dart -d windows --no-pub`，再设置 `CRABFORGE_RESTART_CHECK=1` 验证冷启动。
 
 从仓库根目录可以运行以下专项验收。
 

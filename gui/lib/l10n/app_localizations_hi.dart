@@ -10,6 +10,10 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get relayFallback =>
+      'सीधा कनेक्शन विफल होने पर रिले सर्किट का पता (वैकल्पिक)';
+
+  @override
   String get listView => 'सूची दृश्य';
 
   @override

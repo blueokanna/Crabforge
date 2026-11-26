@@ -1,0 +1,7 @@
+Gateway,Round,Workload,Models,WorkingSetMiB,PrivateMiB
+Crabforge,1,Catalog,0,8.28,1.50
+Magpie,1,Catalog,0,59.56,92.64
+Magpie,2,Catalog,0,58.11,92.21
+Crabforge,2,Catalog,0,7.84,1.43
+Crabforge,3,Catalog,0,7.85,1.45
+Magpie,3,Catalog,0,57.51,91.36

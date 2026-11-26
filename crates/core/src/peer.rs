@@ -22,6 +22,9 @@ const PROTOCOL: StreamProtocol = StreamProtocol::new("/crabforge/gateway/1.0.0")
 const HANDSHAKE: Duration = Duration::from_secs(15);
 const STREAM_LIFETIME: Duration = Duration::from_secs(3600);
 
+#[cfg(test)]
+mod tests;
+
 pub fn identity(dir: &Path) -> Result<Keypair> {
     let codec = rustbinary::options()
         .with_limit(4096)
@@ -92,7 +95,8 @@ fn network(key: Keypair, allowed: impl IntoIterator<Item = PeerId>) -> Result<Sw
     let limits = connection_limits::ConnectionLimits::default()
         .with_max_pending_incoming(Some(16))
         .with_max_established(Some(32))
-        .with_max_established_per_peer(Some(2));
+        // Simultaneous QUIC dialing can establish two direct connections while the circuit is open.
+        .with_max_established_per_peer(Some(3));
     Ok(SwarmBuilder::with_existing_identity(key)
         .with_tokio()
         .with_quic_config(|mut c| {
@@ -135,7 +139,7 @@ pub async fn serve(
         listen_for_punch(&mut net, &addr)?;
     }
     let mut incoming = net.behaviour().streams.new_control().accept(PROTOCOL)?;
-    let requested = net.listen_on(addr)?;
+    let mut requested = net.listen_on(addr.clone())?;
     let address = timeout(HANDSHAKE, async {
         loop {
             match net.select_next_some().await {
@@ -165,9 +169,27 @@ pub async fn serve(
     .with(Protocol::P2p(*net.local_peer_id()));
     let task = tokio::spawn(async move {
         let mut connections = JoinSet::new();
+        let mut retry = tokio::time::interval(Duration::from_secs(5));
+        let mut reserving = false;
         loop {
             tokio::select! {
-                event=net.select_next_some()=> if let SwarmEvent::ListenerClosed{listener_id,reason,..}=event && listener_id==requested {reason?; bail!("P2P listener closed");},
+                event = net.select_next_some() => {
+                    if let SwarmEvent::ListenerClosed { listener_id, reason, .. } = event && listener_id == requested {
+                        if relay.is_none() {
+                            reason?;
+                            bail!("P2P listener closed");
+                        }
+                        // Keep established direct sessions alive while renewing the reservation.
+                        reserving = true;
+                        retry.reset();
+                    }
+                }
+                _ = retry.tick(), if reserving => {
+                    if let Ok(listener) = net.listen_on(addr.clone()) {
+                        requested = listener;
+                        reserving = false;
+                    }
+                }
                 Some((peer,stream))=incoming.next()=>if clients.contains(&peer) && connections.len()<32 {
                     connections.spawn(crate::service::serve_connection(stream.compat(),app.clone()));
                 },
@@ -183,12 +205,18 @@ pub async fn tunnel(
     remote: &str,
     bind: SocketAddr,
 ) -> Result<(SocketAddr, JoinHandle<Result<()>>)> {
-    ensure!(bind.ip().is_loopback(), "tunnel must bind to loopback");
+    tunnel_with_relay(key, remote, None, bind).await
+}
+
+fn destination(remote: &str) -> Result<(Multiaddr, PeerId)> {
     let mut addr: Multiaddr = remote.parse()?;
     let Some(Protocol::P2p(id)) = addr.pop() else {
         bail!("remote address must end with /p2p/PEER_ID");
     };
-    listen_address(&addr.to_string())?;
+    Ok((listen_address(&addr.to_string())?, id))
+}
+
+async fn dial(key: Keypair, addr: Multiaddr, id: PeerId) -> Result<Swarm<Network>> {
     let relay = relay_peer(&addr);
     let mut net = network(key, std::iter::once(id).chain(relay))?;
     if relay.is_some() {
@@ -210,6 +238,36 @@ pub async fn tunnel(
     })
     .await
     .context("P2P dial timed out")??;
+    Ok(net)
+}
+
+pub async fn tunnel_with_relay(
+    key: Keypair,
+    remote: &str,
+    fallback: Option<&str>,
+    bind: SocketAddr,
+) -> Result<(SocketAddr, JoinHandle<Result<()>>)> {
+    ensure!(bind.ip().is_loopback(), "tunnel must bind to loopback");
+    let (addr, id) = destination(remote)?;
+    let mut net = if let Some(fallback) = fallback {
+        let (circuit, target) = destination(fallback)?;
+        ensure!(
+            target == id,
+            "relay fallback must target the same gateway Peer ID"
+        );
+        ensure!(
+            relay_peer(&addr).is_none() && relay_peer(&circuit).is_some(),
+            "provide a direct QUIC address first and a relay circuit as fallback"
+        );
+        match dial(key.clone(), addr, id).await {
+            Ok(net) => net,
+            Err(error) => dial(key, circuit, id).await.with_context(|| {
+                format!("relay fallback failed after direct connection failed: {error:#}")
+            })?,
+        }
+    } else {
+        dial(key, addr, id).await?
+    };
     let listener = TcpListener::bind(bind).await?;
     let local = listener.local_addr()?;
     let control = net.behaviour().streams.new_control();

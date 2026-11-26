@@ -14,8 +14,15 @@ Future<void> webLogin({required String site}) =>
 
 Future<void> finishWebLogin() => RustLib.instance.api.crateApiFinishWebLogin();
 
-Future<void> connectPeer({required String remote, required String listen}) =>
-    RustLib.instance.api.crateApiConnectPeer(remote: remote, listen: listen);
+Future<void> connectPeer({
+  required String remote,
+  required String listen,
+  String? relayFallback,
+}) => RustLib.instance.api.crateApiConnectPeer(
+  remote: remote,
+  listen: listen,
+  relayFallback: relayFallback,
+);
 
 Future<void> disconnectPeer() => RustLib.instance.api.crateApiDisconnectPeer();
 

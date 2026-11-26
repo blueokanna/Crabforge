@@ -10,6 +10,9 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get relayFallback => '直连失败时使用的中继电路地址（可选）';
+
+  @override
   String get listView => '列表视图';
 
   @override

@@ -1,4 +1,5 @@
 {
+  "relayFallback": "Relay-Adresse bei Verbindungsfehlern (optional)",
   "listView": "Listenansicht",
   "gridView": "Rasteransicht",
   "gatewayProtocol": "Gateway-Protokoll",

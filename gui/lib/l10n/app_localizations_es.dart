@@ -10,6 +10,10 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get relayFallback =>
+      'Dirección del circuito de retransmisión alternativo (opcional)';
+
+  @override
   String get listView => 'Vista de lista';
 
   @override

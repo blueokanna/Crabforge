@@ -112,6 +112,9 @@ enum Command {
     /// Bind a local HTTP endpoint to a trusted remote peer over QUIC.
     Tunnel {
         remote: String,
+        /// Relay circuit address for the same peer, tried if the direct QUIC dial fails.
+        #[arg(long)]
+        relay_fallback: Option<String>,
         #[arg(long, default_value = "127.0.0.1:3426")]
         listen: SocketAddr,
     },
@@ -735,8 +738,18 @@ pub async fn run() -> Result<()> {
             }
             tokio::select! { r=service.wait()=>r?, r=tokio::signal::ctrl_c()=>r? }
         }
-        Command::Tunnel { remote, listen } => {
-            let (addr, mut task) = peer::tunnel(peer::identity(&dir)?, &remote, listen).await?;
+        Command::Tunnel {
+            remote,
+            relay_fallback,
+            listen,
+        } => {
+            let (addr, mut task) = peer::tunnel_with_relay(
+                peer::identity(&dir)?,
+                &remote,
+                relay_fallback.as_deref(),
+                listen,
+            )
+            .await?;
             eprintln!("Tunnel http://{addr}/v1");
             tokio::select! { r=&mut task=>r.context("tunnel task")??, r=tokio::signal::ctrl_c()=>{r?;task.abort();} }
         }

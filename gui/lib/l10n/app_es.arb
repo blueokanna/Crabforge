@@ -1,4 +1,5 @@
 {
+  "relayFallback": "Dirección del circuito de retransmisión alternativo (opcional)",
   "listView": "Vista de lista",
   "gridView": "Vista de cuadrícula",
   "gatewayProtocol": "Protocolo de la pasarela",

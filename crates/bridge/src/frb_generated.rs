@@ -137,11 +137,14 @@ fn wire__crate__api__connect_peer_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_remote = <String>::sse_decode(&mut deserializer);
             let api_listen = <String>::sse_decode(&mut deserializer);
+            let api_relay_fallback = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok = crate::api::connect_peer(api_remote, api_listen).await?;
+                        let output_ok =
+                            crate::api::connect_peer(api_remote, api_listen, api_relay_fallback)
+                                .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
