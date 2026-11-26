@@ -268,7 +268,9 @@ void main() {
       find.widgetWithText(TextField, 'Local folder or Git URL'),
       collections.path,
     );
-    await tap(find.text('Browse source skills'));
+    final browse = find.text('Browse source skills');
+    await waitFor(browse);
+    await tap(browse);
     await waitFor(
       find.descendant(of: catalog, matching: find.text('deferred-fixture')),
     );
@@ -278,8 +280,32 @@ void main() {
     final empty = find.text('No additional skills found in this source.');
     await waitFor(empty);
     await tap(find.descendant(of: catalog, matching: find.text('Close')));
-    await tap(find.text('Browse source skills'));
+    await tap(browse);
     await waitFor(empty);
-    expect(File('${deferred.path}/SKILL.md').existsSync(), isTrue);
+    await tap(find.descendant(of: catalog, matching: find.text('Close')));
+    await tap(find.descendant(of: importDialog, matching: find.text('Cancel')));
+    await tap(find.descendant(of: page, matching: find.text('Import skill')));
+    final editorField = find.widgetWithText(
+      TextField,
+      'Local folder or Git URL',
+    );
+    await tester.enterText(editorField, deferred.path);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(editorField).controller!.text,
+      deferred.path,
+    );
+    await tap(
+      find.descendant(
+        of: importDialog,
+        matching: find.widgetWithText(FilterChip, 'Claude Code'),
+      ),
+    );
+    await tap(importAction);
+    expect(importDialog, findsNothing);
+    expect(
+      File('${claude.path}/skills/deferred-fixture/SKILL.md').existsSync(),
+      isTrue,
+    );
   });
 }
