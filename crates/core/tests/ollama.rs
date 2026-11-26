@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-use axum::{Json, Router, body::Body, http::HeaderMap, response::IntoResponse, routing::post};
 use crabforge_core::{config, service::Service};
-use serde_json::{Value, json};
+use crabforge_test_support::server::{Body, Incoming, IntoResponse, Router, post};
+use nextjson::{Value, json};
 use std::{convert::Infallible, sync::Arc, time::Duration};
 use tokio::{net::TcpListener, sync::Notify};
 
@@ -12,17 +12,17 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
     let release = Arc::new(Notify::new());
     let signal = release.clone();
     let vendor = Router::new()
-        .route("/broken/chat/completions", post(|| async { ([("content-type","text/event-stream")], "data: {\"error\":\"early failure\"}\n\n") }))
-        .route("/live/chat/completions", post(move |headers: HeaderMap, Json(req):Json<Value>| {
+        .route("/broken/chat/completions", post(|_| async { ([("content-type","text/event-stream")], "data: {\"error\":\"early failure\"}\n\n") }))
+        .route("/live/chat/completions", post(move |Incoming {headers, body: payload, ..}| { let req: Value = nextjson::from_slice(&payload).unwrap();
             let signal = signal.clone();
             async move {
                 assert!(!headers.contains_key("authorization"));
                 assert!(!headers.contains_key("x-magpie-session") && !headers.contains_key("x-session-affinity"));
-                assert_eq!(req["model"], "m");
-                assert_eq!(req["messages"][0]["tool_calls"][0]["function"]["arguments"], "{\"x\":1}");
+                assert_eq!(req["model"], json!("m"));
+                assert_eq!(req["messages"][0]["tool_calls"][0]["function"]["arguments"], json!("{\"x\":1}"));
                 assert_eq!(req["messages"][1]["tool_call_id"], req["messages"][0]["tool_calls"][0]["id"]);
-                assert_eq!(req["response_format"]["type"],"json_object");
-                assert_eq!(req["max_tokens"],12);
+                assert_eq!(req["response_format"]["type"],json!("json_object"));
+                assert_eq!(req["max_tokens"],json!(12));
                 assert!(req.get("options").is_none());
                 let stream = async_stream::stream! {
                     let first = json!({"choices":[{"delta":{"content":"你好","reasoning_content":"hidden"}}]});
@@ -38,8 +38,9 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
                 ([("content-type","text/event-stream")],Body::from_stream(stream)).into_response()
             }
         }))
-        .route("/cut/chat/completions", post(|| async { ([("content-type","text/event-stream")],"data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n") }));
-    let server = tokio::spawn(async move { axum::serve(listener, vendor).await });
+        .route("/cut/chat/completions", post(|_| async { ([("content-type","text/event-stream")],"data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n") }));
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, vendor).await });
     let root = tempfile::tempdir()?;
     let providers: Vec<_> = ["broken", "live", "cut"]
         .iter()
@@ -56,10 +57,7 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
     let service = Service::start(root.path()).await?;
     let key = config::token(root.path())?;
     let base = format!("http://{}/agent/vscode/api", service.addr);
-    let http = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(6))
-        .build()?;
+    let http = crabforge_test_support::Client::with_timeout(Duration::from_secs(6));
     let post = |path: &str, v: Value| {
         http.post(format!("{base}/{path}"))
             .bearer_auth(&key)
@@ -67,7 +65,10 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
     };
     let unauthorized = http.get(format!("{base}/tags")).send().await?;
     assert_eq!(unauthorized.status(), 401);
-    assert_eq!(decode(unauthorized).await?["error"], "gateway key required");
+    assert_eq!(
+        decode(unauthorized).await?["error"],
+        json!("gateway key required")
+    );
     let tags = decode(
         http.get(format!("{base}/tags"))
             .bearer_auth(&key)
@@ -80,11 +81,11 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
             .as_array()
             .unwrap()
             .iter()
-            .any(|m| m["model"] == "group/fallback"
+            .any(|m| m["model"] == json!("group/fallback")
                 && m["digest"].as_str().is_some_and(|s| s.len() == 64))
     );
     let show = decode(post("show", json!({"name":"m:latest"})).send().await?).await?;
-    assert_eq!(show["model_info"]["general.basename"], "m");
+    assert_eq!(show["model_info"]["general.basename"], json!("m"));
     assert_eq!(
         post("show", json!({"model":"missing"}))
             .send()
@@ -93,7 +94,7 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
         404
     );
     let load = decode(post("generate", json!({"model":"m:latest"})).send().await?).await?;
-    assert_eq!(load["done_reason"], "load");
+    assert_eq!(load["done_reason"], json!("load"));
     assert!(service.history.lock().unwrap().is_empty());
     let req = json!({"model":"group/fallback:latest","think":false,"format":"json","options":{"num_ctx":4096,"num_predict":12},"messages":[
         {"role":"assistant","tool_calls":[{"function":{"name":"sum","arguments":{"x":1}}}]},
@@ -110,21 +111,22 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
     while !first.ends_with(b"\n") {
         first.extend_from_slice(&resp.chunk().await?.context("missing first NDJSON line")?);
     }
-    let row: Value = serde_json::from_slice(&first)?;
+    let row: Value = nextjson::from_slice(&first).map_err(anyhow::Error::msg)?;
     assert_eq!(row["message"], json!({"role":"assistant","content":"你好"}));
     release.notify_one();
     let tail: Vec<Value> = resp
         .text()
         .await?
         .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()?;
+        .map(nextjson::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(anyhow::Error::msg)?;
     assert_eq!(tail.len(), 2);
     assert_eq!(
         tail[0]["message"]["tool_calls"][0]["function"]["arguments"],
         json!({"city":"上海"})
     );
-    assert_eq!(tail[1]["done"], true);
+    assert_eq!(tail[1]["done"], json!(true));
     {
         let history = service.history.lock().unwrap();
         assert_eq!(history.len(), 2);
@@ -146,9 +148,10 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
         .await?;
     let lines: Vec<Value> = cut
         .lines()
-        .map(serde_json::from_str)
-        .collect::<Result<_, _>>()?;
-    assert_eq!(lines[0]["response"], "partial");
+        .map(nextjson::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(anyhow::Error::msg)?;
+    assert_eq!(lines[0]["response"], json!("partial"));
     assert!(lines[1]["error"].as_str().is_some());
     let attempts: Vec<_> = service
         .history
@@ -170,6 +173,6 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
     Ok(())
 }
 
-async fn decode(response: reqwest::Response) -> Result<Value> {
-    Ok(serde_json::from_slice(&response.bytes().await?)?)
+async fn decode(response: crabforge_test_support::Response) -> Result<Value> {
+    nextjson::from_slice(&response.bytes().await?).map_err(anyhow::Error::msg)
 }

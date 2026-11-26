@@ -1,15 +1,11 @@
 use anyhow::Result;
-use axum::{Json, Router, body::Bytes, extract::OriginalUri, http::HeaderMap, routing::post};
-use axum::{
-    body::Body,
-    extract::State,
-    response::{IntoResponse, Response},
-};
 use crabforge_core::{
     config::{self, Config, Endpoints, Provider},
     service::Service,
 };
-use serde_json::{Value, json};
+use crabforge_test_support::server::{Body, IntoResponse, Response};
+use crabforge_test_support::server::{Incoming, Json, Router, post};
+use nextjson::{Value, json};
 use std::{collections::BTreeMap, net::SocketAddr};
 use std::{convert::Infallible, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
@@ -44,8 +40,12 @@ fn request(protocol: &str, model: &str, stream: bool) -> (String, Value) {
     }
 }
 
-async fn vendor(OriginalUri(uri): OriginalUri, headers: HeaderMap, body: Bytes) -> Json<Value> {
-    let req: Value = serde_json::from_slice(&body).unwrap();
+async fn vendor(
+    Incoming {
+        uri, headers, body, ..
+    }: Incoming,
+) -> Json {
+    let req: Value = nextjson::from_slice(&body).unwrap();
     assert!(req.to_string().contains("city?"));
     assert!(!headers.contains_key("authorization"));
     let args = json!({"city":"上海"});
@@ -75,10 +75,9 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
     let bind: SocketAddr = "127.0.0.1:0".parse()?;
     let listener = TcpListener::bind(bind).await?;
     let base = format!("http://{}", listener.local_addr()?);
-    let task =
-        tokio::spawn(
-            async move { axum::serve(listener, Router::new().fallback(post(vendor))).await },
-        );
+    let task = tokio::spawn(async move {
+        crabforge_test_support::server::serve(listener, Router::new().fallback(post(vendor))).await
+    });
     let root = tempfile::tempdir()?;
     let formats = ["chat", "responses", "anthropic", "gemini"];
     let cfg = Config {
@@ -109,7 +108,7 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
     )?;
     let service = Service::start(root.path()).await?;
     let key = config::token(root.path())?;
-    let client = reqwest::Client::builder().no_proxy().build()?;
+    let client = crabforge_test_support::Client::default();
     for from in formats {
         for to in formats.into_iter().filter(|to| *to != from) {
             for stream in [false, true] {
@@ -133,21 +132,23 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
                     }));
                     continue;
                 }
-                let reply: Value = serde_json::from_str(&body)?;
+                let reply: Value = nextjson::from_str(&body).map_err(anyhow::Error::msg)?;
                 let (name,input,count)=match from {
-            "chat"=>(&reply["choices"][0]["message"]["tool_calls"][0]["function"]["name"],serde_json::from_str(reply["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"].as_str().unwrap())?,&reply["usage"]["completion_tokens"]),
+            "chat"=>(&reply["choices"][0]["message"]["tool_calls"][0]["function"]["name"],nextjson::from_str(reply["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"].as_str().unwrap()).map_err(anyhow::Error::msg)?,&reply["usage"]["completion_tokens"]),
             "anthropic"=>(&reply["content"][0]["name"],reply["content"][0]["input"].clone(),&reply["usage"]["output_tokens"]),
-            "responses"=>(&reply["output"][0]["name"],serde_json::from_str(reply["output"][0]["arguments"].as_str().unwrap())?,&reply["usage"]["output_tokens"]),
+            "responses"=>(&reply["output"][0]["name"],nextjson::from_str(reply["output"][0]["arguments"].as_str().unwrap()).map_err(anyhow::Error::msg)?,&reply["usage"]["output_tokens"]),
             _=>{let f=&reply["candidates"][0]["content"]["parts"][0]["functionCall"];(&f["name"],f["args"].clone(),&reply["usageMetadata"]["candidatesTokenCount"])},
         };
-                assert_eq!(name, "weather");
+                assert_eq!(name.as_str(), Some("weather"));
                 assert_eq!(input, json!({"city":"上海"}));
-                assert_eq!(count, 6);
+                assert_eq!(count, &json!(6));
             }
         }
     }
     let (path, mut body) = request("chat", "gemini/m", false);
-    body["store"] = true.into();
+    body.as_object_mut()
+        .unwrap()
+        .insert("store".into(), true.into());
     let response = client
         .post(format!("http://{}{path}", service.addr))
         .bearer_auth(&key)
@@ -168,7 +169,8 @@ async fn relay_uses_a_reachable_native_endpoint_for_the_actual_request() -> Resu
     let base = format!("http://{}", upstream.local_addr()?);
     // The configured Chat URL would return a 404. Only Responses is native and reachable.
     let router = Router::new().route("/responses", post(vendor));
-    let task = tokio::spawn(async move { axum::serve(upstream, router).await });
+    let task =
+        tokio::spawn(async move { crabforge_test_support::server::serve(upstream, router).await });
     let dir = tempfile::tempdir()?;
     let config = json!({"listen":"127.0.0.1:0", "providers":[{
         "id":"relay", "models":["m"], "endpoints":{"responses":base, "chat":base},
@@ -181,31 +183,25 @@ async fn relay_uses_a_reachable_native_endpoint_for_the_actual_request() -> Resu
     )?;
     let service = Service::start(dir.path()).await?;
     let (path, body) = request("chat", "relay/m", false);
-    let r = reqwest::Client::builder()
-        .no_proxy()
-        .build()?
+    let r = crabforge_test_support::Client::default()
         .post(format!("http://{}{path}", service.addr))
         .bearer_auth(config::token(dir.path())?)
         .body(body.to_string())
         .send()
         .await?
         .error_for_status()?;
-    let reply: Value = serde_json::from_slice(&r.bytes().await?)?;
+    let reply: Value = nextjson::from_slice(&r.bytes().await?).map_err(anyhow::Error::msg)?;
     assert_eq!(
         reply["choices"][0]["message"]["tool_calls"][0]["id"],
-        "call_7"
+        json!("call_7")
     );
     service.stop().await;
     task.abort();
     Ok(())
 }
 
-async fn streaming_vendor(
-    State(release): State<Arc<Notify>>,
-    OriginalUri(uri): OriginalUri,
-    body: Bytes,
-) -> Response {
-    let req: Value = serde_json::from_slice(&body).unwrap();
+async fn streaming_vendor(release: Arc<Notify>, Incoming { uri, body, .. }: Incoming) -> Response {
+    let req: Value = nextjson::from_slice(&body).unwrap();
     let call = json!({"type":"function_call","call_id":"call_7","name":"weather","arguments":"{\"city\":\"上海\"}"});
     let (first, end) = match uri.path() {
         "/chat/completions" => (
@@ -246,7 +242,7 @@ async fn streaming_vendor(
         path => panic!("unexpected streaming upstream {path}"),
     };
     if !uri.path().contains("streamGenerateContent") {
-        assert_eq!(req["stream"], true);
+        assert_eq!(req["stream"], json!(true));
     }
     let chat = uri.path() == "/chat/completions";
     let body = async_stream::stream! {
@@ -271,10 +267,12 @@ async fn translated_text_precedes_upstream_completion_in_all_twelve_directions()
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
     let release = Arc::new(Notify::new());
-    let app = Router::new()
-        .fallback(post(streaming_vendor))
-        .with_state(release.clone());
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let signal = release.clone();
+    let app = Router::new().fallback(post(move |request| {
+        streaming_vendor(signal.clone(), request)
+    }));
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     let dir = tempfile::tempdir()?;
     let formats = ["chat", "responses", "anthropic", "gemini"];
     let providers: Vec<_> = formats
@@ -293,10 +291,7 @@ async fn translated_text_precedes_upstream_completion_in_all_twelve_directions()
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
     let service = Service::start(dir.path()).await?;
     let key = config::token(dir.path())?;
-    let http = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(6))
-        .build()?;
+    let http = crabforge_test_support::Client::with_timeout(Duration::from_secs(6));
     for from in formats {
         for to in formats.into_iter().filter(|f| *f != from) {
             let (path, req) = request(from, &format!("{to}/m"), true);
@@ -324,15 +319,16 @@ async fn translated_text_precedes_upstream_completion_in_all_twelve_directions()
                 .lines()
                 .filter_map(|s| s.strip_prefix("data: "))
                 .filter(|s| *s != "[DONE]")
-                .map(serde_json::from_str)
-                .collect::<Result<_, _>>()?;
+                .map(nextjson::from_str)
+                .collect::<Result<_, _>>()
+                .map_err(anyhow::Error::msg)?;
             let usage = match from {
                 "chat" => &frames.last().unwrap()["usage"]["completion_tokens"],
                 "anthropic" => &frames[frames.len() - 2]["usage"]["output_tokens"],
                 "responses" => &frames.last().unwrap()["response"]["usage"]["output_tokens"],
                 _ => &frames.last().unwrap()["usageMetadata"]["candidatesTokenCount"],
             };
-            assert_eq!(usage, 6, "{from} <- {to}");
+            assert_eq!(usage, &json!(6), "{from} <- {to}");
         }
     }
     service.stop().await;
@@ -344,19 +340,19 @@ async fn translated_text_precedes_upstream_completion_in_all_twelve_directions()
 #[tokio::test]
 async fn translated_streams_recover_before_output_and_release_slots_after_disconnect() -> Result<()>
 {
-    use axum::http::StatusCode;
+    use crabforge_test_support::server::StatusCode;
     use std::sync::atomic::{AtomicUsize, Ordering};
     let release = Arc::new(Notify::new());
     let attempts = Arc::new(AtomicUsize::new(0));
     let header = [("content-type", "text/event-stream")];
     let good_attempts = attempts.clone();
     let upstream = Router::new()
-        .route("/early/chat/completions", post(move || async move {
+        .route("/early/chat/completions", post(move |_| async move {
             (header, "data: {\"error\":{\"message\":\"invalid\"}}\n\n")
         }))
         .route("/partial/chat/completions", post({
             let release = release.clone();
-            move || {
+            move |_| {
                 let release = release.clone();
                 async move {
                     let body = async_stream::stream! {
@@ -368,13 +364,16 @@ async fn translated_streams_recover_before_output_and_release_slots_after_discon
                 }
             }
         }))
-        .route("/good/chat/completions", post(move || {
+        .route("/good/chat/completions", post(move |_| {
             good_attempts.fetch_add(1, Ordering::SeqCst);
             async move {(header, "data: {\"choices\":[{\"delta\":{\"content\":\"restored\"},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n")}
         }));
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;
-    let server = tokio::spawn(async move { axum::serve(listener, upstream).await });
+    let server =
+        tokio::spawn(
+            async move { crabforge_test_support::server::serve(listener, upstream).await },
+        );
     let dir = tempfile::tempdir()?;
     let providers: Vec<_> = ["early", "partial", "good"]
         .iter()
@@ -385,10 +384,7 @@ async fn translated_streams_recover_before_output_and_release_slots_after_discon
     let cfg = json!({"listen":"127.0.0.1:0","providers":providers,"groups":{"recover":["early/m","good/m"],"cut":["partial/m","good/m"]}});
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
     let service = Service::start(dir.path()).await?;
-    let http = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(10))
-        .build()?;
+    let http = crabforge_test_support::Client::with_timeout(Duration::from_secs(10));
     let key = config::token(dir.path())?;
     let ask = |model| {
         let (path, body) = request("responses", model, true);

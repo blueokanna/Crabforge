@@ -64,7 +64,7 @@ const MAX_REPLY: usize = 2 * 1024 * 1024;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{Router, response::Html, routing::get};
+    use crabforge_test_support::server::{Router, get};
 
     #[tokio::test]
     #[ignore = "requires installed Chrome and a matching ChromeDriver"]
@@ -74,9 +74,15 @@ mod tests {
         let origin = format!("http://{}", page.local_addr()?);
         let web = Router::new().route(
             "/",
-            get(|| async { Html("<!doctype html><title>Crabforge CORS test</title>") }),
+            get(|_| async {
+                (
+                    [("content-type", "text/html")],
+                    "<!doctype html><title>Crabforge CORS test</title>",
+                )
+            }),
         );
-        let task = tokio::spawn(async move { axum::serve(page, web).await });
+        let task =
+            tokio::spawn(async move { crabforge_test_support::server::serve(page, web).await });
         let root = tempfile::tempdir()?;
         let settings =
             nextjson::to_string(&json!({"listen":"127.0.0.1:0", "cors_origins":[origin]}))
@@ -122,8 +128,12 @@ mod tests {
         </script>"#;
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         let url = format!("http://{}/", listener.local_addr()?);
-        let app = Router::new().route("/", get(|| async { Html(PAGE) }));
-        let server = tokio::spawn(async move { axum::serve(listener, app).await });
+        let app = Router::new().route(
+            "/",
+            get(|_| async { ([("content-type", "text/html")], PAGE) }),
+        );
+        let server =
+            tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
         let root = tempfile::tempdir()?;
         for site in [Site::DeepSeek, Site::ChatGLM] {
             let browser = Browser::open(root.path(), site).await?;

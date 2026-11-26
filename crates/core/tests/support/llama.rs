@@ -33,7 +33,7 @@ pub async fn start(alias: &str) -> Result<(Child, SocketAddr)> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     timeout(Duration::from_secs(60), async {
         loop {
             ensure!(

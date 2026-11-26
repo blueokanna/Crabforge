@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, ensure};
-use axum::{Json, Router, body::Bytes, http::HeaderMap, routing::post};
 use crabforge_core::peer;
-use serde_json::{Value, json};
+use crabforge_test_support::server::{Incoming, Json, Router, post};
+use nextjson::{Value, json};
 use std::{env, fs, net::SocketAddr, path::Path, process::Stdio, time::Duration};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -52,17 +52,18 @@ fn isolated(exe: &Path, root: &Path) -> Command {
 async fn quic_client_reaches_a_native_magpie_upstream() -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let upstream = listener.local_addr()?;
-    let vendor=Router::new().route("/v1/chat/completions",post(|headers:HeaderMap,body:Bytes|async move {
+    let vendor=Router::new().route("/v1/chat/completions",post(|Incoming {headers, body, ..}|async move {
         assert_eq!(headers["authorization"],"Bearer fixture-key");
-        let v:Value=serde_json::from_slice(&body).unwrap();
-        assert_eq!(v["model"],"m");
+        let v:Value=nextjson::from_slice(&body).unwrap();
+        assert_eq!(v["model"],json!("m"));
         Json(json!({"id":"chatcmpl-fixture","object":"chat.completion","model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"served through Magpie"},"finish_reason":"stop"}],"usage":{"prompt_tokens":2,"completion_tokens":3,"total_tokens":5}}))
     }));
-    let task = tokio::spawn(async move { axum::serve(listener, vendor).await });
+    let task =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, vendor).await });
     let reply = via_magpie(upstream, "Hello").await?;
     assert_eq!(
         reply["choices"][0]["message"]["content"],
-        "served through Magpie"
+        json!("served through Magpie")
     );
     task.abort();
     let _ = task.await;
@@ -100,9 +101,9 @@ async fn via_magpie(upstream: SocketAddr, prompt: &str) -> Result<Value> {
     fs::create_dir(root.join("data"))?;
     fs::write(
         root.join("data/providers.json"),
-        serde_json::to_vec(
+        nextjson::to_vec(
             &json!({"providers":[{"id":"bench","name":"Bench","key":"fixture-key","chat":format!("http://{upstream}/v1"),"models":["m"]}]}),
-        )?,
+        ).map_err(anyhow::Error::msg)?,
     )?;
     let addr = TcpListener::bind("127.0.0.1:0").await?.local_addr()?;
     let log = root.join("gateway-stderr.txt");
@@ -113,10 +114,7 @@ async fn via_magpie(upstream: SocketAddr, prompt: &str) -> Result<Value> {
         .stdout(Stdio::null())
         .stderr(fs::File::create(&log)?)
         .spawn()?;
-    let http = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(5))
-        .build()?;
+    let http = crabforge_test_support::Client::with_timeout(Duration::from_secs(5));
     let mut last_probe = String::from("no response");
     timeout(Duration::from_secs(90), async {
         loop {
@@ -146,7 +144,10 @@ async fn via_magpie(upstream: SocketAddr, prompt: &str) -> Result<Value> {
     let client = tempfile::tempdir()?;
     let identity = peer::identity(client.path())?;
     let cfg = json!({"listen":"127.0.0.1:0","peer_listen":"/ip4/127.0.0.1/udp/0/quic-v1","allowed_peers":[identity.public().to_peer_id().to_string()],"providers":[{"id":"remote","key_env":"TEST_MAGPIE_KEY","endpoints":{"chat":format!("http://{addr}/v1")},"models":["bench/m"]}]});
-    fs::write(node.path().join("settings.json"), serde_json::to_vec(&cfg)?)?;
+    fs::write(
+        node.path().join("settings.json"),
+        nextjson::to_vec(&cfg).map_err(anyhow::Error::msg)?,
+    )?;
     let cli = Path::new(env!("CARGO_BIN_EXE_carbforge-cli"));
     let mut gateway = isolated(cli, node.path())
         .env("TEST_MAGPIE_KEY", "magpie")
@@ -175,7 +176,8 @@ async fn via_magpie(upstream: SocketAddr, prompt: &str) -> Result<Value> {
         .send()
         .await?
         .error_for_status()?;
-    let reply: Value = serde_json::from_slice(&response.bytes().await?)?;
+    let reply: Value =
+        nextjson::from_slice(&response.bytes().await?).map_err(anyhow::Error::msg)?;
     tunnel.abort();
     let _ = tunnel.await;
     gateway.kill().await?;

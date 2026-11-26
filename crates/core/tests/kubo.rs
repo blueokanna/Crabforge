@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use crabforge_core::{config, peer, service::Service};
-use serde_json::{Value, json};
+use nextjson::{Value, json};
 use std::{
     env,
     path::{Path, PathBuf},
@@ -39,10 +39,7 @@ impl Kubo {
 }
 
 async fn check_catalog(addr: std::net::SocketAddr, key: &str) -> Result<()> {
-    let client = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(8))
-        .build()?;
+    let client = crabforge_test_support::Client::with_timeout(Duration::from_secs(8));
     let url = format!("http://{addr}/v1/models");
     assert_eq!(client.get(&url).send().await?.status(), 401);
     let response = client
@@ -51,13 +48,13 @@ async fn check_catalog(addr: std::net::SocketAddr, key: &str) -> Result<()> {
         .send()
         .await?
         .error_for_status()?;
-    let list: Value = serde_json::from_slice(&response.bytes().await?)?;
+    let list: Value = nextjson::from_slice(&response.bytes().await?).map_err(anyhow::Error::msg)?;
     assert!(
         list["data"]
             .as_array()
             .context("missing model list")?
             .iter()
-            .any(|m| m["id"] == "local/interop")
+            .any(|m| m["id"] == json!("local/interop"))
     );
     Ok(())
 }
@@ -72,13 +69,22 @@ async fn go_and_rust_peers_exchange_authenticated_http_in_both_directions() -> R
     };
     kubo.run(&["init", "--profile=test,autoconf-off"]).await?;
     let path = kubo.repo.join("config");
-    let mut cfg: Value = serde_json::from_slice(&std::fs::read(&path)?)?;
-    cfg["Experimental"]["Libp2pStreamMounting"] = true.into();
-    cfg["Addresses"]["Swarm"] = json!(["/ip4/127.0.0.1/udp/0/quic-v1"]);
+    let mut cfg: Value =
+        nextjson::from_slice(&std::fs::read(&path)?).map_err(anyhow::Error::msg)?;
+    cfg.get_mut("Experimental")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .insert("Libp2pStreamMounting".into(), true.into());
+    cfg.get_mut("Addresses")
+        .unwrap()
+        .as_object_mut()
+        .unwrap()
+        .insert("Swarm".into(), json!(["/ip4/127.0.0.1/udp/0/quic-v1"]));
     let peer_id = cfg["Identity"]["PeerID"]
         .as_str()
         .context("missing Kubo peer ID")?;
-    std::fs::write(path, serde_json::to_vec(&cfg)?)?;
+    std::fs::write(path, nextjson::to_vec(&cfg).map_err(anyhow::Error::msg)?)?;
 
     let mut daemon = kubo
         .command()

@@ -1,7 +1,7 @@
 use anyhow::{Result, ensure};
-use axum::{Json, Router, http::StatusCode, routing::post};
 use crabforge_core::{config, service::Service};
-use serde_json::{Value, json};
+use crabforge_test_support::server::{Incoming, Json, Router, StatusCode, post};
+use nextjson::{Value, json};
 use std::{fs, process::Command};
 use tokio::net::TcpListener;
 
@@ -27,7 +27,8 @@ async fn provider_fallback_uses_the_selected_group_member_once_and_preserves_ord
     let server = tokio::spawn(async move {
         let app = Router::new().route(
             "/embeddings",
-            post(|Json(body): Json<Value>| async move {
+            post(|Incoming { body: payload, .. }| async move {
+                let body: Value = nextjson::from_slice(&payload).unwrap();
                 let status = match body["model"].as_str().unwrap() {
                     "busy" => StatusCode::TOO_MANY_REQUESTS,
                     "down" => StatusCode::SERVICE_UNAVAILABLE,
@@ -36,7 +37,7 @@ async fn provider_fallback_uses_the_selected_group_member_once_and_preserves_ord
                 (status, Json(body))
             }),
         );
-        axum::serve(listener, app).await
+        crabforge_test_support::server::serve(listener, app).await
     });
     let cfg = json!({"listen":"127.0.0.1:0", "providers":[
         {"id":"primary","models":["busy"],"endpoints":{"chat":base}},
@@ -53,7 +54,10 @@ async fn provider_fallback_uses_the_selected_group_member_once_and_preserves_ord
         "group/overlap",
         "spare/down",
     ])?;
-    assert_eq!(serde_json::from_str::<Vec<String>>(&saved)?, chain);
+    assert_eq!(
+        nextjson::from_str::<Vec<String>>(&saved).map_err(anyhow::Error::msg)?,
+        chain
+    );
     assert!(run(&["provider", "fallback", "primary", "group/missing"]).is_err());
     assert_eq!(run(&["provider", "fallback", "primary"])?, saved);
     run(&["group", "rename", "overlap", "backup"])?;
@@ -62,7 +66,7 @@ async fn provider_fallback_uses_the_selected_group_member_once_and_preserves_ord
         ["spare/down", "group/backup"]
     );
     let service = Service::start(dir.path()).await?;
-    let client = reqwest::Client::builder().no_proxy().build()?;
+    let client = crabforge_test_support::Client::default();
     let request = || {
         client
             .post(format!("http://{}/v1/embeddings", service.addr))
@@ -71,7 +75,10 @@ async fn provider_fallback_uses_the_selected_group_member_once_and_preserves_ord
             .send()
     };
     let reply = request().await?.error_for_status()?.bytes().await?;
-    assert_eq!(serde_json::from_slice::<Value>(&reply)?["model"], "ok");
+    assert_eq!(
+        nextjson::from_slice::<Value>(&reply).map_err(anyhow::Error::msg)?["model"],
+        json!("ok")
+    );
     {
         let attempts = service.history.lock().unwrap();
         assert_eq!(
@@ -99,20 +106,18 @@ async fn restricted_providers_only_take_fallbacks_from_other_restricted_provider
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
     let server = tokio::spawn(async move {
-        axum::serve(
+        crabforge_test_support::server::serve(
             listener,
             Router::new().route(
                 "/{id}/embeddings",
-                post(
-                    |axum::extract::Path(id): axum::extract::Path<String>| async move {
-                        let code = if matches!(id.as_str(), "local" | "first") {
-                            StatusCode::SERVICE_UNAVAILABLE
-                        } else {
-                            StatusCode::OK
-                        };
-                        (code, id)
-                    },
-                ),
+                post(|Incoming { param: id, .. }| async move {
+                    let code = if matches!(id.as_str(), "local" | "first") {
+                        StatusCode::SERVICE_UNAVAILABLE
+                    } else {
+                        StatusCode::OK
+                    };
+                    (code, id)
+                }),
             ),
         )
         .await
@@ -127,7 +132,7 @@ async fn restricted_providers_only_take_fallbacks_from_other_restricted_provider
     let run = |value| group_cli(dir.path(), &["provider", "set", "second", value]);
     assert!(run("fallback-for-others=invalid").is_err());
     let key = config::token(dir.path())?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     for restricted in [true, false] {
         run(if restricted {
             "fallback-for-others=no"
@@ -170,9 +175,9 @@ async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matche
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
     let server = tokio::spawn(async move {
-        axum::serve(listener,Router::new()
-        .route("/models",axum::routing::get(||async {Json(json!({"data":[{"id":"new/free","free":true},{"id":"free-by-name","pricing":{"prompt":0}},{"id":"text","free":"true"}]}))}))
-        .route("/embeddings",post(|Json(body):Json<Value>|async move {Json(body)}))).await
+        crabforge_test_support::server::serve(listener,Router::new()
+        .route("/models",crabforge_test_support::server::get(|_|async {Json(json!({"data":[{"id":"new/free","free":true},{"id":"free-by-name","pricing":{"prompt":0}},{"id":"text","free":"true"}]}))}))
+        .route("/embeddings",post(|Incoming {body: payload, ..}|async move { let body: Value = nextjson::from_slice(&payload).unwrap();Json(body)}))).await
     });
     let settings = dir.path().join("settings.json");
     let cfg = json!({"listen":"127.0.0.1:0","providers":[{"id":"lab","models":["Alpha","n/One","flash","flash-free"],"free_models":["n/One"],"endpoints":{"chat":base}}]});
@@ -195,10 +200,11 @@ async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matche
     assert!(out.status.success());
     let list = run(&["group", "show", "patterns"])?;
     assert!(list.contains("1\tlab/n/One\n2\tlab/Alpha"), "{list}");
-    let share: Value = serde_json::from_str(&run(&["group", "share", "patterns"])?)?;
+    let share: Value =
+        nextjson::from_str(&run(&["group", "share", "patterns"])?).map_err(anyhow::Error::msg)?;
     assert_eq!(share["group"]["members"], json!([]));
     assert_eq!(share["group"]["placed"], doc["group"]["placed"]);
-    assert_eq!(share["group"]["match"][0], "free:LAB/*");
+    assert_eq!(share["group"]["match"][0], json!("free:LAB/*"));
     assert!(list.contains("match\tfree:LAB/*\t1"));
     run(&["group", "copy", "patterns", "other"])?;
     run(&["group", "rename", "other", "mirror"])?;
@@ -245,7 +251,8 @@ async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matche
         "lab/Alpha",
         "free:lab/*",
     ])?;
-    let mixed: Value = serde_json::from_str(&run(&["group", "share", "mixed"])?)?;
+    let mixed: Value =
+        nextjson::from_str(&run(&["group", "share", "mixed"])?).map_err(anyhow::Error::msg)?;
     assert_eq!(mixed["group"]["members"], json!(["lab/flash", "lab/Alpha"]));
     assert_eq!(
         mixed["group"]["placed"],
@@ -253,7 +260,7 @@ async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matche
     );
     let service = Service::start(dir.path()).await?;
     let token = config::token(dir.path())?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     let request = |addr, model: &str| {
         http.post(format!("http://{addr}/v1/embeddings"))
             .bearer_auth(&token)
@@ -267,20 +274,29 @@ async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matche
         .error_for_status()?
         .bytes()
         .await?;
-    assert_eq!(serde_json::from_slice::<Value>(&mixed)?["model"], "flash");
+    assert_eq!(
+        nextjson::from_slice::<Value>(&mixed).map_err(anyhow::Error::msg)?["model"],
+        json!("flash")
+    );
     let reply = request(service.addr, "group/parent")
         .await?
         .error_for_status()?
         .bytes()
         .await?;
-    assert_eq!(serde_json::from_slice::<Value>(&reply)?["model"], "n/One");
+    assert_eq!(
+        nextjson::from_slice::<Value>(&reply).map_err(anyhow::Error::msg)?["model"],
+        json!("n/One")
+    );
     run(&["group", "pick", "patterns", "lab/Alpha"])?;
     let reply = request(service.addr, "group/parent")
         .await?
         .error_for_status()?
         .bytes()
         .await?;
-    assert_eq!(serde_json::from_slice::<Value>(&reply)?["model"], "Alpha");
+    assert_eq!(
+        nextjson::from_slice::<Value>(&reply).map_err(anyhow::Error::msg)?["model"],
+        json!("Alpha")
+    );
     service.stop().await;
     run(&["group", "remove", "mixed"])?;
     run(&["models", "lab", "--sync"])?;
@@ -294,8 +310,8 @@ async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matche
         .bytes()
         .await?;
     assert_eq!(
-        serde_json::from_slice::<Value>(&reply)?["model"],
-        "new/free"
+        nextjson::from_slice::<Value>(&reply).map_err(anyhow::Error::msg)?["model"],
+        json!("new/free")
     );
     let body = http
         .get(format!("http://{}/v1/models", service.addr))
@@ -304,13 +320,13 @@ async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matche
         .await?
         .bytes()
         .await?;
-    let catalog: Value = serde_json::from_slice(&body)?;
+    let catalog: Value = nextjson::from_slice(&body).map_err(anyhow::Error::msg)?;
     assert!(
         catalog["data"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|e| e["id"] == "lab/new/free" && e["free"] == true)
+            .any(|e| e["id"] == json!("lab/new/free") && e["free"] == json!(true))
     );
     service.stop().await;
     let before = fs::read(&settings)?;
@@ -349,7 +365,7 @@ async fn group_display_order_survives_rename_and_reaches_all_model_lists() -> Re
         expected
     );
     let service = Service::start(dir.path()).await?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     for (path, root, name) in [
         ("v1/models", "data", "id"),
         ("v1beta/models", "models", "name"),
@@ -363,7 +379,7 @@ async fn group_display_order_survives_rename_and_reaches_all_model_lists() -> Re
             .error_for_status()?
             .bytes()
             .await?;
-        let list: Value = serde_json::from_slice(&bytes)?;
+        let list: Value = nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?;
         let ids: Vec<_> = list[root]
             .as_array()
             .unwrap()
@@ -407,16 +423,16 @@ fn shares_remap_members_and_replace_only_the_requested_group() -> Result<()> {
         }
         group_cli(dir.path(), &args)
     };
-    let report: Value = serde_json::from_str(&run(true)?)?;
-    assert_eq!(report["id"], "work");
-    assert_eq!(report["name"], "Parent 2");
-    assert_eq!(report["replaced"], true);
+    let report: Value = nextjson::from_str(&run(true)?).map_err(anyhow::Error::msg)?;
+    assert_eq!(report["id"], json!("work"));
+    assert_eq!(report["name"], json!("Parent 2"));
+    assert_eq!(report["replaced"], json!(true));
     assert_eq!(report["missing"], json!(["lost/x"]));
     assert_eq!(
         report["instead"],
         json!(["sender/m → local/m", "old/m → local/m"])
     );
-    let saved: Value = serde_json::from_slice(&fs::read(&settings)?)?;
+    let saved: Value = nextjson::from_slice(&fs::read(&settings)?).map_err(anyhow::Error::msg)?;
     assert_eq!(saved["groups"]["parent"], cfg["groups"]["parent"]);
     assert_eq!(saved["group_display_order"], cfg["group_display_order"]);
     assert_eq!(saved["disabled_groups"], cfg["disabled_groups"]);
@@ -430,26 +446,33 @@ fn shares_remap_members_and_replace_only_the_requested_group() -> Result<()> {
     ] {
         assert!(!exported.contains(private));
     }
-    let clean: Value = serde_json::from_str(&exported)?;
-    assert_eq!(
-        clean["group"],
-        json!({"id":"work","name":"Parent 2","routing":"weight","members":["local/m","local/n"],"weights":{"local/m":5},"off":["local/m"],"pick":"local/n","note":"priority models","unlists":true})
-    );
+    let clean: Value = nextjson::from_str(&exported).map_err(anyhow::Error::msg)?;
+    let expected = json!({"id":"work","name":"Parent 2","routing":"weight","members":["local/m","local/n"],"weights":{"local/m":5},"off":["local/m"],"pick":"local/n","note":"priority models","unlists":true});
+    assert!(crabforge_core::json::equivalent(&clean["group"], &expected), "{clean}");
     fs::write(&share, exported)?;
-    let added: Value = serde_json::from_str(&run(false)?)?;
-    assert_eq!(added["id"], "parent-2-2");
+    let added: Value = nextjson::from_str(&run(false)?).map_err(anyhow::Error::msg)?;
+    assert_eq!(added["id"], json!("parent-2-2"));
     let before = fs::read(&settings)?;
     for (field, value) in [
         ("members", json!(["nothing/here"])),
         ("members", json!(["group/parent"])),
         ("rules", json!([{"use":"local/m"}])),
     ] {
-        let previous = doc["group"][field].clone();
-        doc["group"][field] = value;
+        let previous = doc
+            .get_mut("group")
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert(field.into(), value);
         fs::write(&share, doc.to_string())?;
         assert!(run(true).is_err());
         assert_eq!(fs::read(&settings)?, before);
-        doc["group"][field] = previous;
+        let group = doc.get_mut("group").unwrap().as_object_mut().unwrap();
+        if let Some(previous) = previous {
+            group.insert(field.into(), previous);
+        } else {
+            group.remove(field);
+        }
     }
     Ok(())
 }
@@ -497,13 +520,13 @@ fn copying_groups_preserves_independent_strategies_labels_and_discovered_members
             .contains("rotated")
     );
     let text = run(&["group", "share", "rotated"])?;
-    let exported: Value = serde_json::from_str(&text)?;
-    assert_eq!(exported["group"]["routing"], "rotate");
+    let exported: Value = nextjson::from_str(&text).map_err(anyhow::Error::msg)?;
+    assert_eq!(exported["group"]["routing"], json!("rotate"));
     assert_eq!(exported["group"]["weights"], json!({"b/m":3}));
     let file = dir.path().join("share.json");
     fs::write(&file, text)?;
-    let imported: Value =
-        serde_json::from_str(&run(&["group", "import", file.to_str().unwrap()])?)?;
+    let imported: Value = nextjson::from_str(&run(&["group", "import", file.to_str().unwrap()])?)
+        .map_err(anyhow::Error::msg)?;
     let id = imported["id"].as_str().unwrap();
     run(&["group", "rename", id, "retained"])?;
     assert_eq!(
@@ -554,11 +577,14 @@ async fn listing_only_the_group_keeps_its_direct_members_callable() -> Result<()
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
     let server = tokio::spawn(async move {
-        axum::serve(
+        crabforge_test_support::server::serve(
             listener,
             Router::new().route(
                 "/embeddings",
-                post(|Json(body): Json<Value>| async move { Json(body) }),
+                post(|Incoming { body: payload, .. }| async move {
+                    let body: Value = nextjson::from_slice(&payload).unwrap();
+                    Json(body)
+                }),
             ),
         )
         .await
@@ -581,7 +607,7 @@ async fn listing_only_the_group_keeps_its_direct_members_callable() -> Result<()
     assert!(run(&["group", "show", "copy"])?.contains("listed members\tno"));
     let cfg = config::load(dir.path())?;
     assert_eq!(cfg.group_unlists.iter().collect::<Vec<_>>(), ["copy"]);
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     let token = config::token(dir.path())?;
     let service = Service::start(dir.path()).await?;
     for (path, root, key) in [
@@ -597,7 +623,7 @@ async fn listing_only_the_group_keeps_its_direct_members_callable() -> Result<()
             .error_for_status()?
             .bytes()
             .await?;
-        let catalog: Value = serde_json::from_slice(&bytes)?;
+        let catalog: Value = nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?;
         let ids: Vec<_> = catalog[root]
             .as_array()
             .unwrap()
@@ -629,7 +655,10 @@ async fn listing_only_the_group_keeps_its_direct_members_callable() -> Result<()
             .error_for_status()?
             .bytes()
             .await?;
-        assert_eq!(serde_json::from_slice::<Value>(&bytes)?["model"], "one");
+        assert_eq!(
+            nextjson::from_slice::<Value>(&bytes).map_err(anyhow::Error::msg)?["model"],
+            json!("one")
+        );
     }
     service.stop().await;
     run(&["group", "remove", "copy"])?;
@@ -646,9 +675,13 @@ async fn disabled_groups_release_their_models_and_preserve_saved_parent_routes()
     let base = format!("http://{}", listener.local_addr()?);
     let app = Router::new().route(
         "/embeddings",
-        post(|Json(body): Json<Value>| async move { Json(body) }),
+        post(|Incoming { body: payload, .. }| async move {
+            let body: Value = nextjson::from_slice(&payload).unwrap();
+            Json(body)
+        }),
     );
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     fs::write(dir.path().join("settings.json"), json!({"listen":"127.0.0.1:0","providers":[{"id":"a","models":["first","second"],"endpoints":{"chat":base}},{"id":"b","models":["first"],"endpoints":{"chat":base}}]}).to_string())?;
     let run = |args: &[&str]| group_cli(dir.path(), args);
     assert!(run(&["group", "switch", "auto/first", "off"]).is_err());
@@ -686,7 +719,7 @@ async fn disabled_groups_release_their_models_and_preserve_saved_parent_routes()
     ])?;
     assert!(run(&["group", "show", "inner"])?.contains("state\toff"));
     let key = config::token(dir.path())?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     for enabled in [false, true] {
         if enabled {
             run(&["group", "switch", "group/auto-first", "on"])?;
@@ -712,7 +745,7 @@ async fn disabled_groups_release_their_models_and_preserve_saved_parent_routes()
                 .error_for_status()?
                 .bytes()
                 .await?;
-            let list: Value = serde_json::from_slice(&body)?;
+            let list: Value = nextjson::from_slice(&body).map_err(anyhow::Error::msg)?;
             let listed: Vec<_> = list[rows]
                 .as_array()
                 .unwrap()
@@ -737,8 +770,8 @@ async fn disabled_groups_release_their_models_and_preserve_saved_parent_routes()
             .bytes()
             .await?;
         assert_eq!(
-            serde_json::from_slice::<Value>(&response)?["model"],
-            if enabled { "first" } else { "second" }
+            nextjson::from_slice::<Value>(&response).map_err(anyhow::Error::msg)?["model"],
+            json!(if enabled { "first" } else { "second" })
         );
         assert_eq!(call("group/manual").await?.status().is_success(), enabled);
         service.stop().await;
@@ -754,11 +787,14 @@ async fn switched_off_members_keep_their_place_and_weight_and_manual_pick_overri
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
     let server = tokio::spawn(async move {
-        axum::serve(
+        crabforge_test_support::server::serve(
             listener,
             Router::new().route(
                 "/embeddings",
-                post(|Json(body): Json<Value>| async move { Json(body) }),
+                post(|Incoming { body: payload, .. }| async move {
+                    let body: Value = nextjson::from_slice(&payload).unwrap();
+                    Json(body)
+                }),
             ),
         )
         .await
@@ -785,7 +821,7 @@ async fn switched_off_members_keep_their_place_and_weight_and_manual_pick_overri
     assert_eq!(run(&["groups"])?, run(&["group", "list"])?);
     assert!(run(&["group", "show", "parent"])?.contains("1\tgroup/new\tweight=3\toff"));
     assert!(run(&["group", "group/child"])?.contains("used by\tgroup/parent"));
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     let ask = |group: &'static str, count| {
         let http = &http;
         let path = dir.path();
@@ -803,7 +839,7 @@ async fn switched_off_members_keep_their_place_and_weight_and_manual_pick_overri
                     .bytes()
                     .await?;
                 ids.push(
-                    serde_json::from_slice::<Value>(&bytes)?["model"]
+                    nextjson::from_slice::<Value>(&bytes).map_err(anyhow::Error::msg)?["model"]
                         .as_str()
                         .unwrap()
                         .to_owned(),
@@ -840,15 +876,17 @@ async fn manual_group_switches_live_and_only_its_parent_can_fall_back() -> Resul
     let base = format!("http://{}", upstream.local_addr()?);
     let app = Router::new().route(
         "/embeddings",
-        post(|Json(body): Json<Value>| async move {
-            if body["model"] == "busy" {
+        post(|Incoming { body: payload, .. }| async move {
+            let body: Value = nextjson::from_slice(&payload).unwrap();
+            if body["model"] == json!("busy") {
                 (StatusCode::TOO_MANY_REQUESTS, Json(body))
             } else {
                 (StatusCode::OK, Json(body))
             }
         }),
     );
-    let task = tokio::spawn(async move { axum::serve(upstream, app).await });
+    let task =
+        tokio::spawn(async move { crabforge_test_support::server::serve(upstream, app).await });
     let root = tempfile::tempdir()?;
     let cfg = json!({"listen":"127.0.0.1:0","providers":[
         {"id":"p","models":["busy","ready","outer"],"endpoints":{"chat":base}},
@@ -902,7 +940,7 @@ async fn manual_group_switches_live_and_only_its_parent_can_fall_back() -> Resul
         .is_err()
     );
     let service = Service::start(root.path()).await?;
-    let client = reqwest::Client::builder().no_proxy().build()?;
+    let client = crabforge_test_support::Client::default();
     let key = config::token(root.path())?;
     let post = |path: &str, model: &str| {
         client
@@ -919,13 +957,13 @@ async fn manual_group_switches_live_and_only_its_parent_can_fall_back() -> Resul
         .error_for_status()?
         .bytes()
         .await?;
-    let tags: Value = serde_json::from_slice(&tags)?;
+    let tags: Value = nextjson::from_slice(&tags).map_err(anyhow::Error::msg)?;
     assert_eq!(
         tags["models"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|m| m["name"] == "group/web-only")
+            .find(|m| m["name"] == json!("group/web-only"))
             .unwrap()["capabilities"],
         json!(["completion"])
     );
@@ -935,7 +973,7 @@ async fn manual_group_switches_live_and_only_its_parent_can_fall_back() -> Resul
         .bytes()
         .await?;
     assert_eq!(
-        serde_json::from_slice::<Value>(&show)?["capabilities"],
+        nextjson::from_slice::<Value>(&show).map_err(anyhow::Error::msg)?["capabilities"],
         json!(["completion"])
     );
     assert_eq!(
@@ -949,8 +987,8 @@ async fn manual_group_switches_live_and_only_its_parent_can_fall_back() -> Resul
         .bytes()
         .await?;
     assert_eq!(
-        serde_json::from_slice::<Value>(&response)?["model"],
-        "outer"
+        nextjson::from_slice::<Value>(&response).map_err(anyhow::Error::msg)?["model"],
+        json!("outer")
     );
     run(&["group", "pick", "group/inner", "p/ready"])?;
     let response = post("/v1/embeddings", "group/outer")
@@ -959,8 +997,8 @@ async fn manual_group_switches_live_and_only_its_parent_can_fall_back() -> Resul
         .bytes()
         .await?;
     assert_eq!(
-        serde_json::from_slice::<Value>(&response)?["model"],
-        "ready"
+        nextjson::from_slice::<Value>(&response).map_err(anyhow::Error::msg)?["model"],
+        json!("ready")
     );
     for (pick, caps) in [
         ("web/deepseek-web", json!(["completion"])),
@@ -973,7 +1011,7 @@ async fn manual_group_switches_live_and_only_its_parent_can_fall_back() -> Resul
             .bytes()
             .await?;
         assert_eq!(
-            serde_json::from_slice::<Value>(&show)?["capabilities"],
+            nextjson::from_slice::<Value>(&show).map_err(anyhow::Error::msg)?["capabilities"],
             caps
         );
         if pick.starts_with("web/") {
@@ -1046,11 +1084,12 @@ async fn a_pending_parent_request_keeps_its_original_manual_selection() -> Resul
         post({
             let entered = entered.clone();
             let release = release.clone();
-            move |Json(body): Json<Value>| {
+            move |Incoming { body: payload, .. }| {
+                let body: Value = nextjson::from_slice(&payload).unwrap();
                 let entered = entered.clone();
                 let release = release.clone();
                 async move {
-                    if body["model"] == "wait" {
+                    if body["model"] == json!("wait") {
                         entered.notify_one();
                         release.notified().await;
                         (StatusCode::TOO_MANY_REQUESTS, Json(body))
@@ -1061,7 +1100,8 @@ async fn a_pending_parent_request_keeps_its_original_manual_selection() -> Resul
             }
         }),
     );
-    let task = tokio::spawn(async move { axum::serve(upstream, app).await });
+    let task =
+        tokio::spawn(async move { crabforge_test_support::server::serve(upstream, app).await });
     let root = tempfile::tempdir()?;
     let cfg = json!({"listen":"127.0.0.1:0", "providers":[{"id":"p","models":["wait","a","b"],"endpoints":{"chat":base}}],
         "groups":{"parent":["p/wait","group/manual"],"manual":["p/a","p/b"]},"group_picks":{"manual":"p/a"}});
@@ -1071,10 +1111,7 @@ async fn a_pending_parent_request_keeps_its_original_manual_selection() -> Resul
         &cfg.to_string(),
     )?;
     let service = Service::start(root.path()).await?;
-    let client = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()?;
+    let client = crabforge_test_support::Client::with_timeout(std::time::Duration::from_secs(10));
     let key = config::token(root.path())?;
     let post = |model: &str| {
         client
@@ -1091,10 +1128,16 @@ async fn a_pending_parent_request_keeps_its_original_manual_selection() -> Resul
         .error_for_status()?
         .bytes()
         .await?;
-    assert_eq!(serde_json::from_slice::<Value>(&newer)?["model"], "b");
+    assert_eq!(
+        nextjson::from_slice::<Value>(&newer).map_err(anyhow::Error::msg)?["model"],
+        json!("b")
+    );
     release.notify_one();
     let original = pending.await??.error_for_status()?.bytes().await?;
-    assert_eq!(serde_json::from_slice::<Value>(&original)?["model"], "a");
+    assert_eq!(
+        nextjson::from_slice::<Value>(&original).map_err(anyhow::Error::msg)?["model"],
+        json!("a")
+    );
     service.stop().await;
     task.abort();
     Ok(())
@@ -1107,13 +1150,17 @@ async fn automatic_groups_follow_catalog_changes_and_keep_user_edits() -> Result
     let app = Router::new()
         .route(
             "/busy/embeddings",
-            post(|| async { StatusCode::TOO_MANY_REQUESTS }),
+            post(|_| async { StatusCode::TOO_MANY_REQUESTS }),
         )
         .route(
             "/ready/embeddings",
-            post(|Json(body): Json<Value>| async move { Json(body) }),
+            post(|Incoming { body: payload, .. }| async move {
+                let body: Value = nextjson::from_slice(&payload).unwrap();
+                Json(body)
+            }),
         );
-    let task = tokio::spawn(async move { axum::serve(upstream, app).await });
+    let task =
+        tokio::spawn(async move { crabforge_test_support::server::serve(upstream, app).await });
     let root = tempfile::tempdir()?;
     let run = |args: &[&str]| group_cli(root.path(), args);
     let cfg = json!({"listen":"127.0.0.1:0","providers":[
@@ -1135,7 +1182,7 @@ async fn automatic_groups_follow_catalog_changes_and_keep_user_edits() -> Result
         "auto/CLAUDE-OPUS-5.5=3",
     ])?;
     let service = Service::start(root.path()).await?;
-    let client = reqwest::Client::builder().no_proxy().build()?;
+    let client = crabforge_test_support::Client::default();
     let key = config::token(root.path())?;
     let list_url = format!("http://{}/v1/models", service.addr);
     let body = client
@@ -1146,7 +1193,7 @@ async fn automatic_groups_follow_catalog_changes_and_keep_user_edits() -> Result
         .error_for_status()?
         .bytes()
         .await?;
-    let catalog: Value = serde_json::from_slice(&body)?;
+    let catalog: Value = nextjson::from_slice(&body).map_err(anyhow::Error::msg)?;
     let public: Vec<_> = catalog["data"]
         .as_array()
         .unwrap()
@@ -1167,7 +1214,7 @@ async fn automatic_groups_follow_catalog_changes_and_keep_user_edits() -> Result
             .error_for_status()?
             .bytes()
             .await?;
-        let catalog: Value = serde_json::from_slice(&body)?;
+        let catalog: Value = nextjson::from_slice(&body).map_err(anyhow::Error::msg)?;
         let groups: Vec<_> = catalog["models"]
             .as_array()
             .unwrap()
@@ -1195,8 +1242,8 @@ async fn automatic_groups_follow_catalog_changes_and_keep_user_edits() -> Result
             .bytes()
             .await?;
         assert_eq!(
-            serde_json::from_slice::<Value>(&bytes)?["model"],
-            "claude-opus-5-5@20260801"
+            nextjson::from_slice::<Value>(&bytes).map_err(anyhow::Error::msg)?["model"],
+            json!("claude-opus-5-5@20260801")
         );
     }
     service.stop().await;
@@ -1229,8 +1276,8 @@ async fn automatic_groups_follow_catalog_changes_and_keep_user_edits() -> Result
             .bytes()
             .await?;
         assert_eq!(
-            serde_json::from_slice::<Value>(&reply)?["model"],
-            "claude-opus-5-5@20260801"
+            nextjson::from_slice::<Value>(&reply).map_err(anyhow::Error::msg)?["model"],
+            json!("claude-opus-5-5@20260801")
         );
     }
     service.stop().await;
@@ -1292,8 +1339,8 @@ async fn automatic_groups_follow_catalog_changes_and_keep_user_edits() -> Result
         .bytes()
         .await?;
     assert_eq!(
-        serde_json::from_slice::<Value>(&bytes)?["model"],
-        "claude-opus-5-5@20260801"
+        nextjson::from_slice::<Value>(&bytes).map_err(anyhow::Error::msg)?["model"],
+        json!("claude-opus-5-5@20260801")
     );
     service.stop().await;
     task.abort();

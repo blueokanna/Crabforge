@@ -1,8 +1,8 @@
 use super::*;
-use http_body_util::BodyExt;
-use hyper::{server::conn::http1, service::service_fn};
-use hyper_util::rt::TokioIo;
-use reqwest::Client;
+use crabforge_test_support::{
+    Client,
+    server::{Incoming, Router, post, serve_io},
+};
 use tokio::net::TcpListener;
 use tokio_rustls::{TlsAcceptor, rustls};
 use ureq::{
@@ -21,7 +21,7 @@ struct FixtureAddress(std::net::SocketAddr);
 impl Resolver for FixtureAddress {
     fn resolve(
         &self,
-        uri: &axum::http::Uri,
+        uri: &http::Uri,
         _: &HttpConfig,
         _: NextTimeout,
     ) -> Result<ResolvedSocketAddrs, ureq::Error> {
@@ -71,29 +71,20 @@ async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> 
     let upstream = tokio::spawn(async move {
         let (tcp, _) = listener.accept().await?;
         let tls = TlsAcceptor::from(Arc::new(server)).accept(tcp).await?;
-        http1::Builder::new()
-            .keep_alive(false)
-            .serve_connection(
-                TokioIo::new(tls),
-                service_fn(
-                    |request: hyper::Request<hyper::body::Incoming>| async move {
-                        let (parts, body) = request.into_parts();
-                        assert_eq!(parts.uri.path(), "/inference/go/openai/v1/chat/completions");
-                        assert_eq!(parts.headers["x-opencode-session"], "test-turn");
-                        assert_eq!(
-                            parts.headers[header::USER_AGENT],
-                            crate::opencode::USER_AGENT_VALUE
-                        );
-                        assert!(!parts.headers.contains_key(header::AUTHORIZATION));
-                        assert_eq!(
-                            body.collect().await?.to_bytes(),
-                            BODY.replace("go/minimax-m2.7", "minimax-m2.7")
-                        );
-                        Ok::<_, hyper::Error>(hyper::Response::new(Body::from(REPLY)))
-                    },
-                ),
-            )
-            .await?;
+        let upstream = Router::new().route(
+            "/inference/go/openai/v1/chat/completions",
+            post(|Incoming { headers, body, .. }| async move {
+                assert_eq!(headers["x-opencode-session"], "test-turn");
+                assert_eq!(
+                    headers[header::USER_AGENT],
+                    crate::opencode::USER_AGENT_VALUE
+                );
+                assert!(!headers.contains_key(header::AUTHORIZATION));
+                assert_eq!(body, BODY.replace("go/minimax-m2.7", "minimax-m2.7"));
+                ([("connection", "close")], REPLY)
+            }),
+        );
+        serve_io(tls, Arc::new(upstream)).await;
         Ok::<_, anyhow::Error>(())
     });
     let cfg = nextjson::from_value(
@@ -110,10 +101,7 @@ async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> 
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let gateway = listener.local_addr()?;
     let task = tokio::spawn(crate::service::serve_local(listener, router));
-    let reply = Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(8))
-        .build()?
+    let reply = Client::with_timeout(Duration::from_secs(8))
         .post(format!("http://{gateway}/v1/chat/completions"))
         .bearer_auth("gateway-key")
         .header("x-opencode-session", "test-turn")

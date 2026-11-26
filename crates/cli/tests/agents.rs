@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, ensure};
-use axum::{Router, body::Bytes, http::HeaderMap, routing::post};
 use crabforge_core::{config, service::Service};
-use serde_json::{Value, json};
+use crabforge_test_support::server::{Incoming, Json, Router, post};
+use nextjson::{Value, json};
 use std::{env, fs, process::Stdio, time::Duration};
 use tokio::{net::TcpListener, process::Command, time::timeout};
 
@@ -12,17 +12,23 @@ async fn synced_relay_catalog_preserves_native_protocols_across_gateways() -> Re
     let refreshed_catalog = format!("http://{}/catalog-v2", listener.local_addr()?);
     let upstream = Router::new().route(
         "/v1/responses",
-        post(|axum::Json(body): axum::Json<Value>| async move {
-            assert_eq!(body["model"], "r");
-            assert_eq!(body["previous_response_id"], "earlier");
-            axum::Json(json!({"id":"native-response","object":"response"}))
+        post(|Incoming { body: payload, .. }| async move {
+            let body: Value = nextjson::from_slice(&payload).unwrap();
+            assert_eq!(body["model"], json!("r"));
+            assert_eq!(body["previous_response_id"], json!("earlier"));
+            Json(json!({"id":"native-response","object":"response"}))
         }),
     );
     let upstream = upstream.route(
         "/catalog-v2",
-        axum::routing::get(|| async { axum::Json(json!({"data":[{"id":"one/r"},{"id":"new"}]})) }),
+        crabforge_test_support::server::get(|_| async {
+            Json(json!({"data":[{"id":"one/r"},{"id":"new"}]}))
+        }),
     );
-    let mock = tokio::spawn(async move { axum::serve(listener, upstream).await });
+    let mock =
+        tokio::spawn(
+            async move { crabforge_test_support::server::serve(listener, upstream).await },
+        );
     let remote = tempfile::tempdir()?;
     let local = tempfile::tempdir()?;
     let settings = json!({"listen":"127.0.0.1:0","providers":[
@@ -81,7 +87,7 @@ async fn synced_relay_catalog_preserves_native_protocols_across_gateways() -> Re
         anyhow::bail!("local gateway exited before startup")
     })
     .await??;
-    let client = reqwest::Client::builder().no_proxy().build()?;
+    let client = crabforge_test_support::Client::default();
     let key = config::token(local.path())?;
     let base = addr.trim_end_matches("/v1");
     let response = client
@@ -90,10 +96,10 @@ async fn synced_relay_catalog_preserves_native_protocols_across_gateways() -> Re
         .send()
         .await?
         .error_for_status()?;
-    let info: Value = serde_json::from_slice(&response.bytes().await?)?;
-    assert_eq!(info["magpie_prefers"], "/v1/responses");
+    let info: Value = nextjson::from_slice(&response.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(info["magpie_prefers"], json!("/v1/responses"));
     assert_eq!(info["native_endpoints"], json!(["/v1/responses"]));
-    let mixed: Value = serde_json::from_slice(
+    let mixed: Value = nextjson::from_slice(
         &client
             .get(format!("{base}/v1/models/relay/group/mixed"))
             .bearer_auth(&key)
@@ -102,7 +108,8 @@ async fn synced_relay_catalog_preserves_native_protocols_across_gateways() -> Re
             .error_for_status()?
             .bytes()
             .await?,
-    )?;
+    )
+    .map_err(anyhow::Error::msg)?;
     assert_eq!(mixed["native_endpoints"], json!([]));
     assert!(mixed.get("magpie_prefers").is_none());
     let request =
@@ -115,8 +122,8 @@ async fn synced_relay_catalog_preserves_native_protocols_across_gateways() -> Re
         .send()
         .await?
         .error_for_status()?;
-    let body: Value = serde_json::from_slice(&response.bytes().await?)?;
-    assert_eq!(body["id"], "native-response");
+    let body: Value = nextjson::from_slice(&response.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(body["id"], json!("native-response"));
     local_gateway.kill().await?;
     let mut changed = config::load(local.path())?;
     changed.providers[0].endpoints.models_url = refreshed_catalog;
@@ -146,12 +153,15 @@ async fn every_advertised_agent_root_forwards_and_records_its_own_name() -> Resu
     let root = tempfile::tempdir()?;
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}/v1", listener.local_addr()?);
-    let app = Router::new().route("/v1/embeddings", post(|| async { "fixture" }));
-    let upstream = tokio::spawn(async move { axum::serve(listener, app).await });
+    let app = Router::new().route("/v1/embeddings", post(|_| async { "fixture" }));
+    let upstream =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     let mut cfg = json!({"listen":"127.0.0.1:0", "providers":[{"id":"local","endpoints":{"chat":base},"models":["m"]}]});
     fs::write(root.path().join("settings.json"), cfg.to_string())?;
     let service = Service::start(root.path()).await?;
-    cfg["listen"] = json!(service.addr);
+    cfg.as_object_mut()
+        .unwrap()
+        .insert("listen".into(), json!(service.addr.to_string()));
     fs::write(root.path().join("settings.json"), cfg.to_string())?;
     let out = Command::new(env!("CARGO_BIN_EXE_carbforge-cli"))
         .arg("--data-dir")
@@ -161,7 +171,7 @@ async fn every_advertised_agent_root_forwards_and_records_its_own_name() -> Resu
         .await?;
     assert!(out.status.success());
     let advertised = String::from_utf8(out.stdout)?;
-    let client = reqwest::Client::builder().no_proxy().build()?;
+    let client = crabforge_test_support::Client::default();
     let key = config::token(root.path())?;
     let mut ids = std::collections::HashSet::new();
     for row in advertised.lines() {
@@ -283,10 +293,10 @@ async fn codex_exec_receives_assistant_text_through_the_gateway() -> Result<()> 
 }
 
 fn responses_stream() -> Router {
-    Router::new().route("/v1/responses",post(|headers:HeaderMap,bytes:Bytes|async move {
+    Router::new().route("/v1/responses",post(|Incoming {headers, body: bytes, ..}|async move {
         assert!(!headers.contains_key("authorization"));
-        let request:Value=serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(request["model"],"m");assert_eq!(request["stream"],true);
+        let request:Value=nextjson::from_slice(&bytes).unwrap();
+        assert_eq!(request["model"],json!("m"));assert_eq!(request["stream"],json!(true));
         let item=json!({"type":"message","id":"msg_fixture","role":"assistant","status":"completed","content":[{"type":"output_text","text":"CRABFORGE_FIXTURE_REPLY","annotations":[]}]});
         let response=json!({"id":"resp_fixture","object":"response","model":"m","created_at":1700000000,"status":"completed","output":[item],"usage":{"input_tokens":12,"output_tokens":2,"total_tokens":14}});
         let mut frames=String::new();
@@ -312,7 +322,7 @@ async fn gemini_receives_text_through_the_gateway() -> Result<()> {
 }
 
 fn gemini_stream() -> Router {
-    Router::new().route("/v1beta/models/m:streamGenerateContent",post(||async {
+    Router::new().route("/v1beta/models/m:streamGenerateContent",post(|_|async {
         let reply=json!({"candidates":[{"content":{"role":"model","parts":[{"text":"CRABFORGE_FIXTURE_REPLY"}]},"index":0,"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"m"});
         ([("content-type","text/event-stream")],format!("data: {reply}\r\n\r\n"))
     }))
@@ -333,12 +343,12 @@ async fn claude_receives_text_through_the_gateway() -> Result<()> {
 }
 
 fn messages_stream() -> Router {
-    Router::new().route("/v1/messages",post(|bytes:Bytes|async move {
-        let req:Value=serde_json::from_slice(&bytes).unwrap();
+    Router::new().route("/v1/messages",post(|Incoming {body: bytes, ..}|async move {
+        let req:Value=nextjson::from_slice(&bytes).unwrap();
         let part=json!({"type":"text","text":"CRABFORGE_FIXTURE_REPLY"});
         let mut message=json!({"id":"msg_fixture","type":"message","role":"assistant","model":"m","content":[part],"stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":3,"output_tokens":2}});
-        if req["stream"]!=true{return ([("content-type","application/json")],message.to_string());}
-        message["content"]=json!([]);message["stop_reason"]=Value::Null;message["usage"]["output_tokens"]=json!(0);
+        if req["stream"]!=json!(true){return ([("content-type","application/json")],message.to_string());}
+        message.as_object_mut().unwrap().insert("content".into(), json!([]));message.as_object_mut().unwrap().insert("stop_reason".into(), Value::Null);message.get_mut("usage").unwrap().as_object_mut().unwrap().insert("output_tokens".into(), json!(0));
         let mut frames=String::new();
         for event in [json!({"type":"message_start","message":message}),json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}),json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"CRABFORGE_FIXTURE_REPLY"}}),json!({"type":"content_block_stop","index":0}),json!({"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":2}}),json!({"type":"message_stop"})]{frames.push_str(&format!("event: {}\ndata: {event}\n\n",event["type"].as_str().unwrap()));}
         ([("content-type","text/event-stream")],frames)
@@ -348,10 +358,10 @@ fn messages_stream() -> Router {
 #[tokio::test]
 #[ignore = "requires the Goose CLI on PATH"]
 async fn goose_receives_text_through_the_gateway() -> Result<()> {
-    let app = Router::new().route("/v1/chat/completions", post(|bytes: Bytes| async move {
-        let req: Value = serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(req["model"], "m");
-        if req["stream"] == true {
+    let app = Router::new().route("/v1/chat/completions", post(|Incoming {body: bytes, ..}| async move {
+        let req: Value = nextjson::from_slice(&bytes).unwrap();
+        assert_eq!(req["model"], json!("m"));
+        if req["stream"] == json!(true) {
             let chunk = json!({"id":"chat-goose","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"delta":{"role":"assistant","content":"CRABFORGE_FIXTURE_REPLY"},"finish_reason":"stop"}]});
             ([("content-type","text/event-stream")],format!("data: {chunk}\n\ndata: [DONE]\n\n"))
         } else {
@@ -568,7 +578,7 @@ async fn omp_reads_advisor_choices_and_resets_from_the_named_profile() -> Result
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
-        anyhow::Ok(serde_json::from_slice::<Value>(&output.stdout)?)
+        anyhow::Ok(nextjson::from_slice::<Value>(&output.stdout).map_err(anyhow::Error::msg)?)
     };
     for (args, expected) in [
         (
@@ -589,7 +599,7 @@ async fn omp_reads_advisor_choices_and_resets_from_the_named_profile() -> Result
         );
         let values = layer().await?;
         assert_eq!(values["advisor.enabled"]["value"].as_bool(), expected);
-        assert_eq!(values["advisor.reviewMode"]["value"], "agent-end");
+        assert_eq!(values["advisor.reviewMode"]["value"], json!("agent-end"));
         assert_eq!(
             values["advisor.syncBacklog"]["value"].as_str(),
             expected.map(|_| "1")
@@ -663,7 +673,7 @@ async fn omp_reads_thinking_levels_without_changing_fallback_roles() -> Result<(
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
-        let values: Value = serde_json::from_slice(&output.stdout)?;
+        let values: Value = nextjson::from_slice(&output.stdout).map_err(anyhow::Error::msg)?;
         assert_eq!(
             values["modelRoles"]["value"],
             json!({"slow":expected_role,"tiny":["a","b:low"]})
@@ -727,7 +737,7 @@ async fn omp_sync_restores_available_models_to_the_effective_scope() -> Result<(
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
-        let values: Value = serde_json::from_slice(&output.stdout)?;
+        let values: Value = nextjson::from_slice(&output.stdout).map_err(anyhow::Error::msg)?;
         assert_eq!(values["enabledModels"]["value"], expected);
     }
     Ok(())
@@ -736,28 +746,24 @@ async fn omp_sync_restores_available_models_to_the_effective_scope() -> Result<(
 #[tokio::test]
 #[ignore = "requires the omp CLI and its Bun runtime on PATH"]
 async fn omp_protocol_picker_changes_the_native_wire_request() -> Result<()> {
-    use axum::{
-        extract::Request,
-        middleware::{self, Next},
-    };
     let (requests, mut received) = tokio::sync::mpsc::unbounded_channel();
     let app = chat_stream()
         .merge(responses_stream())
         .merge(messages_stream())
         .merge(gemini_stream())
-        .layer(middleware::from_fn(move |request: Request, next: Next| {
-            let _ = requests.send(request.uri().path().to_owned());
-            async move { next.run(request).await }
-        }));
+        .observe(requests);
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     let scratch = tempfile::tempdir()?;
     let root = scratch.path();
     let mut cfg = json!({"listen":"127.0.0.1:0", "providers":[{"id":"local","models":["m"],"endpoints":{"chat":format!("{base}/v1"),"responses":format!("{base}/v1"),"anthropic":format!("{base}/v1"),"gemini":format!("{base}/v1beta")}}]});
     config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
     let service = Service::start(root).await?;
-    cfg["listen"] = json!(service.addr.to_string());
+    cfg.as_object_mut()
+        .unwrap()
+        .insert("listen".into(), json!(service.addr.to_string()));
     config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
     for (choice, endpoint) in [
         ("openai-responses", "/v1/responses"),
@@ -857,7 +863,9 @@ async fn omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses() 
     )?;
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}/v1", listener.local_addr()?);
-    let server = tokio::spawn(async move { axum::serve(listener, chat_stream()).await });
+    let server = tokio::spawn(async move {
+        crabforge_test_support::server::serve(listener, chat_stream()).await
+    });
     let cfg = json!({"listen":"127.0.0.1:0","providers":[{"id":"local","models":["m","n"],"free_models":["n"],"endpoints":{"chat":base}}],
         "groups":{"weighted":["local/m"],"manual":["local/n"]},"group_match":{"weighted":["free:LOCAL/*"]},
         "group_placed":{"weighted":["local/n","local/m"]},"group_weights":{"weighted":{"local/n":4}},"group_off":{"weighted":["local/m"]},
@@ -924,7 +932,7 @@ async fn omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses() 
     cfg.listen = service.addr;
     config::save(root, &config::snapshot(root)?, &cfg.to_json()?)?;
     let token = config::token(root)?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     for id in ["local/m", "lab/m", "group/weighted"] {
         let response = http
             .get(format!("http://{}/v1/models/{id}", service.addr))
@@ -988,7 +996,9 @@ async fn omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses() 
 async fn omp_starts_on_the_saved_role_and_restores_the_original_fallback() -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let upstream = listener.local_addr()?;
-    let server = tokio::spawn(async move { axum::serve(listener, chat_stream()).await });
+    let server = tokio::spawn(async move {
+        crabforge_test_support::server::serve(listener, chat_stream()).await
+    });
     let scratch = tempfile::tempdir()?;
     let root = scratch.path();
     let profile = root.join("role-test/profiles/work/agent");
@@ -1000,7 +1010,9 @@ async fn omp_starts_on_the_saved_role_and_restores_the_original_fallback() -> Re
     let mut cfg = json!({"listen":"127.0.0.1:0", "providers":[{"id":"local","models":["m","n"],"endpoints":{"chat":format!("http://{upstream}/v1")}}]});
     config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
     let service = Service::start(root).await?;
-    cfg["listen"] = json!(service.addr.to_string());
+    cfg.as_object_mut()
+        .unwrap()
+        .insert("listen".into(), json!(service.addr.to_string()));
     config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
     for (args, pick) in [
         (&["--model", "crabforge/local/n"][..], true),
@@ -1020,7 +1032,7 @@ async fn omp_starts_on_the_saved_role_and_restores_the_original_fallback() -> Re
             "{}",
             String::from_utf8_lossy(&out.stderr)
         );
-        let role_state: Value = serde_json::from_slice(&out.stdout)?;
+        let role_state: Value = nextjson::from_slice(&out.stdout).map_err(anyhow::Error::msg)?;
         assert!(role_state["models"].as_array().unwrap().iter().any(|m| {
             m.as_str()
                 .is_some_and(|id| id.starts_with("openai-codex/") && id != "openai-codex/example")
@@ -1049,7 +1061,7 @@ async fn omp_starts_on_the_saved_role_and_restores_the_original_fallback() -> Re
                 String::from_utf8_lossy(&out.stdout)
             );
         } else {
-            let settings: Value = serde_json::from_slice(&out.stdout)?;
+            let settings: Value = nextjson::from_slice(&out.stdout).map_err(anyhow::Error::msg)?;
             assert_eq!(
                 settings["modelRoles"]["value"]["default"],
                 json!(["other/x", "other/y:low"])
@@ -1081,13 +1093,13 @@ async fn deveco_loads_the_selected_model_and_authenticated_agent_endpoint() -> R
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let actual: Value = serde_json::from_slice(&output.stdout)?;
-    assert_eq!(actual["model"], "crabforge/local/m");
-    assert_eq!(actual["small_model"], "crabforge/local/m");
+    let actual: Value = nextjson::from_slice(&output.stdout).map_err(anyhow::Error::msg)?;
+    assert_eq!(actual["model"], json!("crabforge/local/m"));
+    assert_eq!(actual["small_model"], json!("crabforge/local/m"));
     let provider = &actual["provider"]["crabforge"];
     assert_eq!(
         provider["options"]["baseURL"],
-        "http://127.0.0.1:3425/agent/deveco/v1"
+        json!("http://127.0.0.1:3425/agent/deveco/v1")
     );
     assert!(provider["options"]["apiKey"].as_str() == Some(config::token(root)?.as_str()));
     assert!(provider["models"]["local/m"].is_object());
@@ -1135,15 +1147,15 @@ async fn vibe_receives_text_through_the_gateway() -> Result<()> {
 }
 
 fn chat_stream() -> Router {
-    Router::new().route("/v1/chat/completions", post(|bytes: Bytes| async move {
-        let req: Value = serde_json::from_slice(&bytes).unwrap();
+    Router::new().route("/v1/chat/completions", post(|Incoming {body: bytes, ..}| async move {
+        let req: Value = nextjson::from_slice(&bytes).unwrap();
         let model=req["model"].as_str().unwrap();
         assert!(matches!(model,"m"|"n"));
-        assert_eq!(req["stream"], true);
+        assert_eq!(req["stream"], json!(true));
         let delta = json!({"id":"chatcmpl-fixture","object":"chat.completion.chunk","model":model,"choices":[{"index":0,"delta":{"role":"assistant","content":format!("CRABFORGE_FIXTURE_REPLY_{model}")},"finish_reason":null}]});
         let stop = json!({"id":"chatcmpl-fixture","object":"chat.completion.chunk","model":model,"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]});
         let mut frames = format!("data: {delta}\n\ndata: {stop}\n\n");
-        if req["stream_options"]["include_usage"] == true {
+        if req["stream_options"]["include_usage"] == json!(true) {
             let usage = json!({"id":"chatcmpl-fixture","object":"chat.completion.chunk","model":model,"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":2,"total_tokens":12}});
             frames.push_str(&format!("data: {usage}\n\n"));
         }
@@ -1239,26 +1251,26 @@ async fn nanobot_receives_text_through_the_gateway() -> Result<()> {
 #[tokio::test]
 #[ignore = "requires the Pi CLI on PATH"]
 async fn pi_returns_the_result_of_a_streamed_read_call() -> Result<()> {
-    use axum::http::StatusCode;
+    use crabforge_test_support::server::StatusCode;
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     };
     let calls = Arc::new(AtomicUsize::new(0));
     let count = calls.clone();
-    let app = Router::new().route("/v1/chat/completions", post(move |bytes: Bytes| {
+    let app = Router::new().route("/v1/chat/completions", post(move |Incoming {body: bytes, ..}| {
         let count = count.clone();
         async move {
-            let req: Value = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+            let req: Value = nextjson::from_slice(&bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
             let round = count.fetch_add(1, Ordering::Relaxed);
             let (deltas, finish) = match round {
-                0 if req["tools"].as_array().is_some_and(|ts| ts.iter().any(|t| t["function"]["name"] == "read")) => (vec![
+                0 if req["tools"].as_array().is_some_and(|ts| ts.iter().any(|t| t["function"]["name"] == json!("read"))) => (vec![
                     json!({"role":"assistant","tool_calls":[{"index":0,"id":"call_fixture","type":"function","function":{"name":"read","arguments":"{\"path\":"}}]}),
                     json!({"tool_calls":[{"index":0,"function":{"arguments":"\"settings.json\"}"}}]}),
                 ], "tool_calls"),
                 1 => {
                     let result = req["messages"].as_array().and_then(|ms| ms.last()).ok_or(StatusCode::BAD_REQUEST)?;
-                    if result["role"] != "tool" || result["tool_call_id"] != "call_fixture" || !result["content"].to_string().contains("providers") {
+                    if result["role"] != json!("tool") || result["tool_call_id"] != json!("call_fixture") || !result["content"].to_string().contains("providers") {
                         return Err(StatusCode::BAD_REQUEST);
                     }
                     (vec![json!({"role":"assistant","content":"CRABFORGE_FIXTURE_REPLY"})], "stop")
@@ -1304,7 +1316,8 @@ async fn client_round(
 ) -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let upstream = listener.local_addr()?;
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     let scratch = tempfile::tempdir()?;
     let root = scratch.path();
     let pi_format = matches!(client, "pi" | "mu" | "omo" | "prime-agent");
@@ -1399,7 +1412,9 @@ max_context_size = 32768
     config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
     let service = Service::start(root).await?;
     let mut cfg = cfg;
-    cfg["listen"] = json!(service.addr.to_string());
+    cfg.as_object_mut()
+        .unwrap()
+        .insert("listen".into(), json!(service.addr.to_string()));
     config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
     let history = &service.history;
     let run = |selection: &'static str| async move {
@@ -1592,13 +1607,13 @@ max_context_size = 32768
     }
     if pi_format {
         let text = fs::read_to_string(model_path)?;
-        let catalog: Value = serde_json::from_str(&text)?;
+        let catalog: Value = nextjson::from_str(&text).map_err(anyhow::Error::msg)?;
         let ours = &catalog["providers"]["crabforge"]["models"];
         let direct = ours
             .as_array()
             .unwrap()
             .iter()
-            .find(|m| m["id"] == "local/m")
+            .find(|m| m["id"] == json!("local/m"))
             .unwrap();
         let expected = match protocol {
             "responses" => Some("openai-responses"),
@@ -1608,22 +1623,22 @@ max_context_size = 32768
         };
         assert_eq!(direct["api"].as_str(), expected);
         if protocol == "responses" {
-            assert_eq!(direct["compat"]["supportsStrictMode"], true);
-            assert_eq!(ours[0]["api"], "openai-responses");
+            assert_eq!(direct["compat"]["supportsStrictMode"], json!(true));
+            assert_eq!(ours[0]["api"], json!("openai-responses"));
         }
         assert_eq!(
             catalog["providers"]["crabforge"]["headers"]["X-Profile"],
-            "fixture"
+            json!("fixture")
         );
-        assert_eq!(ours[0]["id"], "group/last");
-        assert_eq!(ours[1]["id"], "group/first");
+        assert_eq!(ours[0]["id"], json!("group/last"));
+        assert_eq!(ours[1]["id"], json!("group/first"));
         assert!(!ours.as_array().unwrap().iter().any(|m| matches!(
             m["id"].as_str(),
             Some("unlisted" | "local/unlisted" | "group/paused")
         )));
         assert_eq!(
             catalog["providers"]["personal"]["models"][0]["id"],
-            "personal"
+            json!("personal")
         );
         assert!(!text.contains(&config::token(root)?));
     }
@@ -1652,9 +1667,9 @@ max_context_size = 32768
     }
     if client == "crush" {
         let text = fs::read_to_string(root.join("agents/crush/config/crush.json"))?;
-        let saved: Value = serde_json::from_str(&text)?;
-        assert_eq!(saved["providers"]["personal"]["name"], "Personal");
-        assert_eq!(saved["options"]["disable_metrics"], true);
+        let saved: Value = nextjson::from_str(&text).map_err(anyhow::Error::msg)?;
+        assert_eq!(saved["providers"]["personal"]["name"], json!("Personal"));
+        assert_eq!(saved["options"]["disable_metrics"], json!(true));
         assert!(!text.contains(&config::token(root)?));
     }
     service.stop().await;

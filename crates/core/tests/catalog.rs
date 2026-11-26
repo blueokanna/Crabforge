@@ -1,7 +1,7 @@
 use anyhow::Result;
-use axum::{Json, Router, extract::OriginalUri, http::HeaderMap, routing::get};
 use crabforge_core::{catalog::discover, config::Endpoints};
-use serde_json::json;
+use crabforge_test_support::server::{Incoming, Json, Router, get};
+use nextjson::json;
 use tokio::net::TcpListener;
 
 #[tokio::test]
@@ -72,14 +72,14 @@ async fn protocol_directories_merge_only_complete_lists_and_allow_an_override() 
     let app = Router::new()
         .route(
             "/chat/models",
-            get(move || {
+            get(move |_| {
                 counter.fetch_add(1, Ordering::Relaxed);
                 async { Json(json!({"data":[{"id":"shared"},{"id":"chat"}]})) }
             }),
         )
         .route(
             "/anthropic/v1/models",
-            get(|OriginalUri(uri): OriginalUri| async move {
+            get(|Incoming { uri, .. }| async move {
                 if uri.query().is_none() {
                     Json(json!({"data":[{"id":"partial"}],"has_more":true,"last_id":"next"}))
                 } else {
@@ -89,18 +89,19 @@ async fn protocol_directories_merge_only_complete_lists_and_allow_an_override() 
         )
         .route(
             "/gemini/models",
-            get(|| async {
+            get(|_| async {
                 Json(json!({"models":[{"name":"models/shared"},{"name":"models/gemini"}]}))
             }),
         )
         .route(
             "/account/catalog",
-            get(|OriginalUri(uri): OriginalUri| async move {
+            get(|Incoming { uri, .. }| async move {
                 assert_eq!(uri.query(), Some("edition=team"));
                 Json(json!({"data":[{"id":"account-model"}]}))
             }),
         );
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     let endpoints = Endpoints {
         chat: format!("{root}/chat"),
         responses: format!("{root}/chat/"),
@@ -138,7 +139,7 @@ async fn catalog_follows_vendor_cursors_and_rejects_incomplete_pages() -> Result
     let app = Router::new()
         .route(
             "/v1beta/models",
-            get(|OriginalUri(uri): OriginalUri| async move {
+            get(|Incoming {uri, ..}| async move {
                 Json(match uri.query() {
                     Some("pageSize=1000") => json!({"models":[{"name":"models/first"},{"name":"models/embedding","supportedGenerationMethods":["embedContent"]}],"nextPageToken":"next+1"}),
                     Some("pageSize=1000&pageToken=next%2B1") => {
@@ -151,7 +152,7 @@ async fn catalog_follows_vendor_cursors_and_rejects_incomplete_pages() -> Result
         .route(
             "/v1/messages-api/v1/models",
             get(
-                |headers: HeaderMap, OriginalUri(uri): OriginalUri| async move {
+                |Incoming {headers, uri, ..}| async move {
                     assert_eq!(headers["anthropic-version"], "2023-06-01");
                     Json(match uri.query() {
                         None => json!({"data":[{"id":"first"}],"has_more":true,"last_id":"abc"}),
@@ -163,9 +164,10 @@ async fn catalog_follows_vendor_cursors_and_rejects_incomplete_pages() -> Result
         )
         .route(
             "/broken/v1/models",
-            get(|| async { Json(json!({"data":[{"id":"partial"}],"has_more":true,"last_id":""})) }),
+            get(|_| async { Json(json!({"data":[{"id":"partial"}],"has_more":true,"last_id":""})) }),
         );
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     for endpoints in [
         Endpoints {
             gemini: format!("{root}/v1beta/models/vendor/demo:streamGenerateContent?alt=sse"),
@@ -204,7 +206,7 @@ async fn catalog_follows_vendor_cursors_and_rejects_incomplete_pages() -> Result
 
 #[tokio::test]
 async fn redirects_stay_at_the_source_and_pages_share_a_byte_limit() -> Result<()> {
-    use axum::response::Redirect;
+    use crabforge_test_support::server::StatusCode;
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -217,18 +219,18 @@ async fn redirects_stay_at_the_source_and_pages_share_a_byte_limit() -> Result<(
     let app = Router::new()
         .route(
             "/redirect",
-            get(|| async { Redirect::temporary("/target") }),
+            get(|_| async { (StatusCode::TEMPORARY_REDIRECT, [("location", "/target")]) }),
         )
         .route(
             "/target",
-            get(move || {
+            get(move |_| {
                 counter.fetch_add(1, Ordering::Relaxed);
                 async { Json(json!({"data":[{"id":"redirected"}]})) }
             }),
         )
         .route(
             "/pages",
-            get(|OriginalUri(uri): OriginalUri| async move {
+            get(|Incoming { uri, .. }| async move {
                 let mut text = if uri.query().is_none() {
                     r#"{"data":[{"id":"partial"}],"has_more":true,"last_id":"p"}"#
                 } else {
@@ -239,7 +241,8 @@ async fn redirects_stay_at_the_source_and_pages_share_a_byte_limit() -> Result<(
                 text
             }),
         );
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     for (path, error) in [("redirect", "HTTP 307"), ("pages", "exceeds 4 MiB")] {
         let source = Endpoints {
             anthropic: root.clone(),

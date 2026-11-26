@@ -1,5 +1,11 @@
 [workspace]
-members = ["crates/core", "crates/cli", "crates/bridge", "crates/runner", "tools/verify"]
+members = [
+    "crates/core",
+    "crates/cli",
+    "crates/bridge",
+    "crates/runner",
+    "tools/verify",
+]
 exclude = ["crates/vendor/multiaddr"]
 resolver = "2"
 
@@ -9,11 +15,16 @@ multiaddr = { path = "crates/vendor/multiaddr" }
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.95"
 
 [workspace.dependencies]
 anyhow = "1.0.105"
-nextjson = { version = "=0.1.5", features = ["derive"] }
-axum = { version = "0.8", default-features = false, features = ["http1", "original-uri", "tokio"] }
+nextjson = { version = "0.1.5", features = ["derive"] }
+axum = { version = "0.8", default-features = false, features = [
+    "http1",
+    "original-uri",
+    "tokio",
+] }
 crabforge-core = { path = "crates/core" }
 tokio = { version = "1", features = [
     "macros",

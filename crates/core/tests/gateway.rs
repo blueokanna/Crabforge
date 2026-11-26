@@ -1,17 +1,12 @@
 use anyhow::Result;
-use axum::{
-    Router,
-    body::{Body, Bytes},
-    http::{HeaderMap, StatusCode},
-    routing::post,
-};
 use crabforge_core::{
     config::{self, Config, Endpoints, Provider},
     peer,
     service::Service,
 };
+use crabforge_test_support::server::{Body, Bytes, Incoming, Router, StatusCode, post};
 use futures_util::{StreamExt, stream};
-use serde_json::{Value, json};
+use nextjson::{Value, json};
 use std::{collections::BTreeMap, convert::Infallible, net::SocketAddr, time::Duration};
 use tempfile::tempdir;
 use tokio::{net::TcpListener, sync::watch, time::timeout};
@@ -35,18 +30,19 @@ async fn native_endpoints_follow_models_aliases_and_enabled_group_members() -> R
         &cfg.to_string(),
     )?;
     let svc = Service::start(root.path()).await?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     let key = config::token(root.path())?;
     let url = format!("http://{}/v1/models", svc.addr);
     let get = |url: String| http.get(url).bearer_auth(&key);
-    let catalog: Value = serde_json::from_slice(
+    let catalog: Value = nextjson::from_slice(
         &get(url.clone())
             .send()
             .await?
             .error_for_status()?
             .bytes()
             .await?,
-    )?;
+    )
+    .map_err(anyhow::Error::msg)?;
     for (id, paths, preferred) in [
         (
             "gpt-5",
@@ -70,21 +66,22 @@ async fn native_endpoints_follow_models_aliases_and_enabled_group_members() -> R
         ),
         ("group/mixed", json!([]), Value::Null),
     ] {
-        let detail: Value = serde_json::from_slice(
+        let detail: Value = nextjson::from_slice(
             &get(format!("{url}/{id}"))
                 .send()
                 .await?
                 .error_for_status()?
                 .bytes()
                 .await?,
-        )?;
+        )
+        .map_err(anyhow::Error::msg)?;
         assert_eq!(detail["native_endpoints"], paths, "{id}");
-        assert_eq!(detail["magpie_prefers"], preferred, "{id}");
+        assert_eq!(detail.get("magpie_prefers"), (!preferred.is_null()).then_some(&preferred), "{id}");
         let listed = catalog["data"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|m| m["id"] == id);
+            .find(|m| m["id"] == json!(id));
         assert_eq!(listed, (id != "group/old").then_some(&detail));
     }
     svc.stop().await;
@@ -97,18 +94,17 @@ async fn rotating_groups_share_turns_only_among_compatible_members() -> Result<(
     let upstream = listener.local_addr()?;
     let app = Router::new().route(
         "/{provider}/embeddings",
-        post(
-            |axum::extract::Path(id): axum::extract::Path<String>| async move {
-                let status = if id == "busy" {
-                    StatusCode::TOO_MANY_REQUESTS
-                } else {
-                    StatusCode::OK
-                };
-                (status, id)
-            },
-        ),
+        post(|Incoming { param: id, .. }| async move {
+            let status = if id == "busy" {
+                StatusCode::TOO_MANY_REQUESTS
+            } else {
+                StatusCode::OK
+            };
+            (status, id)
+        }),
     );
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     let root = tempdir()?;
     let cfg = json!({"listen":"127.0.0.1:0","providers":[
        {"id":"a","models":["m"],"endpoints":{"chat":format!("http://{upstream}/a")}},
@@ -128,7 +124,7 @@ async fn rotating_groups_share_turns_only_among_compatible_members() -> Result<(
         &cfg.to_string(),
     )?;
     let svc = Service::start(root.path()).await?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = crabforge_test_support::Client::default();
     let key = config::token(root.path())?;
     let request = |group: &str| {
         http.post(format!("http://{}/v1/embeddings", svc.addr))
@@ -196,7 +192,11 @@ fn invalid_nested_group_edits_preserve_the_saved_graph() -> Result<()> {
     let dir = tempdir()?;
     let mut cfg = json!({"providers":[{"id":"p","models":["m"],"endpoints":{"chat":"http://localhost:8080"}}],"groups":{"g0":["p/m"]}});
     for i in 1..=8 {
-        cfg["groups"][format!("g{i}")] = json!([format!("group/g{}", i - 1)]);
+        cfg.get_mut("groups")
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert(format!("g{i}"), json!([format!("group/g{}", i - 1)]));
     }
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
     let saved = config::snapshot(dir.path())?;
@@ -207,7 +207,12 @@ fn invalid_nested_group_edits_preserve_the_saved_graph() -> Result<()> {
         ("g2", "group/missing"),
     ] {
         let mut invalid = cfg.clone();
-        invalid["groups"][id] = json!([member]);
+        invalid
+            .get_mut("groups")
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert(id.into(), json!([member]));
         assert!(config::save(dir.path(), &saved, &invalid.to_string()).is_err());
         assert_eq!(config::snapshot(dir.path())?, saved);
     }
@@ -217,12 +222,12 @@ fn invalid_nested_group_edits_preserve_the_saved_graph() -> Result<()> {
 #[tokio::test]
 async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()> {
     let (release, gate) = watch::channel(false);
-    let mock=Router::new().route("/busy/chat/completions",post(||async{StatusCode::TOO_MANY_REQUESTS}))
-        .route("/ready/chat/completions",post(move |headers:HeaderMap,body:Bytes|{
+    let mock=Router::new().route("/busy/chat/completions",post(|_|async{StatusCode::TOO_MANY_REQUESTS}))
+        .route("/ready/chat/completions",post(move |Incoming {headers, body, ..}|{
             let mut gate=gate.clone();async move {
                 assert!(!headers.contains_key("authorization"));
                 assert!(!headers.contains_key("cookie"));
-                assert_eq!(serde_json::from_slice::<Value>(&body).unwrap(),json!({"model":"family/m","messages":[{"role":"user","content":"group/test"}],"stream":true}));
+                assert_eq!(nextjson::from_slice::<Value>(&body).unwrap(),json!({"model":"family/m","messages":[{"role":"user","content":"group/test"}],"stream":true}));
                 let first=stream::once(async{Ok::<_,Infallible>(Bytes::from_static(b"data: first\n\n"))});
                 let last=stream::once(async move {gate.wait_for(|v|*v).await.unwrap(); Ok(Bytes::from_static(b"data: [DONE]\n\n"))});
                 ([("content-type","text/event-stream")],Body::from_stream(first.chain(last)))
@@ -230,7 +235,11 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
         }));
     let listener = TcpListener::bind(ephemeral()).await?;
     let upstream = listener.local_addr()?;
-    let upstream_task = tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
+    let upstream_task = tokio::spawn(async move {
+        crabforge_test_support::server::serve(listener, mock)
+            .await
+            .unwrap()
+    });
     let dir = tempdir()?;
     let providers = ["busy", "ready"].map(|id| Provider {
         fallback: vec![],
@@ -258,7 +267,7 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
     };
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_json()?)?;
     let service = Service::start(dir.path()).await?;
-    let client = reqwest::Client::builder().no_proxy().build()?;
+    let client = crabforge_test_support::Client::default();
     let url = format!("http://{}/v1/chat/completions", service.addr);
     let key = config::token(dir.path())?;
     assert_eq!(client.post(&url).send().await?.status(), 401);
@@ -323,10 +332,7 @@ async fn quic_peer_identity_and_gateway_key_are_both_required() -> Result<()> {
     let address = service.peer.as_ref().unwrap().address.to_string();
     let (local, task) = peer::tunnel(client_key, &address, ephemeral()).await?;
     let url = format!("http://{local}/v1/models");
-    let http = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(5))
-        .build()?;
+    let http = crabforge_test_support::Client::with_timeout(Duration::from_secs(5));
     assert_eq!(http.get(&url).send().await?.status(), 401);
     let response = http
         .get(&url)
@@ -335,7 +341,7 @@ async fn quic_peer_identity_and_gateway_key_are_both_required() -> Result<()> {
         .await?;
     assert_eq!(response.status(), 200);
     assert_eq!(
-        serde_json::from_slice::<Value>(&response.bytes().await?)?,
+        nextjson::from_slice::<Value>(&response.bytes().await?).map_err(anyhow::Error::msg)?,
         json!({"object":"list","data":[]})
     );
     let stranger = libp2p::identity::Keypair::generate_ed25519();

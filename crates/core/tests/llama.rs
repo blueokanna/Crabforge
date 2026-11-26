@@ -4,7 +4,7 @@ use crabforge_core::{
     config::{self, Endpoints},
     service::Service,
 };
-use serde_json::{Value, json};
+use nextjson::{Value, json};
 use std::time::Duration;
 
 #[path = "support/llama.rs"]
@@ -71,10 +71,7 @@ print('ollama', version('ollama'), repr(answer), chunks[-1].eval_count, 'tokens'
 #[ignore = "requires LLAMA_TEST_SERVER and LLAMA_TEST_GGUF"]
 async fn local_weights_generate_text_for_each_client_protocol() -> Result<()> {
     let (mut server, addr) = llama::start("smollm2").await?;
-    let http = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(30))
-        .build()?;
+    let http = crabforge_test_support::Client::with_timeout(Duration::from_secs(30));
     let endpoints = Endpoints {
         chat: format!("http://{addr}/v1"),
         ..Default::default()
@@ -140,7 +137,7 @@ async fn local_weights_generate_text_for_each_client_protocol() -> Result<()> {
             .send()
             .await?
             .error_for_status()?;
-        let reply: Value = serde_json::from_slice(&r.bytes().await?)?;
+        let reply: Value = nextjson::from_slice(&r.bytes().await?).map_err(anyhow::Error::msg)?;
         let text = reply
             .pointer(text_pointer)
             .and_then(Value::as_str)

@@ -1,7 +1,7 @@
 use anyhow::Result;
-use axum::{Router, body::Bytes, extract::OriginalUri, http::HeaderMap, routing::post};
 use courierust::courierust_client::{Client, multipart::Multipart};
 use crabforge_core::{config, service::Service};
+use crabforge_test_support::server::{Incoming, Router, post};
 use futures_util::stream;
 use nextjson::json;
 use std::convert::Infallible;
@@ -13,7 +13,9 @@ async fn media_uploads_rewrite_model_and_preserve_binary_parts() -> Result<()> {
     let addr = listener.local_addr()?;
     const BINARY: &[u8] = b"\0\xff\r\nlocal/m";
     let app = Router::new().fallback(post(
-        |OriginalUri(uri): OriginalUri, headers: HeaderMap, body: Bytes| async move {
+        |Incoming {
+             uri, headers, body, ..
+         }| async move {
             let boundary =
                 multer::parse_boundary(headers["content-type"].to_str().unwrap()).unwrap();
             let mut multipart =
@@ -55,7 +57,8 @@ async fn media_uploads_rewrite_model_and_preserve_binary_parts() -> Result<()> {
             "received"
         },
     ));
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     let dir = tempfile::tempdir()?;
     let cfg = json!({"listen":"127.0.0.1:0","providers":[{"id":"local","models":["m"],"endpoints":{"chat":format!("http://{addr}/v1")}}]});
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;

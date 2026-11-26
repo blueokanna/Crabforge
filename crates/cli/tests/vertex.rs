@@ -1,13 +1,7 @@
 use anyhow::{Context, Result};
-use axum::{
-    Json, Router,
-    body::{Body, Bytes},
-    extract::OriginalUri,
-    http::HeaderMap,
-    response::IntoResponse,
-};
 use crabforge_core::config;
-use serde_json::{Value, json};
+use crabforge_test_support::server::{Body, Bytes, Incoming, IntoResponse, Json, Router};
+use nextjson::{Value, json};
 use std::{convert::Infallible, fs, process::Stdio, sync::Arc, time::Duration};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -22,8 +16,14 @@ async fn project_gateway_selects_google_anthropic_and_partner_paths() -> Result<
     let upstream = format!("http://{}/v1/", listener.local_addr()?);
     let resume = Arc::new(tokio::sync::Notify::new());
     let gate = resume.clone();
-    let app = Router::new().fallback(
-        move |OriginalUri(uri): OriginalUri, headers: HeaderMap, Json(body): Json<Value>| {
+    let app = Router::new().fallback(crabforge_test_support::server::any(
+        move |Incoming {
+                  uri,
+                  headers,
+                  body: payload,
+                  ..
+              }| {
+            let body: Value = nextjson::from_slice(&payload).unwrap();
             let gate = gate.clone();
             async move {
                 assert_eq!(headers["x-goog-api-key"], "vertex-test");
@@ -49,13 +49,14 @@ async fn project_gateway_selects_google_anthropic_and_partner_paths() -> Result<
                 Json(observed).into_response()
             }
         },
-    );
-    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    ));
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     let root = tempfile::tempdir()?;
     let missing = root.path().join("absent-adc.json");
-    let vertex = json!({"project":"example-project","location":"eu","base_url":upstream,"credentials":missing});
+    let vertex = json!({"project":"example-project","location":"eu","base_url":upstream,"credentials":missing.to_str().unwrap()});
     let cfg = json!({"listen":"127.0.0.1:0","providers":[{"id":"cloud","key_env":"CRABFORGE_VERTEX_TEST_KEY","endpoints":{"vertex":vertex},"models":["gemini-2.5-pro","claude-test","org/partner"]},
-        {"id":"adc","endpoints":{"vertex":{"project":"example-project","credentials":missing}},"models":["org/partner"]}],"groups":{"retry":["adc/org/partner","cloud/org/partner"]}});
+        {"id":"adc","endpoints":{"vertex":{"project":"example-project","credentials":missing.to_str().unwrap()}},"models":["org/partner"]}],"groups":{"retry":["adc/org/partner","cloud/org/partner"]}});
     let key = config::token(root.path())?;
     fs::write(root.path().join("settings.json"), cfg.to_string())?;
     let mut gateway = Command::new(env!("CARGO_BIN_EXE_carbforge-cli"))
@@ -75,10 +76,7 @@ async fn project_gateway_selects_google_anthropic_and_partner_paths() -> Result<
         .strip_prefix("HTTP ")
         .context("missing HTTP address")?
         .trim_end_matches("/v1");
-    let client = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(Duration::from_secs(5))
-        .build()?;
+    let client = crabforge_test_support::Client::with_timeout(Duration::from_secs(5));
     for (endpoint, body, path) in [
         (
             "/v1beta/models/cloud/gemini-2.5-pro:streamGenerateContent",
@@ -121,31 +119,42 @@ async fn project_gateway_selects_google_anthropic_and_partner_paths() -> Result<
             }
             resume.notify_one();
             assert_eq!(response.bytes().await?.as_ref(), b"data: {}\n\n");
-            serde_json::from_slice(first.strip_prefix(b"data: ").context("invalid SSE frame")?)?
+            nextjson::from_slice(first.strip_prefix(b"data: ").context("invalid SSE frame")?)
+                .map_err(anyhow::Error::msg)?
         } else {
-            serde_json::from_slice(&response.bytes().await?)?
+            nextjson::from_slice(&response.bytes().await?).map_err(anyhow::Error::msg)?
         };
         assert_eq!(
             observed["uri"],
-            format!("/v1/projects/example-project/locations/eu/{path}")
+            json!(format!("/v1/projects/example-project/locations/eu/{path}"))
         );
         match endpoint {
             "/v1/messages" => {
                 assert!(observed["body"].get("model").is_none());
-                assert_eq!(observed["body"]["anthropic_version"], "vertex-2023-10-16");
+                assert_eq!(
+                    observed["body"]["anthropic_version"],
+                    json!("vertex-2023-10-16")
+                );
             }
             "/v1/messages/count_tokens" => {
-                assert_eq!(observed["body"]["model"], "claude-test");
-                assert_eq!(observed["body"]["anthropic_version"], "fixture");
+                assert_eq!(observed["body"]["model"], json!("claude-test"));
+                assert_eq!(observed["body"]["anthropic_version"], json!("fixture"));
             }
-            "/v1/chat/completions" => assert_eq!(observed["body"]["model"], "org/partner"),
+            "/v1/chat/completions" => assert_eq!(observed["body"]["model"], json!("org/partner")),
             _ => assert_eq!(observed["body"], body),
         }
     }
     gateway.kill().await?;
     server.abort();
     let mut invalid = cfg;
-    invalid["providers"][0]["key_env"] = json!("");
+    invalid
+        .get_mut("providers")
+        .unwrap()
+        .as_array_mut()
+        .unwrap()[0]
+        .as_object_mut()
+        .unwrap()
+        .insert("key_env".into(), json!(""));
     assert!(config::Config::parse(&invalid.to_string()).is_err());
     Ok(())
 }

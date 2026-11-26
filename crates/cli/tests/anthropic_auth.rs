@@ -1,13 +1,7 @@
 use anyhow::{Context, Result};
-use axum::{
-    Json, Router,
-    body::Bytes,
-    extract::OriginalUri,
-    http::{HeaderMap, StatusCode},
-    response::IntoResponse,
-};
 use crabforge_core::config::{self, AuthHeader};
-use serde_json::{Value, json};
+use crabforge_test_support::server::{Incoming, IntoResponse, Json, Router, StatusCode};
+use nextjson::{Value, json};
 use std::{
     fs,
     process::Stdio,
@@ -29,8 +23,13 @@ async fn anthropic_relays_negotiate_replayable_requests_and_keep_explicit_choice
     let observed = seen.clone();
     let long_error = "invalid credentials ".repeat(4500);
     let diagnostic = long_error.clone();
-    let app = Router::new().fallback(
-        move |OriginalUri(uri): OriginalUri, h: HeaderMap, body: Bytes| {
+    let app = Router::new().fallback(crabforge_test_support::server::any(
+        move |Incoming {
+                  uri,
+                  headers: h,
+                  body,
+                  ..
+              }| {
             let seen = observed.clone();
             let diagnostic = diagnostic.clone();
             async move {
@@ -46,9 +45,9 @@ async fn anthropic_relays_negotiate_replayable_requests_and_keep_explicit_choice
                 };
                 seen.lock().unwrap().push((uri.path().to_string(), mode));
                 if !body.is_empty() {
-                    let sent: Value = serde_json::from_slice(&body).unwrap();
-                    assert_eq!(sent["model"], "m");
-                    assert_eq!(sent["messages"][0]["content"], "hello");
+                    let sent: Value = nextjson::from_slice(&body).unwrap();
+                    assert_eq!(sent["model"], json!("m"));
+                    assert_eq!(sent["messages"][0]["content"], json!("hello"));
                 }
                 if uri.path().starts_with("/invalid/") {
                     return (StatusCode::UNAUTHORIZED, diagnostic).into_response();
@@ -68,15 +67,19 @@ async fn anthropic_relays_negotiate_replayable_requests_and_keep_explicit_choice
                 Json(json!({"data":[{"id":"m"}],"has_more":false})).into_response()
             }
         },
-    );
-    let upstream = tokio::spawn(async move { axum::serve(listener, app).await });
+    ));
+    let upstream =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, app).await });
     let temp = tempfile::tempdir()?;
     let providers: Vec<_> = ["single", "bearer", "invalid", "explicit"]
         .into_iter()
         .map(|id| {
             let mut endpoints = json!({"anthropic":format!("http://{addr}/{id}")});
             if id == "explicit" {
-                endpoints["auth_header"] = json!("bearer");
+                endpoints
+                    .as_object_mut()
+                    .unwrap()
+                    .insert("auth_header".into(), json!("bearer"));
             }
             json!({"id":id,"endpoints":endpoints,"key_env":"CRABFORGE_AUTH_FIXTURE","models":["m"]})
         })
@@ -119,7 +122,7 @@ async fn anthropic_relays_negotiate_replayable_requests_and_keep_explicit_choice
         .strip_prefix("HTTP ")
         .context("invalid gateway address")?;
     let token = config::token(temp.path())?;
-    let client = reqwest::Client::builder().no_proxy().build()?;
+    let client = crabforge_test_support::Client::default();
     for id in ["single", "bearer", "bearer", "explicit", "invalid"] {
         let body =
             json!({"model":format!("{id}/m"),"messages":[{"role":"user","content":"hello"}]})
