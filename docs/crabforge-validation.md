@@ -2,6 +2,10 @@
 
 [English](crabforge-validation.en.md)
 
+### 品牌资产和签名
+
+`assets/brands` 中的 119 个文件与本地 Magpie 参考快照的 `internal/gui/assets/icons` 逐文件 SHA-256 相同。包内附带 Magpie 与 Lobe Icons 的 MIT 声明。OpenAI 的标志使用另受品牌指南及其授权条款约束，Anthropic 商业服务条款第 F 节将知识产权授权限于条款明确授予的范围。正式售卖所需的品牌授权核定仍在进行。当前 Windows 用户没有可访问私钥的代码签名证书，冻结包的 Authenticode 状态为 `NotSigned`。[第三方声明](../THIRD_PARTY_NOTICES) · [OpenAI 品牌指南](https://openai.com/brand/#usage-terms) · [Anthropic 商业条款](https://www.anthropic.com/legal/commercial-terms#f-intellectual-property)
+
 ### Windows x64 手动会话提炼（`d53252f`）
 
 从 `d53252f1718f72454237782259dab20a4b0b6cbc` 离线构建的 ZIP 为 61,275,493 字节，SHA-256 为 `3741355AD8405F1C26D52D91B15589C1ACB7B6E8BEDC79914926BD39CAFF2E95`。核对 302 项构建输入、667 个清单文件、126 项资产、309 个 Rust 依赖许可及双 CLI 各 97 项相同预设。120 项串行 Rust 回归、全目标 Clippy、Flutter 分析和两项组件测试通过。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。解压桌面和 CLI 均为 `NotSigned`。[构建输入](validation/cf-windows-d53252f/build-inputs.sha256) · [解压清单](validation/cf-windows-d53252f/SHA256SUMS) · [Rust 回归](validation/cf-windows-d53252f/regression.log) · [依赖审计](validation/cf-windows-d53252f/dependency-audit.csv)
@@ -9,6 +13,19 @@
 真实 Claude Code 和 Codex 各运行一次本机模型夹具对话。解压 CLI 经配置的 `group/memory-fixture` 路由发送用户预览，拒绝过期预览，丢弃伪造引文并合并重复候选。审核之前候选未写入摘要，激活后纳入摘要。Codex 次级配置的压缩会话通过预览修订和配置限域检查。560 像素 Windows Debug 集成覆盖路由选择、发送、打开候选、查看引文及激活。另用真实 llama.cpp 和 SmolLM2 135M Q4_K_M 推理，模型响应的格式未通过数组校验，保存了零条候选。[提炼进程](validation/cf-windows-d53252f/memory-distill-process.csv) · [压缩会话限域](validation/cf-windows-d53252f/distill-profiles.csv) · [桌面审核](validation/cf-windows-d53252f/agent-resources.log) · [本机模型](validation/cf-windows-d53252f/distill-local-model.csv)
 
 解压 CLI 在 IPv6 回环、同机全局 IPv6 和直连失败后的 Kubo 回退均通过 401、200 和目录校验。回环 SSE 三轮首事件为 7、2、2 ms，末事件为 715、710、707 ms，上游等待 700 ms。公网跨机与不同 NAT 的样本待采集。[IPv6 与中继](validation/cf-windows-d53252f/ipv6.csv) · [SSE](validation/cf-windows-d53252f/forward-h1.csv)
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.70 / 1.48 | 58.12 / 92.10 |
+| Chat 网关 | 9.01 / 1.88 | 68.66 / 97.50 |
+| 桌面主进程 | 155.59 / 231.46 | 76.60 / 92.12 |
+| 桌面进程树 | 155.59 / 231.46 | 447.73 / 407.48 |
+
+解压 Release 的桌面样本三轮采用独立的 Crabforge 配置，Magpie 复用一个窗口及七个 WebView2 子进程。两种 Chat 网关共用一个本机上游，分别公开两个和一个模型 ID。[空目录](validation/cf-windows-d53252f/catalog.csv) · [Chat](validation/cf-windows-d53252f/chat.csv) · [桌面](validation/cf-windows-d53252f/desktop-comparison.csv)
+
+Windows Graphics Capture 在 24 次 Release 窗口切换中记录 272 次像素区域变化，点击至首次变化的中位数为 60.60 ms，变化间隔中位数为 16.67 ms、P90 为 33.31 ms、最大 33.39 ms。GPU 执行和物理屏幕输出待单独测量。[窗口采集](validation/cf-windows-d53252f/window-capture-frames.csv)
+
+冻结 Windows Debug 通过控制台、Oh My Pi 设置及各自的独立重启、宽窄布局和会话提炼审核。Flutter Profile 记录 585 帧，UI 构建 P90/P99 为 1.36/5.64 ms，总跨度 P90/P99 为 2.90/7.44 ms，栅格时钟为 0–1 µs。[控制台](validation/cf-windows-d53252f/console-0.log) · [控制台重启](validation/cf-windows-d53252f/console-1.log) · [Oh My Pi](validation/cf-windows-d53252f/omp_settings-0.log) · [Oh My Pi 重启](validation/cf-windows-d53252f/omp_settings-1.log) · [布局](validation/cf-windows-d53252f/console-layout.log) · [Profile 日志](validation/cf-windows-d53252f/profile.log) · [逐帧数据](validation/cf-windows-d53252f/profile.json)
 
 ### Windows x64 多配置会话与压缩归档（`3f50294`）
 

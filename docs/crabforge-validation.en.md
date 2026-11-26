@@ -2,6 +2,10 @@
 
 [简体中文](crabforge-validation.md)
 
+## Brand assets and signing
+
+All 119 files in `assets/brands` match the SHA-256 hashes of their counterparts in `internal/gui/assets/icons` in the local Magpie reference snapshot. The package includes the Magpie and Lobe Icons MIT notices. OpenAI applies separate brand guidelines and usage terms to its marks. Section F of Anthropic's Commercial Terms limits intellectual property rights to those expressly granted. Clearance for commercial distribution is pending. The current Windows user has no accessible code-signing certificate with a private key, and Authenticode reports `NotSigned` for the frozen packages. [Third-party notices](../THIRD_PARTY_NOTICES) · [OpenAI brand guidelines](https://openai.com/brand/#usage-terms) · [Anthropic Commercial Terms](https://www.anthropic.com/legal/commercial-terms#f-intellectual-property)
+
 ## Windows x64 manual session memory extraction snapshot `d53252f`
 
 The ZIP built offline from `d53252f1718f72454237782259dab20a4b0b6cbc` is 61,275,493 bytes with SHA-256 `3741355AD8405F1C26D52D91B15589C1ACB7B6E8BEDC79914926BD39CAFF2E95`. Checks covered 302 inputs, 667 manifest entries, 126 assets, 309 Rust dependency notices and the same 97 presets from both CLI names. All 120 serial Rust regressions passed, along with all-target Clippy, Flutter analysis and two widget tests. The 28 dependency trees show no enabled Serde, Hyper or Reqwest. The unpacked desktop and CLI returned `NotSigned`. [Inputs](validation/cf-windows-d53252f/build-inputs.sha256) · [Archive manifest](validation/cf-windows-d53252f/SHA256SUMS) · [Rust tests](validation/cf-windows-d53252f/regression.log) · [Dependency audit](validation/cf-windows-d53252f/dependency-audit.csv)
@@ -9,6 +13,19 @@ The ZIP built offline from `d53252f1718f72454237782259dab20a4b0b6cbc` is 61,275,
 Claude Code and Codex each completed a real client turn against a localhost model fixture. The unpacked CLI sent the reviewed user messages through `group/memory-fixture`, rejected stale previews, dropped forged quotes and deduplicated candidates. Candidates entered the digest after review and activation. The compressed Codex session in a secondary profile passed preview revision and profile scope checks. A 560-pixel Windows Debug integration covered route selection, sending, opening a candidate, inspecting its quote and activating it. In a separate run with llama.cpp inference and SmolLM2 135M Q4_K_M, the response failed array validation and zero candidates were saved. [Extraction checks](validation/cf-windows-d53252f/memory-distill-process.csv) · [Compressed session scope](validation/cf-windows-d53252f/distill-profiles.csv) · [Desktop review](validation/cf-windows-d53252f/agent-resources.log) · [Local model](validation/cf-windows-d53252f/distill-local-model.csv)
 
 IPv6 loopback, a same-host global IPv6 address and Kubo fallback after direct dial failure returned 401 for invalid keys and 200 with the expected catalog for valid keys. The three first loopback SSE events arrived in 7, 2 and 2 ms. Final events arrived in 715, 710 and 707 ms with a 700 ms upstream delay. Cross-host public and different-NAT samples are pending. [IPv6 and relay](validation/cf-windows-d53252f/ipv6.csv) · [SSE](validation/cf-windows-d53252f/forward-h1.csv)
+
+| Workload, median of three samples | Crabforge working set / private bytes (MiB) | Magpie working set / private bytes (MiB) |
+| --- | ---: | ---: |
+| Empty catalog gateway | 7.70 / 1.48 | 58.12 / 92.10 |
+| Chat gateway | 9.01 / 1.88 | 68.66 / 97.50 |
+| Desktop main process | 155.59 / 231.46 | 76.60 / 92.12 |
+| Desktop process tree | 155.59 / 231.46 | 447.73 / 407.48 |
+
+The unpacked Release desktop used a fresh Crabforge data directory in each round. Magpie reused one window and seven WebView2 children. Both Chat gateways used the same localhost upstream and exposed two and one model IDs respectively. [Catalog](validation/cf-windows-d53252f/catalog.csv) · [Chat](validation/cf-windows-d53252f/chat.csv) · [Desktop](validation/cf-windows-d53252f/desktop-comparison.csv)
+
+Windows Graphics Capture recorded 272 pixel region changes during 24 Release window transitions. The median click-to-first-change was 60.60 ms. The median interval between changes was 16.67 ms, P90 was 33.31 ms and the maximum was 33.39 ms. GPU execution and physical display output still need separate measurements. [Window capture](validation/cf-windows-d53252f/window-capture-frames.csv)
+
+Frozen Windows Debug covered the console and Oh My Pi settings across independent restarts, both window layouts and session extraction review. Flutter Profile recorded 585 frames. UI build P90/P99 was 1.36/5.64 ms, total span P90/P99 was 2.90/7.44 ms and the raster clock reported 0–1 µs. [Console](validation/cf-windows-d53252f/console-0.log) · [Console restart](validation/cf-windows-d53252f/console-1.log) · [Oh My Pi](validation/cf-windows-d53252f/omp_settings-0.log) · [Oh My Pi restart](validation/cf-windows-d53252f/omp_settings-1.log) · [Layouts](validation/cf-windows-d53252f/console-layout.log) · [Profile log](validation/cf-windows-d53252f/profile.log) · [Frame timings](validation/cf-windows-d53252f/profile.json)
 
 ## Windows x64 multi-profile sessions and compressed archives snapshot `3f50294`
 
