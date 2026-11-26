@@ -10,6 +10,60 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get findNativeResources => 'मौजूदा फ़ाइलें ढूँढें';
+
+  @override
+  String get noNativeResources => 'कोई मौजूदा फ़ाइल नहीं मिली';
+
+  @override
+  String get nativeResourceScanLimit =>
+      'मिली हुई पहली 512 फ़ाइलें दिखाई जा रही हैं।';
+
+  @override
+  String get adoptResourceDetails =>
+      'Crabforge इस फ़ाइल को उसके मौजूदा स्थान पर प्रबंधित करेगा। क्लाइंट से असाइनमेंट हटाने पर बिना बदलाव वाली फ़ाइल हट सकती है।';
+
+  @override
+  String get agentSubagents => 'उप-एजेंट';
+
+  @override
+  String get agentCommands => 'स्लैश कमांड';
+
+  @override
+  String get addSubagent => 'उप-एजेंट जोड़ें';
+
+  @override
+  String get addSlashCommand => 'स्लैश कमांड जोड़ें';
+
+  @override
+  String get resourceUserScope => 'उपयोगकर्ता प्रोफ़ाइल';
+
+  @override
+  String get noAgentResources => 'कोई प्रविष्टि सहेजी नहीं गई है';
+
+  @override
+  String get resourcePlacements => 'प्रकाशन का विवरण';
+
+  @override
+  String get agentResourceName => 'नाम';
+
+  @override
+  String get agentResourceDescription => 'विवरण';
+
+  @override
+  String get agentResourcePrompt => 'प्रॉम्प्ट';
+
+  @override
+  String get resourceSkillNames => 'कौशल के नाम, प्रति पंक्ति एक';
+
+  @override
+  String get resourceMcpNames => 'MCP सर्वर के नाम, प्रति पंक्ति एक';
+
+  @override
+  String get commandArgumentHelp =>
+      'सभी आर्ग्युमेंट के लिए \$ARGUMENTS और संगत क्लाइंट में अलग-अलग आर्ग्युमेंट के लिए \$1, \$2 आदि इस्तेमाल करें।';
+
+  @override
   String get agentHooks => 'हुक';
 
   @override

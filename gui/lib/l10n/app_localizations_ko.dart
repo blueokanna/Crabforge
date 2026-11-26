@@ -10,6 +10,59 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get findNativeResources => '기존 파일 찾기';
+
+  @override
+  String get noNativeResources => '기존 파일을 찾을 수 없습니다';
+
+  @override
+  String get nativeResourceScanLimit => '찾은 파일 중 처음 512개를 표시합니다.';
+
+  @override
+  String get adoptResourceDetails =>
+      'Crabforge가 현재 위치에서 이 파일을 관리합니다. 클라이언트 할당을 해제하면 변경되지 않은 파일이 삭제될 수 있습니다.';
+
+  @override
+  String get agentSubagents => '하위 에이전트';
+
+  @override
+  String get agentCommands => '슬래시 명령';
+
+  @override
+  String get addSubagent => '하위 에이전트 추가';
+
+  @override
+  String get addSlashCommand => '슬래시 명령 추가';
+
+  @override
+  String get resourceUserScope => '사용자 프로필';
+
+  @override
+  String get noAgentResources => '저장된 항목이 없습니다';
+
+  @override
+  String get resourcePlacements => '게시 세부정보';
+
+  @override
+  String get agentResourceName => '이름';
+
+  @override
+  String get agentResourceDescription => '설명';
+
+  @override
+  String get agentResourcePrompt => '프롬프트';
+
+  @override
+  String get resourceSkillNames => '스킬 이름, 한 줄에 하나';
+
+  @override
+  String get resourceMcpNames => 'MCP 서버 이름, 한 줄에 하나';
+
+  @override
+  String get commandArgumentHelp =>
+      '전체 인수에는 \$ARGUMENTS를 사용하고, 호환 클라이언트에서 개별 인수에는 \$1, \$2 등을 사용하세요.';
+
+  @override
   String get agentHooks => '훅';
 
   @override

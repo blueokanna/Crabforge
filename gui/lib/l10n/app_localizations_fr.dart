@@ -10,6 +10,60 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get findNativeResources => 'Rechercher des fichiers existants';
+
+  @override
+  String get noNativeResources => 'Aucun fichier existant trouvé';
+
+  @override
+  String get nativeResourceScanLimit =>
+      'Les 512 premiers fichiers trouvés sont affichés.';
+
+  @override
+  String get adoptResourceDetails =>
+      'Crabforge gérera ce fichier à son emplacement actuel. Retirer l’affectation au client peut supprimer le fichier s’il est intact.';
+
+  @override
+  String get agentSubagents => 'Sous-agents';
+
+  @override
+  String get agentCommands => 'Commandes obliques';
+
+  @override
+  String get addSubagent => 'Ajouter un sous-agent';
+
+  @override
+  String get addSlashCommand => 'Ajouter une commande oblique';
+
+  @override
+  String get resourceUserScope => 'Profils utilisateur';
+
+  @override
+  String get noAgentResources => 'Aucune entrée enregistrée';
+
+  @override
+  String get resourcePlacements => 'Détails de publication';
+
+  @override
+  String get agentResourceName => 'Nom';
+
+  @override
+  String get agentResourceDescription => 'Description';
+
+  @override
+  String get agentResourcePrompt => 'Invite';
+
+  @override
+  String get resourceSkillNames => 'Noms des compétences, un par ligne';
+
+  @override
+  String get resourceMcpNames => 'Noms des serveurs MCP, un par ligne';
+
+  @override
+  String get commandArgumentHelp =>
+      'Utilisez \$ARGUMENTS pour tous les arguments et \$1, \$2, etc. pour les arguments individuels dans les clients compatibles.';
+
+  @override
   String get agentHooks => 'Hooks';
 
   @override

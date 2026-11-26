@@ -112,6 +112,108 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @findNativeResources.
+  ///
+  /// In en, this message translates to:
+  /// **'Find existing files'**
+  String get findNativeResources;
+
+  /// No description provided for @noNativeResources.
+  ///
+  /// In en, this message translates to:
+  /// **'No existing files found'**
+  String get noNativeResources;
+
+  /// No description provided for @nativeResourceScanLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first 512 files found.'**
+  String get nativeResourceScanLimit;
+
+  /// No description provided for @adoptResourceDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Crabforge will manage this file at its current location. Unassigning the client can remove the unchanged file.'**
+  String get adoptResourceDetails;
+
+  /// No description provided for @agentSubagents.
+  ///
+  /// In en, this message translates to:
+  /// **'Subagents'**
+  String get agentSubagents;
+
+  /// No description provided for @agentCommands.
+  ///
+  /// In en, this message translates to:
+  /// **'Slash commands'**
+  String get agentCommands;
+
+  /// No description provided for @addSubagent.
+  ///
+  /// In en, this message translates to:
+  /// **'Add subagent'**
+  String get addSubagent;
+
+  /// No description provided for @addSlashCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Add slash command'**
+  String get addSlashCommand;
+
+  /// No description provided for @resourceUserScope.
+  ///
+  /// In en, this message translates to:
+  /// **'User profiles'**
+  String get resourceUserScope;
+
+  /// No description provided for @noAgentResources.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries saved'**
+  String get noAgentResources;
+
+  /// No description provided for @resourcePlacements.
+  ///
+  /// In en, this message translates to:
+  /// **'Publication details'**
+  String get resourcePlacements;
+
+  /// No description provided for @agentResourceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get agentResourceName;
+
+  /// No description provided for @agentResourceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get agentResourceDescription;
+
+  /// No description provided for @agentResourcePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get agentResourcePrompt;
+
+  /// No description provided for @resourceSkillNames.
+  ///
+  /// In en, this message translates to:
+  /// **'Skill names, one per line'**
+  String get resourceSkillNames;
+
+  /// No description provided for @resourceMcpNames.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP server names, one per line'**
+  String get resourceMcpNames;
+
+  /// No description provided for @commandArgumentHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Use \$ARGUMENTS for all arguments and \$1, \$2, … for individual arguments in compatible clients.'**
+  String get commandArgumentHelp;
+
   /// No description provided for @agentHooks.
   ///
   /// In en, this message translates to:

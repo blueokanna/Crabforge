@@ -311,6 +311,53 @@ pub fn sync_agent_hooks() -> Result<String> {
     hooks::edit(&config::data_dir()?, Edit::Sync)
 }
 
+pub fn agent_files(
+    subagents: bool,
+    project: Option<String>,
+    action: String,
+    source: Option<String>,
+    name: Option<String>,
+    revision: Option<String>,
+) -> Result<String> {
+    use crabforge_core::agent_files::{self, Edit, Entry, Kind};
+    let kind = if subagents {
+        Kind::Subagent
+    } else {
+        Kind::Command
+    };
+    let edit = match action.as_str() {
+        "list" => Edit::Read,
+        "discover" => Edit::Discover,
+        "adopt" => Edit::Adopt {
+            agent: name.context("missing client ID")?,
+            path: source.context("missing native resource path")?,
+            revision: revision.context("missing native resource revision")?,
+        },
+        "save" => {
+            anyhow::ensure!(
+                name.is_some() == revision.is_some(),
+                "an edit needs its original name and revision"
+            );
+            Edit::Save {
+                entry: Entry::from_json(source.as_deref().context("missing resource definition")?)?,
+                previous: name.zip(revision),
+            }
+        }
+        "remove" => Edit::Remove {
+            name: name.context("missing resource name")?,
+            revision: revision.context("missing resource revision")?,
+        },
+        "sync" => Edit::Sync,
+        _ => anyhow::bail!("unknown resource action"),
+    };
+    agent_files::library(
+        &config::data_dir()?,
+        kind,
+        project.as_deref().map(std::path::Path::new),
+        edit,
+    )
+}
+
 pub fn adopt_agent_skill(
     agent: String,
     name: String,
