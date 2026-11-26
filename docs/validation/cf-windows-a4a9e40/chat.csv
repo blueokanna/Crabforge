@@ -1,0 +1,7 @@
+Gateway,Round,Workload,Models,WorkingSetMiB,PrivateMiB
+Crabforge,1,Chat,2,8.80,1.81
+Magpie,1,Chat,1,68.57,97.10
+Magpie,2,Chat,1,67.86,96.45
+Crabforge,2,Chat,2,8.83,1.87
+Crabforge,3,Chat,2,8.82,1.86
+Magpie,3,Chat,1,71.78,100.20

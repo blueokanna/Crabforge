@@ -1,5 +1,19 @@
 # Crabforge 0.1.0 验收记录
 
+### Windows x64 控制台与自有 P2P 地址编解码器（`a4a9e40`）
+
+从 `a4a9e405a19b01e86957187ef3540644336f4aee` 归档构建。构建前后 292 项输入一致，解压后复核清单中 666 个文件和 126 项应用资产。两个 CLI 各列出 97 项相同的供应商预设。并行构建污染了桌面 Release 的 Flutter 中间产物，解压后启动的是集成测试入口。该 ZIP 的验收结论限于独立构建的 CLI 和网关。[构建输入](validation/cf-windows-a4a9e40/build-inputs.sha256) · [解压文件清单](validation/cf-windows-a4a9e40/SHA256SUMS)
+
+`libp2p` 保持 `0.57.1`。Crabforge 自有 Multiaddr 包通过规范字节向量、Peer ID、组件替换和无效输入测试。锁定的 Courierust、NextJSON、Recurse-X 和 RustBinary 分别为 `1.1.3`、`0.1.5`、`0.2.6` 和 `0.1.10`。七个工作区包在 Windows x64 和 Cargo `--target all` 下共检查 28 组正常、构建及测试依赖树，均无启用的 Serde、Hyper 或 Reqwest 包。[地址包](../crates/peer-address/Cargo.toml) · [依赖审计](validation/cf-windows-a4a9e40/dependency-audit.csv)
+
+冻结源码的 Rust 串行回归通过 112 项，包含通常忽略的客户端及本地模型测试。全目标 Clippy、Flutter 静态分析和两项组件测试通过。网关三轮采样的工作集及私有字节中位数分别为空目录 7.53 / 1.42 MiB、Chat 8.82 / 1.86 MiB。Magpie 同机采样为 60.88 / 94.78、68.57 / 97.10 MiB。[空目录](validation/cf-windows-a4a9e40/catalog.csv) · [Chat](validation/cf-windows-a4a9e40/chat.csv)
+
+解压版 CLI 在同一台 Windows 主机通过 IPv6 回环、网卡全局 IPv6 直连，以及直连失败后经 Kubo 0.43.1 的中继回退。每条路径均校验错误密钥返回 401、正确密钥返回 200 和目录正文。回环 SSE 测试的首个完整事件分别耗时 25、4、11 ms，末帧为 732、712、725 ms。公网跨机与不同 NAT 的测试仍缺第二台独立主机。[IPv6](validation/cf-windows-a4a9e40/ipv6.csv) · [SSE](validation/cf-windows-a4a9e40/forward-h1.csv)
+
+Windows 调试版截图覆盖六页、560 和 1200 像素宽度、明暗主题与列表和网格，共 48 个场景。解压版双 CLI 通过含 BOM 的 Markdown 导入、保留文件 CRLF、过期修订拒绝及共享 `AGENTS.md` 的跨 Agent 恢复。[浅色窄窗](validation/cf-windows-a4a9e40/light-560.jpg) · [浅色宽窗](validation/cf-windows-a4a9e40/light-1200.jpg) · [深色窄窗](validation/cf-windows-a4a9e40/dark-560.jpg) · [深色宽窗](validation/cf-windows-a4a9e40/dark-1200.jpg)
+
+Windows Profile 版在 1200 × 800 窗口预热六页后，连续执行四轮导航，记录 309 帧。Flutter 报告的 UI 构建耗时平均 2.02 ms，P90 为 2.99 ms，P99 为 13.33 ms，最大值为 16.15 ms。栅格耗时大部分为零，无法据此评估 GPU 渲染和实际呈现帧率。[Profile 原始数据](validation/cf-windows-a4a9e40/profile.json)
+
 ### Windows x64 网关和依赖验收（`a4752de`）
 
 冻结提交 `a4752de6991f8cdef947ecdde6d5c06c1e5b7d51` 的 Windows ZIP 共 61,159,262 字节，SHA-256 为 `C8155FAC6A7002F334AFDFF1F9E6EA103876D2AE5176F545DF5B475B9B8F5A3D`。构建前后 291 项输入一致。从 ZIP 解压后核对了清单中的 143 个文件、126 项资产和两个 CLI 各自的 97 项预设。Rust 串行回归包含通常忽略的测试，106 项通过、0 失败、0 跳过。Clippy、Flutter 分析与两项组件测试通过。使用解压版 CLI，Windows 调试桌面的控制台和 Oh My Pi 编辑器均通过首次使用与独立重启测试。[验收项目](validation/cf-windows-a4752de/checks.csv) · [构建输入](validation/cf-windows-a4752de/build-inputs.sha256) · [解压文件哈希](validation/cf-windows-a4752de/SHA256SUMS)

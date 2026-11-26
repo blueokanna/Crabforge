@@ -27,6 +27,8 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 
 在「客户端连接」中选定 Agent，打开「项目指令」并选择项目文件夹。Crabforge 在 Agent 的项目文件里维护与 Magpie 兼容的 Markdown 区块。「恢复上一版本」会先检查当前文件是否与备份对应，再恢复文件。
 
+对于 Gemini CLI、Qwen Code、Qoder 和 Qoder CN，Crabforge 依次检查项目设置、适用的 Crabforge profile 和 Agent 用户设置中的 `context.fileName`。配置为列表时取第一个非空名称。文件必须位于项目目录内。
+
 ```powershell
 carbforge-cli project-instructions D:\Projects\app codex
 carbforge-cli project-instructions D:\Projects\app codex --from instructions.md
@@ -48,11 +50,9 @@ carbforge-cli project-instructions D:\Projects\app codex --restore
 
 ## 构建 Windows x64 版本
 
-`a4752de` 解压包中的桌面程序三次从新配置启动，工作集和私有字节中位数分别为 151.29 和 263.99 MiB。Magpie 复用可见窗口，主进程为 76.91 / 93.57 MiB，计入七个 WebView2 子进程后为 440.50 / 424.93 MiB。[桌面原始采样](docs/validation/cf-windows-a4752de/desktop-comparison.csv)
+`a4a9e40` 解压版网关的空目录工作集和私有字节中位数为 7.53 和 1.42 MiB，Chat 负载为 8.82 和 1.86 MiB。三次末帧延后 700 毫秒，客户端首个完整 SSE 事件分别在 25、4、11 毫秒到达。七个工作区包共通过 28 组依赖审计，Windows x64 与 Cargo 全目标的常规、构建和测试依赖树均未启用 Serde、Hyper 或 Reqwest。[依赖审计](docs/validation/cf-windows-a4a9e40/dependency-audit.csv) · [Windows 验收记录](docs/crabforge-validation.md)
 
 安装 Rust 的 MSVC 工具链、Flutter 和 Visual Studio 的「使用 C++ 的桌面开发」工作负载。已记录的构建环境为 Rust 1.99.1、Flutter 3.47.9 和 Dart 3.13.7。
-
-冻结源码的 106 项 Rust 测试全部通过，覆盖已安装的客户端、HTTPS CONNECT 及显式 `NO_PROXY` 绕行。空目录网关三轮工作集和私有字节中位数为 7.47 和 1.39 MiB，Chat 负载为 8.81 和 1.85 MiB。上游将末帧延后 700 毫秒，三轮首个完整 SSE 事件分别在 31、16、2 毫秒抵达。六个工作区包在 Windows x64 和 Cargo 全目标的常规、构建及测试依赖中均未启用 Serde、Hyper 或 Reqwest。锁文件保留可选包。[逐包依赖审计](docs/validation/cf-windows-a4752de/dependency-audit.csv) · [Windows 验收记录与 ZIP 校验值](docs/crabforge-validation.md)
 
 ```powershell
 cargo build --release --locked -p crabforge-cli

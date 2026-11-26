@@ -175,11 +175,14 @@ pub fn pi_model<'a>(
 /// Gemini CLI selects its gateway backend from the base URL alone. The
 /// explicit API-key selection enables its Gemini protocol for this profile.
 pub fn gemini_home(dir: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
+    use nextjson::formats::{Format, Json5};
+
     let home = std::path::absolute(dir.join("agents/gemini"))?;
     let settings = crate::config::private_file(&home.join(".gemini"), "settings.json", || {
         Ok(br#"{"security":{"auth":{"selectedType":"gemini-api-key"}}}"#.to_vec())
     })?;
-    let settings: nextjson::Value = nextjson::from_slice(&settings).map_err(anyhow::Error::msg)?;
+    let source = settings.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&settings);
+    let settings: nextjson::Value = Json5.decode(source).map_err(anyhow::Error::msg)?;
     anyhow::ensure!(
         settings
             .pointer("/security/auth/selectedType")

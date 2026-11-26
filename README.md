@@ -27,6 +27,8 @@ On Windows, the configuration, gateway key and P2P identity live under `%LOCALAP
 
 Open **Client connections → Project instructions** for a supported agent, then choose a project folder. Crabforge edits the Magpie-compatible Markdown block in the selected agent's file. **Restore previous version** restores the previous file after checking that the current version still matches the backup.
 
+For Gemini CLI, Qwen Code, Qoder and Qoder CN, Crabforge checks `context.fileName` in the project settings, then the applicable Crabforge profile and the Agent's user settings. A list uses its first nonempty name. The file must be inside the project.
+
 ```powershell
 carbforge-cli project-instructions D:\Projects\app codex
 carbforge-cli project-instructions D:\Projects\app codex --from instructions.md
@@ -48,9 +50,7 @@ Pass the full address advertised by the gateway to `carbforge-cli tunnel <addres
 
 ## Build for Windows x64
 
-The unpacked `a4752de` desktop used a median 151.29 MiB working set and 263.99 MiB private bytes across three starts with fresh settings. Magpie kept one window open. Its main process used 76.91 / 93.57 MiB and its process tree, including seven WebView2 children, used 440.50 / 424.93 MiB. [Desktop samples](docs/validation/cf-windows-a4752de/desktop-comparison.csv)
-
-All 106 frozen Rust tests passed, including the installed clients, HTTPS CONNECT and explicit `NO_PROXY` bypass. The unpacked gateway used a median 7.47 MiB working set and 1.39 MiB private bytes with an empty catalog, and 8.81 / 1.85 MiB for Chat. With a 700 ms gap between upstream events, the client received the first complete SSE event in 31, 16 and 2 ms. Both Windows x64 and all-target Cargo trees for six packages were free of enabled Serde, Hyper and Reqwest dependencies, including build and test dependencies. The lockfile retains optional packages. [Dependency audit](docs/validation/cf-windows-a4752de/dependency-audit.csv) · [Windows validation and ZIP checksum](docs/crabforge-validation.md)
+The unpacked `a4a9e40` gateway used a median 7.53 MiB working set and 1.42 MiB private bytes with an empty catalog, and 8.82 / 1.86 MiB for Chat. With a 700 ms gap between upstream events, the client received the first complete SSE event in 25, 4 and 11 ms. The seven workspace packages passed 28 dependency checks across Windows x64 and all Cargo targets. The audited runtime, build and test trees were free of enabled Serde, Hyper and Reqwest packages. [Dependency audit](docs/validation/cf-windows-a4a9e40/dependency-audit.csv) · [Windows validation](docs/crabforge-validation.md)
 
 Install the Rust MSVC toolchain, Flutter and the Visual Studio Desktop development with C++ workload. The recorded Windows builds used Rust 1.99.1, Flutter 3.47.9 and Dart 3.13.7.
 

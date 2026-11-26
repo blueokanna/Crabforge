@@ -85,19 +85,38 @@ void main() {
     if (Platform.environment['CRABFORGE_LAYOUT_PROFILE']
         case final String file) {
       expect(kProfileMode, isTrue);
+      binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
       final nav = navigation(1200);
       for (final label in pages) {
         await openPage(nav, label);
       }
-      await binding.watchPerformance(() async {
-        for (var round = 0; round < 4; round++) {
-          for (final label in pages) {
-            await openPage(nav, label);
+      final timings = <ui.FrameTiming>[];
+      final collect = timings.addAll;
+      binding.addTimingsCallback(collect);
+      try {
+        await binding.watchPerformance(() async {
+          timings.clear();
+          for (var round = 0; round < 4; round++) {
+            for (final label in pages) {
+              await openPage(nav, label);
+            }
           }
-        }
-      });
+        });
+      } finally {
+        binding.removeTimingsCallback(collect);
+      }
       await File(file).writeAsString(
-        const JsonEncoder.withIndent('  ').convert(binding.reportData),
+        const JsonEncoder.withIndent('  ').convert({
+          ...?binding.reportData,
+          'frames': [
+            for (final frame in timings)
+              {
+                'build_us': frame.buildDuration.inMicroseconds,
+                'raster_us': frame.rasterDuration.inMicroseconds,
+                'span_us': frame.totalSpan.inMicroseconds,
+              },
+          ],
+        }),
       );
       return;
     }
@@ -177,17 +196,52 @@ void main() {
       of: editor,
       matching: find.byType(TextField),
     );
+    Future<void> waitForEdit(String text) async {
+      await tester.pump();
+      final ready = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.labelText == 'Markdown' &&
+            widget.enabled == true &&
+            widget.controller?.text == text,
+      );
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (ready.evaluate().isEmpty && DateTime.now().isBefore(deadline)) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(ready, findsOneWidget);
+    }
+
     expect(fields, findsOneWidget);
     await tester.enterText(fields.first, project.path);
     await tester.tap(find.text(strings.openProject));
-    await tester.pumpAndSettle();
+    await waitForEdit('');
     expect(fields, findsNWidgets(2));
-    await tester.enterText(fields.last, 'Run the workspace tests.');
-    await tester.pump();
     final save = find.widgetWithText(FilledButton, strings.save);
+
+    instructions.writeAsStringSync('# Updated elsewhere\n');
+    await tester.enterText(fields.last, 'Stale edit.');
+    await tester.pump();
     expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
     await tester.tap(save);
-    await tester.pumpAndSettle();
+    await waitForEdit('Stale edit.');
+    final messages = tester.widgetList<SelectableText>(
+      find.descendant(of: editor, matching: find.byType(SelectableText)),
+    );
+    expect(
+      messages.map((widget) => widget.data),
+      contains(contains('instructions changed')),
+    );
+    expect(instructions.readAsStringSync(), '# Updated elsewhere\n');
+    await tester.tap(find.widgetWithText(TextButton, strings.reload));
+    await waitForEdit('');
+
+    await tester.tap(fields.last);
+    await tester.enterText(fields.last, 'Run the workspace tests.');
+    await tester.pump();
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+    await tester.tap(save);
+    await waitForEdit('Run the workspace tests.');
     expect(
       instructions.readAsStringSync(),
       contains('Run the workspace tests.'),
@@ -197,15 +251,8 @@ void main() {
     await tester.tap(
       find.widgetWithText(FilledButton, strings.restoreInstructions),
     );
+    await waitForEdit('');
     await tester.pumpAndSettle();
-    expect(instructions.readAsStringSync(), '# Existing instructions\n');
-
-    instructions.writeAsStringSync('# Updated elsewhere\n');
-    await tester.enterText(fields.last, 'Stale edit.');
-    await tester.pump();
-    await tester.tap(save);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('instructions changed'), findsOneWidget);
     expect(instructions.readAsStringSync(), '# Updated elsewhere\n');
   });
 }

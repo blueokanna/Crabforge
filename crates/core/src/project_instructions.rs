@@ -1,11 +1,14 @@
 use anyhow::{Context, Result, bail, ensure};
-use nextjson::{NsonDeserialize, NsonSerialize};
+use nextjson::{
+    NsonDeserialize, NsonSerialize, Value,
+    formats::{Format, Json5},
+};
 use sha2::{Digest, Sha256};
 use std::{
-    fs,
+    env, fs,
     io::{ErrorKind, Read, Write},
     ops::Range,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 // Keeping Magpie's markers lets an existing project move between the two editors.
@@ -31,6 +34,7 @@ const AGENTS: &[(&str, &[&str])] = &[
     ("gemini", &["GEMINI.md"]),
     ("qwen", &["QWEN.md"]),
     ("qoder", &["AGENTS.md"]),
+    ("qoder-cn", &["AGENTS.md"]),
     ("codebuddy", &["CODEBUDDY.md"]),
     ("cursor", &["AGENTS.md"]),
     ("copilot", &["AGENTS.md"]),
@@ -47,7 +51,57 @@ pub fn agents() -> impl Iterator<Item = &'static str> {
     AGENTS.iter().map(|(agent, _)| *agent).chain(["omp"])
 }
 
-fn target(project: &Path, agent: &str) -> Result<PathBuf> {
+fn context_filename(settings: &Path) -> Result<Option<String>> {
+    let Some(source) = optional(settings, MAX_DOCUMENT)? else {
+        return Ok(None);
+    };
+    let value: Value = Json5
+        .decode(source.trim_start_matches('\u{feff}').as_bytes())
+        .map_err(anyhow::Error::msg)
+        .with_context(|| format!("cannot read settings from {}", settings.display()))?;
+    let Some(value) = value.pointer("/context/fileName") else {
+        return Ok(None);
+    };
+    fn name(value: &Value) -> Option<&str> {
+        value
+            .as_str()
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+    }
+    Ok(match value.as_array() {
+        Some(names) => names.iter().find_map(name),
+        None => name(value),
+    }
+    .map(str::to_owned))
+}
+
+fn configured_filename(dir: &Path, project: &Path, agent: &str) -> Result<Option<String>> {
+    let (folder, env_key, profile) = match agent {
+        "gemini" => (".gemini", "GEMINI_CLI_HOME", Some("agents/gemini/.gemini")),
+        "qwen" => (".qwen", "QWEN_HOME", Some("agents/qwen")),
+        "qoder" => (".qoder", "QODER_CONFIG_DIR", None),
+        "qoder-cn" => (".qoder-cn", "QODERCN_CONFIG_DIR", None),
+        _ => return Ok(None),
+    };
+    let native = match env::var_os(env_key).filter(|value| !value.is_empty()) {
+        Some(home) if agent == "gemini" => Some(PathBuf::from(home).join(folder)),
+        Some(home) => Some(PathBuf::from(home)),
+        None => env::home_dir().map(|home| home.join(folder)),
+    };
+    let paths = [
+        Some(project.join(folder)),
+        profile.map(|profile| dir.join(profile)),
+        native,
+    ];
+    for path in paths.into_iter().flatten() {
+        if let Some(name) = context_filename(&path.join("settings.json"))? {
+            return Ok(Some(name));
+        }
+    }
+    Ok(None)
+}
+
+fn target(dir: &Path, project: &Path, agent: &str) -> Result<PathBuf> {
     let agent = if agent == "omp" { "pi" } else { agent };
     let root = project
         .canonicalize()
@@ -57,7 +111,21 @@ fn target(project: &Path, agent: &str) -> Result<PathBuf> {
         .iter()
         .find(|(id, _)| *id == agent)
         .context("unsupported project instructions agent")?;
-    for name in *names {
+    let configured = configured_filename(dir, &root, agent)?;
+    let custom = [configured.as_deref().unwrap_or_default()];
+    let candidates = if configured.is_some() {
+        &custom[..]
+    } else {
+        names
+    };
+    for name in candidates {
+        ensure!(
+            Path::new(name)
+                .components()
+                .all(|part| matches!(part, Component::Normal(_)))
+                && !name.contains([':', '\0']),
+            "instruction filename must be relative to the project folder"
+        );
         let path = root.join(name);
         match fs::symlink_metadata(&path) {
             Ok(_) => {
@@ -68,7 +136,21 @@ fn target(project: &Path, agent: &str) -> Result<PathBuf> {
                 );
                 return Ok(resolved);
             }
-            Err(e) if e.kind() == ErrorKind::NotFound => (),
+            Err(e) if e.kind() == ErrorKind::NotFound => {
+                if configured.is_some() {
+                    let parent = path.parent().context("missing instruction parent folder")?;
+                    let parent = parent
+                        .canonicalize()
+                        .context("cannot open the instruction parent folder")?;
+                    ensure!(
+                        parent.starts_with(&root) && parent.is_dir(),
+                        "instructions must be a file inside the project"
+                    );
+                    return Ok(
+                        parent.join(path.file_name().context("missing instruction filename")?)
+                    );
+                }
+            }
             Err(e) => return Err(e.into()),
         }
     }
@@ -228,7 +310,7 @@ fn history(dir: &Path, path: &Path) -> Result<(PathBuf, Vec<Backup>)> {
 }
 
 pub fn read(dir: &Path, project: &Path, agent: &str) -> Result<View> {
-    let path = target(project, agent)?;
+    let path = target(dir, project, agent)?;
     let contents = optional(&path, MAX_DOCUMENT)?;
     let source = contents.as_deref().unwrap_or_default();
     let text = block(source)?
@@ -265,7 +347,7 @@ pub fn edit(
         .truncate(false)
         .open(store.join("library.lock"))?;
     lock.lock()?;
-    let path = target(project, agent)?;
+    let path = target(dir, project, agent)?;
     let before = optional(&path, MAX_DOCUMENT)?;
     let version = revision(&path, before.as_deref());
     ensure!(
@@ -276,7 +358,7 @@ pub fn edit(
     let index = entries.iter().rposition(|e| e.after == version);
     let write_document = |contents: Option<&str>| -> Result<()> {
         ensure!(
-            target(project, agent)? == path
+            target(dir, project, agent)? == path
                 && revision(&path, optional(&path, MAX_DOCUMENT)?.as_deref()) == version,
             "instructions changed; reload the project file"
         );
@@ -344,6 +426,7 @@ mod tests {
     #[test]
     fn uses_existing_agent_files_and_respects_overrides() -> Result<()> {
         let project = tempfile::tempdir()?;
+        let data = tempfile::tempdir()?;
         let root = project.path().canonicalize()?;
         fs::create_dir(root.join(".claude"))?;
         fs::write(root.join(".claude/CLAUDE.md"), "# Claude")?;
@@ -354,13 +437,50 @@ mod tests {
             ("opencode", "AGENTS.md"),
             ("codex", "AGENTS.override.md"),
             ("omp", "AGENTS.override.md"),
-            ("gemini", "GEMINI.md"),
-            ("qwen", "QWEN.md"),
         ] {
             let name = root.join(name);
-            assert_eq!(target(&root, agent)?, name);
+            assert_eq!(target(data.path(), &root, agent)?, name);
         }
         assert!(updated("", &format!("Useful text\n{END}\r")).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn uses_configured_instruction_names_and_rejects_escapes() -> Result<()> {
+        let project = tempfile::tempdir()?;
+        let data = tempfile::tempdir()?;
+        let root = project.path().canonicalize()?;
+        fs::create_dir(root.join("guide"))?;
+        for (agent, folder) in [
+            ("gemini", ".gemini"),
+            ("qwen", ".qwen"),
+            ("qoder", ".qoder"),
+            ("qoder-cn", ".qoder-cn"),
+        ] {
+            fs::create_dir(root.join(folder))?;
+            fs::write(
+                root.join(folder).join("settings.json"),
+                format!(
+                    r#"{{ /* project */ "context": {{ "fileName": [null, " ", "guide/{agent}.md",], }}}}"#
+                ),
+            )?;
+            let view = read(data.path(), &root, agent)?;
+            let target = root.join("guide").join(format!("{agent}.md"));
+            assert_eq!(Path::new(&view.path), target);
+            edit(
+                data.path(),
+                &root,
+                agent,
+                &view.revision,
+                Some("Custom instructions"),
+            )?;
+            assert!(fs::read_to_string(target)?.contains("Custom instructions"));
+        }
+        fs::write(
+            root.join(".qwen/settings.json"),
+            r#"{"context":{"fileName":"../outside.md"}}"#,
+        )?;
+        assert!(read(data.path(), &root, "qwen").is_err());
         Ok(())
     }
 
