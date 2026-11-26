@@ -10,6 +10,97 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get listView => 'Listenansicht';
+
+  @override
+  String get gridView => 'Rasteransicht';
+
+  @override
+  String get gatewayProtocol => 'Gateway-Protokoll';
+
+  @override
+  String get nativeModelProtocol =>
+      'Natives Protokoll des jeweiligen Modells verwenden';
+
+  @override
+  String get roleModels => 'Modelle für Rollen';
+
+  @override
+  String get roleModelId => 'Modell-ID';
+
+  @override
+  String get resetRole => 'Rolle zurücksetzen';
+
+  @override
+  String get syncModelCatalog => 'Modellkatalog synchronisieren';
+
+  @override
+  String get thinkingLevels => 'Denkstufen';
+
+  @override
+  String get sessionThinking => 'Denkstufe der Sitzung';
+
+  @override
+  String get thinkingAuto => 'Automatisch';
+
+  @override
+  String get thinkingMinimal => 'Minimal';
+
+  @override
+  String get thinkingLow => 'Niedrig';
+
+  @override
+  String get thinkingMedium => 'Mittel';
+
+  @override
+  String get thinkingHigh => 'Hoch';
+
+  @override
+  String get thinkingExtraHigh => 'Sehr hoch';
+
+  @override
+  String get thinkingMax => 'Maximal';
+
+  @override
+  String get ompProfile => 'Oh My Pi-Profil';
+
+  @override
+  String get advisorSettings => 'Beratereinstellungen';
+
+  @override
+  String get advisorReview => 'Zeitpunkt der Prüfung';
+
+  @override
+  String get advisorWait => 'Ausstehende Prüfungen bis zur Pause';
+
+  @override
+  String get advisorWake => 'Mindestschweregrad zum Fortsetzen';
+
+  @override
+  String get inheritSetting => 'Profilstandard verwenden';
+
+  @override
+  String get everyTurn => 'Nach jeder Runde';
+
+  @override
+  String get runEnd => 'Am Ende des Laufs';
+
+  @override
+  String get allReviews => 'Alle Prüfungen abwarten';
+
+  @override
+  String get minorNote => 'Kleinigkeit';
+
+  @override
+  String get concernNote => 'Bedenken';
+
+  @override
+  String get blockerNote => 'Blockierendes Problem';
+
+  @override
+  String get memberPatterns => 'Modellmuster, eines pro Zeile';
+
+  @override
   String get shareGroup => 'Gruppe zum Teilen kopieren';
 
   @override
@@ -334,6 +425,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get providerId => 'Anbieter-ID';
 
   @override
+  String get renameProvider => 'Anbieter umbenennen';
+
+  @override
   String get keyEnv => 'Umgebungsvariable für den API-Schlüssel';
 
   @override
@@ -344,6 +438,14 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get modelIds => 'Upstream-Modell-IDs, eine pro Zeile';
+
+  @override
+  String get providerFallback =>
+      'Ersatzmodelle oder Gruppen, in Reihenfolge, eines pro Zeile';
+
+  @override
+  String get allowProviderFallback =>
+      'Ersatzanfragen anderer Anbieter annehmen';
 
   @override
   String protocolBase(String value) {

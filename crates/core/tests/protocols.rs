@@ -19,7 +19,7 @@ fn request(protocol: &str, model: &str, stream: bool) -> (String, Value) {
     match protocol {
         "chat" => (
             "/v1/chat/completions".into(),
-            json!({"model":model,"messages":[{"role":"user","content":"city?"}],"stream":stream}),
+            json!({"model":model,"messages":[{"role":"user","content":"city?"}],"stream":stream,"store":false}),
         ),
         "responses" => (
             "/v1/responses".into(),
@@ -86,6 +86,9 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
         providers: formats
             .iter()
             .map(|name| Provider {
+                fallback: vec![],
+                no_stand_in: false,
+                model_protocols: Default::default(),
                 free_models: Default::default(),
                 id: name.to_string(),
                 catalog: String::new(),
@@ -142,9 +145,57 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
             }
         }
     }
+    let (path, mut body) = request("chat", "gemini/m", false);
+    body["store"] = true.into();
+    let response = client
+        .post(format!("http://{}{path}", service.addr))
+        .bearer_auth(&key)
+        .body(body.to_string())
+        .send()
+        .await?;
+    assert_eq!(response.status(), 400);
+    assert!(response.text().await?.contains("store"));
     service.stop().await;
     task.abort();
     let _ = task.await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn relay_uses_a_reachable_native_endpoint_for_the_actual_request() -> Result<()> {
+    let upstream = TcpListener::bind("127.0.0.1:0").await?;
+    let base = format!("http://{}", upstream.local_addr()?);
+    // The configured Chat URL would return a 404. Only Responses is native and reachable.
+    let router = Router::new().route("/responses", post(vendor));
+    let task = tokio::spawn(async move { axum::serve(upstream, router).await });
+    let dir = tempfile::tempdir()?;
+    let config = json!({"listen":"127.0.0.1:0", "providers":[{
+        "id":"relay", "models":["m"], "endpoints":{"responses":base, "chat":base},
+        "model_protocols":{"m":{"native_endpoints":["/v1/messages","/v1/responses"],"magpie_prefers":"/v1/messages"}}
+    }]});
+    config::save(
+        dir.path(),
+        &config::snapshot(dir.path())?,
+        &config.to_string(),
+    )?;
+    let service = Service::start(dir.path()).await?;
+    let (path, body) = request("chat", "relay/m", false);
+    let r = reqwest::Client::builder()
+        .no_proxy()
+        .build()?
+        .post(format!("http://{}{path}", service.addr))
+        .bearer_auth(config::token(dir.path())?)
+        .body(body.to_string())
+        .send()
+        .await?
+        .error_for_status()?;
+    let reply: Value = serde_json::from_slice(&r.bytes().await?)?;
+    assert_eq!(
+        reply["choices"][0]["message"]["tool_calls"][0]["id"],
+        "call_7"
+    );
+    service.stop().await;
+    task.abort();
     Ok(())
 }
 

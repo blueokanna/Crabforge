@@ -13,8 +13,10 @@ use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 mod groups;
 mod origins;
+mod rename;
 pub use crate::anthropic_auth::AuthHeader;
 pub use groups::{ImportedGroup, MemberPattern, ResolvedGroups};
+pub use rename::rename_provider;
 
 pub const MAX_CONFIG: usize = 1024 * 1024;
 pub const MAX_MEMBER_WEIGHT: u32 = 1000;
@@ -49,9 +51,21 @@ pub struct Provider {
     #[serde(default)]
     pub key_env: String,
     pub models: Vec<String>,
+    /// Backup model and route group IDs in the order to try for direct requests.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fallback: Vec<String>,
+    #[serde(
+        default,
+        alias = "noStandIn",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub no_stand_in: bool,
     /// IDs the provider catalog explicitly marks free.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub free_models: BTreeSet<String>,
+    /// Protocol information advertised by an upstream gateway for individual models.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub model_protocols: BTreeMap<String, crate::catalog::RelayProtocols>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -61,6 +75,9 @@ pub struct Config {
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     pub cors_origins: BTreeSet<String>,
     pub providers: Vec<Provider>,
+    /// Previous provider IDs accepted by saved client conversations.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub former_providers: BTreeMap<String, String>,
     pub groups: BTreeMap<String, Vec<String>>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_match: BTreeMap<String, Vec<MemberPattern>>,
@@ -114,6 +131,7 @@ impl Default for Config {
             listen: ([127, 0, 0, 1], 3425).into(),
             cors_origins: BTreeSet::new(),
             providers: vec![],
+            former_providers: BTreeMap::new(),
             groups: BTreeMap::new(),
             group_match: BTreeMap::new(),
             group_placed: BTreeMap::new(),
@@ -427,8 +445,18 @@ impl Config {
             "rotation references an unknown group"
         );
         let resolved = self.resolved_groups();
-        ensure!(self.group_match.keys().all(|id|self.groups.contains_key(id)), "patterns reference an unknown route group");
-        ensure!(self.group_placed.keys().all(|id|self.group_match.contains_key(id)), "member placement requires a group with patterns");
+        ensure!(
+            self.group_match
+                .keys()
+                .all(|id| self.groups.contains_key(id)),
+            "patterns reference an unknown route group"
+        );
+        ensure!(
+            self.group_placed
+                .keys()
+                .all(|id| self.group_match.contains_key(id)),
+            "member placement requires a group with patterns"
+        );
         ensure!(
             self.disabled_groups
                 .iter()
@@ -447,7 +475,9 @@ impl Config {
                 .get(name)
                 .context("disabled members for unknown group")?;
             ensure!(
-                self.group_match.contains_key(name) || self.group_picks.contains_key(name) || members.iter().any(|m| !off.contains(m)),
+                self.group_match.contains_key(name)
+                    || self.group_picks.contains_key(name)
+                    || members.iter().any(|m| !off.contains(m)),
                 "all members of group {name} are switched off"
             );
         }
@@ -482,7 +512,9 @@ impl Config {
         }
         for (group, members) in &resolved.members {
             ensure!(
-                valid_group_name(group) && (!members.is_empty() || self.group_match.get(group).is_some_and(|p|!p.is_empty())),
+                valid_group_name(group)
+                    && (!members.is_empty()
+                        || self.group_match.get(group).is_some_and(|p| !p.is_empty())),
                 "invalid or empty route group"
             );
             let mut seen = HashSet::new();
@@ -530,7 +562,12 @@ impl Config {
             let members: HashSet<_> = members.iter().collect();
             for (id, weight) in weights {
                 ensure!(
-                    (members.contains(id) || self.group_match.get(group).is_some_and(|r|r.iter().any(|r|r.matches(id,true)))) && (1..=MAX_MEMBER_WEIGHT).contains(weight),
+                    (members.contains(id)
+                        || self
+                            .group_match
+                            .get(group)
+                            .is_some_and(|r| r.iter().any(|r| r.matches(id, true))))
+                        && (1..=MAX_MEMBER_WEIGHT).contains(weight),
                     "group {group}: invalid member or weight for {id} (expected 1 to {MAX_MEMBER_WEIGHT})"
                 );
             }
@@ -548,20 +585,41 @@ impl Config {
     pub fn parse(text: &str) -> Result<Self> {
         ensure!(text.len() <= MAX_CONFIG, "configuration exceeds 1 MiB");
         let mut config: Self = serde_json::from_str(text)?;
+        for provider in &mut config.providers {
+            let mut seen = HashSet::new();
+            provider.fallback = std::mem::take(&mut provider.fallback)
+                .into_iter()
+                .map(|id| id.trim().to_owned())
+                .filter(|id| !id.is_empty() && seen.insert(id.clone()))
+                .collect();
+        }
+        let active: HashSet<_> = config.providers.iter().map(|p| p.id.as_str()).collect();
+        config.former_providers.retain(|old, current| {
+            valid_id(old)
+                && old != "group"
+                && !active.contains(old.as_str())
+                && active.contains(current.as_str())
+        });
         config.cors_origins = origins::clean(&config.cors_origins)?;
-        config.group_match.retain(|_,rules| {
-            let mut seen=HashSet::new();
-            rules.retain(|rule|seen.insert(rule.as_str().to_owned()));
+        config.group_match.retain(|_, rules| {
+            let mut seen = HashSet::new();
+            rules.retain(|rule| seen.insert(rule.as_str().to_owned()));
             !rules.is_empty()
         });
-        config.group_placed.retain(|_,ids| {
-            let mut seen=HashSet::new();
-            ids.retain(|id|seen.insert(id.clone()));
+        config.group_placed.retain(|_, ids| {
+            let mut seen = HashSet::new();
+            ids.retain(|id| seen.insert(id.clone()));
             !ids.is_empty()
         });
         config.group_off.retain(|group, off| {
             if let Some(members) = config.groups.get(group) {
-                off.retain(|m| members.contains(m) || config.group_match.get(group).is_some_and(|r|r.iter().any(|r|r.matches(m,true))));
+                off.retain(|m| {
+                    members.contains(m)
+                        || config
+                            .group_match
+                            .get(group)
+                            .is_some_and(|r| r.iter().any(|r| r.matches(m, true)))
+                });
             }
             !off.is_empty()
         });

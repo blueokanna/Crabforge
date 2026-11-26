@@ -10,6 +10,96 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get listView => '列表视图';
+
+  @override
+  String get gridView => '网格视图';
+
+  @override
+  String get gatewayProtocol => '网关协议';
+
+  @override
+  String get nativeModelProtocol => '使用各模型的原生协议';
+
+  @override
+  String get roleModels => '角色模型';
+
+  @override
+  String get roleModelId => '模型 ID';
+
+  @override
+  String get resetRole => '重置角色';
+
+  @override
+  String get syncModelCatalog => '同步模型目录';
+
+  @override
+  String get thinkingLevels => '思考级别';
+
+  @override
+  String get sessionThinking => '会话思考级别';
+
+  @override
+  String get thinkingAuto => '自动';
+
+  @override
+  String get thinkingMinimal => '最低';
+
+  @override
+  String get thinkingLow => '低';
+
+  @override
+  String get thinkingMedium => '中';
+
+  @override
+  String get thinkingHigh => '高';
+
+  @override
+  String get thinkingExtraHigh => '很高';
+
+  @override
+  String get thinkingMax => '最高';
+
+  @override
+  String get ompProfile => 'Oh My Pi 配置档案';
+
+  @override
+  String get advisorSettings => '顾问设置';
+
+  @override
+  String get advisorReview => '审阅时机';
+
+  @override
+  String get advisorWait => '开始等待的待审阅数量';
+
+  @override
+  String get advisorWake => '恢复运行所需的最低问题级别';
+
+  @override
+  String get inheritSetting => '使用默认设置';
+
+  @override
+  String get everyTurn => '每一轮';
+
+  @override
+  String get runEnd => '运行结束时';
+
+  @override
+  String get allReviews => '等待所有审阅完成';
+
+  @override
+  String get minorNote => '小问题';
+
+  @override
+  String get concernNote => '需关注的问题';
+
+  @override
+  String get blockerNote => '阻塞问题';
+
+  @override
+  String get memberPatterns => '模型匹配规则，每行一条';
+
+  @override
   String get shareGroup => '复制路由组以分享';
 
   @override
@@ -325,6 +415,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get providerId => '供应商 ID';
 
   @override
+  String get renameProvider => '重命名供应商';
+
+  @override
   String get keyEnv => 'API 密钥环境变量';
 
   @override
@@ -335,6 +428,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelIds => '上游模型 ID，每行一个';
+
+  @override
+  String get providerFallback => '备用模型或路由组，按顺序每行一个';
+
+  @override
+  String get allowProviderFallback => '允许为其他供应商接替请求';
 
   @override
   String protocolBase(String value) {

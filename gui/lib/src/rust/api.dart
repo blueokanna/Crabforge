@@ -21,8 +21,26 @@ Future<void> disconnectPeer() => RustLib.instance.api.crateApiDisconnectPeer();
 
 Future<String> configuration() => RustLib.instance.api.crateApiConfiguration();
 
+Future<void> renameProvider({
+  required String previous,
+  required String from,
+  required String to,
+}) => RustLib.instance.api.crateApiRenameProvider(
+  previous: previous,
+  from: from,
+  to: to,
+);
+
 Future<String> routeGroups({required String configuration}) =>
     RustLib.instance.api.crateApiRouteGroups(configuration: configuration);
+
+Future<List<String>> matchGroupModels({
+  required String configuration,
+  required List<String> patterns,
+}) => RustLib.instance.api.crateApiMatchGroupModels(
+  configuration: configuration,
+  patterns: patterns,
+);
 
 Future<String> renamedGroup({
   required String configuration,
@@ -69,10 +87,77 @@ Future<String> presets() => RustLib.instance.api.crateApiPresets();
 
 Future<String> agents() => RustLib.instance.api.crateApiAgents();
 
+Future<String> ompProfiles() => RustLib.instance.api.crateApiOmpProfiles();
+
+Future<String> ompAdvisor({required String profile}) =>
+    RustLib.instance.api.crateApiOmpAdvisor(profile: profile);
+
+Future<void> saveOmpAdvisor({
+  required String profile,
+  required String previous,
+  required String changes,
+}) => RustLib.instance.api.crateApiSaveOmpAdvisor(
+  profile: profile,
+  previous: previous,
+  changes: changes,
+);
+
+Future<String> ompThinking({required String profile}) =>
+    RustLib.instance.api.crateApiOmpThinking(profile: profile);
+
+Future<int> syncOmpCatalog({required String profile}) =>
+    RustLib.instance.api.crateApiSyncOmpCatalog(profile: profile);
+
+Future<String> ompProtocol({required String profile}) =>
+    RustLib.instance.api.crateApiOmpProtocol(profile: profile);
+
+Future<void> saveOmpProtocol({
+  required String profile,
+  required String previous,
+  required String protocol,
+}) => RustLib.instance.api.crateApiSaveOmpProtocol(
+  profile: profile,
+  previous: previous,
+  protocol: protocol,
+);
+
+Future<String> ompRoles({required String profile}) =>
+    RustLib.instance.api.crateApiOmpRoles(profile: profile);
+
+Future<void> saveOmpRole({
+  required String profile,
+  required String previous,
+  required String role,
+  String? model,
+}) => RustLib.instance.api.crateApiSaveOmpRole(
+  profile: profile,
+  previous: previous,
+  role: role,
+  model: model,
+);
+
+Future<void> saveOmpThinking({
+  required String profile,
+  required String previous,
+  required String changes,
+}) => RustLib.instance.api.crateApiSaveOmpThinking(
+  profile: profile,
+  previous: previous,
+  changes: changes,
+);
+
 Future<List<String>> discoverModels({
   required String endpoints,
   required String keyEnv,
 }) => RustLib.instance.api.crateApiDiscoverModels(
+  endpoints: endpoints,
+  keyEnv: keyEnv,
+);
+
+Future<String> discoverModelCatalog({
+  required String endpoints,
+  required String keyEnv,
+}) => RustLib.instance.api.crateApiDiscoverModelCatalog(
   endpoints: endpoints,
   keyEnv: keyEnv,
 );

@@ -20,6 +20,310 @@ fn group_cli(dir: &std::path::Path, args: &[&str]) -> Result<String> {
 }
 
 #[tokio::test]
+async fn provider_fallback_uses_the_selected_group_member_once_and_preserves_order() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let base = format!("http://{}", listener.local_addr()?);
+    let server = tokio::spawn(async move {
+        let app = Router::new().route(
+            "/embeddings",
+            post(|Json(body): Json<Value>| async move {
+                let status = match body["model"].as_str().unwrap() {
+                    "busy" => StatusCode::TOO_MANY_REQUESTS,
+                    "down" => StatusCode::SERVICE_UNAVAILABLE,
+                    _ => StatusCode::OK,
+                };
+                (status, Json(body))
+            }),
+        );
+        axum::serve(listener, app).await
+    });
+    let cfg = json!({"listen":"127.0.0.1:0", "providers":[
+        {"id":"primary","models":["busy"],"endpoints":{"chat":base}},
+        {"id":"spare","models":["down","ok","unexpected"],"endpoints":{"chat":base},"fallback":["spare/unexpected"]}],
+        "groups":{"overlap":["primary/busy","spare/down","group/pick"],"pick":["spare/ok","spare/down"]},"group_picks":{"pick":"spare/ok"}});
+    fs::write(dir.path().join("settings.json"), cfg.to_string())?;
+    let run = |args: &[&str]| group_cli(dir.path(), args);
+    let chain = ["spare/down", "group/overlap"];
+    let saved = run(&[
+        "provider",
+        "fallback",
+        "primary",
+        "spare/down",
+        "group/overlap",
+        "spare/down",
+    ])?;
+    assert_eq!(serde_json::from_str::<Vec<String>>(&saved)?, chain);
+    assert!(run(&["provider", "fallback", "primary", "group/missing"]).is_err());
+    assert_eq!(run(&["provider", "fallback", "primary"])?, saved);
+    run(&["group", "rename", "overlap", "backup"])?;
+    assert_eq!(
+        config::load(dir.path())?.providers[0].fallback,
+        ["spare/down", "group/backup"]
+    );
+    let service = Service::start(dir.path()).await?;
+    let client = reqwest::Client::builder().no_proxy().build()?;
+    let request = || {
+        client
+            .post(format!("http://{}/v1/embeddings", service.addr))
+            .bearer_auth(config::token(dir.path()).unwrap())
+            .body(r#"{"model":"primary/busy","input":"hello"}"#)
+            .send()
+    };
+    let reply = request().await?.error_for_status()?.bytes().await?;
+    assert_eq!(serde_json::from_slice::<Value>(&reply)?["model"], "ok");
+    {
+        let attempts = service.history.lock().unwrap();
+        assert_eq!(
+            attempts.iter().map(|a| a.status).collect::<Vec<_>>(),
+            [429, 503, 200]
+        );
+        assert_eq!(attempts[2].via, ["group/backup", "group/pick"]);
+        assert!(attempts.iter().all(|a| a.model == "primary/busy"));
+    }
+    run(&["group", "pick", "pick", "spare/down"])?;
+    assert_eq!(request().await?.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(service.history.lock().unwrap().len(), 5);
+    service.stop().await;
+    assert_eq!(
+        run(&["provider", "fallback", "primary", "none"])?.trim(),
+        "[]"
+    );
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn restricted_providers_only_take_fallbacks_from_other_restricted_providers() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let base = format!("http://{}", listener.local_addr()?);
+    let server = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            Router::new().route(
+                "/{id}/embeddings",
+                post(
+                    |axum::extract::Path(id): axum::extract::Path<String>| async move {
+                        let code = if matches!(id.as_str(), "local" | "first") {
+                            StatusCode::SERVICE_UNAVAILABLE
+                        } else {
+                            StatusCode::OK
+                        };
+                        (code, id)
+                    },
+                ),
+            ),
+        )
+        .await
+    });
+    let cfg = json!({"listen":"127.0.0.1:0", "providers":[
+        {"id":"local","models":["m"],"endpoints":{"chat":format!("{base}/local")},"fallback":["group/nested","spare/m"]},
+        {"id":"first","models":["m"],"endpoints":{"chat":format!("{base}/first")},"noStandIn":true,"fallback":["second/m"]},
+        {"id":"second","models":["m"],"endpoints":{"chat":format!("{base}/second")}},
+        {"id":"spare","models":["m"],"endpoints":{"chat":format!("{base}/spare")}}],
+        "groups":{"marked":["first/m","second/m"],"nested":["group/marked"],"mixed":["local/m","group/marked"]}});
+    fs::write(dir.path().join("settings.json"), cfg.to_string())?;
+    let run = |value| group_cli(dir.path(), &["provider", "set", "second", value]);
+    assert!(run("fallback-for-others=invalid").is_err());
+    let key = config::token(dir.path())?;
+    let http = reqwest::Client::builder().no_proxy().build()?;
+    for restricted in [true, false] {
+        run(if restricted {
+            "fallback-for-others=no"
+        } else {
+            "fallback-for-others=yes"
+        })?;
+        let service = Service::start(dir.path()).await?;
+        for (model, expected) in [
+            ("local/m", if restricted { "spare" } else { "second" }),
+            ("first/m", "second"),
+            ("group/nested", "second"),
+            ("group/mixed", if restricted { "local" } else { "second" }),
+        ] {
+            let response = http
+                .post(format!("http://{}/v1/embeddings", service.addr))
+                .bearer_auth(&key)
+                .body(format!(r#"{{"model":"{model}","input":"hello"}}"#))
+                .send()
+                .await?;
+            assert_eq!(
+                response.status().is_success(),
+                expected != "local",
+                "{model}"
+            );
+            assert_eq!(
+                service.history.lock().unwrap().back().unwrap().provider,
+                expected
+            );
+        }
+        service.stop().await;
+    }
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matches() -> Result<()> {
+    use std::{io::Write, process::Stdio};
+    let dir = tempfile::tempdir()?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let base = format!("http://{}", listener.local_addr()?);
+    let server = tokio::spawn(async move {
+        axum::serve(listener,Router::new()
+        .route("/models",axum::routing::get(||async {Json(json!({"data":[{"id":"new/free","free":true},{"id":"free-by-name","pricing":{"prompt":0}},{"id":"text","free":"true"}]}))}))
+        .route("/embeddings",post(|Json(body):Json<Value>|async move {Json(body)}))).await
+    });
+    let settings = dir.path().join("settings.json");
+    let cfg = json!({"listen":"127.0.0.1:0","providers":[{"id":"lab","models":["Alpha","n/One","flash","flash-free"],"free_models":["n/One"],"endpoints":{"chat":base}}]});
+    fs::write(&settings, cfg.to_string())?;
+    let run = |args: &[&str]| group_cli(dir.path(), args);
+    let doc = json!({"magpie":"routing-group","version":1,"group":{"id":"remote","name":"Patterns","members":null,"match":["free:magpie/LAB/*","re:(?!.*flash).*alpha"],"placed":["lab/n/One","lab/Alpha"],"routing":"manual","pick":"lab/n/One"}});
+    let mut child = Command::new(env!("CARGO_BIN_EXE_carbforge-cli"))
+        .arg("--data-dir")
+        .arg(dir.path())
+        .args(["group", "import", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(doc.to_string().as_bytes())?;
+    let out = child.wait_with_output()?;
+    assert!(out.status.success());
+    let list = run(&["group", "show", "patterns"])?;
+    assert!(list.contains("1\tlab/n/One\n2\tlab/Alpha"), "{list}");
+    let share: Value = serde_json::from_str(&run(&["group", "share", "patterns"])?)?;
+    assert_eq!(share["group"]["members"], json!([]));
+    assert_eq!(share["group"]["placed"], doc["group"]["placed"]);
+    assert_eq!(share["group"]["match"][0], "free:LAB/*");
+    assert!(list.contains("match\tfree:LAB/*\t1"));
+    run(&["group", "copy", "patterns", "other"])?;
+    run(&["group", "rename", "other", "mirror"])?;
+    run(&["group", "place", "mirror", "lab/Alpha"])?;
+    assert!(run(&["group", "show", "mirror"])?.contains("1\tlab/Alpha\n2\tlab/n/One"));
+    run(&["group", "place", "mirror"])?;
+    let shared_file = dir.path().join("shared.json");
+    fs::write(&shared_file, share.to_string())?;
+    let receiver = tempfile::tempdir()?;
+    fs::write(receiver.path().join("settings.json"), json!({"providers":[{"id":"lab","models":["fresh","flash"],"free_models":["fresh"],"endpoints":{"chat":base}}]}).to_string())?;
+    group_cli(
+        receiver.path(),
+        &["group", "import", shared_file.to_str().unwrap()],
+    )?;
+    let imported = config::load(receiver.path())?;
+    assert!(imported.groups["patterns"].is_empty());
+    assert_eq!(
+        imported.resolved_groups().members["patterns"],
+        ["lab/fresh"]
+    );
+    run(&["group", "set", "future", "re:(?-i)lab/Z.*", "--manual"])?;
+    run(&["group", "set", "parent", "group/future", "group/patterns"])?;
+    run(&[
+        "group",
+        "set",
+        "mixed",
+        "lab/Alpha",
+        "lab/flash",
+        "free:lab/*",
+    ])?;
+    run(&[
+        "group",
+        "place",
+        "mixed",
+        "lab/Alpha",
+        "lab/n/One",
+        "lab/flash",
+    ])?;
+    run(&[
+        "group",
+        "set",
+        "mixed",
+        "lab/flash",
+        "lab/Alpha",
+        "free:lab/*",
+    ])?;
+    let mixed: Value = serde_json::from_str(&run(&["group", "share", "mixed"])?)?;
+    assert_eq!(mixed["group"]["members"], json!(["lab/flash", "lab/Alpha"]));
+    assert_eq!(
+        mixed["group"]["placed"],
+        json!(["lab/flash", "lab/n/One", "lab/Alpha"])
+    );
+    let service = Service::start(dir.path()).await?;
+    let token = config::token(dir.path())?;
+    let http = reqwest::Client::builder().no_proxy().build()?;
+    let request = |addr, model: &str| {
+        http.post(format!("http://{addr}/v1/embeddings"))
+            .bearer_auth(&token)
+            .body(json!({"model":model,"input":"hello"}).to_string())
+            .send()
+    };
+    let empty = request(service.addr, "group/future").await?;
+    assert_eq!(empty.status(), StatusCode::BAD_REQUEST);
+    let mixed = request(service.addr, "group/mixed")
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+    assert_eq!(serde_json::from_slice::<Value>(&mixed)?["model"], "flash");
+    let reply = request(service.addr, "group/parent")
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+    assert_eq!(serde_json::from_slice::<Value>(&reply)?["model"], "n/One");
+    run(&["group", "pick", "patterns", "lab/Alpha"])?;
+    let reply = request(service.addr, "group/parent")
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+    assert_eq!(serde_json::from_slice::<Value>(&reply)?["model"], "Alpha");
+    service.stop().await;
+    run(&["group", "remove", "mixed"])?;
+    run(&["models", "lab", "--sync"])?;
+    let saved = config::load(dir.path())?;
+    assert_eq!(saved.resolved_groups().members["mirror"], ["lab/new/free"]);
+    assert!(saved.groups["mirror"].is_empty());
+    let service = Service::start(dir.path()).await?;
+    let reply = request(service.addr, "group/parent")
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+    assert_eq!(
+        serde_json::from_slice::<Value>(&reply)?["model"],
+        "new/free"
+    );
+    let body = http
+        .get(format!("http://{}/v1/models", service.addr))
+        .bearer_auth(token)
+        .send()
+        .await?
+        .bytes()
+        .await?;
+    let catalog: Value = serde_json::from_slice(&body)?;
+    assert!(
+        catalog["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["id"] == "lab/new/free" && e["free"] == true)
+    );
+    service.stop().await;
+    let before = fs::read(&settings)?;
+    for invalid in ["re:[", "free:free:lab/*", "free:"] {
+        assert!(run(&["group", "set", "mirror", invalid]).is_err());
+        assert_eq!(fs::read(&settings)?, before);
+    }
+    run(&["group", "remove", "mirror"])?;
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn group_display_order_survives_rename_and_reaches_all_model_lists() -> Result<()> {
     let dir = tempfile::tempdir()?;
     let cfg = json!({"listen":"127.0.0.1:0", "providers":[

@@ -13,6 +13,12 @@ pub(super) enum Route {
 }
 
 impl Route {
+    pub(super) fn fallbacks(self, config: &Config) -> &[String] {
+        match self {
+            Self::Model(t) => &config.providers[t.provider].fallback,
+            _ => &[],
+        }
+    }
     pub(super) fn protocols(self) -> Option<NativeProtocols> {
         match self {
             Self::Disabled => None,
@@ -43,6 +49,12 @@ enum Plan<'a> {
     },
 }
 
+#[derive(Default)]
+struct Visited {
+    models: HashSet<(usize, usize)>,
+    groups: HashSet<usize>,
+}
+
 impl Gateway {
     // Snapshot all manual choices once per request, including nested groups. Membership
     // stays with the running configuration, while CLI and desktop picks take effect immediately.
@@ -50,15 +62,17 @@ impl Gateway {
         if self.manual_members.is_empty() {
             return Ok(BTreeMap::new());
         }
-        #[derive(serde::Deserialize)]
+        #[derive(nextjson::NsonDeserialize)]
         struct Picks {
-            #[serde(default)]
+            #[njson(default)]
             group_picks: BTreeMap<String, String>,
         }
         let path = self.root.join("settings.json");
         let saved = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let bytes = crate::config::read_limited(&path, crate::config::MAX_CONFIG)?;
-            Ok(serde_json::from_slice::<Picks>(&bytes)?.group_picks)
+            Ok(nextjson::from_slice::<Picks>(&bytes)
+                .map_err(|e| anyhow::anyhow!("invalid group picks: {e}"))?
+                .group_picks)
         })
         .await??;
         Ok(self
@@ -84,14 +98,39 @@ impl Gateway {
         &'a self,
         route: Route,
         api: Api<'a>,
-        picks: &BTreeMap<String, usize>,
+        picks: &'a BTreeMap<String, usize>,
     ) -> impl Iterator<Item = Candidate<'a>> + 'a {
-        let mut next = self.expand(route, api, picks, &mut Vec::new(), &mut HashSet::new());
+        let mut seen = Visited::default();
+        let backups = route.fallbacks(&self.config).iter().filter_map(|id| {
+            let (_, backup) = self.resolve(id)?;
+            Some((
+                *backup,
+                matches!(backup, Route::Group { .. }).then_some(id.as_str()),
+            ))
+        });
+        let mut roots = std::iter::once((route, None)).chain(backups);
         let mut pending = Vec::new();
+        // A direct request keeps its origin even when the primary lacks this protocol.
+        let mut unrestricted =
+            matches!(route, Route::Model(t) if !self.config.providers[t.provider].no_stand_in);
         std::iter::from_fn(move || {
             loop {
-                match next.take().or_else(|| pending.pop())? {
-                    Plan::Model(candidate) => return Some(candidate),
+                let plan = pending.pop().or_else(|| {
+                    roots.find_map(|(root, group)| {
+                        let mut via = group.into_iter().collect();
+                        self.expand(root, api, picks, &mut via, &mut seen)
+                    })
+                })?;
+                match plan {
+                    Plan::Model(candidate) => {
+                        let restricted =
+                            self.config.providers[candidate.target.provider].no_stand_in;
+                        if restricted && unrestricted {
+                            continue;
+                        }
+                        unrestricted |= !restricted;
+                        return Some(candidate);
+                    }
                     Plan::Group {
                         round,
                         mut branches,
@@ -113,12 +152,15 @@ impl Gateway {
         api: Api<'a>,
         picks: &BTreeMap<String, usize>,
         via: &mut Vec<&'a str>,
-        seen: &mut HashSet<&'a str>,
+        seen: &mut Visited,
     ) -> Option<Plan<'a>> {
         let index = match route {
             Route::Disabled => return None,
             Route::Group { index, .. } => index,
             Route::Model(target) => {
+                if !seen.models.insert((target.provider, target.model)) {
+                    return None;
+                }
                 let p = &self.config.providers[target.provider];
                 return api
                     .destination(p, &p.models[target.model])
@@ -130,14 +172,13 @@ impl Gateway {
                     .map(Plan::Model);
             }
         };
+        if !seen.groups.insert(index) {
+            return None;
+        }
         let id = &self.group_ids[index];
         let members = self.live_members(&id["group/".len()..], picks);
         let mut branches = Vec::new();
         for (i, member) in members.iter().enumerate() {
-            // A repeated group or model belongs to its first listed branch.
-            if !seen.insert(member) {
-                continue;
-            }
             let child = self.routes[member];
             let nested = matches!(child, Route::Group { .. });
             if nested {

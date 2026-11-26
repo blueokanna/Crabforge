@@ -4,8 +4,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'brand_icon.dart';
 import 'editors.dart';
 import 'language.dart';
+import 'omp_settings.dart';
 import 'l10n/app_localizations.dart';
 import 'src/rust/api.dart' as api;
 import 'src/rust/frb_generated.dart';
@@ -99,6 +101,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   List<JsonMap> get providers =>
       (settings['providers'] as List).cast<JsonMap>();
   JsonMap groups = {};
+  JsonMap expandedGroups = {};
+  List<dynamic> displayMembers(String id) =>
+      expandedGroups[id] ?? savedGroups[id] ?? groups[id] ?? [];
   Map<String, String> publicGroupRefs = {};
   JsonMap get savedGroups => settings['groups'];
   Set<String> get hiddenGroups =>
@@ -249,6 +254,10 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
 
   Future<void> persist(String previous, String text) async {
     await api.saveConfiguration(previous: previous, text: text);
+    await reloadConfiguration();
+  }
+
+  Future<void> reloadConfiguration() async {
     final s = await api.configuration();
     final resolved =
         jsonDecode(await api.routeGroups(configuration: s)) as JsonMap;
@@ -260,6 +269,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   void applyConfiguration(String saved, JsonMap resolved) {
     snapshot = saved;
     settings = jsonDecode(saved);
+    expandedGroups = resolved['expanded'] ?? {};
     groups = {
       for (final name in resolved['order']) name: resolved['members'][name],
     };
@@ -269,6 +279,30 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   Future<void> copy(String s, String message) async {
     await Clipboard.setData(ClipboardData(text: s));
     if (mounted) notice(message);
+  }
+
+  Future<void> shareGroup(String id) async {
+    final text = await api.sharedGroup(configuration: snapshot!, id: id);
+    if (!mounted) return;
+    try {
+      await copy(text, context.strings.groupCopied);
+    } on PlatformException {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: Text(c.strings.sharedGroupText),
+          scrollable: true,
+          content: SelectableText(text),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: Text(MaterialLocalizations.of(c).closeButtonLabel),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   void navigate(int index) {
@@ -309,6 +343,42 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       items[items.indexOf(old)] = p;
     }
     await save({...settings, 'providers': items});
+  }
+
+  Future<void> renameProvider(String id) async {
+    final previous = snapshot!;
+    var name = id;
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(c.strings.renameProvider),
+        content: TextFormField(
+          initialValue: id,
+          autofocus: true,
+          decoration: InputDecoration(labelText: c.strings.providerId),
+          onChanged: (value) => name = value.trim(),
+          onFieldSubmitted: (value) => Navigator.pop(c, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: Text(c.strings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, name),
+            child: Text(c.strings.save),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || picked == id || !mounted) return;
+    await act(() async {
+      try {
+        await api.renameProvider(previous: previous, from: id, to: picked);
+      } finally {
+        await reloadConfiguration();
+      }
+    });
   }
 
   Future<void> login(String site) => act(() async {
@@ -353,6 +423,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     final value = await showDialog<GroupSelection>(
       context: context,
       builder: (_) => GroupEditor(
+        configuration: snapshot!,
+        patterns: List<String>.from(settings['group_match']?[id] ?? []),
+        placed: List<String>.from(settings['group_placed']?[id] ?? []),
         name: id,
         note: settings['group_notes']?[id],
         listMembers: settings['group_unlists']?.contains(id) != true,
@@ -398,6 +471,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     await save({
       ...base,
       'groups': {...base['groups'] as JsonMap, name: value.members},
+      'group_match': {
+        ...?base['group_match'] as JsonMap?,
+        name: value.patterns,
+      },
+      'group_placed': {
+        ...?base['group_placed'] as JsonMap?,
+        name: value.placed,
+      },
       'group_notes': {...?base['group_notes'] as JsonMap?, name: value.note},
       'group_off': {...?base['group_off'] as JsonMap?, name: value.off},
       'group_unlists': [
@@ -428,7 +509,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       'group_picks': {
         for (final e in (base['group_picks'] as JsonMap? ?? {}).entries)
           if (e.key != name) e.key: e.value,
-        if (value.strategy == GroupStrategy.manual) name: value.pick,
+        if (value.strategy == GroupStrategy.manual) name: value.pick ?? '',
       },
       'group_last_picks': {
         for (final e in (base['group_last_picks'] as JsonMap? ?? {}).entries)
@@ -711,24 +792,40 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         child: ListTile(
           title: Text(p['id']),
           subtitle: Text((p['models'] as List).join(' · ')),
-          leading: const Icon(Icons.vpn_key_outlined),
+          leading: BrandIcon.provider(
+            p['web_site'] == null ? p['id'] : '${p['web_site']}-web',
+          ),
           onTap: busy || running
               ? null
               : () =>
                     p['web_site'] == null ? provider(p) : login(p['web_site']),
-          trailing: IconButton(
-            tooltip: context.strings.removeProvider,
-            onPressed: busy || running
-                ? null
-                : () async {
-                    if (await confirm(p['id']) && mounted) {
-                      await save({
-                        ...settings,
-                        'providers': providers.where((i) => i != p).toList(),
-                      });
-                    }
-                  },
-            icon: const Icon(Icons.delete_outline),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: context.strings.renameProvider,
+                icon: const Icon(Icons.drive_file_rename_outline),
+                onPressed: busy || running
+                    ? null
+                    : () => renameProvider(p['id']),
+              ),
+              IconButton(
+                tooltip: context.strings.removeProvider,
+                onPressed: busy || running
+                    ? null
+                    : () async {
+                        if (await confirm(p['id']) && mounted) {
+                          await save({
+                            ...settings,
+                            'providers': providers
+                                .where((i) => i != p)
+                                .toList(),
+                          });
+                        }
+                      },
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
           ),
         ),
       ),
@@ -749,7 +846,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                     providers.any((p) => p['id'] == '${s.$2}-web')
                 ? null
                 : () => addWeb(s.$2),
-            icon: const Icon(Icons.add, size: 18),
+            icon: BrandIcon.provider('${s.$2}-web', size: 18),
             label: Text(context.strings.webSite(s.$1)),
           ),
       ],
@@ -812,12 +909,11 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                 DropdownButton<String>(
                   isExpanded: true,
                   hint: Text(context.strings.selectMember),
-                  value:
-                      (savedGroups[e.key] as List).contains(groupPicks[e.key])
+                  value: displayMembers(e.key).contains(groupPicks[e.key])
                       ? groupPicks[e.key]
-                      : savedGroups[e.key].first,
+                      : displayMembers(e.key).firstOrNull,
                   items: [
-                    for (final member in savedGroups[e.key])
+                    for (final member in displayMembers(e.key))
                       DropdownMenuItem<String>(
                         value: member,
                         child: Text(member),
@@ -836,7 +932,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                 )
               else
                 Text(
-                  ((savedGroups[e.key] ?? e.value) as List)
+                  displayMembers(e.key)
                       .where(
                         (m) =>
                             settings['group_off']?[e.key]?.contains(m) != true,
@@ -900,16 +996,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               ),
               IconButton(
                 tooltip: context.strings.shareGroup,
-                onPressed: busy
-                    ? null
-                    : () => act(() async {
-                        final message = context.strings.groupCopied;
-                        final text = await api.sharedGroup(
-                          configuration: snapshot!,
-                          id: e.key,
-                        );
-                        await copy(text, message);
-                      }),
+                onPressed: busy ? null : () => act(() => shareGroup(e.key)),
                 icon: const Icon(Icons.share_outlined),
               ),
               IconButton(
@@ -921,6 +1008,12 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                           await save({
                             ...settings,
                             'groups': {...savedGroups}..remove(e.key),
+                            'group_match': {
+                              ...?settings['group_match'] as JsonMap?,
+                            }..remove(e.key),
+                            'group_placed': {
+                              ...?settings['group_placed'] as JsonMap?,
+                            }..remove(e.key),
                             'disabled_groups': disabledGroups
                                 .where((id) => id != e.key)
                                 .toList(),
@@ -1160,9 +1253,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                 enableFilter: true,
                 menuHeight: 240,
                 initialSelection: selectedAgent,
+                leadingIcon: BrandIcon.agent(selectedAgent),
                 dropdownMenuEntries: [
                   for (final (id, name) in agents)
-                    DropdownMenuEntry(value: id, label: name),
+                    DropdownMenuEntry(
+                      value: id,
+                      label: name,
+                      leadingIcon: BrandIcon.agent(id),
+                    ),
                 ],
                 onSelected: (v) {
                   if (v != null) setState(() => selectedAgent = v);
@@ -1182,6 +1280,58 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                 ),
               ),
               Text(context.strings.agentHelp),
+              if (selectedAgent == 'omp') ...[
+                TextButton.icon(
+                  onPressed: busy
+                      ? null
+                      : () => act(() => chooseOmpProtocol(context)),
+                  icon: const Icon(Icons.settings_ethernet),
+                  label: Text(context.strings.gatewayProtocol),
+                ),
+                TextButton.icon(
+                  onPressed: busy
+                      ? null
+                      : () => act(() => editOmpRole(context)),
+                  icon: const Icon(Icons.assignment_ind_outlined),
+                  label: Text(context.strings.roleModels),
+                ),
+                TextButton.icon(
+                  onPressed: busy
+                      ? null
+                      : () => act(() async {
+                          final profile = await chooseOmpProfile(context);
+                          if (profile == null) return;
+                          final count = await api.syncOmpCatalog(
+                            profile: profile,
+                          );
+                          if (mounted) {
+                            notice(
+                              '$profile · ${context.strings.models} ($count)',
+                            );
+                          }
+                        }),
+                  icon: const Icon(Icons.sync),
+                  label: Text(context.strings.syncModelCatalog),
+                ),
+                TextButton.icon(
+                  onPressed: busy
+                      ? null
+                      : () => act(
+                          () => editOmpSettings(context, OmpEditor.advisor),
+                        ),
+                  icon: const Icon(Icons.settings_outlined),
+                  label: Text(context.strings.advisorSettings),
+                ),
+                TextButton.icon(
+                  onPressed: busy
+                      ? null
+                      : () => act(
+                          () => editOmpSettings(context, OmpEditor.thinking),
+                        ),
+                  icon: const Icon(Icons.psychology_outlined),
+                  label: Text(context.strings.thinkingLevels),
+                ),
+              ],
             ],
           ),
         ),
@@ -1274,6 +1424,7 @@ class ModelCatalog extends StatefulWidget {
 
 class _ModelCatalogState extends State<ModelCatalog> {
   String filter = '';
+  bool grid = false;
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
@@ -1296,10 +1447,24 @@ class _ModelCatalogState extends State<ModelCatalog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            strings.models,
-            style: Theme.of(context).textTheme.headlineLarge
-                ?.copyWith(fontWeight: FontWeight.w700),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  strings.models,
+                  style: Theme.of(context).textTheme.headlineLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              IconButton(
+                isSelected: grid,
+                tooltip: grid ? strings.listView : strings.gridView,
+                icon: Icon(
+                  grid ? Icons.view_list_outlined : Icons.grid_view_outlined,
+                ),
+                onPressed: () => setState(() => grid = !grid),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           TextField(
@@ -1318,13 +1483,14 @@ class _ModelCatalogState extends State<ModelCatalog> {
                   : strings.noModelsFound,
             ),
           Expanded(
-            child: ListView.builder(
-              itemCount: rows.length,
-              itemBuilder: (_, i) {
-                final row = rows[i];
-                return ListTile(
-                  title: SelectableText(row.id),
-                  trailing: Row(
+            child: LayoutBuilder(
+              builder: (context, bounds) {
+                Widget item(BuildContext context, int i) {
+                  final row = rows[i];
+                  final brand = row.group
+                      ? const Icon(Icons.account_tree_outlined)
+                      : BrandIcon.model(row.id);
+                  final actions = Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (row.edit != null)
@@ -1348,6 +1514,55 @@ class _ModelCatalogState extends State<ModelCatalog> {
                         icon: const Icon(Icons.copy),
                       ),
                     ],
+                  );
+                  if (!grid) {
+                    return ListTile(
+                      leading: brand,
+                      title: SelectableText(row.id),
+                      trailing: actions,
+                    );
+                  }
+                  return Card.filled(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [brand, const Spacer(), actions]),
+                          const SizedBox(height: 6),
+                          Expanded(
+                            child: Tooltip(
+                              message: row.id,
+                              child: Text(
+                                row.id,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                if (!grid) {
+                  return ListView.builder(
+                    key: const PageStorageKey('model-list'),
+                    itemCount: rows.length,
+                    itemBuilder: item,
+                  );
+                }
+                return GridView.builder(
+                  key: const PageStorageKey('model-grid'),
+                  itemCount: rows.length,
+                  itemBuilder: item,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: (bounds.maxWidth / 240).floor().clamp(1, 4),
+                    mainAxisSpacing: 4,
+                    crossAxisSpacing: 4,
+                    mainAxisExtent:
+                        90 + MediaQuery.textScalerOf(context).scale(38),
                   ),
                 );
               },

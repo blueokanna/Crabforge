@@ -1,6 +1,8 @@
 use anyhow::{Context, Result, bail, ensure};
-use futures_util::StreamExt;
-use reqwest::{Client, Method, Url};
+use courierust::{
+    courierust_client::{Client, ClientConfig},
+    courierust_http::Method,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
@@ -14,6 +16,7 @@ use tokio::{
     process::{Child, Command},
     time::{sleep, timeout},
 };
+use url::Url;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -146,35 +149,31 @@ pub struct Browser {
 }
 
 async fn wire(client: &Client, method: Method, url: &str, body: Option<Value>) -> Result<Value> {
-    let mut request = client.request(method, url);
-    if let Some(body) = body {
-        request = request
-            .header("content-type", "application/json")
-            .body(serde_json::to_vec(&body)?);
-    }
-    let response = request
-        .send()
-        .await
-        .context("browser driver is unavailable")?;
-    let status = response.status();
-    let mut bytes = Vec::new();
-    let mut stream = response.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        ensure!(
-            bytes.len() + chunk.len() <= MAX_REPLY,
-            "browser reply exceeds 2 MiB"
-        );
-        bytes.extend_from_slice(&chunk);
-    }
-    let value: Value = serde_json::from_slice(&bytes)?;
-    ensure!(
-        status.is_success(),
-        "WebDriver HTTP {} ({})",
-        status,
-        value["value"]["error"].as_str().unwrap_or("command failed")
-    );
-    Ok(value["value"].clone())
+    let client = client.clone();
+    let url = url.to_owned();
+    timeout(
+        Duration::from_secs(30),
+        tokio::task::spawn_blocking(move || {
+            let mut req = client.request(&url, method);
+            if let Some(body) = body {
+                req = req
+                    .header("content-type", "application/json")
+                    .body(serde_json::to_vec(&body)?);
+            }
+            let response = req.send().context("browser driver is unavailable")?;
+            let bytes = response.body.collect_limited(MAX_REPLY)?;
+            let mut reply: Value = serde_json::from_slice(&bytes)?;
+            ensure!(
+                response.status.is_success(),
+                "WebDriver HTTP {} ({})",
+                response.status.as_u16(),
+                reply["value"]["error"].as_str().unwrap_or("command failed")
+            );
+            Ok(reply["value"].take())
+        }),
+    )
+    .await
+    .context("browser command timed out")??
 }
 
 impl Browser {
@@ -214,11 +213,13 @@ impl Browser {
         })
         .await
         .context("ChromeDriver startup timed out")??;
-        let client = Client::builder()
-            .no_proxy()
-            .timeout(Duration::from_secs(30))
-            .redirect(reqwest::redirect::Policy::none())
-            .build()?;
+        let client = Client::with_config(ClientConfig {
+            max_body: MAX_REPLY,
+            max_redirects: 0,
+            read_timeout: Some(Duration::from_secs(30)),
+            connect_timeout: Some(Duration::from_secs(5)),
+            ..Default::default()
+        });
         let url = format!("http://127.0.0.1:{port}/session");
         let flags = vec![
             format!(

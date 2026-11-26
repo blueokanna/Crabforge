@@ -10,6 +10,96 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get listView => 'सूची दृश्य';
+
+  @override
+  String get gridView => 'ग्रिड दृश्य';
+
+  @override
+  String get gatewayProtocol => 'गेटवे प्रोटोकॉल';
+
+  @override
+  String get nativeModelProtocol => 'हर मॉडल का मूल प्रोटोकॉल इस्तेमाल करें';
+
+  @override
+  String get roleModels => 'भूमिका के लिए मॉडल';
+
+  @override
+  String get roleModelId => 'मॉडल आईडी';
+
+  @override
+  String get resetRole => 'भूमिका रीसेट करें';
+
+  @override
+  String get syncModelCatalog => 'मॉडल सूची सिंक करें';
+
+  @override
+  String get thinkingLevels => 'तर्क के स्तर';
+
+  @override
+  String get sessionThinking => 'सत्र का तर्क स्तर';
+
+  @override
+  String get thinkingAuto => 'स्वचालित';
+
+  @override
+  String get thinkingMinimal => 'न्यूनतम';
+
+  @override
+  String get thinkingLow => 'कम';
+
+  @override
+  String get thinkingMedium => 'मध्यम';
+
+  @override
+  String get thinkingHigh => 'उच्च';
+
+  @override
+  String get thinkingExtraHigh => 'बहुत उच्च';
+
+  @override
+  String get thinkingMax => 'अधिकतम';
+
+  @override
+  String get ompProfile => 'Oh My Pi प्रोफ़ाइल';
+
+  @override
+  String get advisorSettings => 'सलाहकार सेटिंग';
+
+  @override
+  String get advisorReview => 'समीक्षा का समय';
+
+  @override
+  String get advisorWait => 'प्रतीक्षा से पहले लंबित समीक्षाओं की संख्या';
+
+  @override
+  String get advisorWake => 'फिर से शुरू करने के लिए न्यूनतम गंभीरता';
+
+  @override
+  String get inheritSetting => 'डिफ़ॉल्ट सेटिंग का उपयोग करें';
+
+  @override
+  String get everyTurn => 'हर चरण पर';
+
+  @override
+  String get runEnd => 'रन के अंत में';
+
+  @override
+  String get allReviews => 'सभी समीक्षाओं की प्रतीक्षा करें';
+
+  @override
+  String get minorNote => 'मामूली समस्या';
+
+  @override
+  String get concernNote => 'चिंता का विषय';
+
+  @override
+  String get blockerNote => 'बाधा';
+
+  @override
+  String get memberPatterns => 'मॉडल पैटर्न, हर पंक्ति में एक';
+
+  @override
   String get shareGroup => 'साझा करने के लिए समूह कॉपी करें';
 
   @override
@@ -331,6 +421,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get providerId => 'प्रदाता आईडी';
 
   @override
+  String get renameProvider => 'प्रदाता का नाम बदलें';
+
+  @override
   String get keyEnv => 'API कुंजी का परिवेश चर';
 
   @override
@@ -341,6 +434,14 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get modelIds => 'अपस्ट्रीम मॉडल आईडी, हर पंक्ति में एक';
+
+  @override
+  String get providerFallback =>
+      'वैकल्पिक मॉडल या समूह, क्रम से हर पंक्ति में एक';
+
+  @override
+  String get allowProviderFallback =>
+      'अन्य प्रदाताओं के वैकल्पिक अनुरोध स्वीकार करें';
 
   @override
   String protocolBase(String value) {

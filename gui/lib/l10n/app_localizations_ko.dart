@@ -10,6 +10,96 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get listView => '목록 보기';
+
+  @override
+  String get gridView => '격자 보기';
+
+  @override
+  String get gatewayProtocol => '게이트웨이 프로토콜';
+
+  @override
+  String get nativeModelProtocol => '각 모델의 기본 프로토콜 사용';
+
+  @override
+  String get roleModels => '역할별 모델';
+
+  @override
+  String get roleModelId => '모델 ID';
+
+  @override
+  String get resetRole => '역할 초기화';
+
+  @override
+  String get syncModelCatalog => '모델 목록 동기화';
+
+  @override
+  String get thinkingLevels => '추론 수준';
+
+  @override
+  String get sessionThinking => '세션 추론 수준';
+
+  @override
+  String get thinkingAuto => '자동';
+
+  @override
+  String get thinkingMinimal => '최소';
+
+  @override
+  String get thinkingLow => '낮음';
+
+  @override
+  String get thinkingMedium => '중간';
+
+  @override
+  String get thinkingHigh => '높음';
+
+  @override
+  String get thinkingExtraHigh => '매우 높음';
+
+  @override
+  String get thinkingMax => '최대';
+
+  @override
+  String get ompProfile => 'Oh My Pi 프로필';
+
+  @override
+  String get advisorSettings => '자문 설정';
+
+  @override
+  String get advisorReview => '검토 시점';
+
+  @override
+  String get advisorWait => '대기를 시작할 미완료 검토 수';
+
+  @override
+  String get advisorWake => '실행을 재개할 최소 심각도';
+
+  @override
+  String get inheritSetting => '기본값 사용';
+
+  @override
+  String get everyTurn => '매 턴마다';
+
+  @override
+  String get runEnd => '실행 종료 시';
+
+  @override
+  String get allReviews => '모든 검토가 끝날 때까지 대기';
+
+  @override
+  String get minorNote => '사소한 문제';
+
+  @override
+  String get concernNote => '우려 사항';
+
+  @override
+  String get blockerNote => '진행을 막는 문제';
+
+  @override
+  String get memberPatterns => '모델 패턴 (한 줄에 하나씩)';
+
+  @override
   String get shareGroup => '공유할 그룹 복사';
 
   @override
@@ -326,6 +416,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get providerId => '공급자 ID';
 
   @override
+  String get renameProvider => '공급자 이름 변경';
+
+  @override
   String get keyEnv => 'API 키 환경 변수';
 
   @override
@@ -336,6 +429,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get modelIds => '업스트림 모델 ID, 한 줄에 하나씩';
+
+  @override
+  String get providerFallback => '대체 모델 또는 그룹을 우선순위에 따라 한 줄에 하나씩 입력';
+
+  @override
+  String get allowProviderFallback => '다른 공급자의 대체 요청 허용';
 
   @override
   String protocolBase(String value) {

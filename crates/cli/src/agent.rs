@@ -1,13 +1,15 @@
 use anyhow::{Context, Result, ensure};
 use clap::ValueEnum;
+use crabforge_core::agents::{omp_catalog, omp_profiles, pi_model};
 use crabforge_core::config;
+use crabforge_core::gateway::{NativeProtocols, native_protocols};
 mod crush;
 mod kimi;
 mod nanobot;
-mod omp;
+mod pi;
 mod vibe;
 use std::{
-    collections::BTreeSet,
+    collections::BTreeMap,
     ffi::OsString,
     fs,
     io::Write,
@@ -40,18 +42,18 @@ pub(crate) enum Agent {
 }
 
 impl Agent {
-    #[cfg(not(windows))]
-    fn command(self, binary: &str) -> Result<Command> {
-        Ok(Command::new(binary))
-    }
-
     pub(crate) fn omp_profiles(dir: &Path) -> Result<()> {
-        omp::profiles::list(dir, &Self::Omp.command("omp")?)
+        for profile in omp_profiles::list(dir, &omp_profiles::installed()?)? {
+            let state = if profile.active {
+                "active"
+            } else {
+                "available"
+            };
+            println!("{}\t{state}\t{}", profile.name, profile.directory.display());
+        }
+        Ok(())
     }
-    #[cfg(windows)]
     fn command(self, binary: &str) -> Result<Command> {
-        // npm's Windows launchers are batch files. Use the package's bin entry
-        // directly so arguments are always passed to the client without a shell.
         let package = match self {
             Self::Codex => "@openai/codex",
             Self::Copilot => "@github/copilot",
@@ -63,53 +65,12 @@ impl Agent {
             Self::Pi => "@earendil-works/pi-coding-agent",
             Self::Mu => "mu-agent",
             Self::Omo => "omo-ai",
-            Self::Omp => "@oh-my-pi/pi-coding-agent",
+            Self::Omp => return omp_profiles::installed(),
             Self::Opencode => "@opencode/cli",
             Self::Goose | Self::Vibe | Self::Crush | Self::Nanobot | Self::Prime => "",
             Self::Qwen => "@qwen-code/qwen-code",
         };
-        let paths = std::env::var_os("PATH").unwrap_or_default();
-        for dir in std::env::split_paths(&paths).filter(|dir| dir.is_absolute()) {
-            let exe = dir.join(format!("{binary}.exe"));
-            if exe.is_file() {
-                return Ok(Command::new(exe));
-            }
-            if package.is_empty() || !dir.join(format!("{binary}.cmd")).is_file() {
-                continue;
-            }
-            let modules = if dir.ends_with(".bin") {
-                dir.parent().unwrap().to_owned()
-            } else {
-                dir.join("node_modules")
-            };
-            let package_dir = modules.join(package);
-            let manifest = package_dir.join("package.json");
-            if !manifest.is_file() {
-                continue;
-            }
-            let meta: serde_json::Value = serde_json::from_slice(&std::fs::read(manifest)?)?;
-            let entry = meta["bin"][binary]
-                .as_str()
-                .or_else(|| meta["bin"].as_str())
-                .context("missing npm client entry point")?;
-            let script = package_dir.join(entry);
-            ensure!(
-                script.is_file(),
-                "missing client entry point {}",
-                script.display()
-            );
-            if script.extension().is_some_and(|e| e == "exe") {
-                return Ok(Command::new(script));
-            }
-            let mut cmd = Command::new(if matches!(self, Self::Omp) {
-                "bun"
-            } else {
-                "node"
-            });
-            cmd.arg(script);
-            return Ok(cmd);
-        }
-        anyhow::bail!("install {binary} on PATH")
+        crabforge_core::agents::installed_command(binary, package, "node")
     }
 
     pub(crate) fn launch(
@@ -129,7 +90,7 @@ impl Agent {
             "configure a fixed gateway port to launch an agent from the CLI"
         );
         let groups = cfg.resolved_groups();
-        let mut ids = model_ids(&cfg, &groups);
+        let mut ids = cfg.agent_model_ids(&groups);
         let canonical = cfg.canonical_auto_ref(model);
         let group = canonical.as_deref().unwrap_or(model);
         let group = groups.aliases.get(group).map_or(group, String::as_str);
@@ -148,6 +109,7 @@ impl Agent {
             group.to_owned()
         } else {
             cfg.auto_stand_in(model)
+                .or_else(|| cfg.renamed_model(model))
                 .context("model is missing from the gateway configuration")?
         };
         let model = selected.as_str();
@@ -306,20 +268,23 @@ impl Agent {
                     _ => "PI_CODING_AGENT_DIR",
                 };
                 command
-                    .env(profile_var, pi_profile(dir, binary, ids, &root)?)
+                    .env(
+                        profile_var,
+                        pi_profile(dir, binary, ids, &root, &native_protocols(&cfg, &groups)?)?,
+                    )
                     .env("CRABFORGE_GATEWAY_KEY", key)
                     .args(["--provider", "crabforge"]);
             }
             Self::Omp => {
-                let protocols = crabforge_core::gateway::native_protocols(&cfg, &groups)?;
-                let native = omp::profiles::native_profile(args.as_slice())?;
-                let home = omp::profiles::agent_directory(dir, &mut command, native.or(profile))?;
-                omp::profile(
+                let protocols = native_protocols(&cfg, &groups)?;
+                let native = omp_profiles::native_profile(args.as_slice())?;
+                let home = omp_profiles::agent_directory(dir, &mut command, native.or(profile))?;
+                omp_catalog::profile(
                     &home,
-                    ids,
+                    &ids,
                     &root,
                     &protocols,
-                    omp::supports_session_header(&command),
+                    omp_catalog::installed_version(&command).as_ref(),
                 )?;
                 command
                     .env("CRABFORGE_GATEWAY_KEY", key)
@@ -396,27 +361,6 @@ impl Agent {
     }
 }
 
-/// Independent sessions sharing an agent profile see the same complete catalog.
-fn model_ids(cfg: &config::Config, groups: &config::ResolvedGroups) -> Vec<String> {
-    let mut ids = BTreeSet::new();
-    for p in &cfg.providers {
-        for m in &p.models {
-            ids.insert(m.clone());
-            ids.insert(format!("{}/{m}", p.id));
-        }
-    }
-    let mut group_ids = groups.listed_refs(cfg);
-    if cfg.group_display_order.is_empty() {
-        ids.extend(group_ids);
-        return ids.into_iter().collect();
-    }
-    for id in &group_ids {
-        ids.remove(id);
-    }
-    group_ids.extend(ids);
-    group_ids
-}
-
 fn write_catalog(path: &Path, catalog: &serde_json::Value) -> Result<()> {
     let folder = path.parent().context("missing catalog directory")?;
     fs::create_dir_all(folder)?;
@@ -459,31 +403,63 @@ fn edit_toml(
     Ok(())
 }
 
-fn pi_profile(dir: &Path, binary: &str, ids: Vec<String>, root: &str) -> Result<PathBuf> {
+fn pi_profile(
+    dir: &Path,
+    binary: &str,
+    ids: Vec<String>,
+    root: &str,
+    protocols: &BTreeMap<String, NativeProtocols>,
+) -> Result<PathBuf> {
     let home = std::path::absolute(dir.join("agents").join(binary))?;
-    let models: Vec<_> = ids
-        .into_iter()
-        .map(|id| serde_json::json!({"id":id}))
-        .collect();
+    fs::create_dir_all(&home)?;
+    let lock = fs::File::options()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(home.join("crabforge.lock"))?;
+    lock.lock()?;
     let key_ref = if binary == "prime-agent" {
         "CRABFORGE_GATEWAY_KEY"
     } else {
         "${CRABFORGE_GATEWAY_KEY}"
     };
     edit_json_object(&home.join("models.json"), "providers", |providers| {
-        let mut provider = serde_json::json!({"baseUrl":format!("{root}/v1"),"api":"openai-completions","apiKey":key_ref,"models":models});
+        let provider = providers
+            .entry("crabforge")
+            .or_insert_with(|| serde_json::json!({}))
+            .as_object_mut()
+            .context("invalid Pi gateway provider")?;
+        let api = provider
+            .entry("api")
+            .or_insert_with(|| "openai-completions".into())
+            .as_str()
+            .context("invalid Pi provider API")?;
+        let base = match api {
+            "openai-completions" | "openai-responses" => format!("{root}/v1"),
+            "anthropic-messages" => root.to_owned(),
+            "google-generative-ai" => format!("{root}/v1beta"),
+            other => anyhow::bail!("unsupported gateway protocol for {binary}: {other}"),
+        };
+        let mut models: Vec<_> = ids
+            .iter()
+            .map(|id| pi_model(id, root, api, protocols.get(id), binary))
+            .collect();
+        provider.insert("baseUrl".into(), base.into());
+        provider.insert("apiKey".into(), key_ref.into());
         if binary == "pi" {
-            let mut compat = providers
-                .get("crabforge")
-                .and_then(|p| p["compat"].as_object())
-                .cloned()
-                .unwrap_or_default();
+            let compat = provider
+                .entry("compat")
+                .or_insert_with(|| serde_json::json!({}))
+                .as_object_mut()
+                .context("invalid Pi provider compatibility settings")?;
             compat
                 .entry("sendSessionAffinityHeaders")
                 .or_insert(true.into());
-            provider["compat"] = compat.into();
         }
-        providers.insert("crabforge".into(), provider);
+        pi::keep_model_apis(&home, provider.get("models"), &mut models)?;
+        provider.insert("models".into(), serde_json::Value::Array(models));
+        Ok(())
     })?;
     Ok(home)
 }
@@ -491,7 +467,7 @@ fn pi_profile(dir: &Path, binary: &str, ids: Vec<String>, root: &str) -> Result<
 fn edit_json_object(
     path: &Path,
     field: &str,
-    edit: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>),
+    edit: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>) -> Result<()>,
 ) -> Result<()> {
     use serde_json::{Map, Value, json};
     let original = match fs::read(path) {
@@ -506,7 +482,7 @@ fn edit_json_object(
         .or_insert_with(|| json!({}))
         .as_object_mut()
         .with_context(|| format!("invalid {field} in {}", path.display()))?;
-    edit(entries);
+    edit(entries)?;
     if doc != original {
         write_catalog(path, &Value::Object(doc))?;
     }

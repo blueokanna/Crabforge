@@ -21,7 +21,7 @@ pub(super) fn show(config: &Config, id: &str) -> Result<()> {
     };
     let canonical = format!("group/{name}");
     let public = groups.public_refs.get(&canonical).unwrap_or(&canonical);
-    let members = groups.display_members(config,name);
+    let members = groups.display_members(config, name);
     let label = config.group_labels.get(name).unwrap_or(name);
     println!("{label}\t{public}");
     if config.disabled_groups.contains(name) {
@@ -45,11 +45,15 @@ pub(super) fn show(config: &Config, id: &str) -> Result<()> {
         "order"
     };
     println!("routing\t{routing}");
-    for rule in config.group_match.get(name).into_iter().flatten() { println!("match\t{}",rule.as_str()); }
+    for rule in config.group_match.get(name).into_iter().flatten() {
+        println!("match\t{}\t{}", rule.as_str(), config.pattern_hits(rule));
+    }
     if config.group_unlists.contains(name) {
         println!("listed members\tno");
     }
-    if let Some(pick) = pick && !members.is_empty() {
+    if let Some(pick) = pick
+        && !members.is_empty()
+    {
         let selected = members
             .iter()
             .find(|m| *m == pick)

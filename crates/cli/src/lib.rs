@@ -21,6 +21,11 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Manage configured upstream providers.
+    Provider {
+        #[command(subcommand)]
+        command: ProviderCommand,
+    },
     /// Manage named gateway route groups.
     #[command(visible_alias = "groups")]
     Group {
@@ -33,6 +38,51 @@ enum Command {
     Agents,
     /// List Oh My Pi profiles, the active profile and each agent directory.
     OmpProfiles,
+    /// Show role assignments and available models, set one role, or restore its previous value.
+    OmpRoles {
+        #[arg(long)]
+        profile: Option<String>,
+        #[arg(long, requires = "action")]
+        role: Option<String>,
+        #[arg(long, requires = "role", group = "action")]
+        model: Option<String>,
+        #[arg(long, requires = "role", group = "action")]
+        reset: bool,
+    },
+    /// Refresh the selected Oh My Pi profile's model catalog and enabledModels.
+    OmpSync {
+        #[arg(long)]
+        profile: Option<String>,
+    },
+    /// Show or select the gateway protocol for every chat model in an Oh My Pi profile.
+    OmpProtocol {
+        #[arg(long)]
+        profile: Option<String>,
+        #[arg(value_parser = ["auto", "openai-completions", "openai-responses", "anthropic-messages", "google-generative-ai"])]
+        protocol: Option<String>,
+    },
+    /// Read or set the thinking level for sessions and single-model roles.
+    OmpThinking {
+        #[arg(long)]
+        profile: Option<String>,
+        #[arg(long)]
+        session: Option<String>,
+        #[arg(long, requires = "level")]
+        role: Option<String>,
+        #[arg(long, requires = "role")]
+        level: Option<String>,
+    },
+    /// Read or change a profile's Oh My Pi advisor. Use inherit to reset a setting.
+    OmpAdvisor {
+        #[arg(long)]
+        profile: Option<String>,
+        #[arg(long, value_parser=["inherit", "off", "turn", "agent-end"])]
+        review: Option<String>,
+        #[arg(long, value_parser=["inherit", "off", "1", "3", "5", "strict"])]
+        wait: Option<String>,
+        #[arg(long, value_parser=["inherit", "nit", "concern", "blocker"])]
+        wake: Option<String>,
+    },
     /// Launch an installed client with a model from the running gateway.
     Agent {
         #[arg(value_enum)]
@@ -45,7 +95,12 @@ enum Command {
         args: Vec<std::ffi::OsString>,
     },
     /// List model IDs from a provider's live catalog or its built-in list.
-    Models { provider: String },
+    Models {
+        provider: String,
+        /// Replace this provider's configured models and free flags with the current upstream catalog.
+        #[arg(long)]
+        sync: bool,
+    },
     /// Show the active settings, or validate and import a JSON file.
     Config { file: Option<PathBuf> },
     /// Print the gateway API key for configuring an agent.
@@ -68,6 +123,32 @@ enum Command {
         #[arg(long)]
         login: bool,
     },
+}
+
+#[derive(Subcommand)]
+enum ProviderCommand {
+    /// Rename a provider and migrate its saved model references.
+    Rename { from: String, to: String },
+    /// Show or replace the ordered fallback models and groups. Use none to clear.
+    Fallback { id: String, targets: Vec<String> },
+    /// Set fallback-for-others=yes|no (also accepts on|off).
+    Set {
+        id: String,
+        #[arg(action = clap::ArgAction::Set, value_parser = parse_stand_in)]
+        setting: bool,
+    },
+}
+
+fn parse_stand_in(input: &str) -> Result<bool, String> {
+    match input
+        .strip_prefix("fallback-for-others=")
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("yes" | "on") => Ok(true),
+        Some("no" | "off") => Ok(false),
+        _ => Err("expected fallback-for-others=yes|no".into()),
+    }
 }
 
 #[derive(Subcommand)]
@@ -113,6 +194,11 @@ enum GroupCommand {
         #[arg(required = true)]
         ids: Vec<String>,
     },
+    /// Put these members first in a pattern group. Omit members to restore catalog order.
+    Place {
+        id: String,
+        members: Vec<String>,
+    },
     /// Switch the selected member of an existing manual group, including while serving.
     Pick {
         id: String,
@@ -132,7 +218,7 @@ enum GroupCommand {
     Restore {
         id: String,
     },
-    /// Create or update a group. Members are provider/model or group/name IDs in fallback order.
+    /// Create or update a group with explicit IDs, glob patterns, re: expressions or free: rules.
     Set {
         id: String,
         #[arg(required = true)]
@@ -183,6 +269,59 @@ pub async fn run() -> Result<()> {
         None => config::data_dir()?,
     };
     match args.command {
+        Command::Provider {
+            command: ProviderCommand::Rename { from, to },
+        } => {
+            config::rename_provider(&dir, &config::snapshot(&dir)?, &from, &to)?;
+        }
+        Command::Provider {
+            command: ProviderCommand::Fallback { id, targets },
+        } => {
+            let previous = config::snapshot(&dir)?;
+            let mut cfg = config::Config::parse(&previous)?;
+            let index = cfg
+                .providers
+                .iter()
+                .position(|p| p.id == id)
+                .context("unknown provider")?;
+            if !targets.is_empty() {
+                let resolved = cfg.resolved_groups();
+                let known: std::collections::HashSet<_> =
+                    cfg.agent_model_ids(&resolved).into_iter().collect();
+                let mut fallback = Vec::new();
+                if targets != ["none"] {
+                    for target in targets {
+                        let target = target.trim();
+                        ensure!(
+                            known.contains(target)
+                                || resolved.group_reference(&cfg, target).is_some()
+                                || cfg.renamed_model(target).is_some()
+                                || cfg.auto_stand_in(target).is_some(),
+                            "unknown fallback model or group {target:?}"
+                        );
+                        if !fallback.iter().any(|id| id == target) {
+                            fallback.push(target.to_owned());
+                        }
+                    }
+                }
+                cfg.providers[index].fallback = fallback;
+                config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+            }
+            println!("{}", serde_json::to_string(&cfg.providers[index].fallback)?);
+        }
+        Command::Provider {
+            command: ProviderCommand::Set { id, setting },
+        } => {
+            let previous = config::snapshot(&dir)?;
+            let mut cfg = config::Config::parse(&previous)?;
+            let provider = cfg
+                .providers
+                .iter_mut()
+                .find(|p| p.id == id)
+                .context("unknown provider")?;
+            provider.no_stand_in = !setting;
+            config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+        }
         Command::Group { command } => {
             let previous = config::snapshot(&dir)?;
             let mut cfg = config::Config::parse(&previous)?;
@@ -213,9 +352,11 @@ pub async fn run() -> Result<()> {
                     let name = cfg.group_name(&id);
                     let resolved = cfg.resolved_groups();
                     let effective = resolved.members.get(&name).context("unknown route group")?;
-                    ensure!(resolved.display_members(&cfg,&name).contains(&member),"unknown member {member} in group {name}");
-                    cfg
-                        .groups
+                    ensure!(
+                        resolved.display_members(&cfg, &name).contains(&member),
+                        "unknown member {member} in group {name}"
+                    );
+                    cfg.groups
                         .entry(name.clone())
                         .or_insert_with(|| effective.clone());
                     let off = cfg.group_off.entry(name).or_default();
@@ -256,7 +397,7 @@ pub async fn run() -> Result<()> {
                 GroupCommand::List => {
                     let groups = cfg.resolved_groups();
                     for name in groups.ordered_names(&cfg.group_display_order) {
-                        let members = groups.display_members(&cfg,name);
+                        let members = groups.display_members(&cfg, name);
                         let legacy = format!("group/{name}");
                         let id = groups.public_refs.get(&legacy).unwrap_or(&legacy);
                         let state = if cfg.disabled_groups.contains(name) {
@@ -280,8 +421,11 @@ pub async fn run() -> Result<()> {
                             })
                             .unwrap_or_default();
                         let strategy = if let Some(pick) = cfg.group_picks.get(name) {
-                            let selected =
-                                members.iter().find(|m| *m == pick).or(members.first()).map_or("",String::as_str);
+                            let selected = members
+                                .iter()
+                                .find(|m| *m == pick)
+                                .or(members.first())
+                                .map_or("", String::as_str);
                             println!(
                                 "{id}\tmanual\t{selected}\t{}{off}{state}",
                                 members.join(" ")
@@ -326,6 +470,26 @@ pub async fn run() -> Result<()> {
                     cfg.no_auto_groups = mode == "off";
                     config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
                 }
+                GroupCommand::Place { id, members } => {
+                    let id = cfg.group_name(&id);
+                    ensure!(
+                        cfg.group_match.contains_key(&id),
+                        "placement requires a pattern group"
+                    );
+                    cfg.group_placed.remove(&id);
+                    let current = cfg.expand_patterns(&id, &cfg.groups[&id]);
+                    let mut seen = std::collections::BTreeSet::new();
+                    for member in &members {
+                        ensure!(
+                            current.contains(member) && seen.insert(member),
+                            "unknown or repeated member {member}"
+                        );
+                    }
+                    if !members.is_empty() {
+                        cfg.group_placed.insert(id, members);
+                    }
+                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                }
                 GroupCommand::Restore { id } => {
                     let id = cfg.group_name(&id);
                     ensure!(cfg.hidden_auto_groups.remove(&id), "group is not hidden");
@@ -343,9 +507,12 @@ pub async fn run() -> Result<()> {
                     weight,
                 } => {
                     let id = cfg.group_name(&id);
-                    let (rules,named): (Vec<_>,Vec<_>) = members.into_iter().partition(|m| config::MemberPattern::is_pattern(m));
-                    cfg.set_member_patterns(&id,rules)?;
-                    let members = cfg.expand_patterns(&id,&named);
+                    let (rules, named): (Vec<_>, Vec<_>) = members
+                        .into_iter()
+                        .partition(|m| config::MemberPattern::is_pattern(m));
+                    cfg.set_member_patterns(&id, rules)?;
+                    cfg.reorder_named_members(&id, &named);
+                    let members = cfg.expand_patterns(&id, &named);
                     let previous_pick = cfg
                         .group_picks
                         .remove(&id)
@@ -360,7 +527,9 @@ pub async fn run() -> Result<()> {
                     } else if manual {
                         cfg.group_picks.insert(
                             id.clone(),
-                             previous_pick.or_else(||members.first().cloned()).unwrap_or_default(),
+                            previous_pick
+                                .or_else(|| members.first().cloned())
+                                .unwrap_or_default(),
                         );
                     } else if let Some(pick) = previous_pick {
                         cfg.group_last_picks.insert(id.clone(), pick);
@@ -440,11 +609,12 @@ pub async fn run() -> Result<()> {
             profile,
             args,
         } => client.launch(&dir, &model, profile.as_deref(), args)?,
-        Command::Models { provider } => {
-            let config = config::load(&dir)?;
-            let p = config
+        Command::Models { provider, sync } => {
+            let previous = config::snapshot(&dir)?;
+            let mut cfg = config::Config::parse(&previous)?;
+            let p = cfg
                 .providers
-                .iter()
+                .iter_mut()
                 .find(|p| p.id == provider)
                 .context("provider not found")?;
             let models = if let Some(site) = p.web_site {
@@ -455,7 +625,20 @@ pub async fn run() -> Result<()> {
                         "Using built-in model IDs. Availability depends on the upstream account."
                     );
                 }
-                crabforge_core::catalog::discover_provider(&dir, p).await?
+                if sync {
+                    let catalog =
+                        crabforge_core::catalog::discover_catalog(&p.endpoints, &p.key_env).await?;
+                    p.models.clone_from(&catalog.models);
+                    p.free_models = catalog.free_models;
+                    p.model_protocols = catalog.model_protocols;
+                    if let Some(mode) = catalog.learned_auth {
+                        p.endpoints.auth_header = mode;
+                    }
+                    config::save(&dir, &previous, &serde_json::to_string(&cfg)?)?;
+                    catalog.models
+                } else {
+                    crabforge_core::catalog::discover_provider(&dir, p).await?
+                }
             };
             for model in models {
                 println!("{model}");
@@ -468,6 +651,65 @@ pub async fn run() -> Result<()> {
             }
         }
         Command::OmpProfiles => agent::Agent::omp_profiles(&dir)?,
+        Command::OmpRoles {
+            profile,
+            role,
+            model,
+            ..
+        } => {
+            use crabforge_core::agents::{omp_profiles, omp_settings::roles};
+            let cfg = config::load(&dir)?;
+            let home = omp_profiles::settings_directory(&dir, profile.as_deref())?;
+            if let Some(name) = role {
+                roles::save_role(&home, &cfg, &name, model.as_deref(), None)?;
+            }
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&roles::read_roles(&home, &cfg)?)?
+            );
+        }
+        Command::OmpSync { profile } => println!(
+            "{}",
+            crabforge_core::agents::omp_catalog::sync(&dir, profile.as_deref())?
+        ),
+        Command::OmpProtocol { profile, protocol } => {
+            use crabforge_core::agents::omp_catalog;
+            if let Some(choice) = protocol {
+                omp_catalog::set_protocol(&dir, profile.as_deref(), &choice, None)?;
+            }
+            println!("{}", omp_catalog::read_protocol(&dir, profile.as_deref())?);
+        }
+        Command::OmpThinking {
+            profile,
+            session,
+            role,
+            level,
+        } => {
+            use crabforge_core::agents::{omp_profiles, omp_settings};
+            let home = omp_profiles::settings_directory(&dir, profile.as_deref())?;
+            let changes = omp_settings::ThinkingChanges {
+                session,
+                roles: role.zip(level).into_iter().collect(),
+            };
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&omp_settings::save_thinking(&home, None, &changes)?)?
+            );
+        }
+        Command::OmpAdvisor {
+            profile,
+            review,
+            wait,
+            wake,
+        } => {
+            use crabforge_core::agents::{omp_profiles, omp_settings};
+            let home = omp_profiles::settings_directory(&dir, profile.as_deref())?;
+            let changes = omp_settings::AdvisorChanges { review, wait, wake };
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&omp_settings::save_advisor(&home, None, &changes)?)?
+            );
+        }
         Command::Catalog => println!("{}", crabforge_core::catalog::presets()?),
         Command::Config { file: None } => println!("{}", config::snapshot(&dir)?),
         Command::Config { file: Some(path) } => {

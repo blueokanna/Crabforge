@@ -68,7 +68,7 @@ async fn native_endpoints_follow_models_aliases_and_enabled_group_members() -> R
             json!(["/v1/responses"]),
             json!("/v1/responses"),
         ),
-        ("group/mixed", Value::Null, Value::Null),
+        ("group/mixed", json!([]), Value::Null),
     ] {
         let detail: Value = serde_json::from_slice(
             &get(format!("{url}/{id}"))
@@ -233,6 +233,9 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
     let upstream_task = tokio::spawn(async move { axum::serve(listener, mock).await.unwrap() });
     let dir = tempdir()?;
     let providers = ["busy", "ready"].map(|id| Provider {
+        fallback: vec![],
+        no_stand_in: false,
+        model_protocols: Default::default(),
         free_models: Default::default(),
         catalog: String::new(),
         web_site: None,

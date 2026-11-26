@@ -117,17 +117,19 @@ async fn via_magpie(upstream: SocketAddr, prompt: &str) -> Result<Value> {
         .no_proxy()
         .timeout(Duration::from_secs(5))
         .build()?;
-    timeout(Duration::from_secs(30), async {
+    let mut last_probe = String::from("no response");
+    timeout(Duration::from_secs(90), async {
         loop {
             ensure!(magpie.try_wait()?.is_none(), "reference gateway exited");
-            if let Ok(r) = http
+            match http
                 .get(format!("http://{addr}/v1/models"))
                 .bearer_auth("magpie")
                 .send()
                 .await
-                && r.status().is_success()
             {
-                break;
+                Ok(r) if r.status().is_success() => break,
+                Ok(r) => last_probe = r.status().to_string(),
+                Err(e) => last_probe = format!("{e:#?}"),
             }
             sleep(Duration::from_millis(100)).await;
         }
@@ -136,7 +138,7 @@ async fn via_magpie(upstream: SocketAddr, prompt: &str) -> Result<Value> {
     .await
     .with_context(|| {
         format!(
-            "waiting for Magpie on {addr}: {}",
+            "waiting for Magpie on {addr} (last probe: {last_probe}): {}",
             fs::read_to_string(&log).unwrap_or_default()
         )
     })??;

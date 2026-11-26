@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'brand_icon.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
 
@@ -160,12 +161,19 @@ class _ProviderEditorState extends State<ProviderEditor> {
       discoveryMessage = null;
     });
     try {
-      final ids = await api.discoverModels(endpoints: bases, keyEnv: key);
+      final result = jsonDecode(
+        await api.discoverModelCatalog(endpoints: bases, keyEnv: key),
+      ) as JsonMap;
+      final ids = List<String>.from(result['models']);
       if (!mounted) return;
       if (bases != jsonEncode(endpoints) || key != keyEnv.text.trim()) {
         discoveryMessage = context.strings.changed;
       } else {
         models.text = {...linesOf(models.text), ...ids}.join('\n');
+        freeModels = Set<String>.from(result['free_models']);
+        modelProtocols = Map<String, dynamic>.from(
+          result['model_protocols'] ?? {},
+        );
         discoveryMessage = context.strings.modelsRead(ids.length);
       }
     } catch (e) {
@@ -176,9 +184,19 @@ class _ProviderEditorState extends State<ProviderEditor> {
   }
 
   late final id = TextEditingController(text: widget.provider?['id']);
+  late Set<String> freeModels = Set<String>.from(
+    widget.provider?['free_models'] ?? [],
+  );
+  late JsonMap modelProtocols = Map<String, dynamic>.from(
+    widget.provider?['model_protocols'] ?? {},
+  );
   late final models = TextEditingController(
     text: (widget.provider?['models'] as List?)?.join('\n'),
   );
+  late final fallback = TextEditingController(
+    text: (widget.provider?['fallback'] as List?)?.join('\n'),
+  );
+  late bool allowFallback = widget.provider?['no_stand_in'] != true;
   late final keyEnv = TextEditingController(text: widget.provider?['key_env']);
   late final catalog = TextEditingController(text: widget.provider?['catalog']);
   late final modelsUrl = TextEditingController(
@@ -194,6 +212,7 @@ class _ProviderEditorState extends State<ProviderEditor> {
     for (final c in [
       id,
       models,
+      fallback,
       keyEnv,
       catalog,
       modelsUrl,
@@ -212,6 +231,8 @@ class _ProviderEditorState extends State<ProviderEditor> {
 
   void select(JsonMap? p) {
     if (p == null) return;
+    freeModels.clear();
+    modelProtocols.clear();
     id.text = p['id'];
     catalog.text = p['catalog'] ?? '';
     modelsUrl.text = p['endpoints']['models_url'] ?? '';
@@ -266,7 +287,11 @@ class _ProviderEditorState extends State<ProviderEditor> {
                   menuHeight: 280,
                   dropdownMenuEntries: [
                     for (final p in widget.presets)
-                      DropdownMenuEntry(value: p, label: p['name']),
+                      DropdownMenuEntry(
+                        value: p,
+                        label: p['name'],
+                        leadingIcon: BrandIcon.provider(p['id']),
+                      ),
                   ],
                   onSelected: select,
                 ),
@@ -412,6 +437,18 @@ class _ProviderEditorState extends State<ProviderEditor> {
                 ),
               ),
               if (discoveryMessage != null) SelectableText(discoveryMessage!),
+              field(
+                context,
+                fallback,
+                context.strings.providerFallback,
+                hint: 'provider/model\ngroup/backup',
+                lines: 2,
+              ),
+              SwitchListTile(
+                title: Text(context.strings.allowProviderFallback),
+                value: allowFallback,
+                onChanged: (value) => setState(() => allowFallback = value),
+              ),
             ],
           ),
         ),
@@ -431,6 +468,18 @@ class _ProviderEditorState extends State<ProviderEditor> {
               if (catalog.text.trim().isNotEmpty)
                 'catalog': catalog.text.trim(),
               'models': linesOf(models.text),
+              if (fallback.text.trim().isNotEmpty)
+                'fallback': linesOf(fallback.text),
+              if (!allowFallback) 'no_stand_in': true,
+              if (modelProtocols.isNotEmpty)
+                'model_protocols': {
+                  for (final id in linesOf(models.text))
+                    if (modelProtocols.containsKey(id)) id: modelProtocols[id],
+                },
+              if (freeModels.isNotEmpty)
+                'free_models': linesOf(models.text)
+                    .where(freeModels.contains)
+                    .toList(),
               'endpoints': endpoints,
             });
           }
@@ -478,6 +527,8 @@ typedef GroupSelection = ({
   bool listMembers,
   List<String> off,
   List<String> members,
+  List<String> patterns,
+  List<String> placed,
   GroupStrategy strategy,
   Map<String, int> weights,
   String? pick,
@@ -487,6 +538,9 @@ class GroupEditor extends StatefulWidget {
   const GroupEditor({
     super.key,
     required this.choices,
+    required this.configuration,
+    required this.patterns,
+    required this.placed,
     required this.members,
     required this.strategy,
     required this.weights,
@@ -501,7 +555,8 @@ class GroupEditor extends StatefulWidget {
   final GroupStrategy strategy;
   final Map<String, int> weights;
   final String? pick;
-  final List<String> choices, members, off;
+  final String configuration;
+  final List<String> choices, members, off, patterns, placed;
   @override
   State<GroupEditor> createState() => _GroupEditorState();
 }
@@ -510,191 +565,273 @@ class _GroupEditorState extends State<GroupEditor> {
   late final name = TextEditingController(text: widget.name);
   late final note = TextEditingController(text: widget.note);
   late bool listMembers = widget.listMembers;
-  late final members = [...widget.members];
+  late final named = [...widget.members];
+  late final patterns = TextEditingController(text: widget.patterns.join('\n'));
+  late List<String> placed = [...widget.placed];
+  List<String> matched = [];
+  bool matching = false;
+  String? patternError;
+  int revision = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    patterns.addListener(preview);
+    if (widget.patterns.isNotEmpty) preview();
+  }
+
+  Future<void> preview() async {
+    final rules = linesOf(patterns.text);
+    final current = ++revision;
+    setState(() {
+      matching = rules.isNotEmpty;
+      patternError = null;
+      matched = [];
+    });
+    if (rules.isEmpty) return;
+    try {
+      final ids = await api.matchGroupModels(
+        configuration: widget.configuration,
+        patterns: rules,
+      );
+      if (mounted && current == revision) {
+        setState(() {
+          matched = ids;
+          matching = false;
+        });
+      }
+    } catch (e) {
+      if (mounted && current == revision) {
+        setState(() {
+          patternError = '$e';
+          matching = false;
+        });
+      }
+    }
+  }
+
   late final off = widget.off.toSet();
   late GroupStrategy strategy = widget.strategy;
   late final weights = {...widget.weights};
   late String? pick = widget.pick;
-  String? get selected => members.contains(pick) ? pick : members.firstOrNull;
   @override
   void dispose() {
     name.dispose();
     note.dispose();
+    patterns.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(
-      widget.name == null
-          ? context.strings.createGroup
-          : context.strings.editGroup,
-    ),
-    content: SizedBox(
-      width: 480,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            field(context, name, context.strings.groupId),
-            field(context, note, context.strings.groupNote),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.strings.listGroupModels),
-              value: listMembers,
-              onChanged: (value) => setState(() => listMembers = value),
-            ),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<GroupStrategy>(
-              decoration: InputDecoration(
-                labelText: context.strings.routingStrategy,
+  Widget build(BuildContext context) {
+    final memberSet = {...named, ...matched};
+    final remaining = {...memberSet};
+    final members = [...placed.where(remaining.remove), ...remaining];
+    final selected = memberSet.contains(pick) ? pick : members.firstOrNull;
+    final rules = linesOf(patterns.text);
+    return AlertDialog(
+      title: Text(
+        widget.name == null
+            ? context.strings.createGroup
+            : context.strings.editGroup,
+      ),
+      content: SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              field(context, name, context.strings.groupId),
+              field(context, note, context.strings.groupNote),
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: TextField(
+                  controller: patterns,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: context.strings.memberPatterns,
+                    hintText: 'free:workbuddy/*',
+                    errorText: patternError,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
               ),
-              initialValue: strategy,
-              items: [
-                DropdownMenuItem(
-                  value: GroupStrategy.order,
-                  child: Text(context.strings.listedOrder),
-                ),
-                DropdownMenuItem(
-                  value: GroupStrategy.rotate,
-                  child: Text(context.strings.rotateMembers),
-                ),
-                DropdownMenuItem(
-                  value: GroupStrategy.weight,
-                  child: Text(context.strings.weightedOrder),
-                ),
-                DropdownMenuItem(
-                  value: GroupStrategy.manual,
-                  child: Text(context.strings.manualRouting),
-                ),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => strategy = v);
-              },
-            ),
-            const SizedBox(height: 16),
-            for (final m in members)
-              ListTile(
-                key: ValueKey(m),
+              SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(m),
-                subtitle: strategy != GroupStrategy.weight
-                    ? null
-                    : TextFormField(
-                        initialValue: (weights[m] ?? 1).toString(),
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: context.strings.memberWeight,
-                        ),
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        validator: (text) => validWeight(text)
-                            ? null
-                            : context.strings.invalidWeight,
-                        onChanged: (text) => setState(
-                          () => weights[m] = validWeight(text)
-                              ? int.parse(text)
-                              : 0,
-                        ),
-                      ),
-                leading: strategy == GroupStrategy.manual
-                    ? IconButton(
-                        isSelected: selected == m,
-                        tooltip: context.strings.selectMember,
-                        icon: const Icon(Icons.radio_button_unchecked),
-                        selectedIcon: const Icon(Icons.radio_button_checked),
-                        onPressed: () => setState(() => pick = m),
-                      )
-                    : Text('${members.indexOf(m) + 1}'),
-                trailing: Wrap(
-                  children: [
-                    if (strategy != GroupStrategy.manual)
-                      IconButton(
-                        tooltip: off.contains(m)
-                            ? context.strings.enableMember
-                            : context.strings.disableMember,
-                        icon: Icon(
-                          off.contains(m)
-                              ? Icons.toggle_off_outlined
-                              : Icons.toggle_on,
-                        ),
-                        onPressed: () => setState(() {
-                          if (!off.remove(m)) off.add(m);
-                        }),
-                      ),
-                    IconButton(
-                      tooltip: context.strings.raisePriority,
-                      onPressed: members.first == m
-                          ? null
-                          : () {
-                              final i = members.indexOf(m);
-                              setState(() {
-                                members.removeAt(i);
-                                members.insert(i - 1, m);
-                              });
-                            },
-                      icon: const Icon(Icons.arrow_upward),
-                    ),
-                    IconButton(
-                      tooltip: context.strings.removeMember,
-                      onPressed: () => setState(() {
-                        members.remove(m);
-                        off.remove(m);
-                      }),
-                      icon: const Icon(Icons.remove_circle_outline),
-                    ),
-                  ],
-                ),
+                title: Text(context.strings.listGroupModels),
+                value: listMembers,
+                onChanged: (value) => setState(() => listMembers = value),
               ),
-            DropdownMenu<String>(
-              key: ValueKey(('choices', members.join('\n'))),
-              label: Text(context.strings.addCandidate),
-              expandedInsets: EdgeInsets.zero,
-              menuHeight: 220,
-              dropdownMenuEntries: [
-                for (final m in widget.choices.where(
-                  (m) => !members.contains(m),
-                ))
-                  DropdownMenuEntry(value: m, label: m),
-              ],
-              onSelected: (v) {
-                if (v != null) {
-                  setState(() => members.add(v));
-                }
-              },
-            ),
-          ],
+              const SizedBox(height: 14),
+              DropdownButtonFormField<GroupStrategy>(
+                decoration: InputDecoration(
+                  labelText: context.strings.routingStrategy,
+                ),
+                initialValue: strategy,
+                items: [
+                  DropdownMenuItem(
+                    value: GroupStrategy.order,
+                    child: Text(context.strings.listedOrder),
+                  ),
+                  DropdownMenuItem(
+                    value: GroupStrategy.rotate,
+                    child: Text(context.strings.rotateMembers),
+                  ),
+                  DropdownMenuItem(
+                    value: GroupStrategy.weight,
+                    child: Text(context.strings.weightedOrder),
+                  ),
+                  DropdownMenuItem(
+                    value: GroupStrategy.manual,
+                    child: Text(context.strings.manualRouting),
+                  ),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => strategy = v);
+                },
+              ),
+              const SizedBox(height: 16),
+              for (final (index, m) in members.indexed)
+                ListTile(
+                  key: ValueKey(m),
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(m),
+                  subtitle: strategy != GroupStrategy.weight
+                      ? null
+                      : TextFormField(
+                          initialValue: (weights[m] ?? 1).toString(),
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: context.strings.memberWeight,
+                          ),
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                          validator: (text) => validWeight(text)
+                              ? null
+                              : context.strings.invalidWeight,
+                          onChanged: (text) => setState(
+                            () => weights[m] = validWeight(text)
+                                ? int.parse(text)
+                                : 0,
+                          ),
+                        ),
+                  leading: strategy == GroupStrategy.manual
+                      ? IconButton(
+                          isSelected: selected == m,
+                          tooltip: context.strings.selectMember,
+                          icon: const Icon(Icons.radio_button_unchecked),
+                          selectedIcon: const Icon(Icons.radio_button_checked),
+                          onPressed: () => setState(() => pick = m),
+                        )
+                      : Text('${index + 1}'),
+                  trailing: Wrap(
+                    children: [
+                      if (strategy != GroupStrategy.manual)
+                        IconButton(
+                          tooltip: off.contains(m)
+                              ? context.strings.enableMember
+                              : context.strings.disableMember,
+                          icon: Icon(
+                            off.contains(m)
+                                ? Icons.toggle_off_outlined
+                                : Icons.toggle_on,
+                          ),
+                          onPressed: () => setState(() {
+                            if (!off.remove(m)) off.add(m);
+                          }),
+                        ),
+                      IconButton(
+                        tooltip: context.strings.raisePriority,
+                        onPressed: members.first == m
+                            ? null
+                            : () {
+                                setState(() {
+                                  final reordered = [...members]
+                                    ..removeAt(index)
+                                    ..insert(index - 1, m);
+                                  if (rules.isNotEmpty) {
+                                    placed = reordered;
+                                  } else {
+                                    named
+                                      ..clear()
+                                      ..addAll(reordered);
+                                    placed = [];
+                                  }
+                                });
+                              },
+                        icon: const Icon(Icons.arrow_upward),
+                      ),
+                      IconButton(
+                        tooltip: context.strings.removeMember,
+                        onPressed: !named.contains(m)
+                            ? null
+                            : () => setState(() {
+                                named.remove(m);
+                                off.remove(m);
+                              }),
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                    ],
+                  ),
+                ),
+              DropdownMenu<String>(
+                key: ValueKey(('choices', members.join('\n'))),
+                label: Text(context.strings.addCandidate),
+                expandedInsets: EdgeInsets.zero,
+                menuHeight: 220,
+                dropdownMenuEntries: [
+                  for (final m in widget.choices.where(
+                    (m) => !memberSet.contains(m),
+                  ))
+                    DropdownMenuEntry(value: m, label: m),
+                ],
+                onSelected: (v) {
+                  if (v != null) {
+                    setState(() => named.add(v));
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: Text(context.strings.cancel),
-      ),
-      FilledButton(
-        onPressed:
-            members.isEmpty ||
-                (strategy != GroupStrategy.manual &&
-                    members.every(off.contains)) ||
-                (strategy == GroupStrategy.weight &&
-                    members.any((m) => weights[m] == 0))
-            ? null
-            : () => Navigator.pop(context, (
-                name: name.text.trim(),
-                note: note.text,
-                listMembers: listMembers,
-                off: members.where(off.contains).toList(),
-                members: members,
-                strategy: strategy,
-                pick: strategy == GroupStrategy.manual || members.contains(pick)
-                    ? selected
-                    : null,
-                weights: {for (final m in members) m: weights[m] ?? 1},
-              )),
-        child: Text(context.strings.save),
-      ),
-    ],
-  );
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.strings.cancel),
+        ),
+        FilledButton(
+          onPressed:
+              matching ||
+                  patternError != null ||
+                  (members.isEmpty && rules.isEmpty) ||
+                  (rules.isEmpty &&
+                      strategy != GroupStrategy.manual &&
+                      members.every(off.contains)) ||
+                  (strategy == GroupStrategy.weight &&
+                      members.any((m) => weights[m] == 0))
+              ? null
+              : () => Navigator.pop<GroupSelection>(context, (
+                  name: name.text.trim(),
+                  note: note.text,
+                  listMembers: listMembers,
+                  off: members.where(off.contains).toList(),
+                  members: members.where(named.contains).toList(),
+                  patterns: rules,
+                  placed: rules.isEmpty ? [] : placed,
+                  strategy: strategy,
+                  pick:
+                      strategy == GroupStrategy.manual ||
+                          memberSet.contains(pick)
+                      ? selected
+                      : null,
+                  weights: {for (final m in members) m: weights[m] ?? 1},
+                )),
+          child: Text(context.strings.save),
+        ),
+      ],
+    );
+  }
 
   bool validWeight(String? text) {
     final value = int.tryParse(text ?? '');

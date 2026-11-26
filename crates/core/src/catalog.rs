@@ -3,7 +3,10 @@ use anyhow::{Context, Result, bail, ensure};
 use futures_util::StreamExt;
 use reqwest::{Client, Url};
 use serde::Deserialize;
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashSet},
+    time::Duration,
+};
 mod builtin;
 pub use builtin::fixed_models;
 
@@ -15,8 +18,6 @@ pub fn presets() -> Result<String> {
         if let Some(ids) = fixed_models(&bases) {
             entry["models"] = serde_json::json!(ids);
         }
-        // Nexus and ordinary Fireworks share a base URL. Only the explicitly
-        // selected Nexus plan should suggest its auto model.
         if entry["id"] == "fireworks-nexus" {
             entry["models"] = serde_json::json!(["auto"]);
         }
@@ -24,23 +25,66 @@ pub fn presets() -> Result<String> {
     Ok(serde_json::to_string_pretty(&entries)?)
 }
 
-#[derive(Deserialize)]
+#[derive(nextjson::NsonDeserialize)]
 struct List {
-    #[serde(default)]
+    #[njson(default)]
     data: Vec<Entry>,
-    #[serde(default)]
+    #[njson(default)]
     models: Vec<Entry>,
-    #[serde(rename = "nextPageToken")]
+    #[njson(rename = "nextPageToken")]
     next: Option<String>,
     has_more: Option<bool>,
     last_id: Option<String>,
 }
-#[derive(Deserialize)]
+#[derive(nextjson::NsonDeserialize)]
 struct Entry {
     id: Option<String>,
     name: Option<String>,
-    #[serde(rename = "supportedGenerationMethods")]
+    free: Option<nextjson::Value>,
+    native_endpoints: Option<nextjson::Value>,
+    magpie_prefers: Option<nextjson::Value>,
+    #[njson(rename = "supportedGenerationMethods")]
     methods: Option<Vec<String>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, Deserialize)]
+pub enum RelayEndpoint {
+    #[serde(rename = "/v1/chat/completions")]
+    Chat,
+    #[serde(rename = "/v1/responses")]
+    Responses,
+    #[serde(rename = "/v1/messages")]
+    Messages,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct RelayProtocols {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub native_endpoints: Option<BTreeSet<RelayEndpoint>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub magpie_prefers: Option<RelayEndpoint>,
+}
+
+impl Entry {
+    fn relay_protocols(&self) -> Option<RelayProtocols> {
+        let known = |value: &nextjson::Value| match value.as_str()? {
+            "/v1/chat/completions" => Some(RelayEndpoint::Chat),
+            "/v1/responses" => Some(RelayEndpoint::Responses),
+            "/v1/messages" => Some(RelayEndpoint::Messages),
+            _ => None,
+        };
+        let magpie_prefers = self.magpie_prefers.as_ref().and_then(known);
+        let native_endpoints = self
+            .native_endpoints
+            .as_ref()
+            .and_then(nextjson::Value::as_array)
+            .map(|values| values.iter().filter_map(known).collect());
+        (magpie_prefers.is_some() || native_endpoints.is_some()).then_some(RelayProtocols {
+            native_endpoints,
+            magpie_prefers,
+        })
+    }
 }
 
 struct Source {
@@ -161,31 +205,28 @@ fn console_catalogs_deduplicate_by_plan_and_allow_an_explicit_override() -> Resu
 /// Merge complete protocol catalogs in configuration order. A broken page
 /// invalidates that source only. Discovery never changes the saved model IDs.
 pub async fn discover(bases: &Endpoints, key_env: &str) -> Result<Vec<String>> {
-    discover_with_auth(bases, key_env, &Default::default()).await
+    Ok(discover_catalog(bases, key_env).await?.models)
 }
 
-pub async fn discover_provider(
-    dir: &std::path::Path,
-    provider: &crate::config::Provider,
-) -> Result<Vec<String>> {
+#[derive(Default, serde::Serialize)]
+pub struct ModelCatalog {
+    pub models: Vec<String>,
+    pub free_models: std::collections::BTreeSet<String>,
+    pub model_protocols: BTreeMap<String, RelayProtocols>,
+    #[serde(skip)]
+    pub learned_auth: Option<crate::config::AuthHeader>,
+}
+
+pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelCatalog> {
     let learned = std::sync::OnceLock::new();
-    let models = discover_with_auth(&provider.endpoints, &provider.key_env, &learned).await?;
-    if let Some(&mode) = learned.get() {
-        let _ = crate::config::remember_auth(dir, provider, mode);
-    }
-    Ok(models)
-}
-
-async fn discover_with_auth(
-    bases: &Endpoints,
-    key_env: &str,
-    learned: &std::sync::OnceLock<crate::config::AuthHeader>,
-) -> Result<Vec<String>> {
     if let Some(v) = &bases.vertex {
         v.validate(!key_env.is_empty(), &bases.models_url)?;
     }
     if let Some(ids) = fixed_models(bases) {
-        return Ok(ids.iter().map(|&id| id.to_owned()).collect());
+        return Ok(ModelCatalog {
+            models: ids.iter().map(|&id| id.to_owned()).collect(),
+            ..Default::default()
+        });
     }
     let sources = sources(bases)?;
     let key = if key_env.is_empty() {
@@ -203,7 +244,7 @@ async fn discover_with_auth(
         .redirect(reqwest::redirect::Policy::none())
         .build()?;
     let mut errors = Vec::new();
-    let mut ids = Vec::new();
+    let mut catalog = ModelCatalog::default();
     let mut seen = HashSet::new();
     let bearer = match (&bases.vertex, &key) {
         (Some(vertex), None) => Some(
@@ -221,11 +262,19 @@ async fn discover_with_auth(
             key_env,
             bearer.as_deref(),
             bases.auth_header,
-            learned,
+            &learned,
         )
         .await
         {
-            Ok(models) => ids.extend(models.into_iter().filter(|m| seen.insert(m.clone()))),
+            Ok(page) => {
+                catalog
+                    .models
+                    .extend(page.models.into_iter().filter(|m| seen.insert(m.clone())));
+                catalog.free_models.extend(page.free_models);
+                for (id, protocols) in page.model_protocols {
+                    catalog.model_protocols.entry(id).or_insert(protocols);
+                }
+            }
             Err(e) => {
                 let mut location = source.url;
                 location.set_query(None);
@@ -233,8 +282,20 @@ async fn discover_with_auth(
             }
         }
     }
-    ensure!(!ids.is_empty(), "{}", errors.join("; "));
-    Ok(ids)
+    ensure!(!catalog.models.is_empty(), "{}", errors.join("; "));
+    catalog.learned_auth = learned.into_inner();
+    Ok(catalog)
+}
+
+pub async fn discover_provider(
+    dir: &std::path::Path,
+    provider: &crate::config::Provider,
+) -> Result<Vec<String>> {
+    let catalog = discover_catalog(&provider.endpoints, &provider.key_env).await?;
+    if let Some(mode) = catalog.learned_auth {
+        let _ = crate::config::remember_auth(dir, provider, mode);
+    }
+    Ok(catalog.models)
 }
 
 async fn fetch(
@@ -245,7 +306,7 @@ async fn fetch(
     bearer: Option<&str>,
     mode: crate::config::AuthHeader,
     learned: &std::sync::OnceLock<crate::config::AuthHeader>,
-) -> Result<Vec<String>> {
+) -> Result<ModelCatalog> {
     let Source {
         ref url,
         api,
@@ -253,7 +314,7 @@ async fn fetch(
     } = *source;
     let mut budget = 4 * 1024 * 1024;
     let mut cursors = HashSet::new();
-    let mut ids = Vec::new();
+    let mut catalog = ModelCatalog::default();
     let mut page = url.clone();
     if deployments {
         page.set_path("/openai/deployments");
@@ -298,7 +359,8 @@ async fn fetch(
             budget -= chunk.len();
             bytes.extend_from_slice(&chunk);
         }
-        let entries: List = serde_json::from_slice(&bytes).context("invalid model catalog")?;
+        let entries: List = nextjson::from_slice(&bytes)
+            .map_err(|e| anyhow::anyhow!("invalid model catalog: {e}"))?;
         for entry in entries.data.into_iter().chain(entries.models) {
             if api == "gemini"
                 && entry.methods.as_ref().is_some_and(|methods| {
@@ -307,14 +369,23 @@ async fn fetch(
             {
                 continue;
             }
-            if let Some(id) = entry.id.or(entry.name) {
+            if let Some(id) = entry.id.as_deref().or(entry.name.as_deref()) {
                 let id = if api == "gemini" {
-                    id.strip_prefix("models/").unwrap_or(&id)
+                    id.strip_prefix("models/").unwrap_or(id)
                 } else {
-                    &id
+                    id
                 };
                 if !id.is_empty() {
-                    ids.push(id.to_owned());
+                    if entry.free.as_ref().and_then(nextjson::Value::as_bool) == Some(true) {
+                        catalog.free_models.insert(id.to_owned());
+                    }
+                    if let Some(hints) = entry.relay_protocols() {
+                        catalog
+                            .model_protocols
+                            .entry(id.to_owned())
+                            .or_insert(hints);
+                    }
+                    catalog.models.push(id.to_owned());
                 }
             }
         }
@@ -332,12 +403,12 @@ async fn fetch(
             None
         };
         let Some((key, value)) = cursor else {
-            if ids.is_empty() && deployments && page.path() == "/openai/deployments" {
+            if catalog.models.is_empty() && deployments && page.path() == "/openai/deployments" {
                 page = url.clone();
                 continue;
             }
-            ensure!(!ids.is_empty(), "upstream returned no model IDs");
-            return Ok(ids);
+            ensure!(!catalog.models.is_empty(), "upstream returned no model IDs");
+            return Ok(catalog);
         };
         ensure!(
             !value.is_empty() && cursors.insert(value.clone()),

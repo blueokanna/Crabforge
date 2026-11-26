@@ -1,5 +1,37 @@
 # Crabforge 0.1.0 验收记录
 
+### Windows x64 回退链、中继与品牌图标版（`cf-relay-a78f732cf2`）
+
+从 269 个构建输入生成的清单 SHA-256 为 `A78F732CF27C47E85C34DB4FB620F32D0DA1A0EF39D01F14DF4EBBE40FA70CE9`。从该目录离线构建了双 CLI 和 Flutter Windows Release。`dist/cf-relay-a78f732cf2/crabforge-0.1.0-windows-x64.zip` 的 SHA-256 为 `4D510F0CE7FFB42292CA546BF5F1B599207328654073B10448AC6276E7CEA431`。压缩包内有 140 个运行文件和一份逐文件 `SHA256SUMS`。已核对 119 个品牌资产及 7 个应用图标、字体和许可证文件，解包后的桌面程序通过三次可见窗口启动采样。
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie 0.1.4744 |
+| --- | ---: | ---: |
+| 空目录网关 | 7.77 / 1.45 | 57.98 / 91.76 |
+| Chat 网关 | 8.79 / 1.59 | 68.14 / 97.25 |
+| 桌面 | 151.27 / 263.79 | 此轮没有可见窗口 |
+
+网关每轮启动独立配置，交替运行同一工作负载。Chat 夹具使用同一上游模型；Crabforge 的公开目录含两个 ID，Magpie 含一个。[逐轮内存、IPv6 请求和发布文件哈希](validation/cf-relay-a78f732cf2/)
+
+首轮含 ignored 用例的全量串行 Rust 回归为 93 项通过、2 项失败。Vibe 夹具的 Python 解释器路径失效，Ollama SDK 虚拟环境缺少 `python.exe`。恢复两处测试环境后，在同一冻结目录单独重跑这两个用例，均通过。随后整套串行重跑一次，**95 项全部通过，0 跳过**。冻结源码通过 `cargo fmt --check`、全工作区全目标 Clippy、Flutter 静态分析和两个组件测试。
+
+- **网络。** 发布版 CLI 在两个独立进程间，通过 IPv6 回环地址和本机网卡分配的全局单播 IPv6 地址分别建立直连 QUIC 隧道。两次读取 `/v1/models` 均验证错误密钥 401、正确密钥 200 和目录内容。另在 `::1` 上以三个 libp2p 节点验证中继预约、两个指定 Peer ID 的 `CircuitReqAccepted` 和鉴权 HTTP 请求。Kubo 0.43.1 双向直连也已通过。以上均为同机试验。跨机公网 IPv6、不同 NAT 后的打洞和直连失败后的自动回退仍待实测。
+- **桌面。** Windows 控制台实测过滤模型、切换列表和网格、编辑路由组、通过系统剪贴板读回分享文本，并在独立进程冷启动后读回 `no_stand_in`。Oh My Pi 的首轮测试缺少 `PI_CONFIG_DIR`，未能找到夹具的 `work` profile。将它指向独立配置并用 `omp --profile work config path` 核对后，保存和冷启动两轮均通过。组件测试覆盖窄、宽布局和品牌 SVG 解码。
+- **依赖。** NextJSON 已用于编译期模型目录、运行时上游目录响应与请求级手选快照，三个生成的目录索引均与迁移前逐字节相同。Courierust 已用于 ChromeDriver 通信，两个真实 Chrome 本地用例通过。运行时仍直接依赖 Serde、Hyper 和 Reqwest。锁定的 libp2p 0.57.1 通过 `multiaddr` 0.19.1 无条件引入 Serde，零传递依赖目标尚未达成。
+
+### Windows x64 供应商改名版（`cf-provider-6e4abd2e07`）
+
+146 项冻结源码清单的 SHA-256 为 `6E4ABD2E07494110CB887F24701AEBEEE3F2235FF866FDADCC4C7DB48F6BA1BF`。首轮全量 Rust 回归 90 项通过、2 项失败；在同一源码上单独重跑 Crush 对话和 DevEco 配置两项均通过。DevEco 仅验证模型、鉴权端点和配置清理。桌面控制台和 Oh My Pi 设置均完成独立进程冷启动。
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie 0.1.4744 |
+| --- | ---: | ---: |
+| 空目录网关 | 7.62 / 1.35 | 58.21 / 92.00 |
+| Chat 网关 | 8.63 / 1.48 | 70.12 / 98.64 |
+| 桌面 | 149.82 / 258.85 | 此轮没有可见窗口 |
+
+五项发布文件的 SHA-256 均已复核。复核时本地发布副本缺少 Flutter 运行库和 ICU 数据，已从同工具链的 Release 目录补齐 `flutter_windows.dll` 和 `data/icudtl.dat`。这两个运行文件未列在原五项哈希内。[改名版原始 CSV 和五项哈希](validation/cf-provider-6e4abd2e07/)
+
+### 早期协议与兼容性记录
+
 本次在 Windows 10 x64（19045）、Intel Core i7-11850H、31.2 GiB 可见内存上使用 Rust 1.99.1、Flutter 3.47.9、Dart 3.13.7 及 flutter_rust_bridge 2.13.0，参考程序为 Magpie 0.1.4744。
 
 成员目录开关版运行 `cargo test --locked --offline --workspace -- --include-ignored --test-threads=1` 通过 61 项测试，覆盖 16 种官方 Agent 客户端的对话、DevEco 生效配置、93 个专属地址、自动与手动分组、真实模型、Kubo、浏览器、Vertex 本地上游及跨网关联调。Clippy 的 `--workspace --all-targets -- -D warnings` 检查通过。[构建与验证](../CRABFORGE.md#构建与验证)
@@ -296,3 +328,117 @@ Windows 桌面集成通过会话响应头、路由页会话译文、停用组和
 | crabforge.exe | `D0E1A6AA74767A58C0174ECE292779B73E5058CA49802BAA371B3FD2AFD9A81D` |
 | crabforge_bridge.dll | `9FCE55DAE8A83E511DCB4C29FA558C7CFEEB8C5C9C441BE0A8E10359E2DE25E5` |
 | data/app.so | `EA3D502B93B0282809D211398656B0EF2F588EED5399255CD96B86202A3AC3BA` |
+
+### 基础路由组分享版（`cf-share-301f0a9281`）
+
+Windows 集成测试通过 Flutter 复制按钮、模拟平台剪贴板、`EditableTextState.pasteText` 和 Rust 桥接完成分享与导入。测试读取磁盘配置，确认 `renamed-2` 的成员和权重。独立进程用同一配置冷启动后再次核对成功。系统剪贴板与动态规则组属于后续验收范围。此版 7 个字体、许可证及图片资源的 SHA-256 与源码一致。
+
+第二轮完整 Rust 回归通过 68/69 项，21 项 Agent 测试全部通过。唯一失败的测试在等待 Magpie 启动时超时。此后单跑两项 Magpie 联调，真实模型返回 6 个 token 和 `The sky is cloudy.`，另一项本地夹具在等待 Magpie 启动时超时。
+
+| 负载 | Crabforge 工作集 / 私有字节 MiB | Magpie 工作集 / 私有字节 MiB |
+| --- | ---: | ---: |
+| Catalog，三轮中位数 | 7.48 / 1.31 | 58.46 / 92.04 |
+| Chat，三轮中位数 | 8.47 / 1.41 | 70.67 / 99.18 |
+| 桌面，三轮中位数 | 148.17 / 255.22 | 主进程 183.59 / 253.26，含 WebView2 925.80 / 1639.41 |
+
+网关每轮使用隔离配置并交替启动。Chat 负载使用同一个本地上游模型，Crabforge 目录同时提供裸模型名和完整名称。桌面每轮重开 Crabforge，Magpie 复用已有窗口。逐轮数据在快照的 `release/catalog.csv`、`chat.csv`、`desktop.csv`。
+
+| 发布文件 | SHA-256 |
+| --- | --- |
+| carbforge-cli.exe | `E409F1502CF248A62F8D4EF824428E2F047AC9DFA88781DB84CEE9E1CC8E9760` |
+| crabforge-cli.exe | `FCB3931A67B5E873A0AAC3D19C5F82B3731DAB7E97F904C67442D86D10BF8FB0` |
+| desktop/crabforge.exe | `21689707978C0F074CA19FC462198D75280AC8B2F8B30DBEFDE573BC9C344B8F` |
+| desktop/crabforge_bridge.dll | `D11A864AB81F5301726D10A32C66806A194BC060E5C52947082AA524AFA88DB8` |
+| desktop/data/app.so | `9C753A624B801CA0CE41E9841C5DA05798BF35628768E40AD358E658D86D375F` |
+| magpie.exe | `340C0F3349C684143926AE9CEDC7A803662428849A10283976B6E07E40A6E0BC` |
+
+### 动态路由组（`cf-pattern-01544a88b8`）
+
+完整 Rust 回归通过 70/71 项。动态组匹配和分享、免费模型目录同步、两项 Magpie 联调、Chrome、Kubo 和本地模型生成均通过。OmO 在这次回归和随后一次单独运行中均超时。冻结后工作区的真实客户端专项中，OmO 在四种上游协议下均收到回复。两个版本及运行环境不同，超时原因尚未确定。
+
+以下为该快照双 CLI 的三轮中位数。逐轮数据位于 `%LOCALAPPDATA%\Temp\opencode\cf-pattern-01544a88b8\release` 的 `catalog-r2.csv` 和 `chat-r2.csv`。首次采样在第三轮等待 Magpie 启动时超时。将就绪等待上限调整到 90 秒后，从第一轮重新采集，两项负载均完成。
+
+| 负载 | Crabforge 工作集 / 私有字节 MiB | Magpie 工作集 / 私有字节 MiB |
+| --- | ---: | ---: |
+| Catalog | 7.48 / 1.29 | 61.26 / 94.96 |
+| Chat | 8.49 / 1.43 | 72.68 / 101.06 |
+
+| 采样文件 | SHA-256 |
+| --- | --- |
+| carbforge-cli.exe | `D873E8DE7D1EBE221907DC728DBEA6FCA4DCF8B6D7057EBBCBBC644C96A27E45` |
+| crabforge-cli.exe | `CB091E5A88803E70F1730E3335AA7D49483B6787058EEE6E8BF6484C293664A3` |
+| magpie.exe | `340C0F3349C684143926AE9CEDC7A803662428849A10283976B6E07E40A6E0BC` |
+
+最初的 Windows 集成测试在保存无匹配规则的组时触发对话框返回类型断言。修复后的工作区通过 Windows 集成及同配置独立进程冷启动。重启后 `renamed-2` 保有显式成员和权重，`renamed-copy` 保有动态规则，`account-model` 保有模型专属的原生端点和首选协议。
+
+### 两级中转与 Pi 模型协议（`cf-relay-ff0529bdd8`）
+
+全工作区串行回归含忽略项，共通过 71/74 项。Pi 的模型协议覆盖、四协议对话与流式工具回合、两级中转的 `previous_response_id` 透传、动态路由组、真实 Chrome、Kubo 以及经 Magpie 访问本地模型全部通过。三个失败项分别为 Copilot CLI 在 90 秒内未退出，Crush 并发请求中的 `local/m` 只输出换行，OmO 在 Chat 对话中超时。
+
+| 负载 | Crabforge 工作集 / 私有字节 MiB（三轮中位数） | Magpie 工作集 / 私有字节 MiB（三轮中位数） |
+| --- | ---: | ---: |
+| Catalog | 7.52 / 1.29 | 57.14 / 90.34 |
+| Chat | 8.51 / 1.46 | 69.30 / 97.75 |
+| 桌面 | 148.40 / 256.21 | 主进程 172.17 / 239.15，含 WebView2 的 8 个进程 966.68 / 1733.05 |
+
+采样和发布目录为 `%LOCALAPPDATA%\Temp\opencode\cf-relay-ff0529bdd8\release`。`carbforge-cli.exe` 的 SHA-256 为 `A85407EF5AE95B9E0265A71261050D5D2D194604D9E0648166AE71D6CA387D63`，`crabforge-cli.exe` 为 `0F92B4B991F861AB32A1C586F0CBE1AB39A26EB7B8236D91C82304D8971D7685`。
+
+Flutter 分析和 Windows Release 构建通过。发布包的图像、五份字体及字体许可证共七个文件，逐个与快照源文件比较，SHA-256 均相同。桌面采样沿用已打开的 Magpie 窗口，逐轮数据见 `desktop.csv`。
+
+| 桌面发布文件 | SHA-256 |
+| --- | --- |
+| `desktop/crabforge.exe` | `611DC16A6C009910DA3D4B96B9A34A78B39D4D621AFE3B7108AD26A2F1A48A74` |
+| `desktop/crabforge_bridge.dll` | `374657A85836627DA3A67A637329FED7BD452E65762B30BF3F94CBD314553ED1` |
+| `desktop/data/app.so` | `97792CBAAB72E0D02912EFDEF2E7E2AF873971217757E66F4872B9EDCB190AD0` |
+
+同一冻结测试程序单独复测 Copilot CLI 和 Crush 均通过。另用相同 PATH、隔离配置、同一 Chat 回复分别运行两个发布版的 OmO 5.1.83。动态组版在 Bun 下于网关启动后约 90.6 秒才向上游发出请求，上游在 22 毫秒内完成回复，客户端在期限内没有输出。该版在 Node 下 85.7 秒退出。两级中转版在 Bun 和 Node 下分别于 48.4 秒和 71.1 秒输出回复，均正常退出。数据见 `omo-runtime.ndjson`。这四次运行只定位了该次超时消耗时间的阶段。
+
+### Oh My Pi 顾问设置（中转快照之后）
+
+两项 Rust 专项验证了空文件、纯注释配置、已有 `config.yaml`、个人设置和注释保留、旧审阅时机保留、并发编辑冲突及无效输入原样保盘。在命名 profile 下，Oh My Pi 19.2.1 的 `config list --scope global --json` 三次读回 Crabforge CLI 写入的设置，确认启用、关闭和恢复默认三个阶段均生效，等待阈值 `"1"` 为字符串。
+
+Windows 实际界面选择 `work`、保存、重开并检测并发写入的专项通过。工作区两项中转专项也已通过，覆盖首选原生协议没有配置入口时的实际 Responses 调用，以及目录刷新后删除旧模型协议记录。
+
+在新增思考级别后，Windows 界面保存了命名 profile 的会话 `auto` 与 `slow` 角色的 `local/qwen3:8b:high`。独立进程重新启动后，界面读回这两项，以及 `agent-end` 审阅时机和 `blocker` 恢复级别。Oh My Pi 19.2.1 的真实 CLI 另读回 `auto`、角色 `off` 及清除两项覆盖后的配置。原来的双模型回退列表和 `:8b` 标签均保留。该工作区阶段的 Flutter 分析和全工作区 Clippy 通过。
+
+### Oh My Pi 顾问、思考级别与目录同步（`cf-omp-50cc8fdfb2`）
+
+冻结版含忽略项的全工作区串行 Rust 回归 **82/82 通过**，其中 25 项 Agent 用例全部通过。Oh My Pi 19.2.1 的 `config list` 在刷新模型目录后两次读回 `enabledModels`，验证模型消失后移除条目、恢复供应后带回原有 `:high`。Copilot、并发 Crush 及四协议 OmO 在本轮均成功。OmO 冷启动测试的时限为 150 秒。冻结版 Flutter 静态分析通过。工作区 Windows 测试在等待按钮重新可点击后完成了命名 profile 的目录同步与独立冷启动。
+
+双 CLI、桌面包及三份原始 CSV 位于 `%LOCALAPPDATA%\Temp\opencode\cf-omp-50cc8fdfb2\release`。随包的 7 个资源与源文件字节一致，五个字体覆盖九语译文使用的 831 种非空白字符，EXE 中 10 张图标的图像内容与 ICO 一致。
+
+| 三轮中位数 | Crabforge 工作集 / 私有字节 MiB | Magpie 工作集 / 私有字节 MiB |
+| --- | ---: | ---: |
+| 空目录网关 | 7.58 / 1.36 | 57.66 / 91.43 |
+| 本地 Chat 网关 | 8.57 / 1.47 | 67.50 / 96.58 |
+| 桌面 | 149.05 / 259.46 | 主进程 177.71 / 250.44，含 WebView2 的 8 个进程 1051.63 / 1777.57 |
+
+网关交替启动并使用隔离配置。Chat 的同一上游模型在 Crabforge 目录有裸名和供应商限定名。桌面每轮重启 Crabforge，Magpie 复用同一窗口，桌面数据只反映本次采样状态。
+
+| 发布文件 | SHA-256 |
+| --- | --- |
+| `carbforge-cli.exe` | `44B6FD77DCD70F50E8CD69ED267269B15C925946377392945A64E2F2EFEFED04` |
+| `crabforge-cli.exe` | `5CA4EB6AA13FB6AE36F9A4C35C6356B19EC3EA91D2B2C8A8A77AFE8585AA7263` |
+| `desktop/crabforge.exe` | `279FD4A6E2F36F8862AFFA422E1664D8C8C093DF85EF6098765C0D3D1D10FB11` |
+| `desktop/crabforge_bridge.dll` | `382A69BB9553F351CC1D7CF904AADB375D2215D826B105A30CA33C694AD35AE5` |
+| `desktop/data/app.so` | `4FC1728D7EEFB86DD6D427C1CD4FBC236241577C8253DFF12BD9024B696EF51E` |
+
+### Oh My Pi 角色和原生目录（`cf-roles-f876457a8a`）
+
+冻结源码清单的 142 个文件逐一通过 SHA-256 校验。含忽略项的串行 Rust 回归 **87/87 通过**，其中 Agent 26/26。Oh My Pi 19.2.1 在命名 profile 中按保存的默认角色获得本地上游回复，重置后读回原 YAML 回退列表。测试还检查了已安装客户端的 `openai-codex` 候选和新旧模型目录格式。冻结版 Flutter 静态分析通过。Windows x64 Release 的 7 个资源与源文件逐字节一致，五个打包字体覆盖九语译文的 840 种非空白字符，EXE 中的 10 张图标与 ICO 一致。
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.64 / 1.38 | 60.50 / 95.24 |
+| 本地 Chat 网关 | 8.61 / 1.48 | 70.77 / 100.65 |
+| 桌面 | 147.14 / 255.41 | 主进程 174.65 / 241.99，含 WebView2 的 8 个进程 1049.15 / 1747.36 |
+
+网关使用隔离配置、相同请求和交替启动顺序。桌面每轮重启 Crabforge，Magpie 复用已有窗口。双 CLI、桌面包、哈希清单和三份采样 CSV 位于 `%LOCALAPPDATA%\Temp\opencode\cf-roles-f876457a8a\release`。
+
+| 发布文件 | SHA-256 |
+| --- | --- |
+| `carbforge-cli.exe` | `BD5990A947E89BA5A29A62E6050FA6F8CAF4A97D84C3A917F6FAD85C00C078E1` |
+| `crabforge-cli.exe` | `EAD1CE343EF5DA758322CD9FCF1E556AE0B33E08CCDCA169CB07BB716C2F9F88` |
+| `desktop/crabforge.exe` | `2E60413D39ABE6BA542D425E3A40BBA32F81D3835E03B07B9A9AA367ED117BBE` |
+| `desktop/crabforge_bridge.dll` | `8451920A5DDA337AAB84CCF39BF53CA61E20B3ED17A1D6E0878950C2939E0989` |
+| `desktop/data/app.so` | `59A6F5871BF610E2EB2741DB70AA975E7F3078CB7664D77C0BF5B8994734D871` |

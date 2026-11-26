@@ -10,6 +10,96 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get listView => 'List view';
+
+  @override
+  String get gridView => 'Grid view';
+
+  @override
+  String get gatewayProtocol => 'Gateway protocol';
+
+  @override
+  String get nativeModelProtocol => 'Use each model’s native protocol';
+
+  @override
+  String get roleModels => 'Role models';
+
+  @override
+  String get roleModelId => 'Model ID';
+
+  @override
+  String get resetRole => 'Reset role';
+
+  @override
+  String get syncModelCatalog => 'Sync model catalog';
+
+  @override
+  String get thinkingLevels => 'Thinking levels';
+
+  @override
+  String get sessionThinking => 'Session thinking level';
+
+  @override
+  String get thinkingAuto => 'Automatic';
+
+  @override
+  String get thinkingMinimal => 'Minimal';
+
+  @override
+  String get thinkingLow => 'Low';
+
+  @override
+  String get thinkingMedium => 'Medium';
+
+  @override
+  String get thinkingHigh => 'High';
+
+  @override
+  String get thinkingExtraHigh => 'Extra high';
+
+  @override
+  String get thinkingMax => 'Maximum';
+
+  @override
+  String get ompProfile => 'Oh My Pi profile';
+
+  @override
+  String get advisorSettings => 'Advisor settings';
+
+  @override
+  String get advisorReview => 'When to review';
+
+  @override
+  String get advisorWait => 'Pending reviews before waiting';
+
+  @override
+  String get advisorWake => 'Minimum note severity to resume';
+
+  @override
+  String get inheritSetting => 'Use profile default';
+
+  @override
+  String get everyTurn => 'Every turn';
+
+  @override
+  String get runEnd => 'At the end of the run';
+
+  @override
+  String get allReviews => 'Wait for all reviews';
+
+  @override
+  String get minorNote => 'Minor issue';
+
+  @override
+  String get concernNote => 'Concern';
+
+  @override
+  String get blockerNote => 'Blocker';
+
+  @override
+  String get memberPatterns => 'Model patterns, one per line';
+
+  @override
   String get shareGroup => 'Copy group to share';
 
   @override
@@ -332,6 +422,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providerId => 'Provider ID';
 
   @override
+  String get renameProvider => 'Rename provider';
+
+  @override
   String get keyEnv => 'API key environment variable';
 
   @override
@@ -342,6 +435,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelIds => 'Upstream model IDs, one per line';
+
+  @override
+  String get providerFallback =>
+      'Fallback models or groups, in order, one per line';
+
+  @override
+  String get allowProviderFallback =>
+      'Accept fallback requests from other providers';
 
   @override
   String protocolBase(String value) {

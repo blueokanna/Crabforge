@@ -10,6 +10,96 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get listView => 'Vista de lista';
+
+  @override
+  String get gridView => 'Vista de cuadrícula';
+
+  @override
+  String get gatewayProtocol => 'Protocolo de la pasarela';
+
+  @override
+  String get nativeModelProtocol => 'Usar el protocolo nativo de cada modelo';
+
+  @override
+  String get roleModels => 'Modelos por rol';
+
+  @override
+  String get roleModelId => 'ID del modelo';
+
+  @override
+  String get resetRole => 'Restablecer rol';
+
+  @override
+  String get syncModelCatalog => 'Sincronizar catálogo de modelos';
+
+  @override
+  String get thinkingLevels => 'Niveles de razonamiento';
+
+  @override
+  String get sessionThinking => 'Nivel de razonamiento de la sesión';
+
+  @override
+  String get thinkingAuto => 'Automático';
+
+  @override
+  String get thinkingMinimal => 'Mínimo';
+
+  @override
+  String get thinkingLow => 'Bajo';
+
+  @override
+  String get thinkingMedium => 'Medio';
+
+  @override
+  String get thinkingHigh => 'Alto';
+
+  @override
+  String get thinkingExtraHigh => 'Muy alto';
+
+  @override
+  String get thinkingMax => 'Máximo';
+
+  @override
+  String get ompProfile => 'Perfil de Oh My Pi';
+
+  @override
+  String get advisorSettings => 'Ajustes del asesor';
+
+  @override
+  String get advisorReview => 'Cuándo revisar';
+
+  @override
+  String get advisorWait => 'Revisiones pendientes antes de esperar';
+
+  @override
+  String get advisorWake => 'Gravedad mínima para reanudar';
+
+  @override
+  String get inheritSetting => 'Usar el valor predeterminado';
+
+  @override
+  String get everyTurn => 'En cada turno';
+
+  @override
+  String get runEnd => 'Al finalizar la ejecución';
+
+  @override
+  String get allReviews => 'Esperar todas las revisiones';
+
+  @override
+  String get minorNote => 'Detalle menor';
+
+  @override
+  String get concernNote => 'Motivo de preocupación';
+
+  @override
+  String get blockerNote => 'Problema bloqueante';
+
+  @override
+  String get memberPatterns => 'Patrones de modelos, uno por línea';
+
+  @override
   String get shareGroup => 'Copiar grupo para compartir';
 
   @override
@@ -337,6 +427,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get providerId => 'ID del proveedor';
 
   @override
+  String get renameProvider => 'Cambiar el nombre del proveedor';
+
+  @override
   String get keyEnv => 'Variable de entorno de la clave API';
 
   @override
@@ -347,6 +440,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get modelIds => 'ID de modelos de origen, uno por línea';
+
+  @override
+  String get providerFallback =>
+      'Modelos o grupos de respaldo, en orden, uno por línea';
+
+  @override
+  String get allowProviderFallback =>
+      'Aceptar solicitudes de respaldo de otros proveedores';
 
   @override
   String protocolBase(String value) {

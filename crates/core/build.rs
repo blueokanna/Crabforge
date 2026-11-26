@@ -1,10 +1,10 @@
 use flate2::read::GzDecoder;
-use serde::Deserialize;
+use nextjson::NsonDeserialize;
 use std::{
     collections::BTreeMap,
     env,
     fs::File,
-    io::{BufWriter, Write},
+    io::{BufWriter, Read, Write},
     path::PathBuf,
 };
 
@@ -12,17 +12,17 @@ use std::{
 mod model_name;
 use model_name::same_model;
 
-#[derive(Deserialize)]
+#[derive(NsonDeserialize)]
 struct Catalog {
     models: BTreeMap<String, Model>,
 }
-#[derive(Deserialize)]
+#[derive(NsonDeserialize)]
 struct Model {
     canonical_model_id: Option<String>,
     provider: Option<ModelProvider>,
 }
 
-#[derive(Deserialize)]
+#[derive(NsonDeserialize)]
 struct ModelProvider {
     npm: Option<String>,
 }
@@ -35,8 +35,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     const SOURCE: &str = "data/models.dev.json.gz";
     println!("cargo:rerun-if-changed={SOURCE}");
     println!("cargo:rerun-if-changed=src/model_name.rs");
+    let mut bytes = Vec::new();
+    GzDecoder::new(File::open(SOURCE)?).read_to_end(&mut bytes)?;
     let catalogs: BTreeMap<String, Catalog> =
-        serde_json::from_reader(GzDecoder::new(File::open(SOURCE)?))?;
+        nextjson::from_slice(&bytes).map_err(|e| format!("{SOURCE}: {e}"))?;
     let mut votes = BTreeMap::new();
     let mut canonical = BTreeMap::new();
     for catalog in catalogs.values() {
@@ -117,6 +119,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     writeln!(out, "];")?;
     out.flush()?;
+    let path = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("provider_model_ids.rs");
+    let mut ids = BufWriter::new(File::create(path)?);
+    writeln!(ids, "const PROVIDERS: &[(&str, &str)] = &[")?;
+    for (provider, catalog) in &catalogs {
+        let models = catalog
+            .models
+            .keys()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join("\n");
+        writeln!(ids, "({provider:?}, {models:?}),")?;
+    }
+    writeln!(ids, "];")?;
+    ids.flush()?;
     let path = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("opencode_models.rs");
     let mut out = BufWriter::new(File::create(path)?);
     writeln!(out, "const MODELS: &[((&str, &str), Format)] = &[")?;

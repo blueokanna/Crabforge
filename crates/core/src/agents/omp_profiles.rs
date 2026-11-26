@@ -60,7 +60,31 @@ fn config_path(command: &Command, profile: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
-pub(crate) fn list(dir: &Path, command: &Command) -> Result<()> {
+#[derive(serde::Serialize)]
+pub struct Profile {
+    pub name: String,
+    pub active: bool,
+    pub directory: PathBuf,
+}
+
+pub fn installed() -> Result<Command> {
+    super::installed_command("omp", "@oh-my-pi/pi-coding-agent", "bun")
+}
+
+/// Serialize changes to the model catalog and settings for the selected profile.
+pub fn lock(home: &Path) -> Result<fs::File> {
+    fs::create_dir_all(home)?;
+    let file = fs::File::options()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(home.join("crabforge.lock"))?;
+    file.lock()?;
+    Ok(file)
+}
+
+pub fn list(dir: &Path, command: &Command) -> Result<Vec<Profile>> {
     let default = config_path(command, "")?;
     let root = default
         .parent()
@@ -95,24 +119,31 @@ pub(crate) fn list(dir: &Path, command: &Command) -> Result<()> {
     } else {
         active.as_str()
     };
-    for (name, path) in std::iter::once(("default", std::path::absolute(dir.join("agents/omp"))?))
-        .chain(
-            names
-                .iter()
-                .map(|name| (name.as_str(), root.join(name).join("agent"))),
-        )
-    {
-        let state = if active == name {
-            "active"
-        } else {
-            "available"
-        };
-        println!("{name}\t{state}\t{}", path.display());
-    }
-    Ok(())
+    Ok(
+        std::iter::once(("default", std::path::absolute(dir.join("agents/omp"))?))
+            .chain(
+                names
+                    .iter()
+                    .map(|name| (name.as_str(), root.join(name).join("agent"))),
+            )
+            .map(|(name, directory)| Profile {
+                name: name.into(),
+                active: active == name,
+                directory,
+            })
+            .collect(),
+    )
 }
 
-pub(in crate::agent) fn agent_directory(
+pub fn settings_directory(dir: &Path, explicit: Option<&str>) -> Result<PathBuf> {
+    let profile = selected(explicit);
+    if profile.is_empty() || profile == "default" {
+        return Ok(std::path::absolute(dir.join("agents/omp"))?);
+    }
+    agent_directory(dir, &mut installed()?, Some(&profile))
+}
+
+pub fn agent_directory(
     dir: &Path,
     command: &mut Command,
     explicit: Option<&str>,
@@ -140,7 +171,7 @@ pub(in crate::agent) fn agent_directory(
 /// The launcher prepends --provider and --model. From there the native client's
 /// bootstrap scans all launch arguments up to its own --. String flags consume
 /// even a flag-looking value, while optional and extension flags do not.
-pub(in crate::agent) fn native_profile(args: &[OsString]) -> Result<Option<&str>> {
+pub fn native_profile(args: &[OsString]) -> Result<Option<&str>> {
     let mut selected = None;
     let mut tokens = args.iter();
     while let Some(token) = tokens.next() {

@@ -64,12 +64,22 @@ pub fn configuration() -> Result<String> {
     config::snapshot(&config::data_dir()?)
 }
 
+pub fn rename_provider(previous: String, from: String, to: String) -> Result<()> {
+    config::rename_provider(&config::data_dir()?, &previous, &from, &to)
+}
+
 pub fn route_groups(configuration: String) -> Result<String> {
     let cfg = config::Config::parse(&configuration)?;
     let groups = cfg.resolved_groups();
     Ok(serde_json::to_string(
         &serde_json::json!({"members":groups.members,"expanded":groups.expanded,"public_refs":groups.public_refs,"order":groups.ordered_names(&cfg.group_display_order)}),
     )?)
+}
+
+pub fn match_group_models(configuration: String, patterns: Vec<String>) -> Result<Vec<String>> {
+    let mut cfg = crabforge_core::config::Config::parse(&configuration)?;
+    cfg.set_member_patterns("", patterns)?;
+    Ok(cfg.expand_patterns("", &[]))
 }
 
 pub fn renamed_group(configuration: String, from: String, to: String) -> Result<String> {
@@ -127,8 +137,101 @@ pub fn agents() -> String {
     json!(crabforge_core::agents::CLIENTS).to_string()
 }
 
+pub fn omp_profiles() -> Result<String> {
+    use crabforge_core::agents::omp_profiles;
+    let profiles = omp_profiles::list(&config::data_dir()?, &omp_profiles::installed()?)?;
+    Ok(serde_json::to_string(&profiles)?)
+}
+
+pub fn omp_advisor(profile: String) -> Result<String> {
+    use crabforge_core::agents::{omp_profiles, omp_settings};
+    let home = omp_profiles::settings_directory(&config::data_dir()?, Some(&profile))?;
+    Ok(serde_json::to_string(&omp_settings::read_advisor(&home)?)?)
+}
+
+pub fn save_omp_advisor(profile: String, previous: String, changes: String) -> Result<()> {
+    use crabforge_core::agents::{omp_profiles, omp_settings};
+    let home = omp_profiles::settings_directory(&config::data_dir()?, Some(&profile))?;
+    omp_settings::save_advisor(
+        &home,
+        Some(&serde_json::from_str(&previous)?),
+        &serde_json::from_str(&changes)?,
+    )?;
+    Ok(())
+}
+
+pub fn omp_thinking(profile: String) -> Result<String> {
+    use crabforge_core::agents::{omp_profiles, omp_settings};
+    let home = omp_profiles::settings_directory(&config::data_dir()?, Some(&profile))?;
+    Ok(serde_json::to_string(&omp_settings::read_thinking(&home)?)?)
+}
+
+pub fn sync_omp_catalog(profile: String) -> Result<u32> {
+    let count = crabforge_core::agents::omp_catalog::sync(&config::data_dir()?, Some(&profile))?;
+    Ok(count.try_into()?)
+}
+
+pub fn omp_protocol(profile: String) -> Result<String> {
+    crabforge_core::agents::omp_catalog::read_protocol(&config::data_dir()?, Some(&profile))
+}
+
+pub fn save_omp_protocol(profile: String, previous: String, protocol: String) -> Result<()> {
+    crabforge_core::agents::omp_catalog::set_protocol(
+        &config::data_dir()?,
+        Some(&profile),
+        &protocol,
+        Some(&previous),
+    )
+}
+
+pub fn omp_roles(profile: String) -> Result<String> {
+    use crabforge_core::agents::{omp_profiles, omp_settings::roles};
+    let dir = config::data_dir()?;
+    let home = omp_profiles::settings_directory(&dir, Some(&profile))?;
+    Ok(serde_json::to_string(&roles::read_roles(
+        &home,
+        &config::load(&dir)?,
+    )?)?)
+}
+
+pub fn save_omp_role(
+    profile: String,
+    previous: String,
+    role: String,
+    model: Option<String>,
+) -> Result<()> {
+    use crabforge_core::agents::{omp_profiles, omp_settings::roles};
+    let dir = config::data_dir()?;
+    let home = omp_profiles::settings_directory(&dir, Some(&profile))?;
+    roles::save_role(
+        &home,
+        &config::load(&dir)?,
+        &role,
+        model.as_deref(),
+        Some(&serde_json::from_str(&previous)?),
+    )
+}
+
+pub fn save_omp_thinking(profile: String, previous: String, changes: String) -> Result<()> {
+    use crabforge_core::agents::{omp_profiles, omp_settings};
+    let home = omp_profiles::settings_directory(&config::data_dir()?, Some(&profile))?;
+    omp_settings::save_thinking(
+        &home,
+        Some(&serde_json::from_str(&previous)?),
+        &serde_json::from_str(&changes)?,
+    )?;
+    Ok(())
+}
+
 pub async fn discover_models(endpoints: String, key_env: String) -> Result<Vec<String>> {
     crabforge_core::catalog::discover(&serde_json::from_str(&endpoints)?, &key_env).await
+}
+
+pub async fn discover_model_catalog(endpoints: String, key_env: String) -> Result<String> {
+    let catalog =
+        crabforge_core::catalog::discover_catalog(&serde_json::from_str(&endpoints)?, &key_env)
+            .await?;
+    Ok(serde_json::to_string(&catalog)?)
 }
 pub fn gateway_key() -> Result<String> {
     config::token(&config::data_dir()?)

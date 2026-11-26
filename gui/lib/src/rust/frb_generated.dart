@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1132924297;
+  int get rustContentHash => -2066529839;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -97,6 +97,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiDisconnectPeer();
 
+  Future<String> crateApiDiscoverModelCatalog({
+    required String endpoints,
+    required String keyEnv,
+  });
+
   Future<List<String>> crateApiDiscoverModels({
     required String endpoints,
     required String keyEnv,
@@ -114,9 +119,30 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiInitApp();
 
+  Future<List<String>> crateApiMatchGroupModels({
+    required String configuration,
+    required List<String> patterns,
+  });
+
   Future<String> crateApiNodeId();
 
+  Future<String> crateApiOmpAdvisor({required String profile});
+
+  Future<String> crateApiOmpProfiles();
+
+  Future<String> crateApiOmpProtocol({required String profile});
+
+  Future<String> crateApiOmpRoles({required String profile});
+
+  Future<String> crateApiOmpThinking({required String profile});
+
   Future<String> crateApiPresets();
+
+  Future<void> crateApiRenameProvider({
+    required String previous,
+    required String from,
+    required String to,
+  });
 
   Future<String> crateApiRenamedGroup({
     required String configuration,
@@ -131,6 +157,31 @@ abstract class RustLibApi extends BaseApi {
     required String text,
   });
 
+  Future<void> crateApiSaveOmpAdvisor({
+    required String profile,
+    required String previous,
+    required String changes,
+  });
+
+  Future<void> crateApiSaveOmpProtocol({
+    required String profile,
+    required String previous,
+    required String protocol,
+  });
+
+  Future<void> crateApiSaveOmpRole({
+    required String profile,
+    required String previous,
+    required String role,
+    String? model,
+  });
+
+  Future<void> crateApiSaveOmpThinking({
+    required String profile,
+    required String previous,
+    required String changes,
+  });
+
   Future<void> crateApiSetRunning({required bool on_});
 
   Future<void> crateApiSetUiLanguage({required String language});
@@ -141,6 +192,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<String> crateApiStatus();
+
+  Future<int> crateApiSyncOmpCatalog({required String profile});
 
   Future<String> crateApiUiLanguage();
 
@@ -307,7 +360,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "disconnect_peer", argNames: []);
 
   @override
-  Future<List<String>> crateApiDiscoverModels({
+  Future<String> crateApiDiscoverModelCatalog({
     required String endpoints,
     required String keyEnv,
   }) {
@@ -321,6 +374,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiDiscoverModelCatalogConstMeta,
+        argValues: [endpoints, keyEnv],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDiscoverModelCatalogConstMeta =>
+      const TaskConstMeta(
+        debugName: "discover_model_catalog",
+        argNames: ["endpoints", "keyEnv"],
+      );
+
+  @override
+  Future<List<String>> crateApiDiscoverModels({
+    required String endpoints,
+    required String keyEnv,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(endpoints, serializer);
+          sse_encode_String(keyEnv, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
             port: port_,
           );
         },
@@ -349,7 +437,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -376,7 +464,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -410,7 +498,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -439,7 +527,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },
@@ -458,6 +546,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
+  Future<List<String>> crateApiMatchGroupModels({
+    required String configuration,
+    required List<String> patterns,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(configuration, serializer);
+          sse_encode_list_String(patterns, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMatchGroupModelsConstMeta,
+        argValues: [configuration, patterns],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMatchGroupModelsConstMeta => const TaskConstMeta(
+    debugName: "match_group_models",
+    argNames: ["configuration", "patterns"],
+  );
+
+  @override
   Future<String> crateApiNodeId() {
     return handler.executeNormal(
       NormalTask(
@@ -466,7 +588,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 13,
             port: port_,
           );
         },
@@ -485,6 +607,145 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "node_id", argNames: []);
 
   @override
+  Future<String> crateApiOmpAdvisor({required String profile}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(profile, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiOmpAdvisorConstMeta,
+        argValues: [profile],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiOmpAdvisorConstMeta =>
+      const TaskConstMeta(debugName: "omp_advisor", argNames: ["profile"]);
+
+  @override
+  Future<String> crateApiOmpProfiles() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiOmpProfilesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiOmpProfilesConstMeta =>
+      const TaskConstMeta(debugName: "omp_profiles", argNames: []);
+
+  @override
+  Future<String> crateApiOmpProtocol({required String profile}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(profile, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiOmpProtocolConstMeta,
+        argValues: [profile],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiOmpProtocolConstMeta =>
+      const TaskConstMeta(debugName: "omp_protocol", argNames: ["profile"]);
+
+  @override
+  Future<String> crateApiOmpRoles({required String profile}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(profile, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiOmpRolesConstMeta,
+        argValues: [profile],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiOmpRolesConstMeta =>
+      const TaskConstMeta(debugName: "omp_roles", argNames: ["profile"]);
+
+  @override
+  Future<String> crateApiOmpThinking({required String profile}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(profile, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 18,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiOmpThinkingConstMeta,
+        argValues: [profile],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiOmpThinkingConstMeta =>
+      const TaskConstMeta(debugName: "omp_thinking", argNames: ["profile"]);
+
+  @override
   Future<String> crateApiPresets() {
     return handler.executeNormal(
       NormalTask(
@@ -493,7 +754,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 19,
             port: port_,
           );
         },
@@ -512,6 +773,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "presets", argNames: []);
 
   @override
+  Future<void> crateApiRenameProvider({
+    required String previous,
+    required String from,
+    required String to,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(previous, serializer);
+          sse_encode_String(from, serializer);
+          sse_encode_String(to, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiRenameProviderConstMeta,
+        argValues: [previous, from, to],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRenameProviderConstMeta => const TaskConstMeta(
+    debugName: "rename_provider",
+    argNames: ["previous", "from", "to"],
+  );
+
+  @override
   Future<String> crateApiRenamedGroup({
     required String configuration,
     required String from,
@@ -527,7 +824,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 21,
             port: port_,
           );
         },
@@ -557,7 +854,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 22,
             port: port_,
           );
         },
@@ -591,7 +888,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 23,
             port: port_,
           );
         },
@@ -612,6 +909,152 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiSaveOmpAdvisor({
+    required String profile,
+    required String previous,
+    required String changes,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(profile, serializer);
+          sse_encode_String(previous, serializer);
+          sse_encode_String(changes, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSaveOmpAdvisorConstMeta,
+        argValues: [profile, previous, changes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSaveOmpAdvisorConstMeta => const TaskConstMeta(
+    debugName: "save_omp_advisor",
+    argNames: ["profile", "previous", "changes"],
+  );
+
+  @override
+  Future<void> crateApiSaveOmpProtocol({
+    required String profile,
+    required String previous,
+    required String protocol,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(profile, serializer);
+          sse_encode_String(previous, serializer);
+          sse_encode_String(protocol, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSaveOmpProtocolConstMeta,
+        argValues: [profile, previous, protocol],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSaveOmpProtocolConstMeta => const TaskConstMeta(
+    debugName: "save_omp_protocol",
+    argNames: ["profile", "previous", "protocol"],
+  );
+
+  @override
+  Future<void> crateApiSaveOmpRole({
+    required String profile,
+    required String previous,
+    required String role,
+    String? model,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(profile, serializer);
+          sse_encode_String(previous, serializer);
+          sse_encode_String(role, serializer);
+          sse_encode_opt_String(model, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSaveOmpRoleConstMeta,
+        argValues: [profile, previous, role, model],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSaveOmpRoleConstMeta => const TaskConstMeta(
+    debugName: "save_omp_role",
+    argNames: ["profile", "previous", "role", "model"],
+  );
+
+  @override
+  Future<void> crateApiSaveOmpThinking({
+    required String profile,
+    required String previous,
+    required String changes,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(profile, serializer);
+          sse_encode_String(previous, serializer);
+          sse_encode_String(changes, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSaveOmpThinkingConstMeta,
+        argValues: [profile, previous, changes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSaveOmpThinkingConstMeta => const TaskConstMeta(
+    debugName: "save_omp_thinking",
+    argNames: ["profile", "previous", "changes"],
+  );
+
+  @override
   Future<void> crateApiSetRunning({required bool on_}) {
     return handler.executeNormal(
       NormalTask(
@@ -621,7 +1064,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 28,
             port: port_,
           );
         },
@@ -649,7 +1092,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 29,
             port: port_,
           );
         },
@@ -681,7 +1124,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 30,
             port: port_,
           );
         },
@@ -710,7 +1153,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 31,
             port: port_,
           );
         },
@@ -729,6 +1172,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "status", argNames: []);
 
   @override
+  Future<int> crateApiSyncOmpCatalog({required String profile}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(profile, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 32,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_u_32,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSyncOmpCatalogConstMeta,
+        argValues: [profile],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncOmpCatalogConstMeta =>
+      const TaskConstMeta(debugName: "sync_omp_catalog", argNames: ["profile"]);
+
+  @override
   Future<String> crateApiUiLanguage() {
     return handler.executeNormal(
       NormalTask(
@@ -737,7 +1208,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 33,
             port: port_,
           );
         },
@@ -765,7 +1236,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 34,
             port: port_,
           );
         },
@@ -793,7 +1264,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 35,
             port: port_,
           );
         },
@@ -839,6 +1310,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  int dco_decode_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -890,6 +1373,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint32();
   }
 
   @protected
@@ -947,6 +1447,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint32(self);
   }
 
   @protected

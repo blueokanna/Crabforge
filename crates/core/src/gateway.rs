@@ -89,15 +89,24 @@ struct Model<'a> {
     object: &'static str,
     created: u64,
     owned_by: &'static str,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    free: bool,
     native_endpoints: Vec<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     magpie_prefers: Option<&'static str>,
 }
 
-fn listed_model(id: &str, protocols: NativeProtocols) -> Model<'_> {
+fn listed_model<'a>(id: &'a str, route: Route, config: &Config) -> Model<'a> {
+    let protocols = route.protocols().expect("listed route");
+    let free = if let Route::Model(t) = route {
+        let provider = &config.providers[t.provider];
+        provider.free_models.contains(&provider.models[t.model])
+    } else {
+        false
+    };
     Model {
         id,
+        free,
         object: "model",
         created: 0,
         owned_by: "crabforge",
@@ -126,6 +135,7 @@ impl Gateway {
                     .get_key_value(&self.config.canonical_auto_ref(id)?)
             })
             .or_else(|| self.routes.get_key_value(&self.config.auto_stand_in(id)?))
+            .or_else(|| self.routes.get_key_value(&self.config.renamed_model(id)?))
     }
 }
 
@@ -175,11 +185,22 @@ fn router_with_client(
         .group_picks
         .keys()
         .filter(|name| !config.disabled_groups.contains(*name))
-        .map(|name| (name.clone(), resolved.display_members(&config,name).clone()))
+        .map(|name| {
+            (
+                name.clone(),
+                resolved.display_members(&config, name).clone(),
+            )
+        })
         .collect();
     for (group, weights) in &mut config.group_weights {
         let original = std::mem::take(weights);
-        for (id, target) in resolved.expanded.get(group).unwrap_or(&config.groups[group]).iter().zip(&resolved.members[group]) {
+        for (id, target) in resolved
+            .expanded
+            .get(group)
+            .unwrap_or(&config.groups[group])
+            .iter()
+            .zip(&resolved.members[group])
+        {
             if let Some(weight) = original.get(id) {
                 weights.insert(target.clone(), *weight);
             }
@@ -299,7 +320,7 @@ fn router_with_client(
         object: "list",
         data: state
             .listed_ids()
-            .map(|id| listed_model(id, state.routes[id].protocols().expect("listed route")))
+            .map(|id| listed_model(id, state.routes[id], &state.config))
             .collect(),
     })?);
     Ok(Router::new().fallback(dispatch).with_state(Arc::new(state)))
@@ -333,6 +354,36 @@ impl<'a> Api<'a> {
         if let Some(site) = p.web_site {
             return matches!(self, Self::Chat("chat/completions"))
                 .then_some(Destination::Browser(site));
+        }
+        // A relay can expose every HTTP API while a particular upstream model
+        // accepts only one. Translate once at this gateway when the directory
+        // identifies a reachable native endpoint. Other actions, including
+        // token counting and embeddings, have their own forwarding rules.
+        if let Some(from) = self.format()
+            && let Some(hints) = p.model_protocols.get(model)
+            && let Some(endpoints) = &hints.native_endpoints
+        {
+            let mut translated = None;
+            for endpoint in hints.magpie_prefers.iter().chain(endpoints) {
+                use crate::catalog::RelayEndpoint;
+                if !endpoints.contains(endpoint) {
+                    continue;
+                }
+                let (api, to) = match endpoint {
+                    RelayEndpoint::Chat => (Api::Chat("chat/completions"), Format::Chat),
+                    RelayEndpoint::Messages => (Api::Messages("messages"), Format::Messages),
+                    RelayEndpoint::Responses => (Api::Responses("responses"), Format::Responses),
+                };
+                if let Some(url) = api.url(p, model) {
+                    if from == to {
+                        return Some(Destination::Upstream(url, self, None));
+                    }
+                    translated.get_or_insert(Destination::Upstream(url, api, Some((from, to))));
+                }
+            }
+            if translated.is_some() {
+                return translated;
+            }
         }
         if let Some(url) = self.url(p, model) {
             return Some(Destination::Upstream(url, self, None));
@@ -594,7 +645,7 @@ async fn serve_http(
             return if is_gemini {
                 Json(gemini_model(id)).into_response()
             } else {
-                Json(listed_model(id, route.protocols().expect("enabled route"))).into_response()
+                Json(listed_model(id, *route, &gw.config)).into_response()
             };
         }
     }
@@ -707,7 +758,7 @@ async fn forward(
     if matches!(route, Route::Disabled) {
         return failure(StatusCode::NOT_FOUND, "route group is switched off");
     }
-    let picks = if matches!(route, Route::Group { .. }) {
+    let picks = if matches!(route, Route::Group { .. }) || !route.fallbacks(&gw.config).is_empty() {
         match gw.current_picks().await {
             Ok(picks) => picks,
             Err(e) => return failure(StatusCode::SERVICE_UNAVAILABLE, &e.to_string()),
@@ -1027,6 +1078,47 @@ mod tests {
     use super::*;
 
     #[test]
+    fn relay_routes_use_the_incoming_protocol_or_the_advertised_native_api() -> Result<()> {
+        let p: Provider = serde_json::from_value(json!({"id":"relay","models":[],
+        "endpoints":{"chat":"http://localhost/v1","responses":"http://localhost/v1","anthropic":"http://localhost"},
+        "model_protocols":{
+            "mixed":{"native_endpoints":[]},
+            "picked":{"native_endpoints":["/v1/messages","/v1/responses"],"magpie_prefers":"/v1/messages"},
+            "text":{"native_endpoints":["/v1/chat/completions"]}
+        }}))?;
+        for (model, api, expected, conversion) in [
+            (
+                "legacy",
+                Api::Chat("chat/completions"),
+                "/v1/chat/completions",
+                None,
+            ),
+            ("mixed", Api::Responses("responses"), "/v1/responses", None),
+            ("picked", Api::Responses("responses"), "/v1/responses", None),
+            (
+                "picked",
+                Api::Chat("chat/completions"),
+                "/v1/messages",
+                Some((Format::Chat, Format::Messages)),
+            ),
+            (
+                "text",
+                Api::Messages("messages"),
+                "/v1/chat/completions",
+                Some((Format::Messages, Format::Chat)),
+            ),
+            ("picked", Api::Chat("embeddings"), "/v1/embeddings", None),
+        ] {
+            let Some(Destination::Upstream(url, _, converted)) = api.destination(&p, model) else {
+                panic!("missing relay route for {model}")
+            };
+            assert_eq!(url.path(), expected);
+            assert_eq!(converted, conversion);
+        }
+        Ok(())
+    }
+
+    #[test]
     fn console_routes_by_plan_and_preserves_custom_endpoints() -> Result<()> {
         for (base, mini, gemini) in [
             (
@@ -1091,6 +1183,9 @@ mod tests {
             .find(|p| p["id"] == "bedrock")
             .unwrap();
         let p = Provider {
+            fallback: vec![],
+            no_stand_in: false,
+            model_protocols: Default::default(),
             free_models: Default::default(),
             id: "aws".into(),
             catalog: String::new(),

@@ -1,12 +1,14 @@
-use std::{net::SocketAddr, path::Path, time::Duration};
+use std::{collections::HashSet, net::SocketAddr, path::Path, time::Duration};
 
 use anyhow::{Context, Result, bail, ensure};
 use axum::Router;
 use futures_util::StreamExt;
 use libp2p::{
     Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder, allow_block_list, connection_limits,
+    dcutr, identify,
     identity::Keypair,
     multiaddr::Protocol,
+    relay,
     swarm::{NetworkBehaviour, SwarmEvent},
 };
 use tokio::{
@@ -42,17 +44,43 @@ pub fn listen_address(s: &str) -> Result<Multiaddr> {
     ensure!(
         matches!(parts.next(), Some(Protocol::Ip4(_) | Protocol::Ip6(_)))
             && matches!(parts.next(), Some(Protocol::Udp(_)))
-            && parts.next() == Some(Protocol::QuicV1)
-            && parts.next().is_none(),
+            && parts.next() == Some(Protocol::QuicV1),
         "expected /ip4/IP/udp/PORT/quic-v1 or /ip6/IP/udp/PORT/quic-v1"
     );
+    if let Some(relay_id) = parts.next() {
+        ensure!(
+            matches!(relay_id, Protocol::P2p(_))
+                && parts.next() == Some(Protocol::P2pCircuit)
+                && parts.next().is_none(),
+            "relay address must end with /p2p/RELAY_ID/p2p-circuit"
+        );
+    }
     Ok(addr)
+}
+
+fn relay_peer(addr: &Multiaddr) -> Option<PeerId> {
+    addr.iter().find_map(|p| match p {
+        Protocol::P2p(peer) => Some(peer),
+        _ => None,
+    })
+}
+
+fn listen_for_punch(net: &mut Swarm<Network>, address: &Multiaddr) -> Result<()> {
+    let listen = match address.iter().next() {
+        Some(Protocol::Ip6(_)) => "/ip6/::/udp/0/quic-v1",
+        _ => "/ip4/0.0.0.0/udp/0/quic-v1",
+    };
+    net.listen_on(listen.parse()?)?;
+    Ok(())
 }
 
 #[derive(NetworkBehaviour)]
 struct Network {
     access: allow_block_list::Behaviour<allow_block_list::AllowedPeers>,
     limits: connection_limits::Behaviour,
+    relay: relay::client::Behaviour,
+    identify: identify::Behaviour,
+    punch: dcutr::Behaviour,
     streams: libp2p_stream::Behaviour,
 }
 
@@ -73,7 +101,14 @@ fn network(key: Keypair, allowed: impl IntoIterator<Item = PeerId>) -> Result<Sw
             c.max_connection_data = 1024 * 1024;
             c
         })
-        .with_behaviour(|_| Network {
+        .with_relay_client(libp2p::tls::Config::new, libp2p::yamux::Config::default)?
+        .with_behaviour(|key, relay| Network {
+            relay,
+            identify: identify::Behaviour::new(identify::Config::new(
+                "/crabforge/1.0".into(),
+                key.public(),
+            )),
+            punch: dcutr::Behaviour::new(key.public().to_peer_id()),
             access,
             limits: connection_limits::Behaviour::new(limits),
             streams: libp2p_stream::Behaviour::new(),
@@ -93,14 +128,31 @@ pub async fn serve(
     allowed: Vec<PeerId>,
     app: Router,
 ) -> Result<PeerServer> {
-    let mut net = network(key, allowed)?;
+    let clients: HashSet<_> = allowed.into_iter().collect();
+    let relay = relay_peer(&addr);
+    let mut net = network(key, clients.iter().copied().chain(relay))?;
+    if relay.is_some() {
+        listen_for_punch(&mut net, &addr)?;
+    }
     let mut incoming = net.behaviour().streams.new_control().accept(PROTOCOL)?;
-    net.listen_on(addr)?;
+    let requested = net.listen_on(addr)?;
     let address = timeout(HANDSHAKE, async {
         loop {
             match net.select_next_some().await {
-                SwarmEvent::NewListenAddr { address, .. } => return Ok(address),
-                SwarmEvent::ListenerClosed { reason, .. } => {
+                SwarmEvent::NewListenAddr {
+                    listener_id,
+                    mut address,
+                } if listener_id == requested => {
+                    if address.iter().last() == Some(Protocol::P2p(*net.local_peer_id())) {
+                        address.pop();
+                    }
+                    return Ok(address);
+                }
+                SwarmEvent::ListenerClosed {
+                    listener_id,
+                    reason,
+                    ..
+                } if listener_id == requested => {
                     reason?;
                     bail!("P2P listener closed");
                 }
@@ -115,8 +167,8 @@ pub async fn serve(
         let mut connections = JoinSet::new();
         loop {
             tokio::select! {
-                event=net.select_next_some()=> if let SwarmEvent::ListenerClosed{reason,..}=event {reason?; bail!("P2P listener closed");},
-                Some((_,stream))=incoming.next()=>if connections.len()<32 {
+                event=net.select_next_some()=> if let SwarmEvent::ListenerClosed{listener_id,reason,..}=event && listener_id==requested {reason?; bail!("P2P listener closed");},
+                Some((peer,stream))=incoming.next()=>if clients.contains(&peer) && connections.len()<32 {
                     connections.spawn(crate::service::serve_connection(stream.compat(),app.clone()));
                 },
                 _=connections.join_next(), if !connections.is_empty()=>(),
@@ -137,13 +189,21 @@ pub async fn tunnel(
         bail!("remote address must end with /p2p/PEER_ID");
     };
     listen_address(&addr.to_string())?;
-    let mut net = network(key, [id])?;
+    let relay = relay_peer(&addr);
+    let mut net = network(key, std::iter::once(id).chain(relay))?;
+    if relay.is_some() {
+        listen_for_punch(&mut net, &addr)?;
+    }
     net.dial(addr.with(Protocol::P2p(id)))?;
     timeout(HANDSHAKE, async {
         loop {
             match net.select_next_some().await {
                 SwarmEvent::ConnectionEstablished { peer_id, .. } if peer_id == id => return Ok(()),
-                SwarmEvent::OutgoingConnectionError { error, .. } => bail!("P2P dial: {error}"),
+                SwarmEvent::OutgoingConnectionError {
+                    peer_id: Some(peer),
+                    error,
+                    ..
+                } if peer == id => bail!("P2P dial: {error}"),
                 _ => (),
             }
         }
@@ -157,7 +217,7 @@ pub async fn tunnel(
         let mut sessions = JoinSet::new();
         loop {
             tokio::select! {
-                event=net.select_next_some()=>if let SwarmEvent::ConnectionClosed{num_established:0,..}=event {bail!("remote peer disconnected");},
+                event=net.select_next_some()=>if let SwarmEvent::ConnectionClosed{peer_id,num_established:0,..}=event && peer_id==id {bail!("remote peer disconnected");},
                 conn=listener.accept(), if sessions.len()<16=>{
                     let (mut socket,_)=conn?; let mut control=control.clone();
                     sessions.spawn(async move {

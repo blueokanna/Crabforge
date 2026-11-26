@@ -10,6 +10,96 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get listView => 'Visualização em lista';
+
+  @override
+  String get gridView => 'Visualização em grade';
+
+  @override
+  String get gatewayProtocol => 'Protocolo do gateway';
+
+  @override
+  String get nativeModelProtocol => 'Usar o protocolo nativo de cada modelo';
+
+  @override
+  String get roleModels => 'Modelos por função';
+
+  @override
+  String get roleModelId => 'ID do modelo';
+
+  @override
+  String get resetRole => 'Restaurar função';
+
+  @override
+  String get syncModelCatalog => 'Sincronizar catálogo de modelos';
+
+  @override
+  String get thinkingLevels => 'Níveis de raciocínio';
+
+  @override
+  String get sessionThinking => 'Nível de raciocínio da sessão';
+
+  @override
+  String get thinkingAuto => 'Automático';
+
+  @override
+  String get thinkingMinimal => 'Mínimo';
+
+  @override
+  String get thinkingLow => 'Baixo';
+
+  @override
+  String get thinkingMedium => 'Médio';
+
+  @override
+  String get thinkingHigh => 'Alto';
+
+  @override
+  String get thinkingExtraHigh => 'Muito alto';
+
+  @override
+  String get thinkingMax => 'Máximo';
+
+  @override
+  String get ompProfile => 'Perfil do Oh My Pi';
+
+  @override
+  String get advisorSettings => 'Configurações do consultor';
+
+  @override
+  String get advisorReview => 'Quando revisar';
+
+  @override
+  String get advisorWait => 'Revisões pendentes antes de aguardar';
+
+  @override
+  String get advisorWake => 'Gravidade mínima para retomar';
+
+  @override
+  String get inheritSetting => 'Usar o valor padrão';
+
+  @override
+  String get everyTurn => 'A cada turno';
+
+  @override
+  String get runEnd => 'Ao final da execução';
+
+  @override
+  String get allReviews => 'Aguardar todas as revisões';
+
+  @override
+  String get minorNote => 'Questão menor';
+
+  @override
+  String get concernNote => 'Motivo de preocupação';
+
+  @override
+  String get blockerNote => 'Problema impeditivo';
+
+  @override
+  String get memberPatterns => 'Padrões de modelos, um por linha';
+
+  @override
   String get shareGroup => 'Copiar grupo para compartilhar';
 
   @override
@@ -333,6 +423,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get providerId => 'ID do provedor';
 
   @override
+  String get renameProvider => 'Renomear provedor';
+
+  @override
   String get keyEnv => 'Variável de ambiente da chave da API';
 
   @override
@@ -343,6 +436,14 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get modelIds => 'IDs dos modelos de origem, um por linha';
+
+  @override
+  String get providerFallback =>
+      'Modelos ou grupos de reserva, em ordem, um por linha';
+
+  @override
+  String get allowProviderFallback =>
+      'Aceitar solicitações de reserva de outros provedores';
 
   @override
   String protocolBase(String value) {

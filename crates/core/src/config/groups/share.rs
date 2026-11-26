@@ -1,4 +1,4 @@
-use super::{Config, ResolvedGroups, merge_name};
+use super::{Config, merge_name};
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -9,10 +9,11 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 struct SharedGroup {
     id: String,
     name: String,
+    #[serde(deserialize_with = "nullable_members")]
     members: Vec<String>,
-    #[serde(rename="match",skip_serializing_if="Vec::is_empty")]
+    #[serde(rename = "match", skip_serializing_if = "Vec::is_empty")]
     patterns: Vec<String>,
-    #[serde(skip_serializing_if="Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     placed: Vec<String>,
     #[serde(skip_serializing)]
     matched: Vec<String>,
@@ -31,6 +32,10 @@ struct SharedGroup {
     unlists: bool,
     #[serde(flatten, skip_serializing)]
     other: BTreeMap<String, Value>,
+}
+
+fn nullable_members<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
+    Ok(Option::<Vec<String>>::deserialize(d)?.unwrap_or_default())
 }
 
 #[derive(Default, Serialize)]
@@ -108,16 +113,11 @@ impl Config {
             .get(&id)
             .or_else(|| groups.members.get(&id))
             .context("unknown route group")?;
-        // A literal # suffix on a Crabforge model would be read as a private account by Magpie.
-        ensure!(
-            members.iter().all(|m| without_account(m) == m),
-            "a member's literal # suffix cannot be represented in a Magpie share"
-        );
         let pick = self
             .group_picks
             .get(&id)
             .or_else(|| self.group_last_picks.get(&id))
-            .filter(|p| groups.display_members(self,&id).contains(p));
+            .filter(|p| groups.display_members(self, &id).contains(p));
         let routing = if self.group_picks.contains_key(&id) {
             "manual"
         } else if self.group_weights.contains_key(&id) {
@@ -130,7 +130,13 @@ impl Config {
         let group = SharedGroup {
             name: self.group_labels.get(&id).unwrap_or(&id).clone(),
             members: members.clone(),
-            patterns: self.group_match.get(&id).into_iter().flatten().map(|p|p.as_str().to_owned()).collect(),
+            patterns: self
+                .group_match
+                .get(&id)
+                .into_iter()
+                .flatten()
+                .map(|p| p.as_str().to_owned())
+                .collect(),
             placed: self.group_placed.get(&id).cloned().unwrap_or_default(),
             note: self.group_notes.get(&id).cloned().unwrap_or_default(),
             former: self
@@ -152,6 +158,17 @@ impl Config {
             id,
             ..Default::default()
         };
+        ensure!(
+            group
+                .members
+                .iter()
+                .chain(&group.placed)
+                .chain(&group.off)
+                .chain(group.weights.keys())
+                .chain(std::iter::once(&group.pick))
+                .all(|m| without_account(m) == m),
+            "a member's literal # suffix cannot be represented in a Magpie share"
+        );
         Ok(serde_json::to_string(
             &json!({"magpie":"routing-group","version":1,"group":group}),
         )?)
@@ -194,8 +211,13 @@ impl Config {
         let mut added = HashSet::new();
         let mut mapped = BTreeMap::new();
         for member in &group.members {
-            if group.matched.contains(member) {continue;}
-            if super::MemberPattern::is_pattern(member) { group.patterns.push(member.clone()); continue; }
+            if group.matched.contains(member) {
+                continue;
+            }
+            if super::MemberPattern::is_pattern(member) {
+                group.patterns.push(member.clone());
+                continue;
+            }
             let raw = without_account(member.trim());
             if mapped.contains_key(raw) {
                 continue;
@@ -210,7 +232,7 @@ impl Config {
             } else if candidate.starts_with("group/")
                 || self.canonical_auto_ref(candidate).is_some()
             {
-                share_group_ref(self, &resolved, candidate)
+                resolved.group_reference(self, candidate)
             } else {
                 candidate.split_once('/').and_then(|(pid, model)| {
                     let catalog = self
@@ -243,17 +265,19 @@ impl Config {
             "no members available here: {}",
             report.missing.join(", ")
         );
-        let expanded = cfg.expand_patterns(&id,&members);
+        let expanded = cfg.expand_patterns(&id, &members);
         let here = |m: &str| {
             let m = without_account(m.trim());
             mapped
                 .get(m)
                 .and_then(Option::as_ref)
                 .cloned()
-                .or_else(|| expanded.iter().find(|id|id.as_str()==m).cloned())
+                .or_else(|| expanded.iter().find(|id| id.as_str() == m).cloned())
         };
-        let placed:Vec<_> = group.placed.iter().filter_map(|m|here(m)).collect();
-        if cfg.group_match.contains_key(&id) && !placed.is_empty() { cfg.group_placed.insert(id.clone(),placed); }
+        let placed: Vec<_> = group.placed.iter().filter_map(|m| here(m)).collect();
+        if cfg.group_match.contains_key(&id) && !placed.is_empty() {
+            cfg.group_placed.insert(id.clone(), placed);
+        }
         if replacing.is_none() {
             cfg.group_display_order = resolved
                 .ordered_names(&self.group_display_order)
@@ -280,8 +304,15 @@ impl Config {
         cfg.rotating_groups.remove(&id);
         let pick = here(&group.pick);
         if group.routing == "manual" {
-            cfg.group_picks
-                .insert(id.clone(), pick.unwrap_or_else(||cfg.expand_patterns(&id,&members).into_iter().next().unwrap_or_default()));
+            cfg.group_picks.insert(
+                id.clone(),
+                pick.unwrap_or_else(|| {
+                    cfg.expand_patterns(&id, &members)
+                        .into_iter()
+                        .next()
+                        .unwrap_or_default()
+                }),
+            );
         } else if let Some(pick) = pick {
             cfg.group_last_picks.insert(id.clone(), pick);
         }
@@ -314,14 +345,4 @@ impl Config {
         let cfg = Config::parse(&serde_json::to_string(&cfg)?)?;
         Ok((cfg, report))
     }
-}
-
-fn share_group_ref(cfg: &Config, groups: &ResolvedGroups, candidate: &str) -> Option<String> {
-    let canonical = cfg.canonical_auto_ref(candidate);
-    let name = canonical.as_deref().unwrap_or(candidate);
-    let target = groups.aliases.get(name).map_or(name, String::as_str);
-    groups
-        .members
-        .contains_key(target.strip_prefix("group/")?)
-        .then(|| target.to_owned())
 }

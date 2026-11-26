@@ -1,4 +1,5 @@
 use super::{Api, Config, Format, Provider};
+use crate::catalog::RelayEndpoint;
 use crate::config::ResolvedGroups;
 use std::collections::BTreeMap;
 
@@ -42,7 +43,22 @@ impl NativeProtocols {
                     && leaf.contains("openai.gpt-")
                     && !leaf.contains("gpt-oss"))
         });
-        let preferred = if prefers_responses {
+        let hints = p.model_protocols.get(model);
+        let native = hints.and_then(|h| h.native_endpoints.as_ref());
+        let chat = chat && native.is_none_or(|n| n.contains(&RelayEndpoint::Chat));
+        let responses = responses && native.is_none_or(|n| n.contains(&RelayEndpoint::Responses));
+        let messages = messages && native.is_none_or(|n| n.contains(&RelayEndpoint::Messages));
+        let advertised = match hints.and_then(|h| h.magpie_prefers) {
+            Some(RelayEndpoint::Chat) if chat => Some(Format::Chat),
+            Some(RelayEndpoint::Responses) if responses => Some(Format::Responses),
+            Some(RelayEndpoint::Messages) if messages => Some(Format::Messages),
+            _ => None,
+        };
+        let preferred = if native.is_some_and(|set| set.is_empty()) {
+            None
+        } else if advertised.is_some() {
+            advertised
+        } else if prefers_responses && responses {
             Some(Format::Responses)
         } else if messages && (leaf.starts_with("claude") || leaf.contains("anthropic.claude")) {
             Some(Format::Messages)
@@ -80,13 +96,17 @@ impl NativeProtocols {
         common
     }
 
-    pub fn omp_api(self) -> &'static str {
+    pub fn pi_api(self) -> &'static str {
         match self.preferred {
             Some(Format::Responses) => "openai-responses",
             Some(Format::Messages) => "anthropic-messages",
             Some(Format::Gemini) => "google-generative-ai",
             _ => "openai-completions",
         }
+    }
+
+    pub fn omp_api(self) -> &'static str {
+        self.pi_api()
     }
 
     pub(super) fn endpoints(self) -> Vec<&'static str> {
@@ -134,7 +154,7 @@ pub fn native_protocols(
             .get(name)
             .filter(|_| !config.group_picks.contains_key(name));
         let members = &groups.members[name];
-        let saved = groups.display_members(config,name);
+        let saved = groups.display_members(config, name);
         let common = NativeProtocols::group(
             saved
                 .iter()

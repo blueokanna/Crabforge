@@ -112,6 +112,186 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @listView.
+  ///
+  /// In en, this message translates to:
+  /// **'List view'**
+  String get listView;
+
+  /// No description provided for @gridView.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid view'**
+  String get gridView;
+
+  /// No description provided for @gatewayProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway protocol'**
+  String get gatewayProtocol;
+
+  /// No description provided for @nativeModelProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Use each model’s native protocol'**
+  String get nativeModelProtocol;
+
+  /// No description provided for @roleModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Role models'**
+  String get roleModels;
+
+  /// No description provided for @roleModelId.
+  ///
+  /// In en, this message translates to:
+  /// **'Model ID'**
+  String get roleModelId;
+
+  /// No description provided for @resetRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset role'**
+  String get resetRole;
+
+  /// No description provided for @syncModelCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync model catalog'**
+  String get syncModelCatalog;
+
+  /// No description provided for @thinkingLevels.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking levels'**
+  String get thinkingLevels;
+
+  /// No description provided for @sessionThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Session thinking level'**
+  String get sessionThinking;
+
+  /// No description provided for @thinkingAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get thinkingAuto;
+
+  /// No description provided for @thinkingMinimal.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimal'**
+  String get thinkingMinimal;
+
+  /// No description provided for @thinkingLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get thinkingLow;
+
+  /// No description provided for @thinkingMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get thinkingMedium;
+
+  /// No description provided for @thinkingHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get thinkingHigh;
+
+  /// No description provided for @thinkingExtraHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra high'**
+  String get thinkingExtraHigh;
+
+  /// No description provided for @thinkingMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum'**
+  String get thinkingMax;
+
+  /// No description provided for @ompProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Oh My Pi profile'**
+  String get ompProfile;
+
+  /// No description provided for @advisorSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Advisor settings'**
+  String get advisorSettings;
+
+  /// No description provided for @advisorReview.
+  ///
+  /// In en, this message translates to:
+  /// **'When to review'**
+  String get advisorReview;
+
+  /// No description provided for @advisorWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending reviews before waiting'**
+  String get advisorWait;
+
+  /// No description provided for @advisorWake.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum note severity to resume'**
+  String get advisorWake;
+
+  /// No description provided for @inheritSetting.
+  ///
+  /// In en, this message translates to:
+  /// **'Use profile default'**
+  String get inheritSetting;
+
+  /// No description provided for @everyTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Every turn'**
+  String get everyTurn;
+
+  /// No description provided for @runEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'At the end of the run'**
+  String get runEnd;
+
+  /// No description provided for @allReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for all reviews'**
+  String get allReviews;
+
+  /// No description provided for @minorNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Minor issue'**
+  String get minorNote;
+
+  /// No description provided for @concernNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Concern'**
+  String get concernNote;
+
+  /// No description provided for @blockerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocker'**
+  String get blockerNote;
+
+  /// No description provided for @memberPatterns.
+  ///
+  /// In en, this message translates to:
+  /// **'Model patterns, one per line'**
+  String get memberPatterns;
+
   /// No description provided for @shareGroup.
   ///
   /// In en, this message translates to:
@@ -712,6 +892,12 @@ abstract class AppLocalizations {
   /// **'Provider ID'**
   String get providerId;
 
+  /// No description provided for @renameProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename provider'**
+  String get renameProvider;
+
   /// No description provided for @keyEnv.
   ///
   /// In en, this message translates to:
@@ -735,6 +921,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upstream model IDs, one per line'**
   String get modelIds;
+
+  /// No description provided for @providerFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Fallback models or groups, in order, one per line'**
+  String get providerFallback;
+
+  /// No description provided for @allowProviderFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept fallback requests from other providers'**
+  String get allowProviderFallback;
 
   /// No description provided for @protocolBase.
   ///

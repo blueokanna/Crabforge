@@ -93,8 +93,8 @@ async fn anthropic_relays_negotiate_replayable_requests_and_keep_explicit_choice
             .env("NO_PROXY", "127.0.0.1");
         cmd
     };
-    for _ in 0..2 {
-        let out = cli().args(["models", "single"]).output().await?;
+    for options in [&["models", "single", "--sync"][..], &["models", "single"]] {
+        let out = cli().args(options).output().await?;
         assert!(
             out.status.success(),
             "{}",

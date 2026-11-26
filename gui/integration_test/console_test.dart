@@ -10,9 +10,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'desktop_widgets.dart';
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  testWidgets('桌面配置、网关请求和路由记录通过真实 Rust 绑定工作', (tester) async {
+  testDesktopWidgets('桌面配置、网关请求和路由记录通过真实 Rust 绑定工作', (tester) async {
     final path = Platform.environment['CRABFORGE_HOME'];
     if (path == null ||
         !Directory(path).uri.pathSegments
@@ -40,9 +42,27 @@ void main() {
 
     if (Platform.environment['CRABFORGE_RESTART_CHECK'] == '1') {
       app.main();
-      await waitFor(find.text('local'));
+      await waitFor(find.text('renamed-local'));
       final zh = lookupAppLocalizations(const Locale('zh'));
       await waitFor(find.text(zh.addProvider));
+      final persisted = jsonDecode(await native.configuration());
+      expect(persisted['groups']['renamed-2'], ['renamed-local/desktop-model']);
+      expect(persisted['group_weights']['renamed-2'], {
+        'renamed-local/desktop-model': 3,
+      });
+      expect(persisted['group_match']['renamed-copy'], [
+        'free:renamed-local/*',
+      ]);
+      expect(persisted['former_providers']['local'], 'renamed-local');
+      expect(persisted['providers'][0]['no_stand_in'], true);
+      expect(persisted['providers'][0]['fallback'], [
+        'renamed-local/account-model',
+        'group/renamed',
+      ]);
+      expect(persisted['providers'][0]['model_protocols']['account-model'], {
+        'native_endpoints': ['/v1/messages'],
+        'magpie_prefers': '/v1/messages',
+      });
       expect(Localizations.localeOf(tester.element(picker)).languageCode, 'zh');
       await tester.tap(find.text(zh.groups).last);
       await tester.pumpAndSettle();
@@ -88,7 +108,9 @@ void main() {
     upstream.listen((req) async {
       if (req.method == 'GET' && req.uri.path == '/account/catalog') {
         req.response.headers.contentType = ContentType.json;
-        req.response.write('{"data":[{"id":"account-model"}]}');
+        req.response.write(
+          '{"data":[{"id":"account-model","free":true,"native_endpoints":["/v1/messages"],"magpie_prefers":"/v1/messages"}]}',
+        );
         await req.response.close();
         return;
       }
@@ -198,6 +220,15 @@ void main() {
     );
     await tester.ensureVisible(sourcesField);
     await tester.enterText(sourcesField, 'kimi-code-plan-cn, vercel');
+    final fallbackField = find.widgetWithText(
+      TextFormField,
+      lookupAppLocalizations(const Locale('zh')).providerFallback,
+    );
+    await tester.ensureVisible(fallbackField);
+    await tester.enterText(fallbackField, 'local/account-model\ngroup/desktop');
+    await tapText(
+      lookupAppLocalizations(const Locale('zh')).allowProviderFallback,
+    );
     await tapText('读取模型目录');
     await waitFor(find.textContaining('已读取 1 个模型'));
     await tapText('保存');
@@ -207,6 +238,13 @@ void main() {
     expect(saved['endpoints']['auth_header'], 'bearer');
     expect(saved['catalog'], 'kimi-code-plan-cn, vercel');
     expect(saved['models'], ['desktop-model', 'account-model']);
+    expect(saved['fallback'], ['local/account-model', 'group/desktop']);
+    expect(saved['no_stand_in'], true);
+    expect(saved['free_models'], ['account-model']);
+    expect(saved['model_protocols']['account-model'], {
+      'native_endpoints': ['/v1/messages'],
+      'magpie_prefers': '/v1/messages',
+    });
     await tapText('DeepSeek 网页');
     await waitFor(find.text('deepseek-web').first);
     expect(
@@ -230,10 +268,18 @@ void main() {
     final search = find.byType(TextField);
     await tester.enterText(search, 'AUTO/DESKTOP');
     await waitFor(find.text('auto/desktop-model'));
-    await tester.enterText(search, 'GROUP/PARENT');
+    await tester.tap(find.byTooltip(zh.gridView));
+    await waitFor(find.byKey(const PageStorageKey('model-grid')));
+    await waitFor(find.text('auto/desktop-model'));
+    await tester.tap(search);
     await tester.pumpAndSettle();
-    expect(find.text('group/parent'), findsOneWidget);
+    await tester.enterText(search, 'GROUP/PARENT');
+    await waitFor(find.text('group/parent'));
     expect(find.text('group/desktop'), findsNothing);
+    await tester.tap(find.byTooltip(zh.listView));
+    await waitFor(find.byKey(const PageStorageKey('model-list')));
+    await tester.tap(search);
+    await tester.pumpAndSettle();
     await tester.enterText(search, 'missing-model');
     await waitFor(find.text(zh.noModelsFound));
     await tapText(zh.clients);
@@ -293,7 +339,7 @@ void main() {
       'renamed',
     );
     await tapText(zh.save);
-    await waitFor(find.text('group/renamed').first);
+    await waitFor(find.text('group/renamed'));
     expect(
       jsonDecode(settings.readAsStringSync())['group_display_order'].first,
       'renamed',
@@ -319,27 +365,75 @@ void main() {
       of: renamedCard,
       matching: find.byTooltip(zh.shareGroup),
     );
-    String? shareText;
-    final messenger = tester.binding.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.setData') {
-        shareText = call.arguments['text'] as String;
-      }
-      return null;
-    });
-    addTearDown(
-      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
-    );
     await tester.ensureVisible(shareButton);
     await tester.tap(shareButton);
-    await waitFor(find.text(zh.groupCopied));
-    messenger.setMockMethodCallHandler(SystemChannels.platform, null);
-    expect(jsonDecode(shareText!)['group']['routing'], 'weight');
+    await waitFor(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Text &&
+            (w.data == zh.groupCopied || w.data == zh.sharedGroupText),
+      ),
+    );
+    final copiedToSystem = find.text(zh.groupCopied).evaluate().isNotEmpty;
+    final String shareText;
+    if (copiedToSystem) {
+      shareText = (await Clipboard.getData(Clipboard.kTextPlain))!.text!;
+    } else {
+      final dialog = find.byType(AlertDialog);
+      shareText = tester
+          .widget<SelectableText>(
+            find.descendant(of: dialog, matching: find.byType(SelectableText)),
+          )
+          .data!;
+      await tapText(
+        MaterialLocalizations.of(tester.element(dialog)).closeButtonLabel,
+      );
+    }
+    debugPrint(
+      copiedToSystem
+          ? 'Group share read from system clipboard'
+          : 'Group share read from selectable text after clipboard error',
+    );
+    expect(jsonDecode(shareText)['group']['routing'], 'weight');
     await tapText(zh.importGroup);
     final importText = find.widgetWithText(TextField, zh.sharedGroupText);
-    await tester.enterText(importText, shareText!);
+    await tester.tap(importText);
+    await tester.pumpAndSettle();
+    final editable = find.descendant(
+      of: importText,
+      matching: find.byType(EditableText),
+    );
+    if (copiedToSystem) {
+      await tester
+          .state<EditableTextState>(editable)
+          .pasteText(SelectionChangedCause.keyboard);
+    } else {
+      await tester.enterText(importText, shareText);
+    }
+    await tester.pumpAndSettle();
+    expect(tester.widget<EditableText>(editable).controller.text, shareText);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, zh.save))
+          .onPressed,
+      isNotNull,
+    );
     await tapText(zh.save);
-    await waitFor(find.text('group/renamed-2'));
+    final importedCard = find.widgetWithText(
+      ListTile,
+      'renamed 2 · group/renamed-2',
+    );
+    await tester.scrollUntilVisible(
+      importedCard,
+      120,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const PageStorageKey(2)),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await waitFor(importedCard);
     final imported = jsonDecode(settings.readAsStringSync());
     expect(imported['groups']['renamed-2'], ['local/desktop-model']);
     expect(imported['group_weights']['renamed-2'], {'local/desktop-model': 3});
@@ -347,6 +441,28 @@ void main() {
       ListTile,
       'renamed copy · group/renamed-copy',
     );
+    await tester.ensureVisible(copyCard);
+    await tester.tap(copyCard);
+    await tester.pumpAndSettle();
+    final patternField = find.widgetWithText(TextField, zh.memberPatterns);
+    await tester.ensureVisible(patternField);
+    await tester.enterText(patternField, 'free:local/*');
+    await waitFor(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byKey(const ValueKey('local/account-model')),
+      ),
+    );
+    await tapText(zh.save);
+    await waitFor(
+      find.descendant(
+        of: copyCard,
+        matching: find.text('local/desktop-model → local/account-model'),
+      ),
+    );
+    final patternConfig = jsonDecode(settings.readAsStringSync());
+    expect(patternConfig['groups']['renamed-copy'], ['local/desktop-model']);
+    expect(patternConfig['group_match']['renamed-copy'], ['free:local/*']);
     final disableCopy = find.descendant(
       of: copyCard,
       matching: find.byTooltip(zh.disableGroup),
@@ -595,5 +711,19 @@ void main() {
     await tapText('断开');
     await waitFor(find.text('连接'));
     expect(jsonDecode(await native.status())['tunnel'], isNull);
+    await tapText(zh.providers);
+    final rename = find.descendant(
+      of: find.widgetWithText(ListTile, 'local'),
+      matching: find.byTooltip(zh.renameProvider),
+    );
+    await tester.ensureVisible(rename);
+    await tester.tap(rename);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, zh.providerId),
+      'renamed-local',
+    );
+    await tapText(zh.save);
+    await waitFor(find.text('renamed-local'));
   });
 }

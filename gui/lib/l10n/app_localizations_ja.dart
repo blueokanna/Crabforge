@@ -10,6 +10,96 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get listView => 'リスト表示';
+
+  @override
+  String get gridView => 'グリッド表示';
+
+  @override
+  String get gatewayProtocol => 'ゲートウェイのプロトコル';
+
+  @override
+  String get nativeModelProtocol => '各モデルのネイティブプロトコルを使う';
+
+  @override
+  String get roleModels => '役割別のモデル';
+
+  @override
+  String get roleModelId => 'モデル ID';
+
+  @override
+  String get resetRole => '役割をリセット';
+
+  @override
+  String get syncModelCatalog => 'モデル一覧を同期';
+
+  @override
+  String get thinkingLevels => '思考レベル';
+
+  @override
+  String get sessionThinking => 'セッションの思考レベル';
+
+  @override
+  String get thinkingAuto => '自動';
+
+  @override
+  String get thinkingMinimal => '最小';
+
+  @override
+  String get thinkingLow => '低';
+
+  @override
+  String get thinkingMedium => '中';
+
+  @override
+  String get thinkingHigh => '高';
+
+  @override
+  String get thinkingExtraHigh => '非常に高い';
+
+  @override
+  String get thinkingMax => '最大';
+
+  @override
+  String get ompProfile => 'Oh My Pi プロファイル';
+
+  @override
+  String get advisorSettings => 'アドバイザー設定';
+
+  @override
+  String get advisorReview => 'レビューのタイミング';
+
+  @override
+  String get advisorWait => '待機を開始する未完了レビュー数';
+
+  @override
+  String get advisorWake => '実行再開に必要な指摘の重要度';
+
+  @override
+  String get inheritSetting => '既定値を使用';
+
+  @override
+  String get everyTurn => '毎ターン';
+
+  @override
+  String get runEnd => '実行終了時';
+
+  @override
+  String get allReviews => 'すべてのレビューを待つ';
+
+  @override
+  String get minorNote => '軽微な指摘';
+
+  @override
+  String get concernNote => '懸念事項';
+
+  @override
+  String get blockerNote => '進行を妨げる問題';
+
+  @override
+  String get memberPatterns => 'モデルのパターン（1 行に 1 つ）';
+
+  @override
   String get shareGroup => '共有用にグループをコピー';
 
   @override
@@ -326,6 +416,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get providerId => 'プロバイダー ID';
 
   @override
+  String get renameProvider => 'プロバイダー名を変更';
+
+  @override
   String get keyEnv => 'API キーの環境変数';
 
   @override
@@ -336,6 +429,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get modelIds => '接続先のモデル ID（1 行に 1 件）';
+
+  @override
+  String get providerFallback => '予備のモデルまたはグループ（優先順に 1 行に 1 件）';
+
+  @override
+  String get allowProviderFallback => '他のプロバイダーからの代替リクエストを受け付ける';
 
   @override
   String protocolBase(String value) {

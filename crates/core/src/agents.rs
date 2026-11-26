@@ -104,8 +104,48 @@ pub fn by_path(path: &str) -> (&str, Option<&'static str>) {
     (path, None)
 }
 
+mod command;
+pub mod omp_catalog;
+pub mod omp_profiles;
+pub mod omp_settings;
 mod user_agent;
+pub use command::installed_command;
 pub(crate) use user_agent::client_name;
+
+/// Model configuration shared by the Pi clients and Oh My Pi.
+pub fn pi_model(
+    id: &str,
+    root: &str,
+    api: &str,
+    protocols: Option<&crate::gateway::NativeProtocols>,
+    binary: &str,
+) -> serde_json::Value {
+    let mut model = serde_json::json!({"id":id});
+    let selected = if api == "openai-completions" {
+        protocols.copied().unwrap_or_default().pi_api()
+    } else {
+        api
+    };
+    // Pi and mu's Google adapter cannot use the custom fetch supplied by SDK hosts.
+    if selected == "google-generative-ai"
+        && matches!(binary, "pi" | "mu")
+        && api == "openai-completions"
+    {
+        return model;
+    }
+    if selected != api {
+        model["api"] = selected.into();
+        match selected {
+            "anthropic-messages" => model["baseUrl"] = root.into(),
+            "google-generative-ai" => model["baseUrl"] = format!("{root}/v1beta").into(),
+            _ => (),
+        }
+    }
+    if selected == "openai-responses" && binary != "omp" {
+        model["compat"] = serde_json::json!({"supportsStrictMode":true});
+    }
+    model
+}
 
 /// Gemini CLI selects its gateway backend from the base URL alone. The
 /// explicit API-key selection enables its Gemini protocol for this profile.

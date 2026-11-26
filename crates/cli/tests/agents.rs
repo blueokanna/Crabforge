@@ -1,9 +1,145 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use axum::{Router, body::Bytes, http::HeaderMap, routing::post};
 use crabforge_core::{config, service::Service};
 use serde_json::{Value, json};
 use std::{env, fs, process::Stdio, time::Duration};
 use tokio::{net::TcpListener, process::Command, time::timeout};
+
+#[tokio::test]
+async fn synced_relay_catalog_preserves_native_protocols_across_gateways() -> Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let base = format!("http://{}/v1", listener.local_addr()?);
+    let refreshed_catalog = format!("http://{}/catalog-v2", listener.local_addr()?);
+    let upstream = Router::new().route(
+        "/v1/responses",
+        post(|axum::Json(body): axum::Json<Value>| async move {
+            assert_eq!(body["model"], "r");
+            assert_eq!(body["previous_response_id"], "earlier");
+            axum::Json(json!({"id":"native-response","object":"response"}))
+        }),
+    );
+    let upstream = upstream.route(
+        "/catalog-v2",
+        axum::routing::get(|| async { axum::Json(json!({"data":[{"id":"one/r"},{"id":"new"}]})) }),
+    );
+    let mock = tokio::spawn(async move { axum::serve(listener, upstream).await });
+    let remote = tempfile::tempdir()?;
+    let local = tempfile::tempdir()?;
+    let settings = json!({"listen":"127.0.0.1:0","providers":[
+        {"id":"one","models":["r"],"endpoints":{"responses":base}},
+        {"id":"two","models":["c"],"endpoints":{"chat":base}}],
+        "groups":{"preferred":["one/r"],"mixed":["one/r","two/c"]}});
+    config::save(
+        remote.path(),
+        &config::snapshot(remote.path())?,
+        &settings.to_string(),
+    )?;
+    let remote_gateway = Service::start(remote.path()).await?;
+    let remote_base = format!("http://{}/v1", remote_gateway.addr);
+    let remote_key = config::token(remote.path())?;
+    let var = "CRABFORGE_TEST_REMOTE_CATALOG_TOKEN";
+    let settings = json!({"listen":"127.0.0.1:0","providers":[{"id":"relay","models":["placeholder"],"key_env":var,"endpoints":{"chat":remote_base,"responses":remote_base}}]});
+    config::save(
+        local.path(),
+        &config::snapshot(local.path())?,
+        &settings.to_string(),
+    )?;
+    let cli = || {
+        let mut c = Command::new(env!("CARGO_BIN_EXE_carbforge-cli"));
+        c.arg("--data-dir")
+            .arg(local.path())
+            .env(var, &remote_key)
+            .kill_on_drop(true);
+        c
+    };
+    let out = cli().args(["models", "relay", "--sync"]).output().await?;
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let settings = config::load(local.path())?;
+    let protocols =
+        crabforge_core::gateway::native_protocols(&settings, &settings.resolved_groups())?;
+    for id in ["relay/one/r", "relay/group/preferred"] {
+        assert_eq!(protocols[id].pi_api(), "openai-responses");
+    }
+    assert_eq!(protocols["relay/two/c"].pi_api(), "openai-completions");
+    assert_eq!(
+        protocols["relay/group/mixed"].pi_api(),
+        "openai-completions"
+    );
+    let mut local_gateway = cli().arg("serve").stderr(Stdio::piped()).spawn()?;
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    let mut lines = BufReader::new(local_gateway.stderr.take().unwrap()).lines();
+    let addr = timeout(Duration::from_secs(15), async {
+        while let Some(s) = lines.next_line().await? {
+            if let Some(url) = s.strip_prefix("HTTP ") {
+                return Ok(url.to_owned());
+            }
+        }
+        anyhow::bail!("local gateway exited before startup")
+    })
+    .await??;
+    let client = reqwest::Client::builder().no_proxy().build()?;
+    let key = config::token(local.path())?;
+    let base = addr.trim_end_matches("/v1");
+    let response = client
+        .get(format!("{base}/v1/models/relay/group/preferred"))
+        .bearer_auth(&key)
+        .send()
+        .await?
+        .error_for_status()?;
+    let info: Value = serde_json::from_slice(&response.bytes().await?)?;
+    assert_eq!(info["magpie_prefers"], "/v1/responses");
+    assert_eq!(info["native_endpoints"], json!(["/v1/responses"]));
+    let mixed: Value = serde_json::from_slice(
+        &client
+            .get(format!("{base}/v1/models/relay/group/mixed"))
+            .bearer_auth(&key)
+            .send()
+            .await?
+            .error_for_status()?
+            .bytes()
+            .await?,
+    )?;
+    assert_eq!(mixed["native_endpoints"], json!([]));
+    assert!(mixed.get("magpie_prefers").is_none());
+    let request =
+        json!({"model":"relay/group/preferred","input":"next","previous_response_id":"earlier"});
+    let response = client
+        .post(format!("{base}/v1/responses"))
+        .bearer_auth(key)
+        .header("content-type", "application/json")
+        .body(request.to_string())
+        .send()
+        .await?
+        .error_for_status()?;
+    let body: Value = serde_json::from_slice(&response.bytes().await?)?;
+    assert_eq!(body["id"], "native-response");
+    local_gateway.kill().await?;
+    let mut changed = config::load(local.path())?;
+    changed.providers[0].endpoints.models_url = refreshed_catalog;
+    config::save(
+        local.path(),
+        &config::snapshot(local.path())?,
+        &serde_json::to_string(&changed)?,
+    )?;
+    let sync = cli().args(["models", "relay", "--sync"]).output().await?;
+    assert!(
+        sync.status.success(),
+        "{}",
+        String::from_utf8_lossy(&sync.stderr)
+    );
+    let synced = config::load(local.path())?;
+    assert_eq!(synced.providers[0].models.len(), 2);
+    assert!(synced.providers[0].models.iter().any(|id| id == "one/r"));
+    assert!(synced.providers[0].models.iter().any(|id| id == "new"));
+    assert!(synced.providers[0].model_protocols.is_empty());
+    remote_gateway.stop().await;
+    mock.abort();
+    Ok(())
+}
 
 #[tokio::test]
 async fn every_advertised_agent_root_forwards_and_records_its_own_name() -> Result<()> {
@@ -398,6 +534,535 @@ async fn omp_discovers_profiles_and_writes_the_directory_selected_by_native_flag
 }
 
 #[tokio::test]
+#[ignore = "requires the omp CLI and its Bun runtime on PATH"]
+async fn omp_reads_advisor_choices_and_resets_from_the_named_profile() -> Result<()> {
+    let scratch = tempfile::tempdir()?;
+    let root = scratch.path();
+    let settings = |args: &[&str]| {
+        let mut c = isolated_cli(root);
+        c.env("PI_CONFIG_DIR", "advisor-test")
+            .args(["omp-advisor", "--profile", "work"])
+            .args(args);
+        c
+    };
+    let layer = || async {
+        let native = crabforge_core::agents::omp_profiles::installed()?;
+        let mut c = isolated_command(Command::from(native), root);
+        let output = timeout(
+            Duration::from_secs(45),
+            c.env("PI_CONFIG_DIR", "advisor-test")
+                .args([
+                    "--profile",
+                    "work",
+                    "config",
+                    "list",
+                    "--scope",
+                    "global",
+                    "--json",
+                ])
+                .output(),
+        )
+        .await??;
+        anyhow::ensure!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        anyhow::Ok(serde_json::from_slice::<Value>(&output.stdout)?)
+    };
+    for (args, expected) in [
+        (
+            vec!["--review=agent-end", "--wait=1", "--wake=concern"],
+            Some(true),
+        ),
+        (vec!["--review=off"], Some(false)),
+        (
+            vec!["--review=inherit", "--wait=inherit", "--wake=inherit"],
+            None,
+        ),
+    ] {
+        let output = timeout(Duration::from_secs(45), settings(&args).output()).await??;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let values = layer().await?;
+        assert_eq!(values["advisor.enabled"]["value"].as_bool(), expected);
+        assert_eq!(values["advisor.reviewMode"]["value"], "agent-end");
+        assert_eq!(
+            values["advisor.syncBacklog"]["value"].as_str(),
+            expected.map(|_| "1")
+        );
+        assert_eq!(
+            values["advisor.continueSeverity"]["value"].as_str(),
+            expected.map(|_| "concern")
+        );
+    }
+    assert!(!root.join("agents/omp/config.yml").exists());
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires the omp CLI and its Bun runtime on PATH"]
+async fn omp_reads_thinking_levels_without_changing_fallback_roles() -> Result<()> {
+    let scratch = tempfile::tempdir()?;
+    let root = scratch.path();
+    let profile = root.join("thinking-test/profiles/work/agent");
+    fs::create_dir_all(&profile)?;
+    fs::write(
+        profile.join("config.yml"),
+        "modelRoles:\n  slow: local/qwen3:8b\n  tiny: [a, b:low]\n",
+    )?;
+    for (session, level, expected_role) in [
+        ("auto", "off", "local/qwen3:8b:off"),
+        ("inherit", "inherit", "local/qwen3:8b"),
+    ] {
+        let output = timeout(
+            Duration::from_secs(45),
+            isolated_cli(root)
+                .env("PI_CONFIG_DIR", "thinking-test")
+                .args([
+                    "omp-thinking",
+                    "--profile",
+                    "work",
+                    "--session",
+                    session,
+                    "--role",
+                    "slow",
+                    "--level",
+                    level,
+                ])
+                .output(),
+        )
+        .await??;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let native = crabforge_core::agents::omp_profiles::installed()?;
+        let output = timeout(
+            Duration::from_secs(45),
+            isolated_command(Command::from(native), root)
+                .env("PI_CONFIG_DIR", "thinking-test")
+                .args([
+                    "--profile",
+                    "work",
+                    "config",
+                    "list",
+                    "--scope",
+                    "global",
+                    "--json",
+                ])
+                .output(),
+        )
+        .await??;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let values: Value = serde_json::from_slice(&output.stdout)?;
+        assert_eq!(
+            values["modelRoles"]["value"],
+            json!({"slow":expected_role,"tiny":["a","b:low"]})
+        );
+        assert_eq!(
+            values["defaultThinkingLevel"]["value"].as_str(),
+            (session != "inherit").then_some(session)
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires the omp CLI and its Bun runtime on PATH"]
+async fn omp_sync_restores_available_models_to_the_effective_scope() -> Result<()> {
+    let scratch = tempfile::tempdir()?;
+    let root = scratch.path();
+    let profile = root.join("sync-test/profiles/work/agent");
+    fs::create_dir_all(&profile)?;
+    fs::write(
+        profile.join("config.yml"),
+        "enabledModels: [other/m, crabforge/local/b:high]\n",
+    )?;
+    for (models, expected) in [
+        (vec!["a"], json!(["other/m"])),
+        (vec!["a", "b"], json!(["other/m", "crabforge/local/b:high"])),
+    ] {
+        fs::write(root.join("settings.json"), json!({"providers":[{"id":"local","models":models,"endpoints":{"chat":"http://127.0.0.1:1/v1"}}]}).to_string())?;
+        let output = timeout(
+            Duration::from_secs(45),
+            isolated_cli(root)
+                .env("PI_CONFIG_DIR", "sync-test")
+                .args(["omp-sync", "--profile", "work"])
+                .output(),
+        )
+        .await??;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let native = crabforge_core::agents::omp_profiles::installed()?;
+        let output = timeout(
+            Duration::from_secs(45),
+            isolated_command(Command::from(native), root)
+                .env("PI_CONFIG_DIR", "sync-test")
+                .args([
+                    "--profile",
+                    "work",
+                    "config",
+                    "list",
+                    "--scope",
+                    "global",
+                    "--json",
+                ])
+                .output(),
+        )
+        .await??;
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let values: Value = serde_json::from_slice(&output.stdout)?;
+        assert_eq!(values["enabledModels"]["value"], expected);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires the omp CLI and its Bun runtime on PATH"]
+async fn omp_protocol_picker_changes_the_native_wire_request() -> Result<()> {
+    use axum::{
+        extract::Request,
+        middleware::{self, Next},
+    };
+    let (requests, mut received) = tokio::sync::mpsc::unbounded_channel();
+    let app = chat_stream()
+        .merge(responses_stream())
+        .merge(messages_stream())
+        .merge(gemini_stream())
+        .layer(middleware::from_fn(move |request: Request, next: Next| {
+            let _ = requests.send(request.uri().path().to_owned());
+            async move { next.run(request).await }
+        }));
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let base = format!("http://{}", listener.local_addr()?);
+    let server = tokio::spawn(async move { axum::serve(listener, app).await });
+    let scratch = tempfile::tempdir()?;
+    let root = scratch.path();
+    let mut cfg = json!({"listen":"127.0.0.1:0", "providers":[{"id":"local","models":["m"],"endpoints":{"chat":format!("{base}/v1"),"responses":format!("{base}/v1"),"anthropic":format!("{base}/v1"),"gemini":format!("{base}/v1beta")}}]});
+    config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
+    let service = Service::start(root).await?;
+    cfg["listen"] = json!(service.addr.to_string());
+    config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
+    for (choice, endpoint) in [
+        ("openai-responses", "/v1/responses"),
+        ("anthropic-messages", "/v1/messages"),
+        (
+            "google-generative-ai",
+            "/v1beta/models/m:streamGenerateContent",
+        ),
+        ("openai-completions", "/v1/chat/completions"),
+        ("auto", "/v1/chat/completions"),
+    ] {
+        let cli = || {
+            let mut cmd = isolated_cli(root);
+            cmd.env("PI_CONFIG_DIR", "protocol-test");
+            cmd
+        };
+        let set = cli()
+            .args(["omp-protocol", "--profile", "work", choice])
+            .output()
+            .await?;
+        ensure!(
+            set.status.success(),
+            "{}",
+            String::from_utf8_lossy(&set.stderr)
+        );
+        assert_eq!(String::from_utf8(set.stdout)?.trim(), choice);
+        let reply = timeout(
+            Duration::from_secs(75),
+            cli()
+                .args([
+                    "agent",
+                    "omp",
+                    "local/m",
+                    "--profile",
+                    "work",
+                    "--",
+                    "--offline",
+                    "--no-session",
+                    "-p",
+                    "Please say hello.",
+                ])
+                .output(),
+        )
+        .await??;
+        ensure!(
+            reply.status.success()
+                && String::from_utf8_lossy(&reply.stdout).contains("CRABFORGE_FIXTURE_REPLY"),
+            "{choice}: {} {}",
+            String::from_utf8_lossy(&reply.stderr),
+            String::from_utf8_lossy(&reply.stdout)
+        );
+        let mut observed = vec![received.try_recv()?];
+        while let Ok(path) = received.try_recv() {
+            observed.push(path);
+        }
+        assert!(
+            observed.iter().all(|path| path == endpoint),
+            "{choice} expected {endpoint}, observed {observed:?}"
+        );
+    }
+    assert!(!root.join("agents/omp/models.yml").exists());
+    service.stop().await;
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires the omp CLI and its Bun runtime on PATH"]
+async fn omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses() -> Result<()> {
+    let scratch = tempfile::tempdir()?;
+    let root = scratch.path();
+    let profile = root.join("rename-test/profiles/work/agent");
+    fs::create_dir_all(&profile)?;
+    let default = root.join("agents/omp");
+    fs::create_dir_all(&default)?;
+    let settings = "# personal\nmodelRoles:\n  default: crabforge/local/m\n  tiny: [other/x, crabforge/local/m:low]\nretry:\n  fallbackChains:\n    crabforge/local/m: [crabforge/local/n]\ntask:\n  agentModelOverrides: {review: 'other/y, crabforge/local/m:high'}\nenabledModels:\n  - {path: crabforge/local/folder, models: [crabforge/local/m]}\n";
+    fs::write(profile.join("config.yaml"), settings)?;
+    fs::write(
+        default.join("config.yml"),
+        "modelRoles: {slow: crabforge/local/m}\n",
+    )?;
+    fs::write(
+        profile.join("crabforge-role-tiny.yml"),
+        "previous: [other/z, crabforge/local/n:high]\n",
+    )?;
+    fs::write(
+        profile.join("crabforge-scope-history.json"),
+        r#"{"saved":{"entries":["crabforge/local/gone:high"],"emptied":false},"pending":null}"#,
+    )?;
+    let models = profile.join("models.yml");
+    let personal = "personal: {api: openai-completions, baseUrl: 'http://127.0.0.1:1/v1', apiKey: TEST_PERSONAL_KEY, models: [{id: local/m}]} # untouched";
+    fs::write(
+        &models,
+        format!(
+            "providers:\n  {personal}\n  crabforge: {{models: [{{id: local/m}}, {{id: local/n}}]}}\n"
+        ),
+    )?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let base = format!("http://{}/v1", listener.local_addr()?);
+    let server = tokio::spawn(async move { axum::serve(listener, chat_stream()).await });
+    let cfg = json!({"listen":"127.0.0.1:0","providers":[{"id":"local","models":["m","n"],"free_models":["n"],"endpoints":{"chat":base}}],
+        "groups":{"weighted":["local/m"],"manual":["local/n"]},"group_match":{"weighted":["free:LOCAL/*"]},
+        "group_placed":{"weighted":["local/n","local/m"]},"group_weights":{"weighted":{"local/n":4}},"group_off":{"weighted":["local/m"]},
+        "group_picks":{"manual":"local/n"},"auto_group_skip":["local"],"model_same_as":{"local/n":"other"}});
+    config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
+    let rename = || {
+        let mut cmd = isolated_cli(root);
+        cmd.env("PI_CONFIG_DIR", "rename-test")
+            .args(["provider", "rename", "local", "lab"]);
+        cmd
+    };
+    // A broken catalog can be repaired and the same operation resumed.
+    let initial = fs::read_to_string(&models)?;
+    fs::write(&models, "providers: [\n")?;
+    let failed = rename().output().await?;
+    assert!(!failed.status.success());
+    assert!(String::from_utf8_lossy(&failed.stderr).contains("retry the profile migration"));
+    fs::write(&models, initial)?;
+    let result = rename().output().await?;
+    ensure!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let renamed = config::load(root)?;
+    assert_eq!(renamed.former_providers["local"], "lab");
+    assert_eq!(renamed.group_picks["manual"], "lab/n");
+    assert_eq!(renamed.group_weights["weighted"]["lab/n"], 4);
+    assert_eq!(renamed.group_placed["weighted"], ["lab/n", "lab/m"]);
+    assert!(renamed.group_off["weighted"].contains("lab/m"));
+    assert!(renamed.auto_group_skip.contains("lab"));
+    assert_eq!(renamed.model_same_as["lab/n"], "other");
+    let text = fs::read_to_string(profile.join("config.yaml"))?;
+    let parsed: Value = serde_yaml::from_str(&text)?;
+    assert!(text.contains("# personal"));
+    assert_eq!(
+        parsed["retry"]["fallbackChains"]["crabforge/lab/m"],
+        json!(["crabforge/lab/n"])
+    );
+    assert_eq!(
+        parsed["task"]["agentModelOverrides"]["review"],
+        "other/y, crabforge/lab/m:high"
+    );
+    assert_eq!(
+        parsed["enabledModels"][0],
+        json!({"path":"crabforge/local/folder", "models":["crabforge/lab/m"]})
+    );
+    assert!(fs::read_to_string(default.join("config.yml"))?.contains("crabforge/lab/m"));
+    assert!(
+        fs::read_to_string(profile.join("crabforge-role-tiny.yml"))?
+            .contains("crabforge/lab/n:high")
+    );
+    assert!(
+        fs::read_to_string(profile.join("crabforge-scope-history.json"))?
+            .contains("crabforge/lab/gone:high")
+    );
+    assert!(fs::read_to_string(&models)?.contains(personal));
+    let service = Service::start(root).await?;
+    let mut cfg = renamed;
+    cfg.listen = service.addr;
+    config::save(
+        root,
+        &config::snapshot(root)?,
+        &serde_json::to_string(&cfg)?,
+    )?;
+    let token = config::token(root)?;
+    let http = reqwest::Client::builder().no_proxy().build()?;
+    for id in ["local/m", "lab/m", "group/weighted"] {
+        let response = http
+            .get(format!("http://{}/v1/models/{id}", service.addr))
+            .bearer_auth(&token)
+            .send()
+            .await?;
+        ensure!(
+            response.status().is_success(),
+            "{id}: {}",
+            response.status()
+        );
+    }
+    let reply = http
+        .post(format!("http://{}/v1/chat/completions", service.addr))
+        .bearer_auth(&token)
+        .header("Content-Type", "application/json")
+        .body(json!({"model":"local/m", "stream":true,"messages":[{"role":"user","content":"hello"}]}).to_string())
+        .send().await?.error_for_status()?.text().await?;
+    assert!(reply.contains("CRABFORGE_FIXTURE_REPLY_m"));
+    let sync = isolated_cli(root)
+        .env("PI_CONFIG_DIR", "rename-test")
+        .args(["omp-sync", "--profile", "work"])
+        .output()
+        .await?;
+    ensure!(
+        sync.status.success(),
+        "{}",
+        String::from_utf8_lossy(&sync.stderr)
+    );
+    let cmd = crabforge_core::agents::omp_profiles::installed()?;
+    let out = timeout(
+        Duration::from_secs(75),
+        isolated_command(Command::from(cmd), root)
+            .env("PI_CONFIG_DIR", "rename-test")
+            .env("CRABFORGE_GATEWAY_KEY", token)
+            .args([
+                "--profile",
+                "work",
+                "--offline",
+                "--no-session",
+                "-p",
+                "Please say hello.",
+            ])
+            .output(),
+    )
+    .await??;
+    ensure!(
+        out.status.success()
+            && String::from_utf8_lossy(&out.stdout).contains("CRABFORGE_FIXTURE_REPLY_m"),
+        "{} {}",
+        String::from_utf8_lossy(&out.stderr),
+        String::from_utf8_lossy(&out.stdout)
+    );
+    service.stop().await;
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires the omp CLI and its Bun runtime on PATH"]
+async fn omp_starts_on_the_saved_role_and_restores_the_original_fallback() -> Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let upstream = listener.local_addr()?;
+    let server = tokio::spawn(async move { axum::serve(listener, chat_stream()).await });
+    let scratch = tempfile::tempdir()?;
+    let root = scratch.path();
+    let profile = root.join("role-test/profiles/work/agent");
+    fs::create_dir_all(&profile)?;
+    fs::write(
+        profile.join("config.yml"),
+        "modelRoles:\n  default: [other/x, other/y:low]\n  slow: openai-codex/example\nenabledModels: [other/x]\n",
+    )?;
+    let mut cfg = json!({"listen":"127.0.0.1:0", "providers":[{"id":"local","models":["m","n"],"endpoints":{"chat":format!("http://{upstream}/v1")}}]});
+    config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
+    let service = Service::start(root).await?;
+    cfg["listen"] = json!(service.addr.to_string());
+    config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
+    for (args, pick) in [
+        (&["--model", "crabforge/local/n"][..], true),
+        (&["--reset"][..], false),
+    ] {
+        let out = timeout(
+            Duration::from_secs(45),
+            isolated_cli(root)
+                .env("PI_CONFIG_DIR", "role-test")
+                .args(["omp-roles", "--profile", "work", "--role", "default"])
+                .args(args)
+                .output(),
+        )
+        .await??;
+        ensure!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let role_state: Value = serde_json::from_slice(&out.stdout)?;
+        assert!(role_state["models"].as_array().unwrap().iter().any(|m| {
+            m.as_str()
+                .is_some_and(|id| id.starts_with("openai-codex/") && id != "openai-codex/example")
+        }));
+        let native = crabforge_core::agents::omp_profiles::installed()?;
+        let mut command = isolated_command(Command::from(native), root);
+        command
+            .env("PI_CONFIG_DIR", "role-test")
+            .env("CRABFORGE_GATEWAY_KEY", config::token(root)?)
+            .args(["--profile", "work"]);
+        if pick {
+            command.args(["--offline", "--no-session", "-p", "Please say hello."]);
+        } else {
+            command.args(["config", "list", "--scope", "global", "--json"]);
+        }
+        let out = timeout(Duration::from_secs(75), command.output()).await??;
+        ensure!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        if pick {
+            assert!(
+                String::from_utf8_lossy(&out.stdout).contains("CRABFORGE_FIXTURE_REPLY_n"),
+                "{}",
+                String::from_utf8_lossy(&out.stdout)
+            );
+        } else {
+            let settings: Value = serde_json::from_slice(&out.stdout)?;
+            assert_eq!(
+                settings["modelRoles"]["value"]["default"],
+                json!(["other/x", "other/y:low"])
+            );
+            assert_eq!(settings["enabledModels"]["value"], json!(["other/x"]));
+        }
+    }
+    service.stop().await;
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
 #[ignore = "requires the DevEco Code CLI on PATH"]
 async fn deveco_loads_the_selected_model_and_authenticated_agent_endpoint() -> Result<()> {
     let scratch = tempfile::tempdir()?;
@@ -433,12 +1098,9 @@ async fn deveco_loads_the_selected_model_and_authenticated_agent_endpoint() -> R
 #[tokio::test]
 #[ignore = "requires the Pi CLI on PATH"]
 async fn pi_receives_text_through_the_gateway() -> Result<()> {
-    client_round(
+    pi_rounds(
         "pi",
         "Pi",
-        "chat",
-        "v1",
-        chat_stream(),
         &["--no-session", "--no-tools", "-p", "Please say hello."],
     )
     .await
@@ -493,12 +1155,9 @@ fn chat_stream() -> Router {
 #[tokio::test]
 #[ignore = "requires omo-ai on PATH"]
 async fn omo_receives_text_through_the_gateway() -> Result<()> {
-    client_round(
+    pi_rounds(
         "omo",
         "OmO",
-        "chat",
-        "v1",
-        chat_stream(),
         &["--offline", "--no-session", "-p", "Please say hello."],
     )
     .await
@@ -507,29 +1166,32 @@ async fn omo_receives_text_through_the_gateway() -> Result<()> {
 #[tokio::test]
 #[ignore = "requires mu-agent on PATH"]
 async fn mu_receives_text_through_the_gateway() -> Result<()> {
-    client_round(
-        "mu",
-        "mu",
-        "chat",
-        "v1",
-        chat_stream(),
-        &["--no-session", "-p", "Please say hello."],
-    )
-    .await
+    pi_rounds("mu", "mu", &["--no-session", "-p", "Please say hello."]).await
 }
 
 #[tokio::test]
 #[ignore = "requires prime-agent on PATH"]
 async fn prime_agent_receives_text_through_the_gateway() -> Result<()> {
-    client_round(
+    pi_rounds(
         "prime-agent",
         "Prime Agent",
-        "chat",
-        "v1",
-        chat_stream(),
         &["--offline", "--no-session", "-p", "Please say hello."],
     )
     .await
+}
+
+async fn pi_rounds(client: &str, name: &str, args: &[&str]) -> Result<()> {
+    for (protocol, prefix, upstream) in [
+        ("chat", "v1", chat_stream()),
+        ("responses", "v1", responses_stream()),
+        ("anthropic", "v1", messages_stream()),
+        ("gemini", "v1beta", gemini_stream()),
+    ] {
+        client_round(client, name, protocol, prefix, upstream, args)
+            .await
+            .with_context(|| format!("{name} on {protocol}"))?;
+    }
+    Ok(())
 }
 
 #[tokio::test]
@@ -671,7 +1333,7 @@ async fn client_round(
         fs::create_dir_all(model_path.parent().unwrap())?;
         fs::write(
             &model_path,
-            r#"{"providers":{"personal":{"baseUrl":"http://127.0.0.1:1/v1","api":"openai-completions","apiKey":"personal-fixture","models":[{"id":"personal"}]}}}"#,
+            r#"{"providers":{"personal":{"baseUrl":"http://127.0.0.1:1/v1","api":"openai-completions","apiKey":"personal-fixture","models":[{"id":"personal"}]},"crabforge":{"headers":{"X-Profile":"fixture"}}}}"#,
         )?;
     }
     let nanobot_home = root.join("agents/nanobot");
@@ -739,6 +1401,7 @@ max_context_size = 32768
     let mut cfg = cfg;
     cfg["listen"] = json!(service.addr.to_string());
     config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
+    let history = &service.history;
     let run = |selection: &'static str| async move {
         let mut command = isolated_cli(root);
         command
@@ -779,9 +1442,14 @@ max_context_size = 32768
             }
         }
         command.arg("--").args(args);
-        let out = timeout(Duration::from_secs(90), command.output())
+        // A cold OmO 5.1.83 process on Windows can spend over 90 s before its first request.
+        let deadline = Duration::from_secs(if client == "omo" { 150 } else { 90 });
+        let out = timeout(deadline, command.output())
             .await
-            .with_context(|| format!("{name} timed out"))??;
+            .with_context(|| {
+                let attempts = history.lock().unwrap().iter().filter(|a| a.agent.as_deref() == Some(name)).map(|a| (a.model.clone(), a.status)).collect::<Vec<_>>();
+                format!("{name} exceeded {deadline:?} on {protocol} for {selection}, completed gateway attempts {attempts:?}")
+            })??;
         assert!(
             out.status.success(),
             "{} {}",
@@ -911,6 +1579,27 @@ max_context_size = 32768
         let text = fs::read_to_string(model_path)?;
         let catalog: Value = serde_json::from_str(&text)?;
         let ours = &catalog["providers"]["crabforge"]["models"];
+        let direct = ours
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|m| m["id"] == "local/m")
+            .unwrap();
+        let expected = match protocol {
+            "responses" => Some("openai-responses"),
+            "anthropic" => Some("anthropic-messages"),
+            "gemini" if matches!(client, "omo" | "prime-agent") => Some("google-generative-ai"),
+            _ => None,
+        };
+        assert_eq!(direct["api"].as_str(), expected);
+        if protocol == "responses" {
+            assert_eq!(direct["compat"]["supportsStrictMode"], true);
+            assert_eq!(ours[0]["api"], "openai-responses");
+        }
+        assert_eq!(
+            catalog["providers"]["crabforge"]["headers"]["X-Profile"],
+            "fixture"
+        );
         assert_eq!(ours[0]["id"], "group/last");
         assert_eq!(ours[1]["id"], "group/first");
         assert!(!ours.as_array().unwrap().iter().any(|m| matches!(
@@ -960,7 +1649,10 @@ max_context_size = 32768
 }
 
 fn isolated_cli(root: &std::path::Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_carbforge-cli"));
+    isolated_command(Command::new(env!("CARGO_BIN_EXE_carbforge-cli")), root)
+}
+
+fn isolated_command(mut command: Command, root: &std::path::Path) -> Command {
     command.env_clear();
     for k in [
         "PATH",

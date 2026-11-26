@@ -1,10 +1,19 @@
 use super::{Config, Provider};
 use std::collections::{BTreeMap, BTreeSet};
-mod share;
 mod pattern;
+mod share;
 pub use pattern::MemberPattern;
 pub use share::ImportedGroup;
 include!(concat!(env!("OUT_DIR"), "/catalog_names.rs"));
+
+pub(super) fn default_catalog(id: &str) -> &str {
+    match id {
+        "kimi-code" => "kimi-code-plan-global",
+        "kimi-code-cn" => "kimi-code-plan-cn",
+        "moonshot" | "moonshot-cn" => "moonshotai",
+        other => other,
+    }
+}
 
 /// Derived from the configured catalogs. Only explicit edits belong in settings.json.
 pub struct ResolvedGroups {
@@ -17,8 +26,19 @@ pub struct ResolvedGroups {
 }
 
 impl ResolvedGroups {
+    pub fn group_reference(&self, cfg: &Config, id: &str) -> Option<String> {
+        let canonical = cfg.canonical_auto_ref(id);
+        let name = canonical.as_deref().unwrap_or(id);
+        let target = self.aliases.get(name).map_or(name, String::as_str);
+        self.members
+            .contains_key(target.strip_prefix("group/")?)
+            .then(|| target.to_owned())
+    }
     pub fn display_members<'a>(&'a self, config: &'a Config, name: &str) -> &'a Vec<String> {
-        self.expanded.get(name).or_else(|| config.groups.get(name)).unwrap_or_else(|| &self.members[name])
+        self.expanded
+            .get(name)
+            .or_else(|| config.groups.get(name))
+            .unwrap_or_else(|| &self.members[name])
     }
     pub fn listed_refs(&self, config: &Config) -> Vec<String> {
         self.ordered_names(&config.group_display_order)
@@ -77,6 +97,27 @@ fn slug(key: &str) -> String {
 }
 
 impl Config {
+    /// Catalog for agent profiles, including bare and provider-qualified model IDs.
+    pub fn agent_model_ids(&self, groups: &ResolvedGroups) -> Vec<String> {
+        let mut ids = BTreeSet::new();
+        for p in &self.providers {
+            for m in &p.models {
+                ids.insert(m.clone());
+                ids.insert(format!("{}/{m}", p.id));
+            }
+        }
+        let mut group_ids = groups.listed_refs(self);
+        if self.group_display_order.is_empty() {
+            ids.extend(group_ids);
+            return ids.into_iter().collect();
+        }
+        for id in &group_ids {
+            ids.remove(id);
+        }
+        group_ids.extend(ids);
+        group_ids
+    }
+
     pub fn unlisted_model_ids(&self, resolved: &ResolvedGroups) -> BTreeSet<String> {
         let mut hidden: BTreeSet<String> = self
             .group_unlists
@@ -204,8 +245,12 @@ impl Config {
             self.groups.get(&from).unwrap_or(effective).clone(),
         );
         cfg.group_labels.insert(id.clone(), label);
-        if let Some(rules) = self.group_match.get(&from) { cfg.group_match.insert(id.clone(), rules.clone()); }
-        if let Some(order) = self.group_placed.get(&from) { cfg.group_placed.insert(id.clone(), order.clone()); }
+        if let Some(rules) = self.group_match.get(&from) {
+            cfg.group_match.insert(id.clone(), rules.clone());
+        }
+        if let Some(order) = self.group_placed.get(&from) {
+            cfg.group_placed.insert(id.clone(), order.clone());
+        }
         if self.group_unlists.contains(&from) {
             cfg.group_unlists.insert(id.clone());
         }
@@ -248,7 +293,14 @@ impl Config {
     /// Update a running manual group's selection without changing its members or strategy.
     pub fn pick_member(&mut self, group: &str, member: &str) -> anyhow::Result<()> {
         let resolved = self.resolved_groups();
-        anyhow::ensure!(resolved.members.contains_key(group) && resolved.display_members(self,group).iter().any(|m|m == member), "unknown member {member} in group {group}");
+        anyhow::ensure!(
+            resolved.members.contains_key(group)
+                && resolved
+                    .display_members(self, group)
+                    .iter()
+                    .any(|m| m == member),
+            "unknown member {member} in group {group}"
+        );
         let pick = self
             .group_picks
             .get_mut(group)
@@ -283,11 +335,24 @@ impl Config {
                 *name = to.to_owned();
             }
         }
+        let references_group = |id: &str| {
+            (id.starts_with("group/") || self.canonical_auto_ref(id).is_some())
+                && resolved.group_reference(self, id).as_deref() == Some(&old)
+        };
+        for provider in &mut cfg.providers {
+            for id in &mut provider.fallback {
+                if references_group(id) {
+                    id.clone_from(&new);
+                }
+            }
+        }
         for (name, saved) in &mut cfg.groups {
             for id in saved.iter_mut() {
-                if id == &old || resolved.aliases.get(id) == Some(&old) && (id.starts_with("group/") || self.canonical_auto_ref(id).is_some()) {
+                if references_group(id) {
                     if let Some(placed) = cfg.group_placed.get_mut(name) {
-                        for m in placed.iter_mut().filter(|m| *m == id) { m.clone_from(&new); }
+                        for m in placed.iter_mut().filter(|m| *m == id) {
+                            m.clone_from(&new);
+                        }
                     }
                     if let Some(off) = cfg.group_off.get_mut(name)
                         && off.remove(id)
@@ -314,8 +379,12 @@ impl Config {
         }
         let saved = cfg.groups.remove(&from).unwrap_or_else(|| members.clone());
         cfg.groups.insert(to.into(), saved);
-        if let Some(rules) = cfg.group_match.remove(&from) { cfg.group_match.insert(to.into(),rules); }
-        if let Some(order) = cfg.group_placed.remove(&from) { cfg.group_placed.insert(to.into(),order); }
+        if let Some(rules) = cfg.group_match.remove(&from) {
+            cfg.group_match.insert(to.into(), rules);
+        }
+        if let Some(order) = cfg.group_placed.remove(&from) {
+            cfg.group_placed.insert(to.into(), order);
+        }
         if cfg.disabled_groups.remove(&from) {
             cfg.disabled_groups.insert(to.into());
         }
@@ -392,15 +461,13 @@ impl Config {
         {
             return other;
         }
-        if id == "workbuddy-ai" && model == "deepseek-v4.1-flash-sg" {
+        if (id == "workbuddy-ai" || catalog == "workbuddy-ai") && model == "deepseek-v4.1-flash-sg"
+        {
             return "deepseek-v4.1-flash";
         }
-        let catalogs = match (catalog.trim(), id) {
-            ("", "kimi-code") => "kimi-code-plan-global",
-            ("", "kimi-code-cn") => "kimi-code-plan-cn",
-            ("", "moonshot" | "moonshot-cn") => "moonshotai",
-            ("", other) => other,
-            (custom, _) => custom,
+        let catalogs = match catalog.trim() {
+            "" => default_catalog(id),
+            custom => custom,
         };
         let key = crate::model_name::same_model(model);
         catalogs
@@ -514,7 +581,7 @@ impl Config {
         };
         for name in self.group_match.keys() {
             if let Some(members) = groups.members.get_mut(name) {
-                *members = self.expand_patterns(name,members);
+                *members = self.expand_patterns(name, members);
                 groups.expanded.insert(name.clone(), members.clone());
             }
         }

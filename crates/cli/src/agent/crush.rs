@@ -40,6 +40,7 @@ pub(super) fn configure(
             "api_key":"$CRABFORGE_GATEWAY_KEY", "models":models
         });
         providers.insert("crabforge".into(), provider);
+        Ok(())
     })?;
     super::edit_json_object(&data.join("crush.json"), "models", |picks| {
         for size in ["large", "small"] {
@@ -50,6 +51,7 @@ pub(super) fn configure(
                 picks.insert(size.into(), json!({"provider":"crabforge","model":model}));
             }
         }
+        Ok(())
     })?;
     command
         .env("CRUSH_GLOBAL_CONFIG", profile)

@@ -31,6 +31,8 @@ Ollama 客户端使用网关根地址（默认 `http://127.0.0.1:3425`）及 `Au
 
 ### 命令行
 
+在「供应商」页选择「重命名供应商」，或运行 `carbforge-cli provider rename 旧ID 新ID`。下次启动网关时，原有会话仍可请求旧地址。旧 ID 被另一家供应商使用后，请求归当前供应商。改名同时更新路由组成员、固定供应商前缀的通配规则、权重和手选项，以及 Oh My Pi 各 profile 的角色、回退链、作用域、角色备份和模型目录。如果某个 profile 文件无法读取，修复文件后可重跑原命令。
+
 `carbforge-cli` 和 `crabforge-cli` 提供同一组命令。以下示例使用 PowerShell。`config` 输出当前设置，`config <文件>` 校验并导入。`serve` 占用当前终端，Agent 命令在另一个终端中运行。
 
 ```powershell
@@ -67,6 +69,10 @@ carbforge-cli serve
 
 从加权轮询切换到其他策略时，组会记住现有成员的权重。桌面重新选择「加权轮询」或 CLI 使用 `group set 组名 成员列表 --weighted` 可恢复这些权重。显式传入 `--weight 成员=权重` 会按新列表设置权重。
 
+组也可以随供应商的模型目录变化。`carbforge-cli group set free-models 'free:workbuddy/*'` 创建只包含目录明确标记为免费的模型组。`*` 可以跨越 `/`，`re:` 接受匹配整个 `供应商/模型` 的正则表达式，默认忽略大小写，支持 `(?-i)` 及前瞻。默认先尝试显式成员，再按目录顺序尝试匹配项。`group show 组名` 列出每条规则的命中数。`group place 组名 成员列表` 可把指定成员移到最前，省略成员则恢复默认顺序。桌面编辑器可逐行输入规则，预览匹配模型并调整优先级。
+
+`carbforge-cli models 供应商 --sync` 用上游返回的模型 ID 和免费标记更新本机目录。如果会使显式成员失效，保存会报告哪个组引用了该模型。模式组可暂时匹配零项。下次启动网关时会使用更新后的目录。Magpie v1 分享携带 `match` 和 `placed`，收件人在自己的目录上重新匹配。
+
 在桌面组卡片上选择「复制路由组以分享」，在另一台设备的「路由组 → 导入路由组」中粘贴。CLI 可用 `carbforge-cli group share work` 输出 Magpie v1 分享文本，用 `carbforge-cli group import work.json` 从 UTF-8 文件导入，省略文件名则读取标准输入。默认追加为新组；已有自定义组的 ID 与分享文本相同时，`--replace` 在原位置更新它并保留启停状态。导入报告列出缺失成员和本机采用的等价模型。当前可传递顺序、轮询、加权和手选策略、成员开关、目录可见性、备注与历史地址。导入器遇到尚未支持的策略或设置会报告错误。
 
 用 `carbforge-cli group switch daily off` 或点击组卡片左侧的开关，可停用已保存的组。重启网关后，客户端目录会移除该组，向其当前或历史地址发送请求会收到 HTTP 404。顺序、轮询和加权父组会跳过它。手动父组选中它时，请选择另一个可用成员。`group switch daily on` 可恢复原有成员、策略和目录规则。停用期间仍可编辑组，复制得到的新组会启用。自动发现的组须先编辑保存才能切换。
@@ -101,11 +107,32 @@ Qwen Code 使用 `agents/qwen` 作为自己的配置目录。启动器选择 Ope
 
 Pi、mu、OmO 和 Prime Agent 各用 `agents/<客户端>/models.json`。启动器只更新其中的 `crabforge` 供应商，保留个人供应商条目，并为每个客户端写入它能解析的环境变量引用。
 
+连接另一个 Crabforge 或 Magpie 网关时，用 `carbforge-cli models 供应商 --sync` 或桌面的「读取模型目录」再保存。目录中的 `native_endpoints` 表示模型能直接处理的协议，`magpie_prefers` 表示上游首选协议。启动器据此配置每个模型。Pi 和 mu 的 Gemini 模型默认经 Chat 转换，OmO 和 Prime Agent 可直接使用 Gemini。Responses 模型支持严格模式，Messages 模型使用网关根地址。
+
+首次同步已有 Pi 格式的配置会建立模型协议记录。此后，在 `models.json` 中给某个模型指定一个此前未由 Crabforge 写入的 `api`，下次同步会保留它及同一条目中的 `baseUrl`、`compat`。删除模型的 `api` 可恢复自动选择。
+
 Oh My Pi 的命令名是 `omp`。Windows 使用 npm 安装的 Oh My Pi 19.2.1 时，需将 Bun 1.4.4 或更高版本加入 `PATH`。启动器按 `models.yml`、`models.yaml`、`models.json` 的顺序读取 `agents/omp` 中的目录，并将旧 JSON 中的供应商带入 YAML。它保留个人供应商，将网关密钥通过子进程的 `CRABFORGE_GATEWAY_KEY` 提供。对话使用 `/agent/omp` 下的协议地址。
 
 使用命名 profile 时，将 `--profile 名称` 放在传给 Oh My Pi 的 `--` 之前。省略它时依次读取 `OMP_PROFILE` 和 `PI_PROFILE`。空的 `OMP_PROFILE` 或名称 `default` 使用 Crabforge 的默认目录 `agents/omp`。命名 profile 使用已安装客户端通过 `config path` 报告的目录，通常是 `~/.omp/profiles/名称/agent`，其中的个人供应商继续可用。默认目录协议为 Chat Completions，支持原生 Responses、Messages 或 Gemini 的模型会在模型级别使用相应地址。组内所有可用成员都支持 Responses、且有成员首选它时，组也会首选 Responses。
 
-`carbforge-cli omp-profiles` 列出本机默认和命名 profile、当前选择及各自的目录。命令识别 `PI_CONFIG_DIR`。对于已有的原生调用，例如 `carbforge-cli agent omp local/m -- --offline --profile work -p "你好"`，启动器将目录写入客户端实际选择的 `work`。两侧都指定时，以 Oh My Pi 原生选项为准。
+`carbforge-cli omp-profiles` 列出本机默认和命名 profile、当前选择及各自的目录。Oh My Pi 19.2.1 将 `PI_CONFIG_DIR` 解释为相对用户主目录的路径，默认是 `.omp`。对于已有的原生调用，例如 `carbforge-cli agent omp local/m -- --offline --profile work -p "你好"`，启动器将目录写入客户端实际选择的 `work`。两侧都指定时，以 Oh My Pi 原生选项为准。
+
+在「客户端连接」选择 `omp` 后，打开「顾问设置」可编辑对应 profile 的审阅时机、等待阈值和恢复运行的最低问题级别。CLI 用 `carbforge-cli omp-advisor --profile work` 查看当前设置，加 `--review agent-end --wait 3 --wake blocker` 可设为运行结束时审阅、积压三项时等待、仅阻塞问题恢复运行。`--review off` 关闭顾问并保留上次审阅时机。三个选项均可用 `inherit` 清除该项覆盖。设置写入所选 profile 的 `config.yml`，已有 `config.yaml` 且没有 `config.yml` 时使用前者。Oh My Pi 有 `WATCHDOG.yml` 名单时，其中各顾问自己的审阅和等待设置优先。
+
+在同一页打开「思考级别」可设定新会话的 `defaultThinkingLevel`，也可给已选单个模型的角色指定级别。例如 `carbforge-cli omp-thinking --profile work --session auto --role slow --level high` 会让会话自动选择思考级别，让 `slow` 角色使用 `high`。`--level inherit` 清除角色后缀，`--session inherit` 清除会话设置。模型名 `local/qwen3:8b` 中的版本标签会保留。多个模型组成的回退列表使用各自的级别。
+
+「同步模型目录」和 `carbforge-cli omp-sync --profile work` 都能刷新所选 profile。`enabledModels` 直接列出的 Crabforge 模型若从目录消失，会暂时从列表移除。模型再次可用时，原条目连同思考级别会回到列表末尾。目录为空时保留当前作用域。项目专属列表、通配符和其他供应商的条目按原样保留。通过 `agent omp` 启动客户端时也会同步。
+
+在「客户端连接」选择 `omp` 后，「网关协议」可为一个 profile 的对话模型指定 Chat Completions、Responses、Messages 或 Gemini。`carbforge-cli omp-protocol --profile work` 显示当前选择，命令末尾加 `openai-responses` 可切换到 Responses，加 `auto` 恢复各模型的原生协议。下一次启动 Oh My Pi 时生效。
+
+在「客户端连接」选择 `omp`，打开「角色模型」可以分别给默认会话、子任务、顾问等十个角色选模型。`carbforge-cli omp-roles --profile work` 可查看角色及候选模型。例如，下列命令将新会话指向网关模型，随后恢复接管前的配置。原值可以是单个模型、逗号分隔的模型或 YAML 回退列表。
+
+```powershell
+carbforge-cli omp-roles --profile work --role default --model crabforge/local/m
+carbforge-cli omp-roles --profile work --role default --reset
+```
+
+更换模型时会沿用角色原有的思考级别。给默认角色选模型时，已有的全局 `enabledModels` 会允许该模型。给顾问选模型时，若此前没有显式启停设置，Crabforge 会启用顾问，重置角色时会撤回这次启用。若直接运行 `omp --profile work`，先启动网关，再在该终端设置 `$env:CRABFORGE_GATEWAY_KEY = (carbforge-cli key)`。新启动的 Oh My Pi 会按已保存的默认角色选择模型。
 
 「路由」页在每次尝试旁显示客户端提供的会话 ID。网关优先读取 `X-Crabforge-Session`，其次读取 `X-Magpie-Session`，最后读取客户端的原生会话头。带 ID 的已认证请求会在响应中收到 `X-Crabforge-Session` 和 `X-Magpie-Session`。Pi 和 Oh My Pi 16.0.6 起支持用 `x-session-affinity` 上报会话。路由页保留本网关进程最近 128 次尝试，重启会清空记录。
 

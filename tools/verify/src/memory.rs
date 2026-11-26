@@ -141,7 +141,7 @@ pub async fn desktop(gui: &Path, reference: Option<u32>, rounds: u8) -> Result<(
         let pid = app.id().context("desktop exited")?;
         let start = Instant::now();
         while !dir.path().join("peer.identity").is_file() || window(pid).is_null() {
-            check_ready(&mut app, start)?;
+            check_ready(&mut app, start, Duration::from_secs(30))?;
             sleep(Duration::from_millis(100)).await;
         }
         sleep(Duration::from_secs(3)).await;
@@ -165,14 +165,11 @@ pub async fn desktop(gui: &Path, reference: Option<u32>, rounds: u8) -> Result<(
     Ok(())
 }
 
-fn check_ready(child: &mut Child, start: Instant) -> Result<()> {
+fn check_ready(child: &mut Child, start: Instant, limit: Duration) -> Result<()> {
     if let Some(status) = child.try_wait()? {
         bail!("process exited before readiness: {status}");
     }
-    ensure!(
-        start.elapsed() < Duration::from_secs(30),
-        "readiness check timed out"
-    );
+    ensure!(start.elapsed() < limit, "readiness check timed out");
     Ok(())
 }
 
@@ -225,12 +222,13 @@ async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &
         fs::write(root.join("settings.json"), cfg.to_string())?;
         Command::new(exe)
     };
+    let startup_log = root.join("gateway-stderr.log");
     cmd.arg("serve")
         .kill_on_drop(true)
         .env_clear()
         .current_dir(root)
         .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stderr(fs::File::create(&startup_log)?);
     for var in [
         "SystemRoot",
         "WINDIR",
@@ -273,19 +271,29 @@ async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &
         .build()?;
     let catalog = format!("http://{addr}/v1/models");
     let start = Instant::now();
+    let mut last_probe = String::from("waiting for gateway key");
     let (key, models) = loop {
-        check_ready(&mut process, start)?;
+        check_ready(&mut process, start, Duration::from_secs(90)).with_context(|| {
+            format!(
+                "{} at {addr}, {work:?} round {round}, last probe {last_probe}\n{}",
+                exe.display(),
+                fs::read_to_string(&startup_log).unwrap_or_default()
+            )
+        })?;
         let key = if reference {
             Some("magpie".to_owned())
         } else {
             fs::read(root.join("gateway.key")).ok().map(hex::encode)
         };
-        if let Some(key) = key
-            && let Ok(res) = http.get(&catalog).bearer_auth(&key).send().await
-            && res.status().is_success()
-        {
-            let v: Value = serde_json::from_slice(&res.bytes().await?)?;
-            break (key, v["data"].as_array().context("expected models")?.len());
+        if let Some(key) = key {
+            match http.get(&catalog).bearer_auth(&key).send().await {
+                Ok(res) if res.status().is_success() => {
+                    let v: Value = serde_json::from_slice(&res.bytes().await?)?;
+                    break (key, v["data"].as_array().context("expected models")?.len());
+                }
+                Ok(res) => last_probe = res.status().to_string(),
+                Err(error) => last_probe = format!("{error:#?}"),
+            }
         }
         sleep(Duration::from_millis(100)).await;
     };

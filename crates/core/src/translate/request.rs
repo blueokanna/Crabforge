@@ -136,6 +136,7 @@ pub fn convert_request(
             "max_completion_tokens",
             "stop",
             "stream_options",
+            "store",
             "n",
         ],
         Format::Messages => &[
@@ -173,8 +174,8 @@ pub fn convert_request(
     };
     keys(&v, allowed)?;
     ensure!(
-        v["store"] != true,
-        "storing a response requires a native Responses endpoint"
+        v["store"].is_null() || v["store"] == false,
+        "translated requests only support store: false"
     );
     ensure!(
         v["n"].is_null() || v["n"] == 1,
