@@ -68,14 +68,22 @@ pub(super) fn windows_filename(name: &str) -> bool {
 
 impl Tree {
     pub(super) fn read(root: &Path) -> Result<Self> {
+        let mut budget = MAX_BYTES;
+        Self::read_shared(root, &mut budget)
+    }
+
+    pub(super) fn read_shared(root: &Path, budget: &mut usize) -> Result<Self> {
         let metadata = fs::symlink_metadata(root)?;
         ensure!(
             metadata.is_dir() && !is_link(&metadata),
             "expected a regular skill directory"
         );
         let mut tree = Self::default();
-        let mut remaining = MAX_BYTES;
-        tree.scan(root, Path::new(""), 0, &mut remaining)?;
+        let limit = (*budget).min(MAX_BYTES);
+        let mut remaining = limit;
+        let result = tree.scan(root, Path::new(""), 0, &mut remaining);
+        *budget -= limit - remaining;
+        result?;
         Ok(tree)
     }
 

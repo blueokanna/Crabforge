@@ -34,6 +34,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillSourceFolder => '本地文件夹或 GitHub URL';
 
   @override
+  String get installedSkills => '已安装的技能';
+
+  @override
+  String get adoptSkill => '交由 Crabforge 管理';
+
+  @override
+  String get adoptSkillHint => 'Crabforge 会保存文件副本并管理此文件夹。取消分配时，内容未变的文件夹可能会被移除。';
+
+  @override
   String get mcpLibrary => 'MCP 库';
 
   @override

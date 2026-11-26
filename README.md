@@ -84,6 +84,8 @@ Use `skills import` with `--revision` to update a skill of the same name. `skill
 
 For a public GitHub skill, paste its `SKILL.md` or folder URL into the source field or pass it to `skills import`. A repository URL selects the root skill or the only skill folder it contains. If the repository contains several skills, specify the folder you want. **Reimport files** fetches the saved ref and folder again. Use a commit URL to pin the source. For branch names that contain a slash, use `?ref=feature%2Fdocs#path/to/skill` on the repository URL.
 
+**Installed skills** finds compatible folders in native and gateway client profiles. **Manage in Crabforge** checks the discovered content hash, saves a library snapshot and takes over the selected folder in place. Unassigning removes that folder if its files are unchanged. The CLI uses `skills discover` and `skills adopt <agent> <name> <path> --content <content from discover>`.
+
 For a supported client, open **Project MCP** under **Client connections** and select the project folder. Add a server using the client's native JSON format or a TOML table body for Codex. The editor shows the file it will update and checks its revision before saving or removing an entry. The client loads and runs the server when it opens the project.
 
 ```powershell

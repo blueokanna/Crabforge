@@ -216,6 +216,27 @@ pub fn agent_skills() -> Result<String> {
     crabforge_core::skills::library(&config::data_dir()?, crabforge_core::skills::Edit::Read)
 }
 
+pub fn discover_agent_skills() -> Result<String> {
+    crabforge_core::skills::discover(&config::data_dir()?)
+}
+
+pub fn adopt_agent_skill(
+    agent: String,
+    name: String,
+    path: String,
+    content: String,
+) -> Result<String> {
+    crabforge_core::skills::library(
+        &config::data_dir()?,
+        crabforge_core::skills::Edit::Adopt {
+            agent,
+            name,
+            path: path.into(),
+            content,
+        },
+    )
+}
+
 pub fn project_mcp_library() -> Result<String> {
     use crabforge_core::project_mcp::library::{self, Edit};
     library::edit(&config::data_dir()?, Edit::Read)

@@ -96,6 +96,12 @@ pub enum Edit {
         agents: Vec<String>,
         expected: Option<String>,
     },
+    Adopt {
+        agent: String,
+        name: String,
+        path: PathBuf,
+        content: String,
+    },
     Assign {
         name: String,
         agents: Vec<String>,
@@ -106,6 +112,15 @@ pub enum Edit {
         expected: Option<String>,
     },
     Sync,
+}
+
+#[derive(NsonSerialize)]
+struct Discovered {
+    name: String,
+    agent: String,
+    path: String,
+    description: String,
+    content: String,
 }
 
 fn validate_name(name: &str) -> Result<()> {
@@ -208,12 +223,7 @@ fn homes(dir: &Path) -> Result<Homes> {
 
 fn target(profile: &Path, name: &str, agent: &str) -> Result<Target> {
     validate_name(name)?;
-    let profile = resolved_folder(&std::path::absolute(profile)?)?;
-    let skills = resolved_folder(&profile.join("skills"))?;
-    ensure!(
-        skills.starts_with(&profile) && skills != profile,
-        "skill folder points outside the agent profile"
-    );
+    let skills = skill_folder(profile)?;
     Ok(Target {
         name: name.to_owned(),
         agent: agent.to_owned(),
@@ -223,6 +233,16 @@ fn target(profile: &Path, name: &str, agent: &str) -> Result<Target> {
             .context("skill destination is not UTF-8")?
             .to_owned(),
     })
+}
+
+fn skill_folder(profile: &Path) -> Result<PathBuf> {
+    let profile = resolved_folder(&std::path::absolute(profile)?)?;
+    let skills = resolved_folder(&profile.join("skills"))?;
+    ensure!(
+        skills.starts_with(&profile) && skills != profile,
+        "skill folder points outside the agent profile"
+    );
+    Ok(skills)
 }
 
 fn current(path: &Path) -> Result<Option<String>> {
@@ -459,6 +479,70 @@ pub fn library(dir: &Path, edit: Edit) -> Result<String> {
     library_in(dir, &homes(dir)?, edit)
 }
 
+pub fn discover(dir: &Path) -> Result<String> {
+    let store = Store::load(&dir.join("skills/library.json"))?;
+    encode(&discover_in(&store, &homes(dir)?)?)
+}
+
+fn discover_in(store: &Store, homes: &Homes) -> Result<Vec<Discovered>> {
+    let mut found = Vec::new();
+    let mut seen = BTreeSet::new();
+    let mut budget = 128 * 1024 * 1024;
+    for (agent, profiles) in homes {
+        for profile in profiles {
+            let folder = skill_folder(profile)?;
+            let entries = match fs::read_dir(folder) {
+                Ok(entries) => entries,
+                Err(error) if error.kind() == ErrorKind::NotFound => continue,
+                Err(error) => return Err(error.into()),
+            };
+            for (index, entry) in entries.enumerate() {
+                ensure!(
+                    index < 4096,
+                    "native skills folder has more than 4096 entries"
+                );
+                ensure!(budget > 0, "native skill discovery exceeds 128 MiB");
+                let entry = entry?;
+                let filename = entry.file_name();
+                let Some(name) = filename.to_str().filter(|name| validate_name(name).is_ok())
+                else {
+                    continue;
+                };
+                if store.skills.contains_key(name) || !entry.file_type()?.is_dir() {
+                    continue;
+                }
+                let native = target(profile, name, agent)?;
+                if store
+                    .applied
+                    .iter()
+                    .any(|record| record.target.path == native.path)
+                    || !seen.insert((native.agent.clone(), native.path.clone()))
+                    || !entry.path().join(tree::DOCUMENT).is_file()
+                {
+                    continue;
+                }
+                let Ok(tree) = Tree::read_shared(Path::new(&native.path), &mut budget) else {
+                    continue;
+                };
+                let Ok((title, description)) = details(&tree) else {
+                    continue;
+                };
+                if title == name {
+                    found.push(Discovered {
+                        name: title,
+                        agent: native.agent,
+                        path: native.path,
+                        description,
+                        content: tree.hash(),
+                    });
+                }
+            }
+        }
+    }
+    found.sort_by(|a, b| (&a.name, &a.agent, &a.path).cmp(&(&b.name, &b.agent, &b.path)));
+    Ok(found)
+}
+
 fn load_source(source: &Path) -> Result<(String, Tree)> {
     if let Some(url) = source
         .to_str()
@@ -535,6 +619,57 @@ fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
                     agents,
                 },
             );
+        }
+        Edit::Adopt {
+            agent,
+            name,
+            path: source,
+            content,
+        } => {
+            ensure!(
+                !store.skills.contains_key(&name),
+                "a skill named {name} already exists; reload the library"
+            );
+            let profiles = homes
+                .get(agent.as_str())
+                .context("unsupported skill agent")?;
+            let native = profiles
+                .iter()
+                .filter_map(|profile| target(profile, &name, &agent).ok())
+                .find(|candidate| Path::new(&candidate.path) == source)
+                .context("the skill must be in the selected agent's skills folder")?;
+            ensure!(
+                !store
+                    .applied
+                    .iter()
+                    .any(|record| record.target.path == native.path),
+                "this skill folder is already managed by Crabforge"
+            );
+            let tree = Tree::read(&source)?;
+            let (title, description) = details(&tree)?;
+            ensure!(
+                title == name && tree.hash() == content,
+                "native skill changed; scan again"
+            );
+            snapshot(&library, &content, &tree)?;
+            ensure!(
+                current(&source)?.as_deref() == Some(content.as_str()),
+                "native skill changed; scan again"
+            );
+            store.skills.insert(
+                name.clone(),
+                Skill {
+                    name,
+                    description,
+                    source: native.path.clone(),
+                    content: content.clone(),
+                    agents: vec![agent],
+                },
+            );
+            store.applied.push(Applied {
+                target: native,
+                content,
+            });
         }
         Edit::Assign {
             name,
@@ -652,6 +787,59 @@ mod tests {
         fs::write(folder.join("SKILL.md"), b"---\r\nname: diagnose\r\ndescription: Describe diagnostics.\r\n---\r\nShow the units.\r\n")?;
         fs::write(folder.join("references/units.bin"), [0, 100, 255])?;
         Ok(folder)
+    }
+
+    #[test]
+    fn adopts_an_unchanged_native_bundle_and_keeps_the_library_snapshot() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let dir = root.path().join("data");
+        let claude = root.path().join("claude");
+        let skill = claude.join("skills/diagnose");
+        let homes = BTreeMap::from([
+            ("claude", vec![claude.clone()]),
+            ("codex", vec![root.path().join("codex")]),
+        ]);
+        fs::create_dir_all(skill.parent().context("missing fixture parent")?)?;
+        fs::rename(source(root.path())?, &skill)?;
+        let attachment = skill.join("references/units.bin");
+        let adopt = |candidate: &Discovered, path: PathBuf| Edit::Adopt {
+            agent: candidate.agent.clone(),
+            name: candidate.name.clone(),
+            path,
+            content: candidate.content.clone(),
+        };
+        let found = discover_in(&Store::default(), &homes)?
+            .pop()
+            .context("native fixture missing")?;
+        let path = PathBuf::from(&found.path);
+        assert!(report(&dir, &homes, adopt(&found, root.path().to_path_buf())).is_err());
+        fs::write(&attachment, [1, 2, 3])?;
+        assert!(report(&dir, &homes, adopt(&found, path.clone())).is_err());
+        let updated = discover_in(&Store::default(), &homes)?
+            .pop()
+            .context("native fixture missing")?;
+        let adopted = report(&dir, &homes, adopt(&updated, path))?;
+        assert_eq!(statuses(&adopted), ["applied"]);
+        assert_eq!(fs::read(&attachment)?, [1, 2, 3]);
+        let switched = report(
+            &dir,
+            &homes,
+            Edit::Assign {
+                name: updated.name,
+                agents: vec!["codex".into()],
+                expected: Some(revision(&adopted)),
+            },
+        )?;
+        assert_eq!(statuses(&switched), ["removed", "applied"]);
+        assert!(!skill.exists());
+        assert_eq!(
+            fs::read(
+                root.path()
+                    .join("codex/skills/diagnose/references/units.bin")
+            )?,
+            [1, 2, 3]
+        );
+        Ok(())
     }
 
     #[test]

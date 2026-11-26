@@ -160,6 +160,24 @@ abstract class AppLocalizations {
   /// **'Local folder or GitHub URL'**
   String get skillSourceFolder;
 
+  /// No description provided for @installedSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed skills'**
+  String get installedSkills;
+
+  /// No description provided for @adoptSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage in Crabforge'**
+  String get adoptSkill;
+
+  /// No description provided for @adoptSkillHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Crabforge will save a copy of these files and manage this folder. Unassigning the skill can remove the unchanged folder.'**
+  String get adoptSkillHint;
+
   /// No description provided for @mcpLibrary.
   ///
   /// In en, this message translates to:

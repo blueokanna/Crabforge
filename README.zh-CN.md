@@ -84,6 +84,8 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 导入公开 GitHub 技能时，将 `SKILL.md` 或其文件夹的链接填入来源栏，也可传给 `skills import`。仓库链接会选择根目录下的技能或仓库内唯一的技能。仓库有多个技能时，请指定要导入的文件夹。**重新导入文件** 会重新获取保存的引用和目录。可以用提交链接固定来源。分支名含 `/` 时，可在仓库链接后加 `?ref=feature%2Fdocs#path/to/skill`。
 
+**已安装的技能** 扫描原生及网关客户端配置中的兼容文件夹。选择 **交由 Crabforge 管理** 后，Crabforge 校验扫描时的内容哈希，将文件保存为库快照并在原址管理该文件夹。取消分配会移除内容未变的文件夹。CLI 对应 `skills discover` 和 `skills adopt <Agent> <名称> <路径> --content <discover 返回的 content>`。
+
 在 **客户端连接** 选择支持的客户端，打开 **项目 MCP** 并选择项目文件夹。添加服务器时使用客户端的原生 JSON 配置，Codex 使用 TOML 表正文。编辑器显示将写入的文件，保存和删除前会核对文件修订。客户端打开项目时读取配置并启动服务器。
 
 ```powershell

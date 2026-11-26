@@ -140,6 +140,21 @@ Future<String> removeProjectMcpServer({
 
 Future<String> agentSkills() => RustLib.instance.api.crateApiAgentSkills();
 
+Future<String> discoverAgentSkills() =>
+    RustLib.instance.api.crateApiDiscoverAgentSkills();
+
+Future<String> adoptAgentSkill({
+  required String agent,
+  required String name,
+  required String path,
+  required String content,
+}) => RustLib.instance.api.crateApiAdoptAgentSkill(
+  agent: agent,
+  name: name,
+  path: path,
+  content: content,
+);
+
 Future<String> projectMcpLibrary() =>
     RustLib.instance.api.crateApiProjectMcpLibrary();
 

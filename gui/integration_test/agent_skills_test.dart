@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:crabforge/agent_skills.dart';
+import 'package:crabforge/collection_view.dart';
 import 'package:crabforge/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,5 +106,41 @@ void main() {
     await tap(find.widgetWithText(TextButton, 'Remove'));
     await waitFor(find.text('No skills imported'));
     expect(attachment.readAsBytesSync(), [4, 5, 6]);
+
+    const other = 'crabforge-installed-fixture';
+    final own = Directory('${claude.path}/skills/$other')..createSync();
+    File(
+      '${own.path}/SKILL.md',
+    ).writeAsStringSync(doc.replaceFirst('name: diagnostics', 'name: $other'));
+    final ownAttachment = File('${own.path}/units.bin')
+      ..writeAsBytesSync([6, 7, 8]);
+    await tap(find.text('Installed skills'));
+    final installedPage = find.byKey(const ValueKey('installed-skills'));
+    Finder installedAction(String label) =>
+        find.descendant(of: installedPage, matching: find.byTooltip(label));
+    await waitFor(find.text(other));
+    await tap(installedAction('Grid view'));
+    expect(
+      find.descendant(of: installedPage, matching: find.byType(SliverGrid)),
+      findsOneWidget,
+    );
+    final candidate = find.ancestor(
+      of: find.descendant(of: installedPage, matching: find.text(other)),
+      matching: find.byType(CollectionTile),
+    );
+    await tap(
+      find.descendant(
+        of: candidate,
+        matching: find.byTooltip('Manage in Crabforge'),
+      ),
+    );
+    await tap(find.widgetWithText(FilledButton, 'Manage in Crabforge'));
+    final adopted = find.byKey(const ValueKey(other));
+    await waitFor(adopted);
+    expect(ownAttachment.readAsBytesSync(), [6, 7, 8]);
+    await tap(find.descendant(of: adopted, matching: find.byTooltip('Remove')));
+    await tap(find.widgetWithText(TextButton, 'Remove'));
+    await waitFor(find.text('No skills imported'));
+    expect(own.existsSync(), isFalse);
   });
 }

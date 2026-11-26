@@ -34,6 +34,16 @@ class AppLocalizationsHi extends AppLocalizations {
   String get skillSourceFolder => 'स्थानीय फ़ोल्डर या GitHub URL';
 
   @override
+  String get installedSkills => 'इंस्टॉल किए गए स्किल';
+
+  @override
+  String get adoptSkill => 'Crabforge में प्रबंधित करें';
+
+  @override
+  String get adoptSkillHint =>
+      'Crabforge इन फ़ाइलों की एक कॉपी सहेजेगा और इस फ़ोल्डर को प्रबंधित करेगा। असाइनमेंट हटाने पर अपरिवर्तित फ़ोल्डर हटाया जा सकता है।';
+
+  @override
   String get mcpLibrary => 'MCP लाइब्रेरी';
 
   @override

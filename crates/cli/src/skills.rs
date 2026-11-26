@@ -7,6 +7,16 @@ use std::path::{Path, PathBuf};
 pub(super) enum Command {
     /// List skills, revisions and native folder statuses as JSON.
     List,
+    /// Find unmanaged skills in supported agent profiles and list their content hashes.
+    Discover,
+    /// Manage an installed skill in place after checking its discovered content hash.
+    Adopt {
+        agent: String,
+        name: String,
+        path: PathBuf,
+        #[arg(long)]
+        content: String,
+    },
     /// Import a local folder or an HTTPS GitHub URL for a skill and its supporting files.
     Import {
         source: PathBuf,
@@ -37,6 +47,21 @@ pub(super) enum Command {
 
 pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
     let edit = match command {
+        Command::Discover => {
+            println!("{}", skills::discover(dir)?);
+            return Ok(());
+        }
+        Command::Adopt {
+            agent,
+            name,
+            path,
+            content,
+        } => Edit::Adopt {
+            agent,
+            name,
+            path,
+            content,
+        },
         Command::List => Edit::Read,
         Command::Import {
             source,

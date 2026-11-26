@@ -34,6 +34,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get skillSourceFolder => 'Carpeta local o URL de GitHub';
 
   @override
+  String get installedSkills => 'Habilidades instaladas';
+
+  @override
+  String get adoptSkill => 'Gestionar en Crabforge';
+
+  @override
+  String get adoptSkillHint =>
+      'Crabforge guardará una copia de los archivos y gestionará esta carpeta. Al quitar la asignación, se podrá eliminar la carpeta si sigue intacta.';
+
+  @override
   String get mcpLibrary => 'Biblioteca de MCP';
 
   @override

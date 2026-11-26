@@ -7,6 +7,8 @@ import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
 
+part 'installed_skills.dart';
+
 const _agents = {
   'claude': 'Claude Code',
   'codex': 'Codex',
@@ -61,6 +63,20 @@ class _AgentSkillsState extends State<AgentSkills> {
       _library = jsonDecode(result) as _Json;
       _error = null;
     });
+  }
+
+  Future<void> _discover() async {
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _InstalledSkills(),
+    );
+    if (mounted && result != null) {
+      setState(() {
+        _library = jsonDecode(result) as _Json;
+        _error = null;
+      });
+    }
   }
 
   Future<void> _remove(String name, String revision) async {
@@ -140,6 +156,11 @@ class _AgentSkillsState extends State<AgentSkills> {
                     onPressed: _busy ? null : () => _edit(null),
                     icon: const Icon(Icons.create_new_folder_outlined),
                     label: Text(strings.importSkill),
+                  ),
+                  TextButton.icon(
+                    onPressed: _busy ? null : _discover,
+                    icon: const Icon(Icons.folder_open_outlined),
+                    label: Text(strings.installedSkills),
                   ),
                   TextButton.icon(
                     onPressed: _busy ? null : () => _load(api.syncAgentSkills),

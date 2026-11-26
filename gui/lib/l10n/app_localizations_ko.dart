@@ -34,6 +34,16 @@ class AppLocalizationsKo extends AppLocalizations {
   String get skillSourceFolder => '로컬 폴더 또는 GitHub URL';
 
   @override
+  String get installedSkills => '설치된 스킬';
+
+  @override
+  String get adoptSkill => 'Crabforge에서 관리';
+
+  @override
+  String get adoptSkillHint =>
+      'Crabforge가 파일의 복사본을 저장하고 이 폴더를 관리합니다. 할당을 해제하면 변경되지 않은 폴더가 제거될 수 있습니다.';
+
+  @override
   String get mcpLibrary => 'MCP 라이브러리';
 
   @override
