@@ -58,9 +58,9 @@ async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> 
             .await?;
         Ok::<_, anyhow::Error>(())
     });
-    let cfg = serde_json::from_value(
+    let cfg = nextjson::from_value(
         json!({"providers":[{"id":"go","models":["minimax-m2.7"],"endpoints":{"chat":format!("https://opencode.ai:{}/inference/go/openai/v1",address.port())}}]}),
-    )?;
+    ).map_err(anyhow::Error::msg)?;
     let root = tempfile::tempdir()?;
     let router = router_with_client(
         cfg,

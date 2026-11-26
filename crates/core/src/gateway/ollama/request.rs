@@ -1,10 +1,8 @@
-use super::string;
-use anyhow::{Result, bail, ensure};
-use serde::Deserialize;
-use serde_json::{Value, json};
+use anyhow::{Context, Result, bail, ensure};
+use nextjson::{Map, NsonDeserialize, Value, json};
 
-#[derive(Default, Deserialize)]
-#[serde(default)]
+#[derive(Default, NsonDeserialize)]
+#[njson(default)]
 struct Message {
     role: String,
     content: String,
@@ -15,8 +13,8 @@ struct Message {
     tool_call_id: String,
 }
 
-#[derive(Default, Deserialize)]
-#[serde(default)]
+#[derive(Default, NsonDeserialize)]
+#[njson(default)]
 pub(super) struct Input {
     pub model: String,
     pub name: String,
@@ -25,10 +23,10 @@ pub(super) struct Input {
     system: String,
     images: Vec<String>,
     stream: Option<bool>,
-    think: Value,
-    options: Value,
-    tools: Value,
-    format: Value,
+    think: Option<Value>,
+    options: Option<Value>,
+    tools: Option<Value>,
+    format: Option<Value>,
 }
 
 pub(super) struct Chat {
@@ -44,7 +42,7 @@ impl Input {
         let mut req = Chat {
             body: None,
             stream,
-            thinking: input.think != false,
+            thinking: !matches!(input.think, Some(Value::Bool(false))),
         };
         let mut messages = Vec::new();
         if generate {
@@ -61,27 +59,34 @@ impl Input {
             }
             messages = chat_messages(input.messages)?;
         }
-        let mut out = json!({"model": model, "messages": messages, "stream":stream});
+        let mut out = Map::new();
+        out.insert("model".into(), model.into());
+        out.insert("messages".into(), Value::Array(messages));
+        out.insert("stream".into(), stream.into());
         if stream {
-            out["stream_options"] = json!({"include_usage":true});
+            out.insert("stream_options".into(), json!({"include_usage":true}));
         }
-        if !generate && !input.tools.is_null() {
-            out["tools"] = input.tools;
+        if !generate && let Some(tools) = input.tools {
+            out.insert("tools".into(), tools);
         }
-        match input.format {
+        match input.format.unwrap_or(Value::Null) {
             Value::Null => (),
             Value::String(ref s) if s.is_empty() => (),
             Value::String(ref s) if s == "json" => {
-                out["response_format"] = json!({"type":"json_object"})
+                out.insert("response_format".into(), json!({"type":"json_object"}));
             }
             schema @ Value::Object(_) => {
-                out["response_format"] =
-                    json!({"type":"json_schema","json_schema":{"name":"response","schema":schema}})
+                out.insert(
+                    "response_format".into(),
+                    json!({"type":"json_schema","json_schema":{"name":"response","schema":schema}}),
+                );
             }
             _ => bail!("expected format 'json' or a JSON schema"),
         }
-        match input.think {
-            Value::String(effort) if !effort.is_empty() => out["reasoning_effort"] = json!(effort),
+        match input.think.unwrap_or(Value::Null) {
+            Value::String(effort) if !effort.is_empty() => {
+                out.insert("reasoning_effort".into(), effort.into());
+            }
             Value::String(_) | Value::Bool(_) | Value::Null => (),
             _ => bail!("invalid think value"),
         }
@@ -93,14 +98,25 @@ impl Input {
             "presence_penalty",
             "stop",
         ] {
-            if let Some(v) = input.options.get(key).filter(|v| !v.is_null()) {
-                out[key] = v.clone();
+            if let Some(v) = input
+                .options
+                .as_ref()
+                .and_then(|o| o.get(key))
+                .filter(|v| !v.is_null())
+            {
+                out.insert(key.into(), v.clone());
             }
         }
-        if let Some(n) = input.options["num_predict"].as_u64().filter(|n| *n > 0) {
-            out["max_tokens"] = json!(n);
+        if let Some(n) = input
+            .options
+            .as_ref()
+            .and_then(|o| o.get("num_predict"))
+            .and_then(Value::as_u64)
+            .filter(|n| *n > 0)
+        {
+            out.insert("max_tokens".into(), n.into());
         }
-        req.body = Some(serde_json::to_vec(&out)?);
+        req.body = Some(nextjson::to_vec(&out).map_err(anyhow::Error::msg)?);
         Ok(req)
     }
 }
@@ -138,39 +154,50 @@ fn chat_messages(messages: Vec<Message>) -> Result<Vec<Value>> {
     let mut out = Vec::with_capacity(messages.len());
     for (i, m) in messages.into_iter().enumerate() {
         let role = m.role.to_ascii_lowercase();
-        let mut msg = json!({"role":role});
+        let mut msg = Map::new();
+        msg.insert("role".into(), role.as_str().into());
         match role.as_str() {
-            "user" => msg["content"] = content(m.content, m.images),
-            "system" | "developer" => msg["content"] = Value::String(m.content),
+            "user" => {
+                msg.insert("content".into(), content(m.content, m.images));
+            }
+            "system" | "developer" => {
+                msg.insert("content".into(), m.content.into());
+            }
             "assistant" => {
                 if !m.thinking.is_empty() {
-                    msg["reasoning_content"] = Value::String(m.thinking);
+                    msg.insert("reasoning_content".into(), m.thinking.into());
                 }
-                msg["content"] = Value::String(m.content);
+                let content = if m.content.is_empty() && !m.tool_calls.is_empty() {
+                    Value::Null
+                } else {
+                    m.content.into()
+                };
+                msg.insert("content".into(), content);
                 if !m.tool_calls.is_empty() {
                     let mut calls = Vec::with_capacity(m.tool_calls.len());
                     open.clear();
                     for (j, call) in m.tool_calls.into_iter().enumerate() {
-                        let id = call["id"]
-                            .as_str()
+                        let id = call
+                            .get("id")
+                            .and_then(Value::as_str)
                             .filter(|s| !s.is_empty())
                             .map(str::to_owned)
                             .unwrap_or_else(|| format!("call_{i}_{j}"));
-                        let f = &call["function"];
-                        let name = string(f, "name")?;
-                        let args = match &f["arguments"] {
+                        let f = call.get("function").context("missing tool function")?;
+                        let name = f
+                            .get("name")
+                            .and_then(Value::as_str)
+                            .context("expected string name")?;
+                        let args = match f.get("arguments").unwrap_or(&Value::Null) {
                             Value::String(s) => s.clone(),
-                            Value::Object(_) => f["arguments"].to_string(),
+                            args @ Value::Object(_) => args.to_string(),
                             Value::Null => "{}".into(),
                             _ => bail!("invalid tool arguments"),
                         };
                         calls.push(json!({"id":id,"type":"function","function":{"name":name,"arguments":args}}));
                         open.push((id, name.into()));
                     }
-                    msg["tool_calls"] = Value::Array(calls);
-                    if msg["content"] == "" {
-                        msg["content"] = Value::Null;
-                    }
+                    msg.insert("tool_calls".into(), Value::Array(calls));
                 }
             }
             "tool" => {
@@ -186,16 +213,17 @@ fn chat_messages(messages: Vec<Message>) -> Result<Vec<Value>> {
                     id = open.remove(index).0;
                 }
                 ensure!(!id.is_empty(), "tool result has no matching call");
-                msg["tool_call_id"] = Value::String(id);
-                msg["content"] = Value::String(m.content);
+                msg.insert("tool_call_id".into(), id.into());
+                msg.insert("content".into(), m.content.into());
                 if !m.images.is_empty() {
-                    out.push(msg);
-                    msg = json!({"role":"user","content":content(String::new(),m.images)});
+                    out.push(Value::Object(msg));
+                    out.push(json!({"role":"user","content":content(String::new(),m.images)}));
+                    continue;
                 }
             }
             _ => bail!("unknown message role {role}"),
         }
-        out.push(msg);
+        out.push(Value::Object(msg));
     }
     Ok(out)
 }

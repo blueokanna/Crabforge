@@ -1,12 +1,11 @@
-use super::{Api, Caller, Gateway, Inbound, Route, forward};
-use anyhow::{Context, Result};
+use super::{Api, Caller, Gateway, Inbound, Route, forward, json_response};
+use anyhow::Result;
 use axum::{
-    Json,
     body::{Body, Bytes},
     http::{Method, StatusCode, request::Parts},
-    response::{IntoResponse, Response},
+    response::Response,
 };
-use serde_json::{Value, json};
+use nextjson::{Value, json};
 use sha2::{Digest, Sha256};
 use std::time::Instant;
 
@@ -24,7 +23,7 @@ pub(super) enum Endpoint {
 }
 
 pub(super) fn error(status: StatusCode, message: &str) -> Response {
-    (status, Json(json!({"error":message}))).into_response()
+    json_response(status, &json!({"error":message}))
 }
 
 fn details() -> Value {
@@ -85,7 +84,7 @@ impl Endpoint {
                 return error(StatusCode::METHOD_NOT_ALLOWED, "GET required");
             }
             return match self {
-                Self::Version => Json(json!({"version":"0.12.6"})).into_response(),
+                Self::Version => json_response(StatusCode::OK, &json!({"version":"0.12.6"})),
                 _ => {
                     let tools = match group_tools(gw).await {
                         Ok(tools) => tools,
@@ -94,7 +93,7 @@ impl Endpoint {
                     let models: Vec<_> = gw.listed_ids().map(|id| json!({"name":id, "model":id, "size":0,
                         "modified_at":"1970-01-01T00:00:00Z", "digest":hex::encode(Sha256::digest(id.as_bytes())),
                         "details":details(), "capabilities":capabilities(gw, id, &tools)})).collect();
-                    Json(json!({"models":models})).into_response()
+                    json_response(StatusCode::OK, &json!({"models":models}))
                 }
             };
         }
@@ -105,7 +104,7 @@ impl Endpoint {
             Ok(input) => input,
             Err((status, msg)) => return error(status, msg),
         };
-        let input: request::Input = match serde_json::from_slice(&body) {
+        let input: request::Input = match nextjson::from_slice(&body) {
             Ok(value) => value,
             Err(e) => return error(StatusCode::BAD_REQUEST, &e.to_string()),
         };
@@ -131,9 +130,12 @@ impl Endpoint {
                 Ok(tools) => tools,
                 Err(e) => return error(StatusCode::SERVICE_UNAVAILABLE, &e.to_string()),
             };
-            return Json(json!({"details":details(), "capabilities":capabilities(gw,id,&tools), "model_info":{
+            return json_response(
+                StatusCode::OK,
+                &json!({"details":details(), "capabilities":capabilities(gw,id,&tools), "model_info":{
                 "general.architecture":"crabforge", "general.basename":id, "general.parameter_count":0,
-                "crabforge.context_length":32768, "crabforge.embedding_length":0}})).into_response();
+                "crabforge.context_length":32768, "crabforge.embedding_length":0}}),
+            );
         }
         let generate = self == Self::Generate;
         let request = match input.into_chat(id, generate) {
@@ -165,10 +167,4 @@ impl Endpoint {
             reply::convert_error(response).await
         }
     }
-}
-
-fn string<'a>(v: &'a Value, key: &str) -> Result<&'a str> {
-    v[key]
-        .as_str()
-        .with_context(|| format!("expected string {key}"))
 }

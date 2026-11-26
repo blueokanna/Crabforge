@@ -9,16 +9,15 @@ use std::{
 
 use anyhow::Result;
 use axum::{
-    Json, Router,
+    Router,
     body::{Body, Bytes, to_bytes},
     extract::{Request, State},
     http::{HeaderMap, Method, StatusCode, header},
     response::{IntoResponse, Response},
 };
 use futures_util::{StreamExt, stream};
+use nextjson::{NsonSerialize, json};
 use reqwest::{Client, Url};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, value::RawValue};
 use subtle::ConstantTimeEq;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
@@ -41,17 +40,17 @@ use std::path::{Path, PathBuf};
 const BODY_LIMIT: usize = 8 * 1024 * 1024;
 const MAX_IN_FLIGHT: usize = 16;
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, NsonSerialize)]
 pub struct Attempt {
     pub agent: Option<Cow<'static, str>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[njson(skip_serializing_if = "Option::is_none")]
     pub session: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[njson(skip_serializing_if = "Option::is_none")]
     pub native_session: Option<String>,
     pub at: u64,
     pub model: String,
     pub provider: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[njson(skip_serializing_if = "Vec::is_empty")]
     pub via: Vec<String>,
     pub status: u16,
 }
@@ -83,16 +82,16 @@ struct Gateway {
     history: History,
 }
 
-#[derive(Serialize)]
+#[derive(NsonSerialize)]
 struct Model<'a> {
     id: &'a str,
     object: &'static str,
     created: u64,
     owned_by: &'static str,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    #[njson(skip_serializing_if = "std::ops::Not::not")]
     free: bool,
     native_endpoints: Vec<&'static str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[njson(skip_serializing_if = "Option::is_none")]
     magpie_prefers: Option<&'static str>,
 }
 
@@ -115,7 +114,7 @@ fn listed_model<'a>(id: &'a str, route: Route, config: &Config) -> Model<'a> {
     }
 }
 
-fn gemini_model(id: &str) -> serde_json::Value {
+fn gemini_model(id: &str) -> nextjson::Value {
     json!({"name":format!("models/{id}"),"displayName":id,"supportedGenerationMethods":["generateContent","streamGenerateContent"]})
 }
 
@@ -274,7 +273,7 @@ fn router_with_client(
             routes.entry(m.clone()).or_insert(route);
         }
     }
-    #[derive(Serialize)]
+    #[derive(NsonSerialize)]
     struct ModelList<'a> {
         object: &'static str,
         data: Vec<Model<'a>>,
@@ -316,13 +315,16 @@ fn router_with_client(
         slots: Arc::new(Semaphore::new(MAX_IN_FLIGHT)),
         history,
     };
-    state.models = Bytes::from(serde_json::to_vec(&ModelList {
-        object: "list",
-        data: state
-            .listed_ids()
-            .map(|id| listed_model(id, state.routes[id], &state.config))
-            .collect(),
-    })?);
+    state.models = Bytes::from(
+        nextjson::to_vec(&ModelList {
+            object: "list",
+            data: state
+                .listed_ids()
+                .map(|id| listed_model(id, state.routes[id], &state.config))
+                .collect(),
+        })
+        .map_err(anyhow::Error::msg)?,
+    );
     Ok(Router::new().fallback(dispatch).with_state(Arc::new(state)))
 }
 
@@ -518,11 +520,17 @@ impl<'a> Api<'a> {
 }
 
 fn failure(code: StatusCode, message: &str) -> Response {
-    (
+    json_response(
         code,
-        Json(json!({"error":{"message":message,"type":"gateway_error"}})),
+        &json!({"error":{"message":message,"type":"gateway_error"}}),
     )
-        .into_response()
+}
+
+fn json_response(status: StatusCode, value: &impl NsonSerialize) -> Response {
+    match nextjson::to_vec(value) {
+        Ok(bytes) => (status, [(header::CONTENT_TYPE, "application/json")], bytes).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
 }
 
 fn authorized(headers: &HeaderMap, token: &str) -> bool {
@@ -542,19 +550,30 @@ fn authorized(headers: &HeaderMap, token: &str) -> bool {
     .any(|v| v.ct_eq(token.as_bytes()).into())
 }
 
-#[derive(Deserialize)]
-struct Selection<'a> {
-    #[serde(borrow)]
-    model: &'a RawValue,
-}
-
-fn selection(bytes: &[u8]) -> Result<(String, Range<usize>)> {
-    let field: Selection = serde_json::from_slice(bytes)?;
-    let raw = field.model.get();
-    let start = raw.as_ptr() as usize - bytes.as_ptr() as usize;
-    let model: String = nextjson::nextdecode(raw.as_bytes())
-        .map_err(|_| anyhow::anyhow!("model must be a string"))?;
-    Ok((model, start..start + raw.len()))
+fn selection(bytes: &[u8]) -> nextjson::Result<(String, Range<usize>)> {
+    let mut decoder = nextjson::Decoder::new(bytes);
+    decoder.begin_object()?;
+    let mut model = None;
+    while let Some(key) = decoder.object_key()? {
+        if key == "model" {
+            if model.is_some() {
+                return Err(nextjson::Error::custom("duplicate model field"));
+            }
+            let start = decoder.save().pos();
+            let id = decoder.string()?.into_owned();
+            let end = decoder.save().pos();
+            let literal = bytes[start..end].trim_ascii_start();
+            model = Some((id, end - literal.len()..end));
+        } else {
+            decoder.skip_value()?;
+        }
+        if !decoder.object_entry_sep()? {
+            break;
+        }
+    }
+    decoder.end_object()?;
+    decoder.end()?;
+    model.ok_or_else(|| nextjson::Error::custom("missing model field"))
 }
 
 async fn dispatch(State(gw): State<Arc<Gateway>>, req: Request) -> Response {
@@ -621,10 +640,10 @@ async fn serve_http(
                 .into_response();
         }
         if path == "v1beta/models" {
-            return Json(
-                json!({"models":gw.listed_ids().map(|id|gemini_model(id)).collect::<Vec<_>>()}),
-            )
-            .into_response();
+            return json_response(
+                StatusCode::OK,
+                &json!({"models":gw.listed_ids().map(|id|gemini_model(id)).collect::<Vec<_>>()}),
+            );
         }
         if let Some((is_gemini, id)) = path
             .strip_prefix("models/")
@@ -643,9 +662,9 @@ async fn serve_http(
                 Some((_, route)) => route,
             };
             return if is_gemini {
-                Json(gemini_model(id)).into_response()
+                json_response(StatusCode::OK, &gemini_model(id))
             } else {
-                Json(listed_model(id, *route, &gw.config)).into_response()
+                json_response(StatusCode::OK, &listed_model(id, *route, &gw.config))
             };
         }
     }
@@ -929,8 +948,7 @@ async fn forward(
         } else {
             match &range {
                 Some(r) if &asked != model => {
-                    let wire =
-                        Bytes::from(serde_json::to_vec(model).expect("string serialization"));
+                    let wire = Bytes::from(nextjson::to_vec(model).expect("string serialization"));
                     let len = bytes.len() - r.len() + wire.len();
                     let parts = [bytes.slice(..r.start), wire, bytes.slice(r.end..)];
                     request
@@ -1076,6 +1094,24 @@ mod console_test;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn selection_locates_only_the_top_level_model_literal() {
+        let bytes = br#"{ "extra": {"model": "nested"}, "mo\u0064el":  "x\u002fy" , "tail": [1] }"#;
+        let (name, range) = selection(bytes).unwrap();
+        assert_eq!(name, "x/y");
+        assert_eq!(&bytes[range], br#""x\u002fy""#);
+        for invalid in [
+            r#"{"model":"x","model":"y"}"#,
+            r#"{"model":1}"#,
+            r#"{"model":"x",}"#,
+            r#"{"model":"x"} []"#,
+            r#"{"fields":{"model":"x"}}"#,
+        ] {
+            assert!(selection(invalid.as_bytes()).is_err(), "{invalid}");
+        }
+    }
 
     #[test]
     fn relay_routes_use_the_incoming_protocol_or_the_advertised_native_api() -> Result<()> {

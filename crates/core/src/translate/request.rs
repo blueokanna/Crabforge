@@ -5,7 +5,7 @@ pub struct Converted {
     pub stream: bool,
 }
 
-fn read_tools(format: Format, request: &Value) -> Result<Vec<Value>> {
+fn read_tools(format: Format, request: &Value) -> Result<Vec<Map>> {
     let Some(tools) = request.get("tools") else {
         return Ok(vec![]);
     };
@@ -13,40 +13,44 @@ fn read_tools(format: Format, request: &Value) -> Result<Vec<Value>> {
     for tool in tools.as_array().context("expected tools array")? {
         let schema = match format {
             Format::Chat => {
-                ensure!(tool["type"] == "function", "unsupported hosted tool");
-                &tool["function"]
+                ensure!(text(tool,"type")? == "function", "unsupported hosted tool");
+                field(tool,"function")
             }
             Format::Responses => {
-                ensure!(tool["type"] == "function", "unsupported hosted tool");
+                ensure!(text(tool,"type")? == "function", "unsupported hosted tool");
                 tool
             }
             Format::Messages => {
                 ensure!(
-                    tool.get("type").is_none() || tool["type"] == "custom",
+                    tool.get("type").is_none() || field(tool,"type").as_str() == Some("custom"),
                     "unsupported hosted tool"
                 );
                 tool
             }
             Format::Gemini => {
                 keys(tool, &["functionDeclarations"])?;
-                definitions.extend(array(tool, "functionDeclarations")?.iter().cloned());
+                for declaration in array(tool, "functionDeclarations")? {
+                    definitions.push(declaration.as_object().context("expected a function declaration object")?.clone());
+                }
                 continue;
             }
         };
         ensure!(
-            schema["strict"] != true,
+            field(schema,"strict").as_bool() != Some(true),
             "strict tool validation requires a native endpoint"
         );
-        let mut def = json!({"name":text(schema,"name")?,"parameters":schema.get("input_schema").or_else(||schema.get("parameters")).cloned().unwrap_or_else(||json!({"type":"object","properties":{}}))});
+        let mut def = Map::new();
+        def.insert("name".into(),text(schema,"name")?.into());
+        def.insert("parameters".into(),schema.get("input_schema").or_else(||schema.get("parameters")).cloned().unwrap_or_else(||json!({"type":"object","properties":{}})));
         if let Some(d) = schema.get("description") {
-            def["description"] = d.clone();
+            def.insert("description".into(), d.clone());
         }
         definitions.push(def);
     }
     Ok(definitions)
 }
 
-fn write_tools(format: Format, defs: Vec<Value>) -> Value {
+fn write_tools(format: Format, defs: Vec<Map>) -> Value {
     if format == Format::Gemini {
         return json!([{"functionDeclarations":defs}]);
     }
@@ -55,16 +59,14 @@ fn write_tools(format: Format, defs: Vec<Value>) -> Value {
             .map(|mut d| match format {
                 Format::Chat => json!({"type":"function","function":d}),
                 Format::Responses => {
-                    d["type"] = json!("function");
-                    d
+                    d.insert("type".into(), "function".into());
+                    d.into()
                 }
                 Format::Messages => {
-                    d["input_schema"] = d
-                        .as_object_mut()
-                        .unwrap()
-                        .remove("parameters")
+                    let parameters = d.remove("parameters")
                         .unwrap_or_else(|| json!({"type":"object"}));
-                    d
+                    d.insert("input_schema".into(),parameters);
+                    d.into()
                 }
                 Format::Gemini => unreachable!(),
             })
@@ -75,22 +77,22 @@ fn write_tools(format: Format, defs: Vec<Value>) -> Value {
 fn choice(from: Format, to: Format, v: &Value) -> Result<Value> {
     let mode = match from {
         Format::Messages => text(v, "type")?,
-        Format::Gemini => text(&v["functionCallingConfig"], "mode")?,
+        Format::Gemini => text(field(v,"functionCallingConfig"), "mode")?,
         _ => v
             .as_str()
-            .or_else(|| v["type"].as_str())
+            .or_else(|| field(v,"type").as_str())
             .context("invalid tool choice")?,
     };
     let name = match from {
-        Format::Messages | Format::Responses => v["name"].as_str(),
-        Format::Chat => v["function"]["name"].as_str(),
+        Format::Messages | Format::Responses => field(v,"name").as_str(),
+        Format::Chat => v.pointer("/function/name").and_then(Value::as_str),
         Format::Gemini => {
-            let names = &v["functionCallingConfig"]["allowedFunctionNames"];
+            let names = v.pointer("/functionCallingConfig/allowedFunctionNames").unwrap_or(&Value::Null);
             ensure!(
                 names.is_null() || names.as_array().is_some_and(|n| n.len() == 1),
                 "cannot translate multiple allowed functions"
             );
-            names[0].as_str()
+            names.as_array().and_then(|v| v.first()).and_then(Value::as_str)
         }
     };
     let mode = match mode {
@@ -122,7 +124,7 @@ pub fn convert_request(
     model: &str,
     stream_in_path: bool,
 ) -> Result<Converted> {
-    let v: Value = serde_json::from_slice(bytes)?;
+    let v: Value = nextjson::from_slice(bytes).map_err(anyhow::Error::msg)?;
     let allowed: &[&str] = match from {
         Format::Chat => &[
             "model",
@@ -174,22 +176,22 @@ pub fn convert_request(
     };
     keys(&v, allowed)?;
     ensure!(
-        v["store"].is_null() || v["store"] == false,
+        matches!(field(&v,"store"), Value::Null | Value::Bool(false)),
         "translated requests only support store: false"
     );
     ensure!(
-        v["n"].is_null() || v["n"] == 1,
+        field(&v,"n").is_null() || field(&v,"n") == &Value::from(1_u64),
         "only one translated completion is supported"
     );
-    if !v["stream_options"].is_null() {
-        keys(&v["stream_options"], &["include_usage"])?;
+    if let Some(options) = v.get("stream_options").filter(|v| !v.is_null()) {
+        keys(options, &["include_usage"])?;
     }
-    let stream = stream_in_path || v["stream"] == true;
+    let stream = stream_in_path || field(&v,"stream").as_bool() == Some(true);
     let mut turns = vec![];
     let system = match from {
         Format::Messages => v.get("system"),
         Format::Responses => v.get("instructions"),
-        Format::Gemini => v["systemInstruction"].get("parts"),
+        Format::Gemini => v.pointer("/systemInstruction/parts"),
         _ => None,
     };
     if let Some(s) = system.filter(|s| !s.is_null()) {
@@ -198,11 +200,11 @@ pub fn convert_request(
             parts: read_parts(from, s)?,
         });
     }
-    let input = &v[match from {
+    let input = field(&v,match from {
         Format::Responses => "input",
         Format::Gemini => "contents",
         _ => "messages",
-    }];
+    });
     if from == Format::Responses
         && let Some(t) = input.as_str()
     {
@@ -215,15 +217,15 @@ pub fn convert_request(
             turns.push(read_turn(from, m)?);
         }
     }
-    let mut out = json!({});
+    let mut out = Map::new();
     if stream && to != Format::Gemini {
-        out["stream"] = json!(true);
+        out.insert("stream".into(), true.into());
         if to == Format::Chat {
-            out["stream_options"] = json!({"include_usage": true});
+            out.insert("stream_options".into(),json!({"include_usage": true}));
         }
     }
     if to != Format::Gemini {
-        out["model"] = json!(model);
+        out.insert("model".into(),model.into());
     }
     if matches!(to, Format::Gemini | Format::Messages) {
         let leading = turns
@@ -242,21 +244,22 @@ pub fn convert_request(
         );
         if !instructions.is_empty() {
             if to == Format::Gemini {
-                out["systemInstruction"] = json!({"parts":[{"text":instructions.join("\n\n")}]});
+                out.insert("systemInstruction".into(), json!({"parts":[{"text":instructions.join("\n\n")}]}));
             } else {
-                out["system"] = json!(instructions.join("\n\n"));
+                out.insert("system".into(), instructions.join("\n\n").into());
             }
         }
     }
     let messages = write_turns(to, &turns)?;
     ensure!(!messages.is_empty(), "empty conversation");
-    out[match to {
+    let message_key = match to {
         Format::Responses => "input",
         Format::Gemini => "contents",
         _ => "messages",
-    }] = json!(messages);
+    };
+    out.insert(message_key.into(),Value::Array(messages));
     let src = if from == Format::Gemini {
-        &v["generationConfig"]
+        field(&v,"generationConfig")
     } else {
         &v
     };
@@ -266,7 +269,7 @@ pub fn convert_request(
             &["temperature", "topP", "maxOutputTokens", "stopSequences"],
         )?;
     }
-    let mut options = json!({});
+    let mut options = Map::new();
     for (aliases, dest) in [
         (&["temperature"][..], "temperature"),
         (
@@ -308,31 +311,30 @@ pub fn convert_request(
                 dest != "stop" || to != Format::Responses,
                 "Responses cannot preserve stop sequences"
             );
-            options[dest] = if dest.starts_with("stop") && to != Format::Chat && val.is_string() {
+            let value = if dest.starts_with("stop") && to != Format::Chat && val.is_string() {
                 json!([val])
             } else {
                 val.clone()
             };
+            options.insert(dest.into(),value);
         }
     }
     if to == Format::Messages && options.get("max_tokens").is_none() {
-        options["max_tokens"] = json!(4096);
+        options.insert("max_tokens".into(),4096.into());
     }
     if to == Format::Gemini {
-        if !options.as_object().unwrap().is_empty() {
-            out["generationConfig"] = options;
+        if !options.is_empty() {
+            out.insert("generationConfig".into(), options.into());
         }
     } else {
-        out.as_object_mut()
-            .unwrap()
-            .append(options.as_object_mut().unwrap());
+        out.extend(options);
     }
     if to == Format::Responses {
-        out["store"] = json!(false);
+        out.insert("store".into(), false.into());
     }
     let defs = read_tools(from, &v)?;
     if !defs.is_empty() {
-        out["tools"] = write_tools(to, defs);
+        out.insert("tools".into(), write_tools(to, defs));
     }
     if let Some(c) = v
         .get(if from == Format::Gemini {
@@ -342,14 +344,15 @@ pub fn convert_request(
         })
         .filter(|v| !v.is_null())
     {
-        out[if to == Format::Gemini {
+        let key = if to == Format::Gemini {
             "toolConfig"
         } else {
             "tool_choice"
-        }] = choice(from, to, c)?;
+        };
+        out.insert(key.into(),choice(from, to, c)?);
     }
     Ok(Converted {
-        body: serde_json::to_vec(&out)?,
+        body: nextjson::to_vec(&out).map_err(anyhow::Error::msg)?,
         stream,
     })
 }

@@ -1,6 +1,6 @@
 use super::{Format, Part};
 use anyhow::{Result, bail};
-use serde_json::{Value, json};
+use nextjson::{Value, json};
 use std::{
     fmt::Write,
     time::{SystemTime, UNIX_EPOCH},
@@ -47,9 +47,10 @@ impl Encoder {
     }
 
     fn event(&mut self, name: &str, mut data: Value) {
-        data["type"] = json!(name);
+        let object = data.as_object_mut().expect("event payload is an object");
+        object.insert("type".into(),name.into());
         if self.format == Format::Responses {
-            data["sequence_number"] = json!(self.sequence);
+            object.insert("sequence_number".into(),self.sequence.into());
             self.sequence += 1;
         }
         writeln!(self.frames, "event: {name}").unwrap();
@@ -59,7 +60,7 @@ impl Encoder {
     fn chat(&mut self, choices: Value, usage: Option<Value>) {
         let mut chunk = json!({"id":format!("chatcmpl-{}",self.id),"object":"chat.completion.chunk","created":self.created,"model":self.model,"choices":choices});
         if let Some(usage) = usage {
-            chunk["usage"] = usage;
+            chunk.as_object_mut().expect("chat chunk").insert("usage".into(),usage);
         }
         self.data(chunk);
     }
@@ -192,7 +193,9 @@ impl Encoder {
                 self.event("response.output_item.added",json!({"output_index":self.index,"item":item}));
                 self.event("response.function_call_arguments.delta",json!({"output_index":self.index,"item_id":id,"delta":arguments}));
                 self.event("response.function_call_arguments.done",json!({"output_index":self.index,"item_id":id,"name":name,"arguments":arguments}));
-                item["arguments"] = json!(arguments); item["status"] = json!("completed");
+                let object = item.as_object_mut().expect("function call item");
+                object.insert("arguments".into(), arguments.into());
+                object.insert("status".into(), "completed".into());
                 self.event("response.output_item.done",json!({"output_index":self.index,"item":item}));
                 self.output.push(item);
             }
