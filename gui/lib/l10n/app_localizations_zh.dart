@@ -16,6 +16,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentRules => '规则';
 
   @override
+  String get agentSkills => '技能';
+
+  @override
+  String get importSkill => '导入技能';
+
+  @override
+  String get applySkills => '应用技能';
+
+  @override
+  String get noSkills => '尚未导入技能';
+
+  @override
+  String get editSkill => '编辑技能分配';
+
+  @override
+  String get skillSourceFolder => '包含 SKILL.md 的文件夹';
+
+  @override
+  String get refreshSkill => '重新导入文件';
+
+  @override
+  String get projectMcp => '项目 MCP';
+
+  @override
+  String get addMcpServer => '添加 MCP 服务器';
+
+  @override
+  String get editMcpServer => '编辑 MCP 服务器';
+
+  @override
+  String get noMcpServers => '尚未配置 MCP 服务器';
+
+  @override
+  String get mcpServerName => '服务器名称';
+
+  @override
   String get addRule => '添加规则';
 
   @override

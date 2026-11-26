@@ -8,11 +8,13 @@ import 'package:flutter/services.dart';
 import 'brand_icon.dart';
 import 'agent_rules.dart';
 import 'agent_sessions.dart';
+import 'agent_skills.dart';
 import 'collection_view.dart';
 import 'editors.dart';
 import 'language.dart';
 import 'omp_settings.dart';
 import 'project_instructions.dart';
+import 'project_mcp.dart';
 import 'l10n/app_localizations.dart';
 import 'memory.dart';
 import 'src/rust/api.dart' as api;
@@ -1453,60 +1455,84 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                   ),
                 ),
                 Text(context.strings.agentHelp),
-                TextButton.icon(
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => const MemoryLibrary(),
-                  ),
-                  icon: const Icon(Icons.bookmarks_outlined),
-                  label: Text(context.strings.memoryLibrary),
-                ),
-                TextButton.icon(
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => const AgentRules(),
-                  ),
-                  icon: const Icon(Icons.rule_outlined),
-                  label: Text(context.strings.agentRules),
-                ),
-                if (projectAgents.contains(selectedAgent))
-                  TextButton.icon(
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) =>
-                          ProjectInstructionsEditor(agent: selectedAgent),
-                    ),
-                    icon: const Icon(Icons.description_outlined),
-                    label: Text(context.strings.projectInstructions),
-                  ),
-                if (selectedAgent == 'claude' || selectedAgent == 'codex')
-                  TextButton.icon(
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) => ProjectInstructionsEditor(
-                        agent: selectedAgent,
-                        userInstructions: true,
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => const MemoryLibrary(),
                       ),
+                      icon: const Icon(Icons.bookmarks_outlined),
+                      label: Text(context.strings.memoryLibrary),
                     ),
-                    icon: const Icon(Icons.person_outline),
-                    label: Text(context.strings.agentInstructions),
-                  ),
-                TextButton.icon(
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => AgentSessions(
-                      models: {
-                        for (final provider in providers)
-                          for (final model in provider['models'] as List)
-                            '${provider['id']}/$model',
-                        ...catalogGroupRefs.values,
-                      }.toList()..sort(),
+                    TextButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => const AgentRules(),
+                      ),
+                      icon: const Icon(Icons.rule_outlined),
+                      label: Text(context.strings.agentRules),
                     ),
-                  ),
-                  icon: const Icon(Icons.history_outlined),
-                  label: Text(context.strings.agentSessions),
+                    TextButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => const AgentSkills(),
+                      ),
+                      icon: const Icon(Icons.extension_outlined),
+                      label: Text(context.strings.agentSkills),
+                    ),
+                    if (projectAgents.contains(selectedAgent))
+                      TextButton.icon(
+                        onPressed: () => showDialog<void>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (_) =>
+                              ProjectInstructionsEditor(agent: selectedAgent),
+                        ),
+                        icon: const Icon(Icons.description_outlined),
+                        label: Text(context.strings.projectInstructions),
+                      ),
+                    if (projectMcpAgents.contains(selectedAgent))
+                      TextButton.icon(
+                        onPressed: () => showDialog<void>(
+                          context: context,
+                          builder: (_) => ProjectMcp(agent: selectedAgent),
+                        ),
+                        icon: const Icon(Icons.dns_outlined),
+                        label: Text(context.strings.projectMcp),
+                      ),
+                    if (selectedAgent == 'claude' || selectedAgent == 'codex')
+                      TextButton.icon(
+                        onPressed: () => showDialog<void>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (_) => ProjectInstructionsEditor(
+                            agent: selectedAgent,
+                            userInstructions: true,
+                          ),
+                        ),
+                        icon: const Icon(Icons.person_outline),
+                        label: Text(context.strings.agentInstructions),
+                      ),
+                    TextButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => AgentSessions(
+                          models: {
+                            for (final provider in providers)
+                              for (final model in provider['models'] as List)
+                                '${provider['id']}/$model',
+                            ...catalogGroupRefs.values,
+                          }.toList()..sort(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.history_outlined),
+                      label: Text(context.strings.agentSessions),
+                    ),
+                  ],
                 ),
                 if (selectedAgent == 'omp') ...[
                   TextButton.icon(

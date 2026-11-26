@@ -16,6 +16,42 @@ class AppLocalizationsHi extends AppLocalizations {
   String get agentRules => 'नियम';
 
   @override
+  String get agentSkills => 'कौशल';
+
+  @override
+  String get importSkill => 'कौशल आयात करें';
+
+  @override
+  String get applySkills => 'कौशल लागू करें';
+
+  @override
+  String get noSkills => 'कोई कौशल आयात नहीं हुआ';
+
+  @override
+  String get editSkill => 'कौशल असाइनमेंट संपादित करें';
+
+  @override
+  String get skillSourceFolder => 'SKILL.md वाला फ़ोल्डर';
+
+  @override
+  String get refreshSkill => 'फ़ाइलें फिर से आयात करें';
+
+  @override
+  String get projectMcp => 'प्रोजेक्ट MCP';
+
+  @override
+  String get addMcpServer => 'MCP सर्वर जोड़ें';
+
+  @override
+  String get editMcpServer => 'MCP सर्वर संपादित करें';
+
+  @override
+  String get noMcpServers => 'कोई MCP सर्वर कॉन्फ़िगर नहीं है';
+
+  @override
+  String get mcpServerName => 'सर्वर का नाम';
+
+  @override
   String get addRule => 'नियम जोड़ें';
 
   @override

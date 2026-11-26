@@ -6,7 +6,9 @@ use std::{net::SocketAddr, path::PathBuf};
 mod agent;
 mod groups;
 mod memory;
+mod project_mcp;
 mod rules;
+mod skills;
 
 #[derive(Parser)]
 #[command(
@@ -63,6 +65,11 @@ enum Command {
         #[command(subcommand)]
         command: rules::Command,
     },
+    /// Import local skill folders and assign them to native agent profiles.
+    Skills {
+        #[command(subcommand)]
+        command: skills::Command,
+    },
     /// Discover recent local Claude Code and Codex sessions.
     Sessions {
         #[arg(long, value_enum)]
@@ -74,6 +81,11 @@ enum Command {
     Mcp {
         #[command(subcommand)]
         command: memory::McpCommand,
+    },
+    /// Manage MCP servers in a project's native agent configuration.
+    ProjectMcp {
+        #[command(subcommand)]
+        command: project_mcp::Command,
     },
     /// List Oh My Pi profiles, the active profile and each agent directory.
     OmpProfiles,
@@ -809,6 +821,8 @@ pub async fn run() -> Result<()> {
         }
         Command::Memory { command } => memory::run(&dir, command).await?,
         Command::Rules { command } => rules::run(&dir, command)?,
+        Command::Skills { command } => skills::run(&dir, command)?,
+        Command::ProjectMcp { command } => project_mcp::run(&dir, command)?,
         Command::Sessions { agent, limit } => println!(
             "{}",
             nextjson::to_string_pretty(&crabforge_core::sessions::list(

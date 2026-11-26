@@ -102,6 +102,75 @@ Future<String> agents() => RustLib.instance.api.crateApiAgents();
 
 Future<String> agentRules() => RustLib.instance.api.crateApiAgentRules();
 
+Future<String> projectMcpServers({
+  required String project,
+  required String agent,
+}) => RustLib.instance.api.crateApiProjectMcpServers(
+  project: project,
+  agent: agent,
+);
+
+Future<String> saveProjectMcpServer({
+  required String project,
+  required String agent,
+  required String name,
+  required String source,
+  required String revision,
+  required bool replace,
+}) => RustLib.instance.api.crateApiSaveProjectMcpServer(
+  project: project,
+  agent: agent,
+  name: name,
+  source: source,
+  revision: revision,
+  replace: replace,
+);
+
+Future<String> removeProjectMcpServer({
+  required String project,
+  required String agent,
+  required String name,
+  required String revision,
+}) => RustLib.instance.api.crateApiRemoveProjectMcpServer(
+  project: project,
+  agent: agent,
+  name: name,
+  revision: revision,
+);
+
+Future<String> agentSkills() => RustLib.instance.api.crateApiAgentSkills();
+
+Future<String> importAgentSkill({
+  required String source,
+  required List<String> agents,
+  String? revision,
+}) => RustLib.instance.api.crateApiImportAgentSkill(
+  source: source,
+  agents: agents,
+  revision: revision,
+);
+
+Future<String> assignAgentSkill({
+  required String name,
+  required List<String> agents,
+  required String revision,
+}) => RustLib.instance.api.crateApiAssignAgentSkill(
+  name: name,
+  agents: agents,
+  revision: revision,
+);
+
+Future<String> removeAgentSkill({
+  required String name,
+  required String revision,
+}) => RustLib.instance.api.crateApiRemoveAgentSkill(
+  name: name,
+  revision: revision,
+);
+
+Future<String> syncAgentSkills() =>
+    RustLib.instance.api.crateApiSyncAgentSkills();
+
 Future<String> saveAgentRule({
   String? old,
   String? revision,

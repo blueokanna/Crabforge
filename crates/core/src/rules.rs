@@ -217,7 +217,7 @@ fn destination(homes: &Homes, agent: &str, name: &str) -> Result<Destination> {
     })
 }
 
-fn resolved_folder(path: &Path) -> Result<PathBuf> {
+pub(crate) fn resolved_folder(path: &Path) -> Result<PathBuf> {
     match path.canonicalize() {
         Ok(path) => {
             ensure!(path.is_dir(), "expected a directory at {}", path.display());

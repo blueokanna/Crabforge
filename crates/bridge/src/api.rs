@@ -167,6 +167,95 @@ pub fn agent_rules() -> Result<String> {
     crabforge_core::rules::library(&config::data_dir()?, crabforge_core::rules::Edit::Read)
 }
 
+pub fn project_mcp_servers(project: String, agent: String) -> Result<String> {
+    use crabforge_core::project_mcp::{self, Edit};
+    project_mcp::edit(&config::data_dir()?, project.as_ref(), &agent, Edit::Read)
+}
+
+pub fn save_project_mcp_server(
+    project: String,
+    agent: String,
+    name: String,
+    source: String,
+    revision: String,
+    replace: bool,
+) -> Result<String> {
+    use crabforge_core::project_mcp::{self, Edit};
+    project_mcp::edit(
+        &config::data_dir()?,
+        project.as_ref(),
+        &agent,
+        Edit::Save {
+            name,
+            source,
+            expected: Some(revision),
+            replace,
+        },
+    )
+}
+
+pub fn remove_project_mcp_server(
+    project: String,
+    agent: String,
+    name: String,
+    revision: String,
+) -> Result<String> {
+    use crabforge_core::project_mcp::{self, Edit};
+    project_mcp::edit(
+        &config::data_dir()?,
+        project.as_ref(),
+        &agent,
+        Edit::Remove {
+            name,
+            expected: revision,
+        },
+    )
+}
+
+pub fn agent_skills() -> Result<String> {
+    crabforge_core::skills::library(&config::data_dir()?, crabforge_core::skills::Edit::Read)
+}
+
+pub fn import_agent_skill(
+    source: String,
+    agents: Vec<String>,
+    revision: Option<String>,
+) -> Result<String> {
+    crabforge_core::skills::library(
+        &config::data_dir()?,
+        crabforge_core::skills::Edit::Import {
+            source: source.into(),
+            agents,
+            expected: revision,
+        },
+    )
+}
+
+pub fn assign_agent_skill(name: String, agents: Vec<String>, revision: String) -> Result<String> {
+    crabforge_core::skills::library(
+        &config::data_dir()?,
+        crabforge_core::skills::Edit::Assign {
+            name,
+            agents,
+            expected: Some(revision),
+        },
+    )
+}
+
+pub fn remove_agent_skill(name: String, revision: String) -> Result<String> {
+    crabforge_core::skills::library(
+        &config::data_dir()?,
+        crabforge_core::skills::Edit::Remove {
+            name,
+            expected: Some(revision),
+        },
+    )
+}
+
+pub fn sync_agent_skills() -> Result<String> {
+    crabforge_core::skills::library(&config::data_dir()?, crabforge_core::skills::Edit::Sync)
+}
+
 pub fn save_agent_rule(
     old: Option<String>,
     revision: Option<String>,

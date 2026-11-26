@@ -40,6 +40,7 @@ no-proxy = { version = "0.3.7", default-features = false }
 multer = "3.1"
 saphyr = { version = "0.4.1", default-features = false }
 saphyr-parser = "0.4.1"
+toml_edit = "0.25"
 semver = "1"
 yaml-edit = { version = "0.3.6", default-features = false }
 subtle = "2"

@@ -16,6 +16,42 @@ class AppLocalizationsKo extends AppLocalizations {
   String get agentRules => '규칙';
 
   @override
+  String get agentSkills => '스킬';
+
+  @override
+  String get importSkill => '스킬 가져오기';
+
+  @override
+  String get applySkills => '스킬 적용';
+
+  @override
+  String get noSkills => '가져온 스킬이 없습니다';
+
+  @override
+  String get editSkill => '스킬 할당 편집';
+
+  @override
+  String get skillSourceFolder => 'SKILL.md가 있는 폴더';
+
+  @override
+  String get refreshSkill => '파일 다시 가져오기';
+
+  @override
+  String get projectMcp => '프로젝트 MCP';
+
+  @override
+  String get addMcpServer => 'MCP 서버 추가';
+
+  @override
+  String get editMcpServer => 'MCP 서버 편집';
+
+  @override
+  String get noMcpServers => '구성된 MCP 서버가 없습니다';
+
+  @override
+  String get mcpServerName => '서버 이름';
+
+  @override
   String get addRule => '규칙 추가';
 
   @override

@@ -16,6 +16,42 @@ class AppLocalizationsPt extends AppLocalizations {
   String get agentRules => 'Regras';
 
   @override
+  String get agentSkills => 'Habilidades';
+
+  @override
+  String get importSkill => 'Importar habilidade';
+
+  @override
+  String get applySkills => 'Aplicar habilidades';
+
+  @override
+  String get noSkills => 'Nenhuma habilidade importada';
+
+  @override
+  String get editSkill => 'Editar atribuições da habilidade';
+
+  @override
+  String get skillSourceFolder => 'Pasta que contém SKILL.md';
+
+  @override
+  String get refreshSkill => 'Reimportar arquivos';
+
+  @override
+  String get projectMcp => 'MCP do projeto';
+
+  @override
+  String get addMcpServer => 'Adicionar servidor MCP';
+
+  @override
+  String get editMcpServer => 'Editar servidor MCP';
+
+  @override
+  String get noMcpServers => 'Nenhum servidor MCP configurado';
+
+  @override
+  String get mcpServerName => 'Nome do servidor';
+
+  @override
   String get addRule => 'Adicionar regra';
 
   @override

@@ -72,6 +72,26 @@ carbforge-cli rules list
 
 Pass `--old <name>` to edit an existing rule or rename it. Add `--revision <revision>` from `rules list` to require the same version. `rules remove <name>` removes the library entry and its unchanged managed copies.
 
+Open **Skills** under **Client connections** to import a local folder with `SKILL.md` and its supporting files. Select Claude Code, Codex, Gemini CLI, OpenCode or Pi to publish a copy to the current profile. **Reimport files** reads the source again. **Apply skills** retries pending changes. An existing native folder or a locally edited copy stays in place and appears as a conflict.
+
+```powershell
+carbforge-cli skills import .\diagnostics --agent claude --agent codex
+carbforge-cli skills list
+carbforge-cli skills assign diagnostics --agent codex --revision '<revision from list>'
+```
+
+Use `skills import` with `--revision` to update a skill of the same name. `skills remove <name>` removes it from the library and removes unchanged managed copies.
+
+For a supported client, open **Project MCP** under **Client connections** and select the project folder. Add a server using the client's native JSON format or a TOML table body for Codex. The editor shows the file it will update and checks its revision before saving or removing an entry. The client loads and runs the server when it opens the project.
+
+```powershell
+carbforge-cli project-mcp list . gemini
+carbforge-cli project-mcp save . gemini diagnostics --from .\server.json
+carbforge-cli project-mcp remove . gemini diagnostics --revision '<revision from list>'
+```
+
+To edit an existing entry with the CLI, pass `--replace --revision <revision>` to `project-mcp save`.
+
 ## Protocols and routing
 
 - Clients can use OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Gemini and Ollama APIs. The validation record describes which streaming, tool, media and authentication paths have been exercised. Model availability depends on the provider and account.

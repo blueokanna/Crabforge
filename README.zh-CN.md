@@ -72,6 +72,26 @@ carbforge-cli rules list
 
 使用 `--old <名称>` 编辑现有规则或改名，可加 `--revision <修订>` 核对 `rules list` 中读取的版本。`rules remove <名称>` 删除规则及内容未变化的托管副本。
 
+在 **客户端连接** 的 **技能** 中导入本地文件夹，包括 `SKILL.md` 和附属文件。选择 Claude Code、Codex、Gemini CLI、OpenCode 或 Pi，可将副本发布到当前配置。**重新导入文件** 会再次读取来源。**应用技能** 可重试待处理的更改。原生目录已有同名技能，或已发布的副本在本地被修改时，Crabforge 会保留目录并显示冲突。
+
+```powershell
+carbforge-cli skills import .\diagnostics --agent claude --agent codex
+carbforge-cli skills list
+carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回的修订>'
+```
+
+使用 `skills import` 加 `--revision` 更新同名技能。`skills remove <名称>` 删除库中的技能及内容未变化的托管副本。
+
+在 **客户端连接** 选择支持的客户端，打开 **项目 MCP** 并选择项目文件夹。添加服务器时使用客户端的原生 JSON 配置，Codex 使用 TOML 表正文。编辑器显示将写入的文件，保存和删除前会核对文件修订。客户端打开项目时读取配置并启动服务器。
+
+```powershell
+carbforge-cli project-mcp list . gemini
+carbforge-cli project-mcp save . gemini diagnostics --from .\server.json
+carbforge-cli project-mcp remove . gemini diagnostics --revision '<列表返回的修订>'
+```
+
+在 CLI 中编辑已有条目时，向 `project-mcp save` 传入 `--replace --revision <修订>`。
+
 ## 协议与路由
 
 - 支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini 和 Ollama 客户端。目录、对话流、工具调用、媒体和鉴权的验证范围见验收记录。不同供应商及套餐开放的模型会变化。

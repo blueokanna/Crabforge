@@ -124,6 +124,78 @@ abstract class AppLocalizations {
   /// **'Rules'**
   String get agentRules;
 
+  /// No description provided for @agentSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Skills'**
+  String get agentSkills;
+
+  /// No description provided for @importSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Import skill'**
+  String get importSkill;
+
+  /// No description provided for @applySkills.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply skills'**
+  String get applySkills;
+
+  /// No description provided for @noSkills.
+  ///
+  /// In en, this message translates to:
+  /// **'No skills imported'**
+  String get noSkills;
+
+  /// No description provided for @editSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit skill assignments'**
+  String get editSkill;
+
+  /// No description provided for @skillSourceFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder containing SKILL.md'**
+  String get skillSourceFolder;
+
+  /// No description provided for @refreshSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Reimport files'**
+  String get refreshSkill;
+
+  /// No description provided for @projectMcp.
+  ///
+  /// In en, this message translates to:
+  /// **'Project MCP'**
+  String get projectMcp;
+
+  /// No description provided for @addMcpServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Add MCP server'**
+  String get addMcpServer;
+
+  /// No description provided for @editMcpServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit MCP server'**
+  String get editMcpServer;
+
+  /// No description provided for @noMcpServers.
+  ///
+  /// In en, this message translates to:
+  /// **'No MCP servers configured'**
+  String get noMcpServers;
+
+  /// No description provided for @mcpServerName.
+  ///
+  /// In en, this message translates to:
+  /// **'Server name'**
+  String get mcpServerName;
+
   /// No description provided for @addRule.
   ///
   /// In en, this message translates to:
