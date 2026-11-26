@@ -47,7 +47,15 @@ impl ForwardClient {
                     .build(),
             )
             .build();
-        let bypass = super::no_proxy_from_env()
+        Self::with_resolver(
+            Some(Self::environment_bypass()),
+            config,
+            DefaultResolver::default,
+        )
+    }
+
+    pub(crate) fn environment_bypass() -> no_proxy::NoProxy {
+        super::no_proxy_from_env()
             .into_iter()
             .map(|entry| {
                 entry
@@ -56,8 +64,8 @@ impl ForwardClient {
                     .to_ascii_lowercase()
             })
             .collect::<Vec<_>>()
-            .join(",");
-        Self::with_resolver(Some(bypass.into()), config, DefaultResolver::default)
+            .join(",")
+            .into()
     }
 
     pub(crate) fn with_resolver<R: Resolver>(

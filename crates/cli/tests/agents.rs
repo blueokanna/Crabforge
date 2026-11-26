@@ -361,7 +361,7 @@ async fn goose_receives_text_through_the_gateway() -> Result<()> {
     let app = Router::new().route("/v1/chat/completions", post(|Incoming {body: bytes, ..}| async move {
         let req: Value = nextjson::from_slice(&bytes).unwrap();
         assert_eq!(req["model"], json!("m"));
-        if req["stream"] == json!(true) {
+        if req.get("stream").and_then(Value::as_bool) == Some(true) {
             let chunk = json!({"id":"chat-goose","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"delta":{"role":"assistant","content":"CRABFORGE_FIXTURE_REPLY"},"finish_reason":"stop"}]});
             ([("content-type","text/event-stream")],format!("data: {chunk}\n\ndata: [DONE]\n\n"))
         } else {
@@ -598,14 +598,23 @@ async fn omp_reads_advisor_choices_and_resets_from_the_named_profile() -> Result
             String::from_utf8_lossy(&output.stderr)
         );
         let values = layer().await?;
-        assert_eq!(values["advisor.enabled"]["value"].as_bool(), expected);
+        assert_eq!(
+            values
+                .pointer("/advisor.enabled/value")
+                .and_then(Value::as_bool),
+            expected
+        );
         assert_eq!(values["advisor.reviewMode"]["value"], json!("agent-end"));
         assert_eq!(
-            values["advisor.syncBacklog"]["value"].as_str(),
+            values
+                .pointer("/advisor.syncBacklog/value")
+                .and_then(Value::as_str),
             expected.map(|_| "1")
         );
         assert_eq!(
-            values["advisor.continueSeverity"]["value"].as_str(),
+            values
+                .pointer("/advisor.continueSeverity/value")
+                .and_then(Value::as_str),
             expected.map(|_| "concern")
         );
     }
@@ -679,7 +688,9 @@ async fn omp_reads_thinking_levels_without_changing_fallback_roles() -> Result<(
             json!({"slow":expected_role,"tiny":["a","b:low"]})
         );
         assert_eq!(
-            values["defaultThinkingLevel"]["value"].as_str(),
+            values
+                .pointer("/defaultThinkingLevel/value")
+                .and_then(Value::as_str),
             (session != "inherit").then_some(session)
         );
     }
@@ -1155,7 +1166,7 @@ fn chat_stream() -> Router {
         let delta = json!({"id":"chatcmpl-fixture","object":"chat.completion.chunk","model":model,"choices":[{"index":0,"delta":{"role":"assistant","content":format!("CRABFORGE_FIXTURE_REPLY_{model}")},"finish_reason":null}]});
         let stop = json!({"id":"chatcmpl-fixture","object":"chat.completion.chunk","model":model,"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]});
         let mut frames = format!("data: {delta}\n\ndata: {stop}\n\n");
-        if req["stream_options"]["include_usage"] == json!(true) {
+        if req.pointer("/stream_options/include_usage").and_then(Value::as_bool) == Some(true) {
             let usage = json!({"id":"chatcmpl-fixture","object":"chat.completion.chunk","model":model,"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":2,"total_tokens":12}});
             frames.push_str(&format!("data: {usage}\n\n"));
         }
@@ -1408,7 +1419,7 @@ max_context_size = 32768
     } else {
         vec!["m", "unlisted"]
     };
-    let cfg = json!({"listen":"127.0.0.1:0","providers":[{"id":"local","models":models,"endpoints":{protocol:format!("http://{upstream}/{prefix}")}}],"groups":{"first":["local/unlisted"],"last":["local/m"],"paused":["local/m"]},"disabled_groups":["paused"],"group_unlists":["first"],"group_display_order":["paused","last","first"]});
+    let cfg = json!({"listen":"127.0.0.1:0","providers":[{"id":"local","models":models,"endpoints":{(protocol):format!("http://{upstream}/{prefix}")}}],"groups":{"first":["local/unlisted"],"last":["local/m"],"paused":["local/m"]},"disabled_groups":["paused"],"group_unlists":["first"],"group_display_order":["paused","last","first"]});
     config::save(root, &config::snapshot(root)?, &cfg.to_string())?;
     let service = Service::start(root).await?;
     let mut cfg = cfg;
@@ -1621,7 +1632,7 @@ max_context_size = 32768
             "gemini" if matches!(client, "omo" | "prime-agent") => Some("google-generative-ai"),
             _ => None,
         };
-        assert_eq!(direct["api"].as_str(), expected);
+        assert_eq!(direct.get("api").and_then(Value::as_str), expected);
         if protocol == "responses" {
             assert_eq!(direct["compat"]["supportsStrictMode"], json!(true));
             assert_eq!(ours[0]["api"], json!("openai-responses"));

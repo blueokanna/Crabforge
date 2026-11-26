@@ -25,9 +25,14 @@ impl Resolver for FixtureAddress {
         _: &HttpConfig,
         _: NextTimeout,
     ) -> Result<ResolvedSocketAddrs, ureq::Error> {
-        assert_eq!(uri.host(), Some("opencode.ai"));
         let mut addresses = self.empty();
-        addresses.push(self.0);
+        addresses.push(match uri.host() {
+            Some("127.0.0.1") => {
+                ([127, 0, 0, 1], uri.port_u16().expect("fixture proxy port")).into()
+            }
+            Some("opencode.ai") => self.0,
+            host => panic!("unexpected fixture host {host:?}"),
+        });
         Ok(addresses)
     }
 }
@@ -52,7 +57,9 @@ async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> 
         .tls_config(tls)
         .timeout_global(Some(Duration::from_secs(5)))
         .build();
-    let client = ForwardClient::with_resolver(None, config, move || FixtureAddress(address));
+    let bypass =
+        std::env::var_os("CRABFORGE_TEST_PROXY_ROUTE").map(|_| ForwardClient::environment_bypass());
+    let client = ForwardClient::with_resolver(bypass, config, move || FixtureAddress(address));
     let server = rustls::ServerConfig::builder_with_provider(Arc::new(
         rustls::crypto::ring::default_provider(),
     ))
@@ -108,5 +115,65 @@ async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> 
     task.abort();
     upstream.await??;
     assert_eq!(reply, REPLY);
+    Ok(())
+}
+
+#[tokio::test]
+async fn https_response_crosses_connect_and_no_proxy_bypasses_it() -> Result<()> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, copy_bidirectional};
+    let proxy = TcpListener::bind("127.0.0.1:0").await?;
+    let address = proxy.local_addr()?;
+    let relay = tokio::spawn(async move {
+        let (socket, _) = proxy.accept().await?;
+        let mut reader = BufReader::new(socket);
+        let mut request = String::new();
+        reader.read_line(&mut request).await?;
+        let port: u16 = request
+            .trim_end()
+            .strip_prefix("CONNECT opencode.ai:")
+            .and_then(|line| line.strip_suffix(" HTTP/1.1"))
+            .expect("CONNECT authority")
+            .parse()?;
+        loop {
+            let mut line = String::new();
+            anyhow::ensure!(reader.read_line(&mut line).await? > 0, "incomplete CONNECT");
+            if line == "\r\n" {
+                break;
+            }
+        }
+        let mut upstream =
+            tokio::net::TcpStream::connect((std::net::Ipv4Addr::LOCALHOST, port)).await?;
+        let mut socket = reader.into_inner();
+        socket
+            .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+            .await?;
+        copy_bidirectional(&mut socket, &mut upstream).await?;
+        Ok::<_, anyhow::Error>(proxy)
+    });
+    // Keep the test runner's and other requests' proxy environment intact.
+    let exchange = |bypass: &'static str| async move {
+        let output = tokio::process::Command::new(std::env::current_exe()?)
+            .args(["--exact", "gateway::console_test::console_go_forwards_untranslatable_input_in_its_original_protocol"])
+            .env_remove("https_proxy").env_remove("no_proxy")
+            .env("HTTPS_PROXY", format!("http://{address}"))
+            .env("NO_PROXY", bypass).env("CRABFORGE_TEST_PROXY_ROUTE", "1")
+            .kill_on_drop(true).output().await?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        anyhow::ensure!(
+            output.status.success() && stdout.contains("1 passed"),
+            "{stdout}"
+        );
+        Ok::<_, anyhow::Error>(())
+    };
+    exchange("").await?;
+    let proxy = tokio::time::timeout(Duration::from_secs(8), relay).await???;
+    exchange("opencode.ai").await?;
+    // The listener stayed live for the second request. A queued connection here
+    // would indicate an unexpected proxy dial even if the request also went direct.
+    assert!(
+        tokio::time::timeout(Duration::from_millis(50), proxy.accept())
+            .await
+            .is_err()
+    );
     Ok(())
 }
