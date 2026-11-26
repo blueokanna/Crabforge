@@ -43,7 +43,15 @@ carbforge-cli memory search --kind preference --status active
 carbforge-cli memory edit <id> --status archived
 ```
 
-要让 Agent 使用这些记录，在客户端添加本地 stdio MCP 服务，命令使用 `carbforge-cli.exe` 的完整路径，参数为 `mcp memory --agent <Agent ID> --project-key <项目键>`。使用自定义数据目录时，为客户端设置相同的 `CRABFORGE_HOME`。`memory_search` 搜索可用范围内的有效记忆，`memory_save` 创建记录或更新 Agent 写入的记忆，`memory_forget` 归档可见记录，`memory_context` 显示适用范围。省略两个可选参数即可只使用全局记忆。同一项目的不同客户端应填写同一个项目键。
+通过记忆「范围」字段的文件夹按钮，将记忆关联到项目。Crabforge 依据 Git 远端识别同一仓库的克隆和工作树。没有网络远端时使用本地路径。在「项目指令 → 项目记忆」中可预览有效的项目记忆，并将摘要发布到选定 Agent 的指令文件。能访问文件的人都能读取摘要。归档记忆后再次发布即可从摘要移除该条记忆。「恢复上一版本」可以撤销上次发布。
+
+```powershell
+carbforge-cli memory project-key D:\Projects\app
+carbforge-cli memory digest D:\Projects\app
+carbforge-cli memory publish D:\Projects\app codex
+```
+
+要让 Agent 搜索和保存记忆，在客户端添加本地 stdio MCP 服务，命令使用 `carbforge-cli.exe` 的完整路径，参数为 `mcp memory --agent <Agent ID> --project <文件夹>`。也可将 `--project <文件夹>` 换成 `--project-key <项目键>`。使用自定义数据目录时，为客户端设置相同的 `CRABFORGE_HOME`。`memory_search` 搜索可用范围内的有效记忆，`memory_save` 创建记录或更新 Agent 写入的记忆，`memory_forget` 归档可见记录，`memory_context` 显示适用范围。直接运行 `mcp memory` 时仅开放全局记忆。
 
 ## 协议与路由
 

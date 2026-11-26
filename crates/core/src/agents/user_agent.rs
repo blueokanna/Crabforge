@@ -130,7 +130,7 @@ const SIGNATURES: &[(&str, &[&str], &[&str])] = &[
     ("qwen", &["qwen-code", "qwen-cli"], &["qwencode"]),
     ("vibe", &["mistral-vibe"], &["mistral-vibe"]),
     ("cline", &["cline-cli"], &["cline"]),
-    ("qoder", &["qodercli", "qoder-cli"], &[]),
+    ("qoder", &["qodercli", "qoder-cli", "qoder"], &[]),
     ("qoder-cn", &["qoderclicn", "qodercn", "qodercn-cli"], &[]),
     ("grok-app", &["grokapp"], &[]),
     ("workbuddy", &["work-buddy"], &["workbuddy"]),

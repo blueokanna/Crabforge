@@ -13,6 +13,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get memoryLibrary => 'メモリ';
 
   @override
+  String get projectMemory => 'プロジェクトのメモリ';
+
+  @override
+  String get publishMemory => '概要を公開';
+
+  @override
+  String get projectMemoryHelp =>
+      '概要がプロジェクトの指示ファイルに書き込まれます。ファイルにアクセスできる人は誰でも読めます。';
+
+  @override
+  String get projectMemoryEmpty => 'このプロジェクトには公開できる有効なメモリがありません。';
+
+  @override
   String get searchMemories => 'メモリを検索';
 
   @override

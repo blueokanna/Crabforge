@@ -43,7 +43,15 @@ carbforge-cli memory search --kind preference --status active
 carbforge-cli memory edit <id> --status archived
 ```
 
-To share those records with an Agent, register the full path to `carbforge-cli.exe` as a local stdio MCP server, with arguments `mcp memory --agent <agent-id> --project-key <project-key>`. Set the same `CRABFORGE_HOME` in the client environment if you use a custom data directory. `memory_search` reads active records in the available scopes. `memory_save` creates records and can update agent-created ones. `memory_forget` archives a visible record, and `memory_context` reports the scopes. Omit the two optional arguments for global memory only. Use the same project key for all clients working on one project.
+Use the folder picker on a memory's **Scope** field to associate it with a project. Crabforge uses the Git remote to give clones and worktrees the same project key. A project without a network remote uses its local path. In **Project instructions → Project memory**, preview the active project memories and publish the digest to the selected Agent's file. The published Markdown is visible to anyone with access to that file. Archive a note and publish again to remove it from the digest. **Restore previous version** can undo a publication.
+
+```powershell
+carbforge-cli memory project-key D:\Projects\app
+carbforge-cli memory digest D:\Projects\app
+carbforge-cli memory publish D:\Projects\app codex
+```
+
+To let an Agent search and save memories, register the full path to `carbforge-cli.exe` as a local stdio MCP server, with arguments `mcp memory --agent <agent-id> --project <folder>`. You can pass `--project-key <project-key>` in place of `--project <folder>`. Set the same `CRABFORGE_HOME` in the client environment if you use a custom data directory. `memory_search` reads active records in the available scopes. `memory_save` creates records and can update agent-created ones. `memory_forget` archives a visible record, and `memory_context` reports the scopes. Run `mcp memory` without arguments to expose only global memory.
 
 ## Protocols and routing
 

@@ -1,5 +1,9 @@
 {
   "memoryLibrary": "メモリ",
+  "projectMemory": "プロジェクトのメモリ",
+  "publishMemory": "概要を公開",
+  "projectMemoryHelp": "概要がプロジェクトの指示ファイルに書き込まれます。ファイルにアクセスできる人は誰でも読めます。",
+  "projectMemoryEmpty": "このプロジェクトには公開できる有効なメモリがありません。",
   "searchMemories": "メモリを検索",
   "unreadableMemories": "読み取れないメモリファイル",
   "noMemoriesFound": "該当するメモリがありません",

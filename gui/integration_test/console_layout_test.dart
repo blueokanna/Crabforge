@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:crabforge/l10n/app_localizations.dart';
 import 'package:crabforge/language.dart';
 import 'package:crabforge/main.dart';
+import 'package:crabforge/src/rust/api.dart' as native;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -297,6 +298,14 @@ void main() {
       ),
       memory,
     );
+    final key = await tester.runAsync(
+      () => native.memoryProjectKey(project: project.path),
+    );
+    expect(key, isNotNull);
+    await tester.enterText(
+      find.widgetWithText(TextField, strings.memoryScope),
+      'project:$key',
+    );
     await tester.ensureVisible(save);
     await tester.tap(save);
     final memoryTile = find.widgetWithText(ListTile, memory);
@@ -327,5 +336,24 @@ void main() {
       ),
       findsOneWidget,
     );
+    await tester.tap(find.widgetWithText(TextButton, 'Close'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(strings.projectInstructions));
+    await tester.pumpAndSettle();
+    await tester.enterText(fields.first, project.path);
+    await tester.tap(find.text(strings.openProject));
+    await waitForEdit('Use the custom instructions file.');
+    await tester.tap(find.text(strings.projectMemory));
+    final publish = find.widgetWithText(FilledButton, strings.publishMemory);
+    final publicationDeadline = DateTime.now().add(const Duration(seconds: 10));
+    while (publish.evaluate().isEmpty &&
+        DateTime.now().isBefore(publicationDeadline)) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.textContaining('- $memory'), findsOneWidget);
+    await tester.pumpAndSettle();
+    await tester.tap(publish);
+    await waitForEdit('Use the custom instructions file.');
+    expect(customInstructions.readAsStringSync(), contains('- $memory\r\n'));
   });
 }

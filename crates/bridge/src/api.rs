@@ -170,6 +170,10 @@ pub fn search_memories(query: String) -> Result<String> {
     )?)
 }
 
+pub fn memory_project_key(project: String) -> Result<String> {
+    crabforge_core::memory::project_key(project.as_ref())
+}
+
 pub fn save_memory(
     id: Option<String>,
     revision: Option<String>,
@@ -209,6 +213,25 @@ pub fn edit_project_instructions(
         &agent,
         &revision,
         text.as_deref(),
+    )
+}
+
+pub fn project_memory_digest(project: String) -> Result<String> {
+    crabforge_core::memory::project_digest(&config::data_dir()?, project.as_ref())
+}
+
+pub fn publish_project_memory(
+    project: String,
+    agent: String,
+    revision: String,
+    preview: String,
+) -> Result<()> {
+    crabforge_core::project_instructions::publish_memory(
+        &config::data_dir()?,
+        project.as_ref(),
+        &agent,
+        &revision,
+        Some(&preview),
     )
 }
 

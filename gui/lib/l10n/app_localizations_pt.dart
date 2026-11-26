@@ -13,6 +13,20 @@ class AppLocalizationsPt extends AppLocalizations {
   String get memoryLibrary => 'Memória';
 
   @override
+  String get projectMemory => 'Memória do projeto';
+
+  @override
+  String get publishMemory => 'Publicar resumo';
+
+  @override
+  String get projectMemoryHelp =>
+      'O resumo é gravado nas instruções do projeto. Qualquer pessoa com acesso ao arquivo pode lê-lo.';
+
+  @override
+  String get projectMemoryEmpty =>
+      'Este projeto não tem memórias ativas para publicar.';
+
+  @override
   String get searchMemories => 'Pesquisar na memória';
 
   @override

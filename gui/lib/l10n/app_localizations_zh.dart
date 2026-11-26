@@ -13,6 +13,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get memoryLibrary => '记忆';
 
   @override
+  String get projectMemory => '项目记忆';
+
+  @override
+  String get publishMemory => '发布摘要';
+
+  @override
+  String get projectMemoryHelp => '发布后，能访问此指令文件的人都能读取摘要。';
+
+  @override
+  String get projectMemoryEmpty => '此项目没有可发布的有效记忆。';
+
+  @override
   String get searchMemories => '搜索记忆';
 
   @override

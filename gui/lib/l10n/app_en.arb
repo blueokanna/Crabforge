@@ -1,5 +1,9 @@
 {
   "memoryLibrary": "Memory",
+  "projectMemory": "Project memory",
+  "publishMemory": "Publish digest",
+  "projectMemoryHelp": "Publishing writes the digest to this project’s instructions. Anyone with access to the file can read it.",
+  "projectMemoryEmpty": "This project has no active memories to publish.",
   "searchMemories": "Search memories",
   "unreadableMemories": "Unreadable memory files",
   "noMemoriesFound": "No matching memories",

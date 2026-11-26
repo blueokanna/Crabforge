@@ -103,6 +103,9 @@ Future<String> agents() => RustLib.instance.api.crateApiAgents();
 Future<String> searchMemories({required String query}) =>
     RustLib.instance.api.crateApiSearchMemories(query: query);
 
+Future<String> memoryProjectKey({required String project}) =>
+    RustLib.instance.api.crateApiMemoryProjectKey(project: project);
+
 Future<String> saveMemory({
   String? id,
   String? revision,
@@ -134,6 +137,21 @@ Future<void> editProjectInstructions({
   agent: agent,
   revision: revision,
   text: text,
+);
+
+Future<String> projectMemoryDigest({required String project}) =>
+    RustLib.instance.api.crateApiProjectMemoryDigest(project: project);
+
+Future<void> publishProjectMemory({
+  required String project,
+  required String agent,
+  required String revision,
+  required String preview,
+}) => RustLib.instance.api.crateApiPublishProjectMemory(
+  project: project,
+  agent: agent,
+  revision: revision,
+  preview: preview,
 );
 
 Future<String> ompProfiles() => RustLib.instance.api.crateApiOmpProfiles();

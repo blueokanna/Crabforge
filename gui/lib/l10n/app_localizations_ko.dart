@@ -13,6 +13,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get memoryLibrary => '메모리';
 
   @override
+  String get projectMemory => '프로젝트 메모리';
+
+  @override
+  String get publishMemory => '요약 게시';
+
+  @override
+  String get projectMemoryHelp =>
+      '요약은 프로젝트 지침 파일에 저장됩니다. 파일에 접근할 수 있는 사람은 누구나 읽을 수 있습니다.';
+
+  @override
+  String get projectMemoryEmpty => '이 프로젝트에는 게시할 활성 메모리가 없습니다.';
+
+  @override
   String get searchMemories => '메모리 검색';
 
   @override

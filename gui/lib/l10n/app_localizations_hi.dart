@@ -13,6 +13,20 @@ class AppLocalizationsHi extends AppLocalizations {
   String get memoryLibrary => 'स्मृति';
 
   @override
+  String get projectMemory => 'प्रोजेक्ट की स्मृति';
+
+  @override
+  String get publishMemory => 'सारांश प्रकाशित करें';
+
+  @override
+  String get projectMemoryHelp =>
+      'सारांश प्रोजेक्ट के निर्देशों में लिखा जाता है। फ़ाइल तक पहुँच रखने वाला कोई भी व्यक्ति उसे पढ़ सकता है।';
+
+  @override
+  String get projectMemoryEmpty =>
+      'इस प्रोजेक्ट में प्रकाशित करने के लिए कोई सक्रिय स्मृति नहीं है।';
+
+  @override
   String get searchMemories => 'स्मृतियाँ खोजें';
 
   @override

@@ -2,6 +2,23 @@
 
 [English](crabforge-validation.en.md)
 
+### Windows x64 记忆管理（`c8eb96e`）
+
+从 `c8eb96e79048add9d1f94680cc5fd44c0d9f372b` 离线构建的 ZIP 为 60,611,407 字节，SHA-256 为 `4E1CD367471290B5617351A3C1A41DDFF7FDB22773A0484C3C749679C4899AA1`。复核了 296 项构建输入、解压后的 666 个文件、126 项资产和两个 CLI 各自的 97 项相同预设。包内附 308 个 Rust 依赖的许可资料。全量 Rust 串行回归 115 项通过，包含通常忽略的测试。全目标 Clippy、Flutter 分析和两项组件测试通过。Windows x64 和 Cargo 全目标的 28 组启用依赖树均无 Serde、Hyper 或 Reqwest。经指定代理推送后核对了远端 `main` 的完整提交哈希。[构建输入](validation/cf-windows-c8eb96e/build-inputs.sha256) · [解压清单](validation/cf-windows-c8eb96e/SHA256SUMS) · [Rust 测试](validation/cf-windows-c8eb96e/regression.log) · [依赖审计](validation/cf-windows-c8eb96e/dependency-audit.csv)
+
+解压版 CLI 通过八项进程检查，覆盖 Markdown 创建和搜索、拒绝过期修订，以及 MCP 初始化、工具、去重、作用域和归档。Gemini CLI 0.71.1 经 stdio 调用 `memory_search`，随后将返回的记忆作为 `functionResponse` 发送给本机模型夹具。解压版也复测了自定义项目指令。Qoder 和 Qoder CN 1.1.99 原生客户端以隔离配置启动，首条模型请求前均提示需要 `/login`。[进程结果](validation/cf-windows-c8eb96e/memory-process.csv) · [Gemini MCP](validation/cf-windows-c8eb96e/mcp-client.csv) · [自定义指令](validation/cf-windows-c8eb96e/custom-context.csv)
+
+Windows Debug 控制台和 Oh My Pi 编辑器使用解压版 Release CLI，分别通过首次启动及独立进程重启。宽窄布局测试通过，覆盖记忆编辑及列表和网格切换。[控制台](validation/cf-windows-c8eb96e/console-0.log) · [控制台重启](validation/cf-windows-c8eb96e/console-1.log) · [Oh My Pi](validation/cf-windows-c8eb96e/omp_settings-0.log) · [Oh My Pi 重启](validation/cf-windows-c8eb96e/omp_settings-1.log) · [布局测试](validation/cf-windows-c8eb96e/console-layout.log)
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.60 / 1.41 | 60.75 / 93.76 |
+| Chat 网关 | 8.88 / 1.84 | 69.30 / 97.93 |
+| 桌面主进程 | 155.12 / 229.17 | 82.91 / 98.97 |
+| 桌面进程树 | 155.12 / 229.17 | 455.67 / 431.39 |
+
+Crabforge 每轮以独立数据目录启动解压的 Release 桌面。Magpie 三轮复用同一可见窗口及七个 WebView2 子进程。Chat 网关共用本机夹具，Crabforge 公开两个模型 ID，Magpie 公开一个。回环 SSE 首个完整事件分别耗时 15、19、2 ms，上游固定延迟 700 ms，末帧为 724、728、704 ms。解压 CLI 在 IPv6 回环、同机全局 IPv6 及 Kubo 中继回退路径均取得错误密钥 401、有效密钥 200 和预期目录。公网跨机样本仍待测。[空目录](validation/cf-windows-c8eb96e/catalog.csv) · [Chat](validation/cf-windows-c8eb96e/chat.csv) · [桌面](validation/cf-windows-c8eb96e/desktop-comparison.csv) · [SSE](validation/cf-windows-c8eb96e/forward-h1.csv) · [IPv6](validation/cf-windows-c8eb96e/ipv6.csv)
+
 ### Windows x64 自定义项目指令（`9aeb7e5`）
 
 本地 ZIP 从 `9aeb7e58423929f0eabeac2b1be4f49fde085ccf` 离线构建，60,230,597 字节，SHA-256 为 `AB20EB4DEB65646DBBD174F8631B4FA9DFBDE4D266095DA7E5B59163F15318C9`。292 项构建输入前后一致，解压后逐一复核 666 个文件及 126 项应用资产，两个 CLI 各输出 97 项相同预设。包内附 308 个 Rust 依赖的许可资料。全量 Rust 串行回归 113 项通过、0 项失败、0 项跳过。全目标 Clippy、Flutter 分析和两项组件测试通过。Windows x64 和 Cargo 全目标的 28 组依赖树均无启用的 Serde、Hyper 或 Reqwest。[构建输入](validation/cf-windows-9aeb7e5/build-inputs.sha256) · [解压文件哈希](validation/cf-windows-9aeb7e5/SHA256SUMS) · [Rust 测试](validation/cf-windows-9aeb7e5/regression.log) · [依赖审计](validation/cf-windows-9aeb7e5/dependency-audit.csv)
@@ -20,6 +37,8 @@ Crabforge 桌面从解压目录以独立配置启动三次。Magpie 使用独立
 解压 CLI 针对 Gemini CLI、Qwen Code、Qoder 和 Qoder CN 均通过自定义 `context.fileName` 的 BOM 导入、CRLF 保留、过期修订拒绝及恢复。Gemini CLI 0.71.1 与 Qwen Code 0.28.4 的本机模型请求包含自定义文件原文。Gemini 同时提交了默认 `GEMINI.md`。Qoder 和 Qoder CN 的原生客户端尚待验证。[逐客户端结果](validation/cf-windows-9aeb7e5/custom-context.csv)
 
 Windows 调试控制台与 Oh My Pi 编辑器使用包内 Release CLI，分别通过首次使用及独立进程重启。控制台首轮的隧道按钮在测试视口外。固定测试视口并精确定位按钮后，同一冻结生产源码通过。[初次运行](validation/cf-windows-9aeb7e5/console-0.log) · [控制台](validation/cf-windows-9aeb7e5/console-retry-0.log) · [控制台重启](validation/cf-windows-9aeb7e5/console-retry-1.log) · [Oh My Pi](validation/cf-windows-9aeb7e5/omp_settings-retry-0.log) · [Oh My Pi 重启](validation/cf-windows-9aeb7e5/omp_settings-retry-1.log)
+
+冻结版通过 Windows 宽窄布局测试。Windows Graphics Capture 在解压 Release 的宽窗中采集 24 次页面切换，指定像素区域共出现 288 次变化。从投递点击到首次采集到画面变化的中位数为 45.59 ms。同一次切换内，相邻变化之间的中位数为 16.67 ms，P90 为 16.68 ms，最大 33.35 ms。该主机上的 PresentMon ETW 和 DXGI 输出复制未能采样，GPU 逐帧执行与物理显示输出仍待测。[布局测试](validation/cf-windows-9aeb7e5/console-layout.log) · [窗口采集时间](validation/cf-windows-9aeb7e5/window-capture-frames.csv)
 
 ### Windows x64 控制台与自有 P2P 地址编解码器（`a4a9e40`）
 

@@ -11,7 +11,12 @@ use std::{
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use yaml_edit::{Sequence, YamlFile};
 
+mod digest;
 pub mod mcp;
+mod project;
+
+pub use digest::project_digest;
+pub use project::key as project_key;
 
 const MAX_FILE: usize = 256 * 1024;
 const KINDS: &[&str] = &[
@@ -247,7 +252,7 @@ pub fn save(
     save_locked(&folder, id.zip(expected), changes, "user")
 }
 
-fn lock_store(dir: &Path) -> Result<(PathBuf, fs::File)> {
+pub(crate) fn lock_store(dir: &Path) -> Result<(PathBuf, fs::File)> {
     let folder = dir.join("memory");
     fs::create_dir_all(&folder)?;
     let lock = fs::File::options()
@@ -380,31 +385,11 @@ pub fn search(dir: &Path, query: Query) -> Result<Results> {
 }
 
 fn search_where(folder: &Path, query: Query, include: impl Fn(&Entry) -> bool) -> Result<Results> {
-    let paths = match fs::read_dir(folder) {
-        Ok(paths) => Some(paths),
-        Err(error) if error.kind() == ErrorKind::NotFound => None,
-        Err(error) => return Err(error.into()),
-    };
-    let mut entries = Vec::new();
-    let mut unreadable = Vec::new();
     let wanted = query.text.trim().to_lowercase();
     let terms: Vec<_> = wanted.split_whitespace().collect();
     let wanted_tags = tags(query.tags);
-    for path in paths.into_iter().flatten() {
-        let path = path?.path();
-        if path.extension().is_none_or(|ext| ext != "md") {
-            continue;
-        }
-        let Some(id) = path.file_stem().and_then(|stem| stem.to_str()) else {
-            continue;
-        };
-        let entry = match read_in(folder, id) {
-            Ok(entry) => entry,
-            Err(_) => {
-                unreadable.push(id.to_owned());
-                continue;
-            }
-        };
+    let mut entries = Vec::new();
+    let mut unreadable = scan(folder, |entry| {
         if !include(&entry)
             || query
                 .status
@@ -417,7 +402,7 @@ fn search_where(folder: &Path, query: Query, include: impl Fn(&Entry) -> bool) -
                 .is_some_and(|scope| scope != &entry.scope)
             || !wanted_tags.iter().all(|tag| entry.tags.contains(tag))
         {
-            continue;
+            return;
         }
         let mut rank = 0;
         if !terms.is_empty() {
@@ -433,7 +418,7 @@ fn search_where(folder: &Path, query: Query, include: impl Fn(&Entry) -> bool) -
                 .filter(|term| searchable.contains(**term))
                 .count();
             if rank == 0 {
-                continue;
+                return;
             }
             rank += usize::from(body.contains(&wanted)) * terms.len();
         }
@@ -444,7 +429,7 @@ fn search_where(folder: &Path, query: Query, include: impl Fn(&Entry) -> bool) -
             Reverse(updated),
             entry,
         ));
-    }
+    })?;
     entries.sort_unstable_by(|a, b| (&a.0, &a.1, &a.2, &a.3.id).cmp(&(&b.0, &b.1, &b.2, &b.3.id)));
     unreadable.sort_unstable();
     let total = entries.len();
@@ -459,6 +444,28 @@ fn search_where(folder: &Path, query: Query, include: impl Fn(&Entry) -> bool) -
         total,
         unreadable,
     })
+}
+
+fn scan(folder: &Path, mut visit: impl FnMut(Entry)) -> Result<Vec<String>> {
+    let paths = match fs::read_dir(folder) {
+        Ok(paths) => paths,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    };
+    let mut unreadable = Vec::new();
+    for path in paths {
+        let path = path?.path();
+        if path.extension().is_none_or(|ext| ext != "md") {
+            continue;
+        }
+        if let Some(id) = path.file_stem().and_then(|stem| stem.to_str()) {
+            match read_in(folder, id) {
+                Ok(entry) => visit(entry),
+                Err(_) => unreadable.push(id.to_owned()),
+            }
+        }
+    }
+    Ok(unreadable)
 }
 
 #[cfg(test)]

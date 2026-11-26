@@ -118,6 +118,30 @@ abstract class AppLocalizations {
   /// **'Memory'**
   String get memoryLibrary;
 
+  /// No description provided for @projectMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Project memory'**
+  String get projectMemory;
+
+  /// No description provided for @publishMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish digest'**
+  String get publishMemory;
+
+  /// No description provided for @projectMemoryHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Publishing writes the digest to this project’s instructions. Anyone with access to the file can read it.'**
+  String get projectMemoryHelp;
+
+  /// No description provided for @projectMemoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This project has no active memories to publish.'**
+  String get projectMemoryEmpty;
+
   /// No description provided for @searchMemories.
   ///
   /// In en, this message translates to:

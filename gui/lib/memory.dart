@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import 'collection_view.dart';
@@ -298,6 +299,22 @@ class _MemoryEditorState extends State<_MemoryEditor> {
     }
   }
 
+  Future<void> chooseProject() async {
+    try {
+      final folder = await getDirectoryPath();
+      if (folder == null || !mounted) return;
+      final key = await api.memoryProjectKey(project: folder);
+      if (mounted && !saving) {
+        setState(() {
+          scope.text = 'project:$key';
+          error = null;
+        });
+      }
+    } catch (failure) {
+      if (mounted) setState(() => error = '$failure');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
@@ -325,6 +342,11 @@ class _MemoryEditorState extends State<_MemoryEditor> {
               decoration: InputDecoration(
                 labelText: strings.memoryScope,
                 helperText: 'global · project:<key> · agent:<id>',
+                suffixIcon: IconButton(
+                  tooltip: strings.projectFolder,
+                  onPressed: saving ? null : chooseProject,
+                  icon: const Icon(Icons.folder_open_outlined),
+                ),
               ),
             ),
             const SizedBox(height: 10),

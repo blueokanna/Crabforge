@@ -1,5 +1,9 @@
 {
   "memoryLibrary": "Memória",
+  "projectMemory": "Memória do projeto",
+  "publishMemory": "Publicar resumo",
+  "projectMemoryHelp": "O resumo é gravado nas instruções do projeto. Qualquer pessoa com acesso ao arquivo pode lê-lo.",
+  "projectMemoryEmpty": "Este projeto não tem memórias ativas para publicar.",
   "searchMemories": "Pesquisar na memória",
   "unreadableMemories": "Arquivos de memória ilegíveis",
   "noMemoriesFound": "Nenhum resultado na memória",

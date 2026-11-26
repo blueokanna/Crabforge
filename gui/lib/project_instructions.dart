@@ -19,7 +19,14 @@ class ProjectInstructionsEditor extends StatefulWidget {
 class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
   final folder = TextEditingController();
   final markdown = TextEditingController();
-  ({String folder, String path, String revision, String text, bool canRestore})?
+  ({
+    String folder,
+    String path,
+    String revision,
+    String text,
+    String memoryDigest,
+    bool canRestore,
+  })?
   document;
   bool busy = false;
   String? error;
@@ -60,6 +67,7 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
         path: result['path'] as String,
         revision: result['revision'] as String,
         text: text,
+        memoryDigest: result['memory_digest'] as String,
         canRestore: result['can_restore'] as bool,
       );
     });
@@ -96,6 +104,55 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
       text: restore ? null : markdown.text,
     );
     await load(current.folder);
+  });
+
+  Future<void> previewMemory() => perform(() async {
+    final current = document!;
+    final preview = await api.projectMemoryDigest(project: current.folder);
+    if (!mounted) return;
+    final strings = context.strings;
+    final canPublish = preview.trimRight() != current.memoryDigest;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        scrollable: true,
+        title: Text(strings.projectMemory),
+        content: SizedBox(
+          width: 580,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(strings.projectMemoryHelp),
+              const SizedBox(height: 12),
+              SelectableText(current.path),
+              const SizedBox(height: 12),
+              SelectableText(
+                preview.isEmpty ? strings.projectMemoryEmpty : preview,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(strings.cancel),
+          ),
+          FilledButton(
+            onPressed: canPublish ? () => Navigator.pop(context, true) : null,
+            child: Text(strings.publishMemory),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    await api.publishProjectMemory(
+      project: current.folder,
+      agent: widget.agent,
+      revision: current.revision,
+      preview: preview,
+    );
+    if (mounted) await load(current.folder);
   });
 
   @override
@@ -141,6 +198,19 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
               SelectableText(
                 current.path,
                 style: TextStyle(color: colors.onSurfaceVariant),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: ValueListenableBuilder(
+                  valueListenable: markdown,
+                  builder: (context, value, _) => TextButton.icon(
+                    onPressed: busy || current.text != value.text
+                        ? null
+                        : previewMemory,
+                    icon: const Icon(Icons.psychology_outlined),
+                    label: Text(strings.projectMemory),
+                  ),
+                ),
               ),
               const SizedBox(height: 14),
               TextField(

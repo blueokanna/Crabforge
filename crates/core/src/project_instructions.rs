@@ -14,6 +14,8 @@ use std::{
 // Keeping Magpie's markers lets an existing project move between the two editors.
 const BEGIN: &str = "<!-- magpie:begin · written by magpie from its Library -->";
 const END: &str = "<!-- magpie:end -->";
+const MEMORY_BEGIN: &str = "<!-- crabforge:project-memory:begin -->";
+const MEMORY_END: &str = "<!-- crabforge:project-memory:end -->";
 const MAX_DOCUMENT: u64 = 256 * 1024;
 const MAX_BACKUPS: usize = 16;
 const MAX_HISTORY: u64 = MAX_DOCUMENT * 6 * MAX_BACKUPS as u64 + 4096;
@@ -167,7 +169,7 @@ struct Block {
     body: Range<usize>,
 }
 
-fn block(source: &str) -> Result<Option<Block>> {
+fn block(source: &str, (start_marker, end_marker): (&str, &str)) -> Result<Option<Block>> {
     let mut begin = None;
     let mut found = None;
     let mut pos = if source.starts_with('\u{feff}') {
@@ -178,14 +180,14 @@ fn block(source: &str) -> Result<Option<Block>> {
     for line in source[pos..].split_inclusive('\n') {
         let end = pos + line.len();
         match line.trim_end_matches(['\r', '\n']) {
-            BEGIN => {
+            line if line == start_marker => {
                 ensure!(
                     begin.is_none() && found.is_none(),
                     "multiple instruction blocks"
                 );
                 begin = Some((pos, end));
             }
-            END => {
+            line if line == end_marker => {
                 let (start, content) = begin.take().context("unmatched instruction end marker")?;
                 found = Some(Block {
                     whole: start..end,
@@ -200,17 +202,35 @@ fn block(source: &str) -> Result<Option<Block>> {
     Ok(found)
 }
 
-fn updated(source: &str, text: &str) -> Result<String> {
-    let old = block(source)?;
+fn blocks(source: &str) -> Result<(Option<Block>, Option<Block>)> {
+    let instructions = block(source, (BEGIN, END))?;
+    let memory = block(source, (MEMORY_BEGIN, MEMORY_END))?;
+    if let (Some(a), Some(b)) = (&instructions, &memory) {
+        ensure!(
+            a.whole.end <= b.whole.start || b.whole.end <= a.whole.start,
+            "managed instructions and project memory overlap"
+        );
+    }
+    Ok((instructions, memory))
+}
+
+fn updated(source: &str, text: &str, publish_memory: bool) -> Result<String> {
+    let (instructions, memory) = blocks(source)?;
+    let (old, begin, end) = if publish_memory {
+        (memory, MEMORY_BEGIN, MEMORY_END)
+    } else {
+        (instructions, BEGIN, END)
+    };
     let text = text
         .strip_prefix('\u{feff}')
         .unwrap_or(text)
         .replace("\r\n", "\n");
     let text = text.trim_end_matches('\n');
     ensure!(
-        !text
-            .split('\n')
-            .any(|line| matches!(line.trim_end_matches('\r'), BEGIN | END)),
+        !text.split('\n').any(|line| matches!(
+            line.trim_end_matches('\r'),
+            BEGIN | END | MEMORY_BEGIN | MEMORY_END
+        )),
         "instructions contain a reserved marker line"
     );
     let eol = if source.contains("\r\n") {
@@ -231,7 +251,7 @@ fn updated(source: &str, text: &str) -> Result<String> {
             if !result.trim_start_matches('\u{feff}').is_empty() && !result.ends_with('\n') {
                 result.push_str(eol);
             }
-            result.push_str(&format!("{BEGIN}{eol}{text}{eol}{END}{eol}"));
+            result.push_str(&format!("{begin}{eol}{text}{eol}{end}{eol}"));
         }
     }
     Ok(result)
@@ -241,6 +261,7 @@ fn updated(source: &str, text: &str) -> Result<String> {
 pub struct View {
     pub path: String,
     pub text: String,
+    pub memory_digest: String,
     pub revision: String,
     pub can_restore: bool,
 }
@@ -313,18 +334,22 @@ pub fn read(dir: &Path, project: &Path, agent: &str) -> Result<View> {
     let path = target(dir, project, agent)?;
     let contents = optional(&path, MAX_DOCUMENT)?;
     let source = contents.as_deref().unwrap_or_default();
-    let text = block(source)?
-        .map(|b| {
-            source[b.body]
-                .trim_end_matches(['\r', '\n'])
-                .replace("\r\n", "\n")
-        })
-        .unwrap_or_default();
+    let (instructions, memory) = blocks(source)?;
+    let text = |block: Option<Block>| {
+        block
+            .map(|b| {
+                source[b.body]
+                    .trim_end_matches(['\r', '\n'])
+                    .replace("\r\n", "\n")
+            })
+            .unwrap_or_default()
+    };
     let revision = revision(&path, contents.as_deref());
     let (_, entries) = history(dir, &path)?;
     Ok(View {
         path: path.display().to_string(),
-        text,
+        text: text(instructions),
+        memory_digest: text(memory),
         can_restore: entries.iter().any(|e| e.after == revision),
         revision,
     })
@@ -337,6 +362,33 @@ pub fn edit(
     agent: &str,
     previous: &str,
     text: Option<&str>,
+) -> Result<()> {
+    write(dir, project, agent, previous, text, false)
+}
+
+pub fn publish_memory(
+    dir: &Path,
+    project: &Path,
+    agent: &str,
+    previous: &str,
+    preview: Option<&str>,
+) -> Result<()> {
+    let (_folder, _lock) = crate::memory::lock_store(dir)?;
+    let digest = crate::memory::project_digest(dir, project)?;
+    ensure!(
+        preview.is_none_or(|preview| digest == preview),
+        "project memory changed; preview it again"
+    );
+    write(dir, project, agent, previous, Some(&digest), true)
+}
+
+fn write(
+    dir: &Path,
+    project: &Path,
+    agent: &str,
+    previous: &str,
+    text: Option<&str>,
+    publish_memory: bool,
 ) -> Result<()> {
     let store = dir.join("project-instructions");
     fs::create_dir_all(&store)?;
@@ -373,7 +425,7 @@ pub fn edit(
                 text.len() as u64 <= MAX_DOCUMENT,
                 "instructions exceed the {MAX_DOCUMENT}-byte limit"
             );
-            let content = updated(before.as_deref().unwrap_or_default(), text)?;
+            let content = updated(before.as_deref().unwrap_or_default(), text, publish_memory)?;
             ensure!(
                 content.len() as u64 <= MAX_DOCUMENT,
                 "project file would exceed the {MAX_DOCUMENT}-byte limit"
@@ -441,7 +493,7 @@ mod tests {
             let name = root.join(name);
             assert_eq!(target(data.path(), &root, agent)?, name);
         }
-        assert!(updated("", &format!("Useful text\n{END}\r")).is_err());
+        assert!(updated("", &format!("Useful text\n{END}\r"), false).is_err());
         Ok(())
     }
 
@@ -515,6 +567,86 @@ mod tests {
         );
         edit(data.path(), project.path(), "cursor", &saved.revision, None)?;
         assert_eq!(fs::read_to_string(&path)?, initial);
+        Ok(())
+    }
+
+    #[test]
+    fn project_memory_publication_is_scoped_reversible_and_checks_both_revisions() -> Result<()> {
+        use crate::memory::{self, Changes};
+
+        let project = tempfile::tempdir()?;
+        let data = tempfile::tempdir()?;
+        let root = project.path();
+        let dir = data.path();
+        let path = root.join("AGENTS.md");
+        fs::write(&path, "\u{feff}# My instructions\r\n")?;
+        let original = read(dir, root, "codex")?;
+        edit(
+            dir,
+            root,
+            "codex",
+            &original.revision,
+            Some("Run the tests."),
+        )?;
+        let before = read(dir, root, "codex")?;
+        for (scope, text) in [
+            ("global".into(), "A global note."),
+            ("agent:codex".into(), "An agent note."),
+            ("project:other/example".into(), "Another project's note."),
+        ] {
+            memory::save(
+                dir,
+                None,
+                None,
+                Changes {
+                    scope: Some(scope),
+                    text: Some(text.into()),
+                    ..Default::default()
+                },
+            )?;
+        }
+        assert!(memory::project_digest(dir, root)?.is_empty());
+        let note = memory::save(
+            dir,
+            None,
+            None,
+            Changes {
+                scope: Some(format!("project:{}", memory::project_key(root)?)),
+                text: Some(format!("Verify the build.\n{MEMORY_END}")),
+                pinned: Some(true),
+                ..Default::default()
+            },
+        )?;
+        let digest = memory::project_digest(dir, root)?;
+        assert!(publish_memory(dir, root, "codex", &before.revision, Some("")).is_err());
+        assert!(publish_memory(dir, root, "codex", &original.revision, Some(&digest)).is_err());
+        assert_eq!(read(dir, root, "codex")?.revision, before.revision);
+        publish_memory(dir, root, "codex", &before.revision, Some(&digest))?;
+        let published = read(dir, root, "codex")?;
+        assert_eq!(published.text, before.text);
+        assert_eq!(published.memory_digest, digest.trim_end());
+        let source = fs::read_to_string(&path)?;
+        assert!(source.starts_with("\u{feff}# My instructions\r\n"));
+        assert!(source.contains("Verify the build.\r\n"));
+        assert_eq!(source.matches(MEMORY_END).count(), 1);
+        assert!(!source.contains(" note."));
+        memory::save(
+            dir,
+            Some(&note.id),
+            Some(&note.revision),
+            Changes {
+                status: Some("archived".into()),
+                ..Default::default()
+            },
+        )?;
+        publish_memory(dir, root, "codex", &published.revision, Some(""))?;
+        let cleared = read(dir, root, "codex")?;
+        assert_eq!(cleared.revision, before.revision);
+        edit(dir, root, "codex", &cleared.revision, None)?;
+        assert_eq!(
+            read(dir, root, "codex")?.memory_digest,
+            published.memory_digest
+        );
         Ok(())
     }
 

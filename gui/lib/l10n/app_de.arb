@@ -1,5 +1,9 @@
 {
   "memoryLibrary": "Gedächtnis",
+  "projectMemory": "Projektgedächtnis",
+  "publishMemory": "Zusammenfassung veröffentlichen",
+  "projectMemoryHelp": "Die Zusammenfassung wird in die Projektanweisungen geschrieben. Alle mit Zugriff auf die Datei können sie lesen.",
+  "projectMemoryEmpty": "Dieses Projekt hat keine aktiven Erinnerungen zum Veröffentlichen.",
   "searchMemories": "Gedächtnis durchsuchen",
   "unreadableMemories": "Nicht lesbare Gedächtnisdateien",
   "noMemoriesFound": "Keine passenden Einträge",

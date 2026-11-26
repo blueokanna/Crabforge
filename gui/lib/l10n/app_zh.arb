@@ -1,5 +1,9 @@
 {
   "memoryLibrary": "记忆",
+  "projectMemory": "项目记忆",
+  "publishMemory": "发布摘要",
+  "projectMemoryHelp": "发布后，能访问此指令文件的人都能读取摘要。",
+  "projectMemoryEmpty": "此项目没有可发布的有效记忆。",
   "searchMemories": "搜索记忆",
   "unreadableMemories": "无法读取的记忆文件",
   "noMemoriesFound": "没有符合条件的记忆",

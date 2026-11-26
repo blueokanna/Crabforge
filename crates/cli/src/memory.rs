@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use crabforge_core::{memory, project_instructions::read_markdown};
+use crabforge_core::{memory, project_instructions};
 use nextjson::NsonSerialize;
 use std::path::{Path, PathBuf};
 
@@ -10,13 +10,24 @@ pub(super) enum McpCommand {
     Memory {
         #[arg(long)]
         agent: Option<String>,
-        #[arg(long)]
+        #[arg(long, conflicts_with = "project")]
         project_key: Option<String>,
+        /// Resolve a project key from this folder's Git checkout or its local path.
+        #[arg(long)]
+        project: Option<PathBuf>,
     },
 }
 
 pub(super) fn serve(dir: &Path, command: McpCommand) -> Result<()> {
-    let McpCommand::Memory { agent, project_key } = command;
+    let McpCommand::Memory {
+        agent,
+        project_key,
+        project,
+    } = command;
+    let project_key = match project {
+        Some(folder) => Some(memory::project_key(&folder)?),
+        None => project_key,
+    };
     memory::mcp::serve(
         dir,
         agent.as_deref(),
@@ -28,6 +39,20 @@ pub(super) fn serve(dir: &Path, command: McpCommand) -> Result<()> {
 
 #[derive(Subcommand)]
 pub(super) enum Command {
+    /// Print the scoped memory key for a project folder.
+    ProjectKey {
+        #[arg(default_value = ".")]
+        folder: PathBuf,
+    },
+    /// Preview the active memories belonging to this project as Markdown.
+    Digest { folder: PathBuf },
+    /// Publish the project's memory digest in the selected agent's instructions.
+    Publish {
+        folder: PathBuf,
+        agent: String,
+        #[arg(long)]
+        revision: Option<String>,
+    },
     /// List or search memories. Includes all statuses unless filtered.
     Search {
         #[arg(default_value = "")]
@@ -86,7 +111,7 @@ pub(super) struct Fields {
 impl Fields {
     fn changes(self, from: Option<&Path>) -> Result<memory::Changes> {
         Ok(memory::Changes {
-            text: from.map(read_markdown).transpose()?,
+            text: from.map(project_instructions::read_markdown).transpose()?,
             kind: self.kind,
             scope: self.scope,
             status: self.status,
@@ -107,6 +132,26 @@ fn print(value: &impl NsonSerialize) -> Result<()> {
 
 pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
     match command {
+        Command::ProjectKey { folder } => {
+            println!("{}", memory::project_key(&folder)?);
+            Ok(())
+        }
+        Command::Digest { folder } => {
+            print!("{}", memory::project_digest(dir, &folder)?);
+            Ok(())
+        }
+        Command::Publish {
+            folder,
+            agent,
+            revision,
+        } => {
+            let revision = match revision {
+                Some(revision) => revision,
+                None => project_instructions::read(dir, &folder, &agent)?.revision,
+            };
+            project_instructions::publish_memory(dir, &folder, &agent, &revision, None)?;
+            print(&project_instructions::read(dir, &folder, &agent)?)
+        }
         Command::Show { id } => print(&memory::read(dir, &id)?),
         Command::Search {
             text,

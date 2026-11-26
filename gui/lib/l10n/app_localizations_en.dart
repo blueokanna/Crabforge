@@ -13,6 +13,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memoryLibrary => 'Memory';
 
   @override
+  String get projectMemory => 'Project memory';
+
+  @override
+  String get publishMemory => 'Publish digest';
+
+  @override
+  String get projectMemoryHelp =>
+      'Publishing writes the digest to this project’s instructions. Anyone with access to the file can read it.';
+
+  @override
+  String get projectMemoryEmpty =>
+      'This project has no active memories to publish.';
+
+  @override
   String get searchMemories => 'Search memories';
 
   @override
