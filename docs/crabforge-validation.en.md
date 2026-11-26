@@ -2,6 +2,35 @@
 
 [简体中文](crabforge-validation.md)
 
+## Windows x64 manual session memory extraction snapshot `d53252f`
+
+The ZIP built offline from `d53252f1718f72454237782259dab20a4b0b6cbc` is 61,275,493 bytes with SHA-256 `3741355AD8405F1C26D52D91B15589C1ACB7B6E8BEDC79914926BD39CAFF2E95`. Checks covered 302 inputs, 667 manifest entries, 126 assets, 309 Rust dependency notices and the same 97 presets from both CLI names. All 120 serial Rust regressions passed, along with all-target Clippy, Flutter analysis and two widget tests. The 28 dependency trees show no enabled Serde, Hyper or Reqwest. The unpacked desktop and CLI returned `NotSigned`. [Inputs](validation/cf-windows-d53252f/build-inputs.sha256) · [Archive manifest](validation/cf-windows-d53252f/SHA256SUMS) · [Rust tests](validation/cf-windows-d53252f/regression.log) · [Dependency audit](validation/cf-windows-d53252f/dependency-audit.csv)
+
+Claude Code and Codex each completed a real client turn against a localhost model fixture. The unpacked CLI sent the reviewed user messages through `group/memory-fixture`, rejected stale previews, dropped forged quotes and deduplicated candidates. Candidates entered the digest after review and activation. The compressed Codex session in a secondary profile passed preview revision and profile scope checks. A 560-pixel Windows Debug integration covered route selection, sending, opening a candidate, inspecting its quote and activating it. In a separate run with llama.cpp inference and SmolLM2 135M Q4_K_M, the response failed array validation and zero candidates were saved. [Extraction checks](validation/cf-windows-d53252f/memory-distill-process.csv) · [Compressed session scope](validation/cf-windows-d53252f/distill-profiles.csv) · [Desktop review](validation/cf-windows-d53252f/agent-resources.log) · [Local model](validation/cf-windows-d53252f/distill-local-model.csv)
+
+IPv6 loopback, a same-host global IPv6 address and Kubo fallback after direct dial failure returned 401 for invalid keys and 200 with the expected catalog for valid keys. The three first loopback SSE events arrived in 7, 2 and 2 ms. Final events arrived in 715, 710 and 707 ms with a 700 ms upstream delay. Cross-host public and different-NAT samples are pending. [IPv6 and relay](validation/cf-windows-d53252f/ipv6.csv) · [SSE](validation/cf-windows-d53252f/forward-h1.csv)
+
+## Windows x64 multi-profile sessions and compressed archives snapshot `3f50294`
+
+The ZIP built offline from `3f50294aabb76b7219c2acc261c7a79e763b3eb9` is 61,099,609 bytes with SHA-256 `D19CBD38B3DDDD57C62773ED123DCC907FF81838FBEF6617D2CDB50B0F6038C2`. Checks covered 301 inputs, 667 manifest entries, 126 assets, 309 Rust dependency notices and the same 97 presets from both CLI names. All 120 serial Rust regressions passed, along with all-target Clippy, Flutter analysis and two widget tests. All 28 dependency trees were clear of enabled Serde, Hyper and Reqwest. The unpacked desktop and CLI returned `NotSigned`. [Inputs](validation/cf-windows-3f50294/build-inputs.sha256) · [Archive manifest](validation/cf-windows-3f50294/SHA256SUMS) · [Rust tests](validation/cf-windows-3f50294/regression.log) · [Dependency audit](validation/cf-windows-3f50294/dependency-audit.csv)
+
+The unpacked CLI read native sessions from localhost model turns in Claude Code and Codex. With a compressed copy of the Codex session in a nested secondary profile, it listed the active and archived records separately and reported one truncated archive. User digest scope, preview revision, BOM, CRLF and restoration checks passed. Eight memory process checks also passed, as did project digest publication and a stdio MCP tool turn in Gemini CLI 0.71.1. [Sessions](validation/cf-windows-3f50294/sessions-process.csv) · [Profiles and archives](validation/cf-windows-3f50294/session-profiles.csv) · [User digests](validation/cf-windows-3f50294/agent-memory-process.csv) · [Memory](validation/cf-windows-3f50294/memory-process.csv) · [Project digest](validation/cf-windows-3f50294/digest-publication.csv) · [Gemini MCP](validation/cf-windows-3f50294/mcp-client.csv)
+
+| Workload, median of three samples | Crabforge working set / private bytes (MiB) | Magpie working set / private bytes (MiB) |
+| --- | ---: | ---: |
+| Empty catalog gateway | 7.65 / 1.51 | 57.92 / 91.27 |
+| Chat gateway | 9.00 / 1.91 | 68.33 / 97.11 |
+| Desktop main process | 154.82 / 230.07 | 80.64 / 96.25 |
+| Desktop process tree | 154.82 / 230.07 | 451.56 / 421.29 |
+
+The desktop samples used the unpacked Release. Crabforge used a fresh data directory in each round, and Magpie reused one window with seven WebView2 children. Both Chat gateways used the same localhost fixture and exposed two and one model IDs respectively. [Catalog](validation/cf-windows-3f50294/catalog.csv) · [Chat](validation/cf-windows-3f50294/chat.csv) · [Desktop](validation/cf-windows-3f50294/desktop-comparison.csv)
+
+Loopback SSE first events arrived in 7, 2 and 3 ms. Final events arrived in 721, 710 and 711 ms with a 700 ms delay at the upstream. IPv6 loopback, a same-host global IPv6 address and Kubo fallback after direct dial failure returned 401 for invalid keys and 200 with the expected catalog for valid keys. Cross-host public and different-NAT samples are pending. [SSE](validation/cf-windows-3f50294/forward-h1.csv) · [IPv6 and relay](validation/cf-windows-3f50294/ipv6.csv)
+
+Windows Graphics Capture measured 308 pixel region changes during 24 Release window transitions. Median click-to-first-change was 43.23 ms. The median interval between changes was 16.67 ms, P90 was 16.69 ms and the maximum was 33.39 ms. GPU execution and physical display output still need separate measurements. [Window capture](validation/cf-windows-3f50294/window-capture-frames.csv)
+
+Frozen Windows Debug covered the console and Oh My Pi settings across independent restarts, both window layouts and session browsing. Flutter Profile collected 583 frames. UI build P90/P99 was 1.60/6.98 ms, total span P90/P99 was 3.21/7.97 ms and the raster clock reported 0–1 µs. [Console](validation/cf-windows-3f50294/console-0.log) · [Console restart](validation/cf-windows-3f50294/console-1.log) · [Oh My Pi](validation/cf-windows-3f50294/omp_settings-0.log) · [Oh My Pi restart](validation/cf-windows-3f50294/omp_settings-1.log) · [Layouts](validation/cf-windows-3f50294/console-layout.log) · [Session integration](validation/cf-windows-3f50294/agent-resources.log) · [Profile log](validation/cf-windows-3f50294/profile.log) · [Frame timings](validation/cf-windows-3f50294/profile.json)
+
 ## Windows x64 session browser and user digest snapshot `45a935b`
 
 The ZIP built offline from `45a935bf01d013027cbd83e821a078395a0ac0fb` is 60,925,796 bytes with SHA-256 `BBC5029C89432867A163C5996C075DF7897A3C20D32755F3249CFCC204138B59`. Checks covered 666 unpacked files, 126 assets and the same 97 presets from both CLI names. [Inputs](validation/cf-windows-45a935b/build-inputs.sha256) · [Archive manifest](validation/cf-windows-45a935b/SHA256SUMS)

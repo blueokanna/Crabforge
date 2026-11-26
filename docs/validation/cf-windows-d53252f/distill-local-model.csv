@@ -1,0 +1,2 @@
+Model,Engine,Transport,Preview,Result,Saved
+SmolLM2-135M-Instruct-Q4_K_M,llama.cpp,localhost HTTP,exact,Error: model did not return a memory proposal array,0

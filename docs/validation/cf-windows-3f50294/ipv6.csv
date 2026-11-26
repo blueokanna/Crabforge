@@ -1,0 +1,4 @@
+AddressClass,Topology,UnauthorizedHTTP,AuthorizedHTTP
+IPv6 loopback,same host,401,200
+assigned global IPv6,same host,401,200
+IPv6 direct failure to Kubo circuit,same host,401,200

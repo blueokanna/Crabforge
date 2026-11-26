@@ -1,0 +1,3 @@
+Agent,User instructions,Exact scopes in first model request,Stale preview and revision rejected,BOM and CRLF preserved,Restore
+claude,CLAUDE.md,pass,pass,pass,pass
+codex,AGENTS.override.md,pass,pass,pass,pass

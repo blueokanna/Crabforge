@@ -2,6 +2,35 @@
 
 [English](crabforge-validation.en.md)
 
+### Windows x64 手动会话提炼（`d53252f`）
+
+从 `d53252f1718f72454237782259dab20a4b0b6cbc` 离线构建的 ZIP 为 61,275,493 字节，SHA-256 为 `3741355AD8405F1C26D52D91B15589C1ACB7B6E8BEDC79914926BD39CAFF2E95`。核对 302 项构建输入、667 个清单文件、126 项资产、309 个 Rust 依赖许可及双 CLI 各 97 项相同预设。120 项串行 Rust 回归、全目标 Clippy、Flutter 分析和两项组件测试通过。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。解压桌面和 CLI 均为 `NotSigned`。[构建输入](validation/cf-windows-d53252f/build-inputs.sha256) · [解压清单](validation/cf-windows-d53252f/SHA256SUMS) · [Rust 回归](validation/cf-windows-d53252f/regression.log) · [依赖审计](validation/cf-windows-d53252f/dependency-audit.csv)
+
+真实 Claude Code 和 Codex 各运行一次本机模型夹具对话。解压 CLI 经配置的 `group/memory-fixture` 路由发送用户预览，拒绝过期预览，丢弃伪造引文并合并重复候选。审核之前候选未写入摘要，激活后纳入摘要。Codex 次级配置的压缩会话通过预览修订和配置限域检查。560 像素 Windows Debug 集成覆盖路由选择、发送、打开候选、查看引文及激活。另用真实 llama.cpp 和 SmolLM2 135M Q4_K_M 推理，模型响应的格式未通过数组校验，保存了零条候选。[提炼进程](validation/cf-windows-d53252f/memory-distill-process.csv) · [压缩会话限域](validation/cf-windows-d53252f/distill-profiles.csv) · [桌面审核](validation/cf-windows-d53252f/agent-resources.log) · [本机模型](validation/cf-windows-d53252f/distill-local-model.csv)
+
+解压 CLI 在 IPv6 回环、同机全局 IPv6 和直连失败后的 Kubo 回退均通过 401、200 和目录校验。回环 SSE 三轮首事件为 7、2、2 ms，末事件为 715、710、707 ms，上游等待 700 ms。公网跨机与不同 NAT 的样本待采集。[IPv6 与中继](validation/cf-windows-d53252f/ipv6.csv) · [SSE](validation/cf-windows-d53252f/forward-h1.csv)
+
+### Windows x64 多配置会话与压缩归档（`3f50294`）
+
+从 `3f50294aabb76b7219c2acc261c7a79e763b3eb9` 离线构建的 ZIP 为 61,099,609 字节，SHA-256 为 `D19CBD38B3DDDD57C62773ED123DCC907FF81838FBEF6617D2CDB50B0F6038C2`。核对 301 项构建输入、667 个清单文件、126 项资产、309 个 Rust 依赖许可及两个 CLI 的 97 项相同预设。120 项全量 Rust 回归、全目标 Clippy、Flutter 分析和两项组件测试通过。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。解压的桌面与 CLI 均为 `NotSigned`。[构建输入](validation/cf-windows-3f50294/build-inputs.sha256) · [解压清单](validation/cf-windows-3f50294/SHA256SUMS) · [Rust 回归](validation/cf-windows-3f50294/regression.log) · [依赖审计](validation/cf-windows-3f50294/dependency-audit.csv)
+
+解压 CLI 从真实 Claude Code 和 Codex 的本机模型对话中读取原生会话。在嵌套的次级 Codex 配置放入同一会话的 `.jsonl.zst` 后，CLI 独立列出活动记录和归档，并报告一个截断文件。用户摘要的范围、预览修订、BOM、CRLF 和恢复通过。八项记忆进程检查及 Gemini CLI 0.71.1 的项目摘要与 stdio MCP 工具回合也通过。[会话](validation/cf-windows-3f50294/sessions-process.csv) · [多配置和归档](validation/cf-windows-3f50294/session-profiles.csv) · [用户摘要](validation/cf-windows-3f50294/agent-memory-process.csv) · [记忆](validation/cf-windows-3f50294/memory-process.csv) · [项目摘要](validation/cf-windows-3f50294/digest-publication.csv) · [Gemini MCP](validation/cf-windows-3f50294/mcp-client.csv)
+
+| 三轮中位数，工作集 / 私有字节（MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.65 / 1.51 | 57.92 / 91.27 |
+| Chat 网关 | 9.00 / 1.91 | 68.33 / 97.11 |
+| 桌面主进程 | 154.82 / 230.07 | 80.64 / 96.25 |
+| 桌面进程树 | 154.82 / 230.07 | 451.56 / 421.29 |
+
+桌面样本来自解压后的 Release。Crabforge 每轮使用独立配置，Magpie 复用同一窗口和七个 WebView2 子进程。两个 Chat 网关共用本机夹具，分别公开两个和一个模型 ID。[空目录](validation/cf-windows-3f50294/catalog.csv) · [Chat](validation/cf-windows-3f50294/chat.csv) · [桌面](validation/cf-windows-3f50294/desktop-comparison.csv)
+
+回环 SSE 三轮首事件为 7、2、3 ms，末事件为 721、710、711 ms，上游等待 700 ms。IPv6 回环、同机网卡全局 IPv6 和直连失败后的 Kubo 中继均返回错误密钥 401、有效密钥 200 及预期目录。独立公网主机间及不同 NAT 的样本仍待采集。[SSE](validation/cf-windows-3f50294/forward-h1.csv) · [IPv6 与中继](validation/cf-windows-3f50294/ipv6.csv)
+
+Windows Graphics Capture 在 24 次 Release 窗口切换期间记录 308 次像素区域变化。点击至首次变化的中位数为 43.23 ms，变化间隔中位数为 16.67 ms、P90 为 16.69 ms、最大为 33.39 ms。GPU 执行和物理屏幕输出待单独测量。[窗口采集](validation/cf-windows-3f50294/window-capture-frames.csv)
+
+冻结 Windows Debug 控制台、Oh My Pi 配置及独立重启、宽窄窗口和会话浏览通过。Flutter Profile 共 583 帧，UI 构建 P90/P99 为 1.60/6.98 ms，总跨度 P90/P99 为 3.21/7.97 ms，栅格时钟为 0–1 µs。[控制台](validation/cf-windows-3f50294/console-0.log) · [控制台重启](validation/cf-windows-3f50294/console-1.log) · [Oh My Pi](validation/cf-windows-3f50294/omp_settings-0.log) · [Oh My Pi 重启](validation/cf-windows-3f50294/omp_settings-1.log) · [宽窄窗口](validation/cf-windows-3f50294/console-layout.log) · [会话集成](validation/cf-windows-3f50294/agent-resources.log) · [Profile 日志](validation/cf-windows-3f50294/profile.log) · [逐帧数据](validation/cf-windows-3f50294/profile.json)
+
 ### Windows x64 会话浏览与用户摘要（`45a935b`）
 
 从 `45a935bf01d013027cbd83e821a078395a0ac0fb` 离线构建的 ZIP 为 60,925,796 字节，SHA-256 为 `BBC5029C89432867A163C5996C075DF7897A3C20D32755F3249CFCC204138B59`。解压校验覆盖 666 个文件、126 项资产及两个 CLI 的 97 项相同预设。[构建输入](validation/cf-windows-45a935b/build-inputs.sha256) · [解压清单](validation/cf-windows-45a935b/SHA256SUMS)
