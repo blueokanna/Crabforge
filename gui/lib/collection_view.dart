@@ -2,6 +2,88 @@ import 'package:flutter/material.dart';
 
 import 'language.dart';
 
+class CollectionLayout extends InheritedWidget {
+  const CollectionLayout({
+    super.key,
+    required this.grid,
+    required this.toggle,
+    required super.child,
+  });
+  final bool grid;
+  final VoidCallback? toggle;
+
+  static CollectionLayout of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<CollectionLayout>()!;
+
+  @override
+  bool updateShouldNotify(CollectionLayout oldWidget) =>
+      grid != oldWidget.grid || toggle != oldWidget.toggle;
+}
+
+class EditorHeading extends StatelessWidget {
+  const EditorHeading(this.title, {super.key});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = CollectionLayout.of(context);
+    return Row(
+      children: [
+        Expanded(child: Text(title)),
+        LayoutToggle(grid: layout.grid, onPressed: layout.toggle),
+      ],
+    );
+  }
+}
+
+/// Lists embedded in an editor can share its scroll view or scroll independently.
+class EditorCollection extends StatelessWidget {
+  const EditorCollection({
+    super.key,
+    required this.count,
+    required this.itemBuilder,
+    this.embedded = false,
+    this.columnWidth = 208,
+    this.tileHeight = 104,
+  });
+  final int count;
+  final IndexedWidgetBuilder itemBuilder;
+  final bool embedded;
+  final double columnWidth, tileHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final physics = embedded ? const NeverScrollableScrollPhysics() : null;
+    if (!CollectionLayout.of(context).grid) {
+      return ListView.builder(
+        primary: false,
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        physics: physics,
+        itemCount: count,
+        itemBuilder: itemBuilder,
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, bounds) => GridView.builder(
+        primary: false,
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        physics: physics,
+        itemCount: count,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: (bounds.maxWidth / columnWidth).floor().clamp(1, 4),
+          mainAxisExtent:
+              tileHeight + MediaQuery.textScalerOf(context).scale(32),
+          mainAxisSpacing: 4,
+          crossAxisSpacing: 4,
+        ),
+        itemBuilder: itemBuilder,
+      ),
+    );
+  }
+}
+
 class LayoutToggle extends StatelessWidget {
   const LayoutToggle({super.key, required this.grid, required this.onPressed});
   final bool grid;

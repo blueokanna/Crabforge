@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'brand_icon.dart';
+import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
 
@@ -613,12 +614,16 @@ class _GroupEditorState extends State<GroupEditor> {
   late final off = widget.off.toSet();
   late GroupStrategy strategy = widget.strategy;
   late final weights = {...widget.weights};
+  final weightInputs = <String, TextEditingController>{};
   late String? pick = widget.pick;
   @override
   void dispose() {
     name.dispose();
     note.dispose();
     patterns.dispose();
+    for (final input in weightInputs.values) {
+      input.dispose();
+    }
     super.dispose();
   }
 
@@ -629,14 +634,15 @@ class _GroupEditorState extends State<GroupEditor> {
     final members = [...placed.where(remaining.remove), ...remaining];
     final selected = memberSet.contains(pick) ? pick : members.firstOrNull;
     final rules = linesOf(patterns.text);
+    final grid = CollectionLayout.of(context).grid;
     return AlertDialog(
-      title: Text(
+      title: EditorHeading(
         widget.name == null
             ? context.strings.createGroup
             : context.strings.editGroup,
       ),
       content: SizedBox(
-        width: 480,
+        width: grid ? 660 : 480,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -692,40 +698,57 @@ class _GroupEditorState extends State<GroupEditor> {
                 },
               ),
               const SizedBox(height: 16),
-              for (final (index, m) in members.indexed)
-                ListTile(
-                  key: ValueKey(m),
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(m),
-                  subtitle: strategy != GroupStrategy.weight
-                      ? null
-                      : TextFormField(
-                          initialValue: (weights[m] ?? 1).toString(),
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: context.strings.memberWeight,
+              EditorCollection(
+                count: members.length,
+                embedded: true,
+                columnWidth: 236,
+                tileHeight: strategy == GroupStrategy.weight ? 200 : 128,
+                itemBuilder: (context, index) {
+                  final m = members[index];
+                  return CollectionTile(
+                    key: ValueKey(m),
+                    grid: grid,
+                    title: Text(
+                      m,
+                      maxLines: grid ? 2 : null,
+                      overflow: grid ? TextOverflow.ellipsis : null,
+                    ),
+                    detail: strategy != GroupStrategy.weight
+                        ? null
+                        : TextFormField(
+                            controller: weightInputs.putIfAbsent(
+                              m,
+                              () => TextEditingController(
+                                text: (weights[m] ?? 1).toString(),
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: context.strings.memberWeight,
+                            ),
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            validator: (text) => validWeight(text)
+                                ? null
+                                : context.strings.invalidWeight,
+                            onChanged: (text) => setState(
+                              () => weights[m] = validWeight(text)
+                                  ? int.parse(text)
+                                  : 0,
+                            ),
                           ),
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                          validator: (text) => validWeight(text)
-                              ? null
-                              : context.strings.invalidWeight,
-                          onChanged: (text) => setState(
-                            () => weights[m] = validWeight(text)
-                                ? int.parse(text)
-                                : 0,
-                          ),
-                        ),
-                  leading: strategy == GroupStrategy.manual
-                      ? IconButton(
-                          isSelected: selected == m,
-                          tooltip: context.strings.selectMember,
-                          icon: const Icon(Icons.radio_button_unchecked),
-                          selectedIcon: const Icon(Icons.radio_button_checked),
-                          onPressed: () => setState(() => pick = m),
-                        )
-                      : Text('${index + 1}'),
-                  trailing: Wrap(
-                    children: [
+                    leading: strategy == GroupStrategy.manual
+                        ? IconButton(
+                            isSelected: selected == m,
+                            tooltip: context.strings.selectMember,
+                            icon: const Icon(Icons.radio_button_unchecked),
+                            selectedIcon: const Icon(
+                              Icons.radio_button_checked,
+                            ),
+                            onPressed: () => setState(() => pick = m),
+                          )
+                        : Text('${index + 1}'),
+                    actions: [
                       if (strategy != GroupStrategy.manual)
                         IconButton(
                           tooltip: off.contains(m)
@@ -772,8 +795,9 @@ class _GroupEditorState extends State<GroupEditor> {
                         icon: const Icon(Icons.remove_circle_outline),
                       ),
                     ],
-                  ),
-                ),
+                  );
+                },
+              ),
               DropdownMenu<String>(
                 key: ValueKey(('choices', members.join('\n'))),
                 label: Text(context.strings.addCandidate),

@@ -30,7 +30,7 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 - 支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini 和 Ollama 客户端。目录、对话流、工具调用、媒体和鉴权的验证范围见验收记录。不同供应商及套餐开放的模型会变化。
 - 路由组支持顺序回退、轮询、加权轮询、手选和嵌套。`carbforge-cli provider fallback primary group/work` 为直接请求 `primary` 的模型设置回退目标。`carbforge-cli provider set backup fallback-for-others=no` 限制其他普通供应商失败后将请求转给 `backup`。
 - 桌面端支持简体中文、英语、法语、德语、西班牙语、葡萄牙语、印地语、日语和韩语。默认跟随系统语言。
-- 六个控制台页面均可通过视图按钮切换列表或网格。选择会应用到其他页面，并在下次启动时恢复。
+- 六个控制台页面、路由组成员编辑器及 Oh My Pi 的 profile、协议、角色和模型选择窗口都可以切换列表或网格。下次启动会恢复上次的布局。编辑路由组时切换布局，已输入的权重会保留。
 
 ## 连接另一台网关
 

@@ -2,10 +2,29 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
 
 enum OmpEditor { advisor, thinking }
+
+class _ChoiceDialog extends StatelessWidget {
+  const _ChoiceDialog({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: EditorHeading(title),
+    content: SizedBox(
+      width: 520,
+      child: EditorCollection(
+        count: children.length,
+        itemBuilder: (_, i) => children[i],
+      ),
+    ),
+  );
+}
 
 Future<void> editOmpRole(BuildContext context) async {
   final profile = await chooseOmpProfile(context);
@@ -16,14 +35,16 @@ Future<void> editOmpRole(BuildContext context) async {
   if (!context.mounted) return;
   final role = await showDialog<String>(
     context: context,
-    builder: (context) => SimpleDialog(
-      title: Text('${context.strings.roleModels} · $profile'),
+    builder: (context) => _ChoiceDialog(
+      title: '${context.strings.roleModels} · $profile',
       children: [
         for (final entry in assignments.entries)
           ListTile(
             title: Text(entry.key),
             subtitle: Text(
               entry.value?.toString() ?? context.strings.inheritSetting,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             onTap: () => Navigator.pop(context, entry.key),
           ),
@@ -108,7 +129,7 @@ class _RoleEditorState extends State<_RoleEditor> {
         .where((v) => v.toLowerCase().contains(filter))
         .toList();
     return AlertDialog(
-      title: Text('${widget.role} · ${widget.profile}'),
+      title: EditorHeading('${widget.role} · ${widget.profile}'),
       content: SizedBox(
         width: 440,
         child: Column(
@@ -126,11 +147,14 @@ class _RoleEditorState extends State<_RoleEditor> {
             Flexible(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 240),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: candidates.length,
+                child: EditorCollection(
+                  count: candidates.length,
                   itemBuilder: (context, i) => ListTile(
-                    title: Text(candidates[i]),
+                    title: Text(
+                      candidates[i],
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     onTap: saving
                         ? null
                         : () => setState(() => model.text = candidates[i]),
@@ -168,13 +192,20 @@ Future<String?> chooseOmpProfile(BuildContext context) async {
       ? profiles.single['name'] as String
       : await showDialog<String>(
           context: context,
-          builder: (context) => SimpleDialog(
-            title: Text(context.strings.ompProfile),
+          builder: (context) => _ChoiceDialog(
+            title: context.strings.ompProfile,
             children: [
               for (final row in profiles)
                 ListTile(
                   title: Text(row['name'] as String),
-                  subtitle: Text(row['directory'] as String),
+                  subtitle: Tooltip(
+                    message: row['directory'] as String,
+                    child: Text(
+                      row['directory'] as String,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   trailing: row['active'] == true
                       ? const Icon(Icons.check)
                       : null,
@@ -199,8 +230,8 @@ Future<void> chooseOmpProtocol(BuildContext context) async {
   };
   final selected = await showDialog<String>(
     context: context,
-    builder: (context) => SimpleDialog(
-      title: Text('${context.strings.gatewayProtocol} · $profile'),
+    builder: (context) => _ChoiceDialog(
+      title: '${context.strings.gatewayProtocol} · $profile',
       children: [
         for (final option in options.entries)
           ListTile(

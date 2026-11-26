@@ -26,6 +26,26 @@ class CrabforgeApp extends StatefulWidget {
 
 class _CrabforgeAppState extends State<CrabforgeApp> {
   String language = '';
+  bool grid = false, writingLayout = false;
+  final messenger = GlobalKey<ScaffoldMessengerState>();
+
+  void restoreLayout(bool value) {
+    if (grid != value) setState(() => grid = value);
+  }
+
+  Future<void> toggleLayout() async {
+    if (writingLayout) return;
+    final next = !grid;
+    setState(() => writingLayout = true);
+    try {
+      await api.setUiLayout(grid: next);
+      if (mounted) restoreLayout(next);
+    } catch (e) {
+      messenger.currentState?.showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => writingLayout = false);
+    }
+  }
 
   void selectLanguage(String code) {
     final selected = languageNames.containsKey(code) ? code : '';
@@ -63,6 +83,12 @@ class _CrabforgeAppState extends State<CrabforgeApp> {
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     title: 'Crabforge',
+    scaffoldMessengerKey: messenger,
+    builder: (context, child) => CollectionLayout(
+      grid: grid,
+      toggle: writingLayout ? null : toggleLayout,
+      child: child!,
+    ),
     theme: theme(Brightness.light),
     darkTheme: theme(Brightness.dark),
     locale: language.isEmpty ? null : Locale(language),
@@ -76,14 +102,24 @@ class _CrabforgeAppState extends State<CrabforgeApp> {
       }
       return const Locale('en');
     },
-    home: Console(language: language, onLanguage: selectLanguage),
+    home: Console(
+      language: language,
+      onLanguage: selectLanguage,
+      onLayoutLoaded: restoreLayout,
+    ),
   );
 }
 
 class Console extends StatefulWidget {
-  const Console({super.key, required this.language, required this.onLanguage});
+  const Console({
+    super.key,
+    required this.language,
+    required this.onLanguage,
+    required this.onLayoutLoaded,
+  });
   final String language;
   final ValueChanged<String> onLanguage;
+  final ValueChanged<bool> onLayoutLoaded;
   @override
   State<Console> createState() => _ConsoleState();
 }
@@ -96,7 +132,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   List<(String, String)> agents = [];
   String selectedAgent = 'claude';
   bool busy = false, reading = false, initialized = false;
-  bool grid = false;
+  bool get grid => CollectionLayout.of(context).grid;
   Timer? timer;
   late String peerId;
   bool get running => status['running'] == true;
@@ -209,8 +245,8 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       ) as JsonMap;
       if (!mounted) return;
       widget.onLanguage(values[5]);
+      widget.onLayoutLoaded(values[6] == 'grid');
       setState(() {
-        grid = values[6] == 'grid';
         applyConfiguration(values[0], resolved);
         presets = (jsonDecode(values[1]) as List).cast<JsonMap>();
         status = jsonDecode(values[2]);
@@ -537,12 +573,6 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     if (data != null && mounted) await save({...settings, ...data});
   }
 
-  void toggleLayout() => act(() async {
-    final next = !grid;
-    await api.setUiLayout(grid: next);
-    if (mounted) setState(() => grid = next);
-  });
-
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -558,7 +588,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     final body = ready && page == 4
         ? ModelCatalog(
             grid: grid,
-            onToggle: busy ? null : toggleLayout,
+            onToggle: busy ? null : CollectionLayout.of(context).toggle,
             providers: providers,
             groupRefs: {
               for (final g in groups.keys)
@@ -592,7 +622,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                             ),
                             LayoutToggle(
                               grid: grid,
-                              onPressed: busy ? null : toggleLayout,
+                              onPressed: busy
+                                  ? null
+                                  : CollectionLayout.of(context).toggle,
                             ),
                             if (page == 0 || page == 2)
                               FilledButton.icon(

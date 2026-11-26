@@ -93,7 +93,19 @@ void main() {
     Future<void> openTinyRole() async {
       await tap(find.widgetWithText(TextButton, s.roleModels));
       await tap(find.widgetWithText(ListTile, 'work'));
-      await tap(find.widgetWithText(ListTile, 'tiny'));
+      await waitFor(find.text('${s.roleModels} · work'));
+      final tiny = find.widgetWithText(ListTile, 'tiny');
+      await tester.scrollUntilVisible(
+        tiny,
+        140,
+        scrollable: find
+            .descendant(
+              of: find.byType(AlertDialog),
+              matching: find.byType(Scrollable),
+            )
+            .last,
+      );
+      await tap(tiny);
       await waitFor(find.byKey(const ValueKey('omp-role-model')));
     }
 
@@ -208,6 +220,9 @@ void main() {
       contains('local/m'),
     );
     await openTinyRole();
+    await tap(find.byTooltip(s.gridView));
+    await waitFor(find.byType(GridView));
+    expect(await api.uiLayout(), 'grid');
     await tap(find.widgetWithText(ListTile, 'crabforge/local/m'));
     await tap(find.text(s.save));
     await waitFor(find.widgetWithText(TextButton, s.roleModels).hitTestable());

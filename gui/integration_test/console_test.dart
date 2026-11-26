@@ -343,6 +343,21 @@ void main() {
     await tapText(zh.weightedOrder);
     final weight = find.widgetWithText(TextFormField, zh.memberWeight);
     await tester.enterText(weight, '3');
+    final editor = find.byType(AlertDialog);
+    for (final tooltip in [zh.gridView, zh.listView]) {
+      final toggle = find.descendant(
+        of: editor,
+        matching: find.byTooltip(tooltip),
+      );
+      await tester.tap(toggle);
+      await waitFor(
+        find.descendant(
+          of: editor,
+          matching: find.byType(tooltip == zh.gridView ? GridView : ListView),
+        ),
+      );
+      expect(tester.widget<TextFormField>(weight).controller!.text, '3');
+    }
     final noteField = find.widgetWithText(TextFormField, zh.groupNote);
     await tester.ensureVisible(noteField);
     await tester.enterText(noteField, '  备用   模型  ');
