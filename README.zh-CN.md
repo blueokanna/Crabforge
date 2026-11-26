@@ -40,11 +40,11 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 
 ## 构建 Windows x64 版本
 
-使用 `efb2db7` 解压包做了三轮桌面同期采样。Crabforge 的工作集和私有字节中位数分别为 129.80 和 221.44 MiB。Magpie 主进程及其七个 WebView2 子进程合计为 528.54 和 868.88 MiB。Crabforge 每轮从新配置启动，Magpie 复用已打开的可见窗口。[桌面原始采样](docs/validation/cf-protocol-efb2db7/desktop.csv)
+`a86a49c` 解压包中的桌面程序三次从新配置启动，工作集和私有字节中位数分别为 153.70 和 267.39 MiB。Magpie 复用可见窗口，主进程为 115.32 / 218.82 MiB，计入七个 WebView2 子进程后为 376.53 / 915.74 MiB。[桌面原始采样](docs/validation/cf-yaml-a86a49c/desktop-comparison.csv)
 
 安装 Rust 的 MSVC 工具链、Flutter 和 Visual Studio 的「使用 C++ 的桌面开发」工作负载。已记录的构建环境为 Rust 1.99.1、Flutter 3.47.9 和 Dart 3.13.7。
 
-冻结源码的 101 项 Rust 测试首轮通过 100 项，OmO 在发出首个网关请求前超时，单独复测四种协议均通过。三轮中位数中，空目录网关的工作集和私有字节为 7.90 和 1.49 MiB，Chat 负载为 8.84 和 1.56 MiB。验收记录附 ZIP 校验值、原始采样和同机 IPv6 结果。[Windows 验收记录](docs/crabforge-validation.md)
+冻结源码的 102 项 Rust 测试全部通过，包括已安装的真实客户端。两套 Windows 编辑器集成测试均通过首次使用和冷启动。空目录网关三轮工作集和私有字节中位数为 7.88 和 1.47 MiB，Chat 负载为 8.88 和 1.54 MiB。验收记录包含 ZIP 校验值、依赖审计和同机 IPv6 结果。[Windows 验收记录](docs/crabforge-validation.md)
 
 ```powershell
 cargo build --release --locked -p crabforge-cli

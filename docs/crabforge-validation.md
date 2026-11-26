@@ -1,5 +1,26 @@
 # Crabforge 0.1.0 验收记录
 
+### Windows x64 Oh My Pi YAML 迁移版（`a86a49c`）
+
+从 `a86a49c4beed124fb407ff3ed8c505bf828b1169` 构建的 ZIP 为 60,124,742 字节，SHA-256 为 `FA6893DB4D306C97D3B8FDF9E2C0E1D5990C2BC62B9A93FF3B2E09EC486D222A`。284 个输入在构建前后逐项一致。解压后核对了全部 144 个文件，126 项资产与源码一致，两个 CLI 各列出 97 项预设。[冻结输入](validation/cf-yaml-a86a49c/build-inputs.sha256) · [包内文件](validation/cf-yaml-a86a49c/SHA256SUMS)
+
+全量 Rust 串行回归 102 项通过，0 项失败，0 项跳过，全目标 Clippy 通过。Flutter 分析及两项组件测试通过。Windows 控制台和 Oh My Pi 编辑器分别通过首次使用、独立进程冷启动，测试调用冻结源码的调试桌面与包内 Release CLI。内存测量使用解压后的 Release 桌面。
+
+| 三轮中位数（工作集 / 私有字节，MiB） | Crabforge | Magpie |
+| --- | ---: | ---: |
+| 空目录网关 | 7.88 / 1.47 | 58.47 / 91.23 |
+| Chat 网关 | 8.88 / 1.54 | 70.13 / 99.81 |
+| 桌面主进程 | 153.70 / 267.39 | 115.32 / 218.82 |
+| 桌面进程树 | 153.70 / 267.39 | 376.53 / 915.74 |
+
+网关按轮交替运行相同负载。Chat 夹具含一个上游模型，Crabforge 同时公开了模型别名。桌面每轮重启 Crabforge 并使用新配置，Magpie 复用已有窗口和七个 WebView2 子进程。[空目录](validation/cf-yaml-a86a49c/catalog.csv) · [Chat](validation/cf-yaml-a86a49c/chat.csv) · [桌面](validation/cf-yaml-a86a49c/desktop-comparison.csv)
+
+IPv6 回环、同机网卡全局单播 IPv6、直连失败后回退至 Kubo 0.43.1 的三次测试，均以错误密钥得到 401、以正确密钥得到 200，并核对了模型目录。跨机公网 IPv6 和不同 NAT 的打洞仍待独立主机验收。[P2P 采样](validation/cf-yaml-a86a49c/ipv6.csv)
+
+Oh My Pi 配置和目录使用 Saphyr 读取 YAML，继续用 yaml-edit 保留原文件的注释与格式。Windows 生产及构建依赖树中，核心、CLI、桥接仍经 Axum 引入 `serde_core`，并含 Hyper、Reqwest。核心与 CLI 的测试树还含 `serde_json` 和 `serde_path_to_error`。`serde_yaml` 已移出锁文件。`libp2p`、Saphyr、验收工具和桌面启动器的生产、构建与测试树均通过禁用库审计。
+
+在 Windows 回环 HTTP/1.1 夹具中，服务端发送首个 SSE 事件后等待 700 毫秒，再发送末帧并关闭分块响应。Courierust 1.1.3 `Client::execute` 在三轮中均于末帧到达后一并交付两个事件。该接口适合有大小限制的目录请求，实时转发需要增量读取。[首帧时序（毫秒）](validation/cf-yaml-a86a49c/courierust-h1.csv)
+
 ### Windows x64 四协议 NextJSON 版（`efb2db7`）
 
 从 `efb2db789685080d9f4307e42b43dbf6163ec088` 的 283 个输入离线构建，构建前后逐文件校验一致。`dist/cf-protocol-efb2db7/crabforge-0.1.0-windows-x64.zip` 共 60,140,402 字节，SHA-256 为 `F6F48B059BB1946D7D866AD3EFBD647FBF283C6F256911D06A7E4D8E0878FC14`。复核了解压后的 143 项文件哈希及清单本身。126 项声明的资产与源码逐字节相等。两个 CLI 各读出 97 项预设。[冻结输入](validation/cf-protocol-efb2db7/build-inputs.sha256) · [包内文件](validation/cf-protocol-efb2db7/SHA256SUMS)
