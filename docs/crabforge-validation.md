@@ -14,6 +14,8 @@
 
 同机 IPv6 回环、网卡全局 IPv6 地址及 Kubo 回退对无效和有效密钥分别返回 401 与 200。上游等待 700 ms 时，三轮本机 SSE 首事件为 5、1、16 ms，末事件为 713、702、717 ms。[IPv6 和回退](validation/cf-windows-876cd85/ipv6.csv) · [SSE 采样](validation/cf-windows-876cd85/forward-h1.csv)
 
+132 项 Rust 全量回归及九轮 Windows Debug 集成通过。集成覆盖控制台及 Oh My Pi 的独立启动和重启、宽窄布局、Agent 资源、规则、技能和项目 MCP。Profile 记录 579 帧，UI 构建 P90/P99 为 1.71/8.77 ms，帧总跨度 P90/P99 为 3.15/9.93 ms。三轮解压 Release 启动的工作集／私有字节中位数为 Crabforge 155.59/228.70 MiB、Magpie 主进程 78.46/93.47 MiB、含七个 WebView2 子进程的 Magpie 515.18/417.75 MiB。[Rust 回归](validation/cf-windows-876cd85/regression.log) · [集成记录](validation/cf-windows-876cd85/) · [Profile 帧数据](validation/cf-windows-876cd85/profile.json) · [内存采样](validation/cf-windows-876cd85/desktop-comparison.csv)
+
 ### Windows x64 共享项目 MCP（`b2feb6a`）
 
 从 `b2feb6a6f0a350ee3f64b66b10e4c879a5ae351a` 离线构建的 ZIP 为 62,583,865 字节，SHA-256 为 `68DE35241A79629A88A9530D8AB33313B1F90E0114DB05BC447FBC0366DF9DED`。核对 319 项构建输入、671 项解压清单、126 项资产、311 组 Rust 许可及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。全目标 Clippy、Flutter 分析和两项组件测试通过。解压桌面及两个 CLI 的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-b2feb6a/build-inputs.sha256) · [解压清单](validation/cf-windows-b2feb6a/SHA256SUMS) · [依赖审计](validation/cf-windows-b2feb6a/dependency-audit.csv)
