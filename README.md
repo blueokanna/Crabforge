@@ -88,6 +88,8 @@ For a public GitHub skill, paste its `SKILL.md` or folder URL into the source fi
 
 For other Git hosts, enter the repository's HTTPS or SSH clone URL. GitLab and Gitea folder links, `user@host:path` SSH addresses and absolute `file://` repository URLs also work. Append `?ref=feature%2Fdocs#path/to/skill` to pick a ref and folder. These sources require Git on `PATH` and use its credential helper or SSH agent. **Check for updates** compares the skills' files with the library snapshot. It reports unchanged files, new content or a missing `SKILL.md`. **Reimport files** applies an update. The CLI equivalent is `skills check <name> --revision <revision from list>`.
 
+**Browse source skills** lists available skills in a local collection folder or at the selected Git ref. Skills already in the library and candidates you set aside stay out of later scans. Choose a skill, select clients and confirm the import. `skills catalog <folder or Git URL>` returns the candidates with their import sources, and `skills dismiss <source from catalog>` sets a candidate aside. Its source remains available for direct import.
+
 For a supported client, open **Project MCP** under **Client connections** and select the project folder. Add a server using the client's native JSON format or a TOML table body for Codex. The editor shows the file it will update and checks its revision before saving or removing an entry. The client loads and runs the server when it opens the project.
 
 ```powershell

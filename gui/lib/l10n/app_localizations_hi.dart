@@ -37,6 +37,15 @@ class AppLocalizationsHi extends AppLocalizations {
   String get checkSkillUpdate => 'अपडेट देखें';
 
   @override
+  String get browseRepositorySkills => 'स्रोत में स्किल देखें';
+
+  @override
+  String get noRepositorySkills => 'इस स्रोत में कोई और स्किल नहीं मिला।';
+
+  @override
+  String get dismissSkillCandidate => 'स्किल छिपाएँ';
+
+  @override
   String get skillUpToDate => 'स्किल की फ़ाइलें अप टू डेट हैं।';
 
   @override

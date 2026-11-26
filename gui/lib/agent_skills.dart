@@ -8,6 +8,7 @@ import 'language.dart';
 import 'src/rust/api.dart' as api;
 
 part 'installed_skills.dart';
+part 'repository_skills.dart';
 
 const _agents = {
   'claude': 'Claude Code',
@@ -255,9 +256,11 @@ class _AgentSkillsState extends State<AgentSkills> {
 }
 
 class _SkillEditor extends StatefulWidget {
-  const _SkillEditor({required this.entry});
+  const _SkillEditor({required this.entry, this.source, this.agents});
 
   final _Json? entry;
+  final String? source;
+  final Set<String>? agents;
 
   @override
   State<_SkillEditor> createState() => _SkillEditorState();
@@ -266,10 +269,12 @@ class _SkillEditor extends StatefulWidget {
 class _SkillEditorState extends State<_SkillEditor> {
   late final _Json? _skill = widget.entry?['skill'] as _Json?;
   late final _source = TextEditingController(
-    text: _skill?['source'] as String?,
+    text: widget.source ?? _skill?['source'] as String?,
   );
   late final _selected =
-      (_skill?['agents'] as List?)?.cast<String>().toSet() ?? <String>{};
+      widget.agents?.toSet() ??
+      (_skill?['agents'] as List?)?.cast<String>().toSet() ??
+      <String>{};
   bool _working = false;
   Object? _error;
   String? _updateStatus;
@@ -311,6 +316,25 @@ class _SkillEditorState extends State<_SkillEditor> {
     }
   }
 
+  Future<void> _browseRepository() async {
+    final source = await showDialog<String>(
+      context: context,
+      builder: (_) => _RepositorySkills(source: _source.text.trim()),
+    );
+    if (!mounted || source == null) return;
+    if (_skill == null) {
+      setState(() => _source.text = source);
+      return;
+    }
+    final library = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          _SkillEditor(entry: null, source: source, agents: _selected),
+    );
+    if (mounted && library != null) Navigator.pop(context, library);
+  }
+
   Future<void> _save({required bool reimport}) async {
     setState(() {
       _working = true;
@@ -345,12 +369,13 @@ class _SkillEditorState extends State<_SkillEditor> {
   @override
   Widget build(BuildContext context) {
     final strings = context.strings;
-    final ready = !_working && _source.text.trim().isNotEmpty;
+    final source = _source.text.trim();
+    final ready = !_working && source.isNotEmpty;
     final savedSource = _skill?['source'] as String?;
     final canCheck =
         savedSource != null &&
         savedSource.contains('://') &&
-        _source.text.trim() == savedSource;
+        source == savedSource;
     return PopScope(
       canPop: !_working,
       child: AlertDialog(
@@ -400,11 +425,22 @@ class _SkillEditorState extends State<_SkillEditor> {
                     ),
                 ],
               ),
-              if (canCheck)
-                TextButton.icon(
-                  onPressed: _working ? null : _checkUpdate,
-                  icon: const Icon(Icons.update_outlined),
-                  label: Text(strings.checkSkillUpdate),
+              if (source.isNotEmpty)
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    if (canCheck)
+                      TextButton.icon(
+                        onPressed: _working ? null : _checkUpdate,
+                        icon: const Icon(Icons.update_outlined),
+                        label: Text(strings.checkSkillUpdate),
+                      ),
+                    TextButton.icon(
+                      onPressed: _working ? null : _browseRepository,
+                      icon: const Icon(Icons.folder_open_outlined),
+                      label: Text(strings.browseRepositorySkills),
+                    ),
+                  ],
                 ),
               if (_updateStatus case final String status)
                 Text(switch (status) {

@@ -193,5 +193,83 @@ void main() {
     );
     await tap(find.text('Reimport files'));
     await waitFor(fromGit);
+    expect(find.byType(AlertDialog), findsNothing);
+
+    final sibling = Directory('${repository.path}/tools/sibling')
+      ..createSync(recursive: true);
+    File('${sibling.path}/SKILL.md').writeAsStringSync(
+      doc.replaceFirst('name: diagnostics', 'name: sibling-fixture'),
+    );
+    await git(['add', 'tools/sibling/SKILL.md']);
+    await git(['commit', '-qm', 'Add a second skill']);
+    await tap(
+      find.descendant(
+        of: fromGit,
+        matching: find.byTooltip('Edit skill assignments'),
+      ),
+    );
+    tester.view.physicalSize = const Size(560, 800);
+    await tester.pumpAndSettle();
+    await tap(find.text('Browse source skills'));
+    final catalog = find.byKey(const ValueKey('repository-skills'));
+    await waitFor(
+      find.descendant(of: catalog, matching: find.text('sibling-fixture')),
+    );
+    expect(
+      find.descendant(of: catalog, matching: find.text('git-fixture')),
+      findsNothing,
+    );
+    final wasGrid = find
+        .descendant(of: catalog, matching: find.byType(SliverGrid))
+        .evaluate()
+        .isNotEmpty;
+    await tap(
+      find.descendant(
+        of: catalog,
+        matching: find.byTooltip(wasGrid ? 'List view' : 'Grid view'),
+      ),
+    );
+    expect(
+      find.descendant(
+        of: catalog,
+        matching: find.byType(wasGrid ? SliverList : SliverGrid),
+      ),
+      findsOneWidget,
+    );
+    await tap(
+      find.descendant(of: catalog, matching: find.byTooltip('Import skill')),
+    );
+    await tap(find.widgetWithText(FilterChip, 'Codex'));
+    await tap(find.widgetWithText(FilledButton, 'Import skill'));
+    await waitFor(find.byKey(const ValueKey('sibling-fixture')));
+    expect(
+      File('${home.path}/codex/skills/sibling-fixture/SKILL.md').existsSync(),
+      isTrue,
+    );
+
+    final collections = Directory('${home.path}/local-skills');
+    final deferred = Directory('${collections.path}/deferred')
+      ..createSync(recursive: true);
+    File('${deferred.path}/SKILL.md').writeAsStringSync(
+      doc.replaceFirst('name: diagnostics', 'name: deferred-fixture'),
+    );
+    await tap(find.descendant(of: page, matching: find.text('Import skill')));
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Local folder or Git URL'),
+      collections.path,
+    );
+    await tap(find.text('Browse source skills'));
+    await waitFor(
+      find.descendant(of: catalog, matching: find.text('deferred-fixture')),
+    );
+    await tap(
+      find.descendant(of: catalog, matching: find.byTooltip('Set skill aside')),
+    );
+    final empty = find.text('No additional skills found in this source.');
+    await waitFor(empty);
+    await tap(find.descendant(of: catalog, matching: find.text('Close')));
+    await tap(find.text('Browse source skills'));
+    await waitFor(empty);
+    expect(File('${deferred.path}/SKILL.md').existsSync(), isTrue);
   });
 }

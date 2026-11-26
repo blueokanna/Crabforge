@@ -14,12 +14,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod catalog;
 mod remote;
 mod tree;
 use tree::Tree;
 
 const AGENTS: &[&str] = &["claude", "codex", "gemini", "opencode", "pi"];
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
+const MAX_FRONT_MATTER: usize = 64 * 1024;
 
 #[derive(Clone, NsonDeserialize, NsonSerialize)]
 struct Skill {
@@ -87,6 +89,8 @@ struct Store {
     skills: BTreeMap<String, Skill>,
     applied: Vec<Applied>,
     pending: Option<Pending>,
+    #[njson(skip_serializing_if = "Option::is_none")]
+    dismissed: Option<Vec<String>>,
 }
 
 pub enum Edit {
@@ -160,7 +164,11 @@ fn normalize_agents(mut agents: Vec<String>) -> Result<Vec<String>> {
 }
 
 fn details(tree: &Tree) -> Result<(String, String)> {
-    let mut lines = tree.document()?.trim_start_matches('\u{feff}').lines();
+    document_details(tree.document()?)
+}
+
+fn document_details(text: &str) -> Result<(String, String)> {
+    let mut lines = text.trim_start_matches('\u{feff}').lines();
     ensure!(
         lines.next() == Some("---"),
         "SKILL.md needs YAML front matter"
@@ -187,7 +195,7 @@ fn details(tree: &Tree) -> Result<(String, String)> {
         header.push_str(line);
         header.push('\n');
         ensure!(
-            header.len() <= 64 * 1024,
+            header.len() <= MAX_FRONT_MATTER,
             "SKILL.md front matter exceeds 64 KiB"
         );
     }
@@ -490,6 +498,47 @@ pub fn discover(dir: &Path) -> Result<String> {
     encode(&discover_in(&store, &homes(dir)?)?)
 }
 
+pub fn source_catalog(dir: &Path, source: &str) -> Result<String> {
+    let mut skills = if remote::is_url(source) {
+        remote::catalog(source)?
+    } else {
+        catalog::folder(Path::new(source))?
+    };
+    let store = Store::load(&dir.join("skills/library.json"))?;
+    let imported: BTreeSet<&str> = store
+        .skills
+        .values()
+        .map(|skill| skill.source.as_str())
+        .collect();
+    let dismissed = store.dismissed.unwrap_or_default();
+    skills.retain(|skill| {
+        !store.skills.contains_key(&skill.name)
+            && !imported.contains(skill.source.as_str())
+            && dismissed.binary_search(&source_key(&skill.source)).is_err()
+    });
+    skills.sort_by(|a, b| (&a.name, &a.source).cmp(&(&b.name, &b.source)));
+    encode(&skills)
+}
+
+fn source_key(source: &str) -> String {
+    hex::encode(Sha256::digest(source.as_bytes()))
+}
+
+pub fn dismiss_candidate(dir: &Path, source: &str) -> Result<()> {
+    ensure!(!source.is_empty(), "missing catalog source");
+    let library = dir.join("skills");
+    let _lock = lock_library(&library)?;
+    let path = library.join("library.json");
+    let mut store = Store::load(&path)?;
+    let dismissed = store.dismissed.get_or_insert_with(Vec::new);
+    let key = source_key(source);
+    if let Err(index) = dismissed.binary_search(&key) {
+        dismissed.insert(index, key);
+        store.save(&path)?;
+    }
+    Ok(())
+}
+
 pub fn check_update(dir: &Path, name: &str, expected: &str) -> Result<String> {
     let path = dir.join("skills/library.json");
     let mut store = Store::load(&path)?;
@@ -595,15 +644,8 @@ fn load_source(source: &Path) -> Result<(String, Tree)> {
     ))
 }
 
-fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
-    // A remote archive can take time to download. Check the library revision
-    // after reading it, under the same lock used for all local updates.
-    let imported = match &edit {
-        Edit::Import { source, .. } => Some(load_source(source)?),
-        _ => None,
-    };
-    let library = dir.join("skills");
-    fs::create_dir_all(&library)?;
+fn lock_library(library: &Path) -> Result<File> {
+    fs::create_dir_all(library)?;
     let lock = File::options()
         .create(true)
         .truncate(false)
@@ -611,6 +653,17 @@ fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
         .write(true)
         .open(library.join("library.lock"))?;
     lock.lock()?;
+    Ok(lock)
+}
+
+fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
+    // Check the revision under the library lock after reading the source.
+    let imported = match &edit {
+        Edit::Import { source, .. } => Some(load_source(source)?),
+        _ => None,
+    };
+    let library = dir.join("skills");
+    let _lock = lock_library(&library)?;
     let path = library.join("library.json");
     let mut store = Store::load(&path)?;
     let sync = !matches!(edit, Edit::Read);

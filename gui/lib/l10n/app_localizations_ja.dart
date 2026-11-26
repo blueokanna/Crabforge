@@ -37,6 +37,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get checkSkillUpdate => '更新を確認';
 
   @override
+  String get browseRepositorySkills => 'ソース内のスキルを表示';
+
+  @override
+  String get noRepositorySkills => 'このソースにはほかにインポートできるスキルがありません。';
+
+  @override
+  String get dismissSkillCandidate => 'スキルを非表示';
+
+  @override
   String get skillUpToDate => 'スキルファイルは最新です。';
 
   @override

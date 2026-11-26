@@ -37,6 +37,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get checkSkillUpdate => '检查更新';
 
   @override
+  String get browseRepositorySkills => '浏览来源技能';
+
+  @override
+  String get noRepositorySkills => '此来源没有其他可导入的技能。';
+
+  @override
+  String get dismissSkillCandidate => '忽略此技能';
+
+  @override
   String get skillUpToDate => '技能文件已是最新版本。';
 
   @override
