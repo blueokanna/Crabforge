@@ -160,6 +160,36 @@ abstract class AppLocalizations {
   /// **'Profile folder'**
   String get sessionProfileFolder;
 
+  /// No description provided for @distillTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Extract memories'**
+  String get distillTitle;
+
+  /// No description provided for @distillPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the user messages below before sending them to the selected model route. New memories will be saved for review.'**
+  String get distillPreview;
+
+  /// No description provided for @distillSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to model'**
+  String get distillSend;
+
+  /// No description provided for @distillEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No new memory candidates were found.'**
+  String get distillEmpty;
+
+  /// No description provided for @memorySourceQuote.
+  ///
+  /// In en, this message translates to:
+  /// **'Quote from the session'**
+  String get memorySourceQuote;
+
   /// No description provided for @agentInstructions.
   ///
   /// In en, this message translates to:

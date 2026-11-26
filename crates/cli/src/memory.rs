@@ -1,6 +1,6 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
-use crabforge_core::{memory, project_instructions};
+use crabforge_core::{agents::NativeAgent, memory, project_instructions};
 use nextjson::NsonSerialize;
 use std::path::{Path, PathBuf};
 
@@ -50,6 +50,17 @@ pub(super) enum Command {
     Context {
         #[arg(long)]
         agent: Option<String>,
+    },
+    /// Preview a session's user messages or request memory candidates from a model route.
+    Distill {
+        agent: String,
+        session: String,
+        #[arg(long)]
+        profile: Option<PathBuf>,
+        #[arg(long, requires = "revision")]
+        model: Option<String>,
+        #[arg(long, requires = "model")]
+        revision: Option<String>,
     },
     /// Inspect, publish or restore memory in Claude Code or Codex user instructions.
     AgentInstructions {
@@ -148,7 +159,7 @@ fn print(value: &impl NsonSerialize) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
+pub(super) async fn run(dir: &Path, command: Command) -> Result<()> {
     match command {
         Command::ProjectKey { folder } => {
             println!("{}", memory::project_key(&folder)?);
@@ -161,6 +172,34 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
         Command::Context { agent } => {
             print!("{}", memory::agent_digest(dir, agent.as_deref())?);
             Ok(())
+        }
+        Command::Distill {
+            agent,
+            session,
+            profile,
+            model,
+            revision,
+        } => {
+            let agent = NativeAgent::by_id(&agent).context("unsupported session agent")?;
+            if let Some((model, revision)) = model.zip(revision) {
+                print(
+                    &memory::distill::propose(
+                        dir,
+                        agent,
+                        profile.as_deref(),
+                        &session,
+                        &model,
+                        &revision,
+                    )
+                    .await?,
+                )
+            } else {
+                print(&memory::distill::preview(
+                    agent,
+                    profile.as_deref(),
+                    &session,
+                )?)
+            }
         }
         Command::AgentInstructions {
             agent,

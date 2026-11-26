@@ -36,6 +36,22 @@ class AppLocalizationsPt extends AppLocalizations {
   String get sessionProfileFolder => 'Pasta do perfil';
 
   @override
+  String get distillTitle => 'Extrair memórias';
+
+  @override
+  String get distillPreview =>
+      'Revise as mensagens do usuário abaixo antes de enviá-las à rota do modelo selecionado. As novas memórias serão salvas para revisão.';
+
+  @override
+  String get distillSend => 'Enviar ao modelo';
+
+  @override
+  String get distillEmpty => 'Nenhuma nova memória para revisar.';
+
+  @override
+  String get memorySourceQuote => 'Citação da sessão';
+
+  @override
   String get agentInstructions => 'Instruções do utilizador';
 
   @override

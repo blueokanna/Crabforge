@@ -9,9 +9,10 @@ use std::{
     path::{Path, PathBuf},
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
-use yaml_edit::{Sequence, YamlFile};
+use yaml_edit::{Mapping, Sequence, YamlFile};
 
 mod digest;
+pub mod distill;
 pub mod mcp;
 mod project;
 
@@ -50,6 +51,8 @@ pub struct Entry {
     pub why: String,
     pub pinned: bool,
     pub origin: String,
+    #[njson(skip_serializing_if = "Option::is_none")]
+    pub source_quote: Option<String>,
     pub updated: String,
     pub revision: String,
 }
@@ -179,6 +182,12 @@ fn parse(id: &str, front: &str, body: &str, updated: &str, revision: String) -> 
             .transpose()?
             .unwrap_or_default(),
         origin: string("origin", "user")?,
+        source_quote: field("sources")
+            .and_then(YamlOwned::as_vec)
+            .into_iter()
+            .flatten()
+            .find_map(|item| item.as_mapping_get("quote").and_then(YamlOwned::as_str))
+            .map(|quote| quote.chars().take(300).collect()),
         updated: string("updated", updated)?,
         revision,
     };
@@ -258,7 +267,7 @@ pub fn save(
         "editing a memory requires its revision"
     );
     let (folder, _lock) = lock_store(dir)?;
-    save_locked(&folder, id.zip(expected), changes, "user")
+    save_locked(&folder, id.zip(expected), changes, "user", None)
 }
 
 pub(crate) fn lock_store(dir: &Path) -> Result<(PathBuf, fs::File)> {
@@ -279,6 +288,7 @@ fn save_locked(
     existing: Option<(&str, &str)>,
     changes: Changes,
     origin: &str,
+    evidence: Option<distill::Evidence<'_>>,
 ) -> Result<Entry> {
     let now = OffsetDateTime::now_utc().format(&Rfc3339)?;
     let text = changes.text.as_deref().map(markdown_text);
@@ -331,6 +341,20 @@ fn save_locked(
     }
     if let Some(pinned) = changes.pinned {
         ensure!(doc.set("pinned", pinned), "cannot write memory pinned flag");
+    }
+    if let Some(evidence) = evidence {
+        let source = Mapping::new();
+        for (key, value) in [
+            ("agent", evidence.agent),
+            ("session", evidence.session),
+            ("dir", evidence.folder),
+            ("quote", evidence.quote),
+        ] {
+            source.set(key, value);
+        }
+        let sources = Sequence::new();
+        sources.push(source);
+        ensure!(doc.set("sources", sources), "cannot write memory source");
     }
     if doc.get("created").is_none() {
         ensure!(

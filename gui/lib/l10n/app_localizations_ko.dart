@@ -36,6 +36,22 @@ class AppLocalizationsKo extends AppLocalizations {
   String get sessionProfileFolder => '프로필 폴더';
 
   @override
+  String get distillTitle => '기억 추출';
+
+  @override
+  String get distillPreview =>
+      '선택한 모델 경로로 보내기 전에 아래 사용자 메시지를 검토하세요. 새 기억은 검토 대기 상태로 저장됩니다.';
+
+  @override
+  String get distillSend => '모델에 보내기';
+
+  @override
+  String get distillEmpty => '새로운 기억 후보가 없습니다.';
+
+  @override
+  String get memorySourceQuote => '세션 인용문';
+
+  @override
   String get agentInstructions => '사용자 지침';
 
   @override

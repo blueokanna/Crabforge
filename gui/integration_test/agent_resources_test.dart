@@ -27,6 +27,36 @@ void main() {
       throw StateError('Use a fresh test home with isolated native profiles');
     }
     final instructions = File('${codex.path}/AGENTS.override.md');
+    final requests = <Map<String, dynamic>>[];
+    late final HttpServer upstream;
+    await tester.runAsync(() async {
+      upstream = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      upstream.listen((request) async {
+        requests.add(jsonDecode(await utf8.decoder.bind(request).join()));
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content': jsonEncode([
+                    {
+                      'text': 'Use a narrow fixture window.',
+                      'kind': 'preference',
+                      'scope': 'global',
+                      'why': 'The fixture specifies a narrow test.',
+                      'quote': 'Codex session fixture',
+                    },
+                  ]),
+                },
+              },
+            ],
+          }),
+        );
+        await request.response.close();
+      });
+    });
+    addTearDown(() => upstream.close(force: true));
     instructions.parent.createSync(recursive: true);
     instructions.writeAsStringSync('# Existing user instructions\r\n');
     final claudeLog = File('${claude.path}/projects/fixture/session.jsonl');
@@ -52,8 +82,18 @@ void main() {
         'payload': {'type': 'user_message', 'message': 'Codex session fixture'},
       })}\n',
     );
-    File('${home.path}/settings.json')
-        .writeAsStringSync('{"listen":"127.0.0.1:0"}');
+    File('${home.path}/settings.json').writeAsStringSync(
+      jsonEncode({
+        'listen': '127.0.0.1:0',
+        'providers': [
+          {
+            'id': 'fixture',
+            'models': ['m'],
+            'endpoints': {'chat': 'http://127.0.0.1:${upstream.port}/v1'},
+          },
+        ],
+      }),
+    );
     tester.binding.platformDispatcher.localesTestValue = [const Locale('en')];
     addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
     addTearDown(tester.view.resetPhysicalSize);
@@ -109,12 +149,56 @@ void main() {
     await waitFor(find.text('codex-fixture-id'));
     expect(find.text(strings.sessionProfileFolder), findsOneWidget);
     expect(find.text(Platform.environment['CODEX_HOME']!), findsOneWidget);
-    await tester.tap(
+    await tester.tap(find.text(strings.distillTitle));
+    final model = find.widgetWithText(
+      DropdownButtonFormField<String>,
+      strings.models,
+    );
+    await waitFor(model);
+    final send = find.widgetWithText(FilledButton, strings.distillSend);
+    expect(tester.widget<FilledButton>(send).onPressed, isNull);
+    expect(requests, isEmpty);
+    await tester.tap(model);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('fixture/m').last);
+    await tester.pumpAndSettle();
+    await tester.tap(send);
+    final candidate = find.text('Use a narrow fixture window.');
+    await waitFor(candidate);
+    expect(requests, hasLength(1));
+    expect(jsonDecode(requests.single['messages'][1]['content']), [
+      'Codex session fixture',
+    ]);
+    expect(
+      await tester.runAsync(() => native.agentMemoryDigest(agent: 'codex')),
+      isNot(contains('Use a narrow fixture window.')),
+    );
+    await tester.tap(candidate);
+    final evidence = find.text(strings.memorySourceQuote);
+    await waitFor(evidence);
+    expect(
       find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.text('Close'),
+        matching: find.text('Codex session fixture'),
       ),
+      findsOneWidget,
     );
+    final state = find.widgetWithText(
+      DropdownButtonFormField<String>,
+      strings.memoryStateLabel,
+    );
+    await tester.ensureVisible(state);
+    await tester.tap(state);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(strings.memoryState('active')).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, strings.save));
+    await waitFor(find.text(strings.noMemoriesFound));
+    expect(
+      await tester.runAsync(() => native.agentMemoryDigest(agent: 'codex')),
+      contains('Use a narrow fixture window.'),
+    );
+    await tester.tap(find.text('Close').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();

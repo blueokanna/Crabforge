@@ -5,12 +5,15 @@ import 'package:flutter/services.dart';
 
 import 'collection_view.dart';
 import 'language.dart';
+import 'memory.dart';
 import 'src/rust/api.dart' as api;
 
 const _agentNames = {'claude': 'Claude Code', 'codex': 'Codex'};
 
 class AgentSessions extends StatefulWidget {
-  const AgentSessions({super.key});
+  const AgentSessions({super.key, required this.models});
+
+  final List<String> models;
 
   @override
   State<AgentSessions> createState() => _AgentSessionsState();
@@ -36,7 +39,7 @@ class _AgentSessionsState extends State<AgentSessions> {
     final locale = MaterialLocalizations.of(context);
     final strings = context.strings;
     final time = DateTime.parse(session['modified'] as String).toLocal();
-    await showDialog<void>(
+    final propose = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         scrollable: true,
@@ -76,8 +79,26 @@ class _AgentSessionsState extends State<AgentSessions> {
             icon: const Icon(Icons.copy_outlined),
             label: Text(context.strings.copySessionId),
           ),
+          TextButton(
+            onPressed: widget.models.isEmpty
+                ? null
+                : () => Navigator.pop(context, true),
+            child: Text(strings.distillTitle),
+          ),
         ],
       ),
+    );
+    if (propose != true || !mounted) return;
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          _SessionMemoryPreview(session: session, models: widget.models),
+    );
+    if (saved != true || !mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => const MemoryLibrary(initialStatus: 'candidate'),
     );
   }
 
@@ -192,6 +213,145 @@ class _AgentSessionsState extends State<AgentSessions> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SessionMemoryPreview extends StatefulWidget {
+  const _SessionMemoryPreview({required this.session, required this.models});
+
+  final Map<String, dynamic> session;
+  final List<String> models;
+
+  @override
+  State<_SessionMemoryPreview> createState() => _SessionMemoryPreviewState();
+}
+
+class _SessionMemoryPreviewState extends State<_SessionMemoryPreview> {
+  late final agent = widget.session['agent'] as String;
+  late final profile = widget.session['profile'] as String;
+  late final session = widget.session['id'] as String;
+  late Future<Map<String, dynamic>> preview = load();
+  String? model;
+  String? error;
+  bool busy = false;
+  bool empty = false;
+
+  Future<Map<String, dynamic>> load() async => jsonDecode(
+    await api.previewSessionMemory(
+      agent: agent,
+      profile: profile,
+      session: session,
+    ),
+  ) as Map<String, dynamic>;
+
+  Future<void> send(String revision) async {
+    setState(() {
+      busy = true;
+      empty = false;
+      error = null;
+    });
+    try {
+      final result = jsonDecode(
+        await api.proposeSessionMemory(
+          agent: agent,
+          profile: profile,
+          session: session,
+          model: model!,
+          revision: revision,
+        ),
+      ) as List;
+      if (!mounted) return;
+      if (result.isNotEmpty) {
+        Navigator.pop(context, true);
+      } else {
+        setState(() => empty = true);
+      }
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    return PopScope(
+      canPop: !busy,
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: preview,
+        builder: (context, snapshot) {
+          final ready =
+              snapshot.connectionState == ConnectionState.done &&
+              snapshot.hasData;
+          return AlertDialog(
+            title: Text(strings.distillTitle),
+            scrollable: true,
+            content: SizedBox(
+              width: 560,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (snapshot.connectionState != ConnectionState.done || busy)
+                    const LinearProgressIndicator(),
+                  if (ready) ...[
+                    Text(strings.distillPreview),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: model,
+                      isExpanded: true,
+                      menuMaxHeight: 360,
+                      decoration: InputDecoration(labelText: strings.models),
+                      items: [
+                        for (final id in widget.models)
+                          DropdownMenuItem(
+                            value: id,
+                            child: Text(id, overflow: TextOverflow.ellipsis),
+                          ),
+                      ],
+                      onChanged: busy
+                          ? null
+                          : (value) => setState(() => model = value),
+                    ),
+                    const SizedBox(height: 12),
+                    SelectableText(
+                      (snapshot.requireData['messages'] as List).join('\n\n'),
+                    ),
+                  ],
+                  if (snapshot.hasError || error != null)
+                    SelectableText(error ?? '${snapshot.error}'),
+                  if (empty) Text(strings.distillEmpty),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : () => Navigator.pop(context),
+                child: Text(strings.cancel),
+              ),
+              if (error != null || snapshot.hasError)
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () => setState(() {
+                          preview = load();
+                          model = null;
+                          error = null;
+                        }),
+                  child: Text(strings.reload),
+                ),
+              FilledButton(
+                onPressed: ready && !busy && model != null
+                    ? () => send(snapshot.requireData['revision'] as String)
+                    : null,
+                child: Text(strings.distillSend),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

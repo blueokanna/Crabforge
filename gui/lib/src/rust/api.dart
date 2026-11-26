@@ -103,6 +103,30 @@ Future<String> agents() => RustLib.instance.api.crateApiAgents();
 Future<String> agentSessions({String? agent}) =>
     RustLib.instance.api.crateApiAgentSessions(agent: agent);
 
+Future<String> previewSessionMemory({
+  required String agent,
+  required String profile,
+  required String session,
+}) => RustLib.instance.api.crateApiPreviewSessionMemory(
+  agent: agent,
+  profile: profile,
+  session: session,
+);
+
+Future<String> proposeSessionMemory({
+  required String agent,
+  required String profile,
+  required String session,
+  required String model,
+  required String revision,
+}) => RustLib.instance.api.crateApiProposeSessionMemory(
+  agent: agent,
+  profile: profile,
+  session: session,
+  model: model,
+  revision: revision,
+);
+
 Future<String> searchMemories({required String query}) =>
     RustLib.instance.api.crateApiSearchMemories(query: query);
 

@@ -1487,7 +1487,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                 TextButton.icon(
                   onPressed: () => showDialog<void>(
                     context: context,
-                    builder: (_) => const AgentSessions(),
+                    builder: (_) => AgentSessions(
+                      models: {
+                        for (final provider in providers)
+                          for (final model in provider['models'] as List)
+                            '${provider['id']}/$model',
+                        ...catalogGroupRefs.values,
+                      }.toList()..sort(),
+                    ),
                   ),
                   icon: const Icon(Icons.history_outlined),
                   label: Text(context.strings.agentSessions),

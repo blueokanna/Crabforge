@@ -36,6 +36,22 @@ class AppLocalizationsFr extends AppLocalizations {
   String get sessionProfileFolder => 'Dossier du profil';
 
   @override
+  String get distillTitle => 'Extraire des souvenirs';
+
+  @override
+  String get distillPreview =>
+      'Vérifiez les messages ci-dessous avant de les envoyer à la route du modèle sélectionné. Les nouveaux souvenirs seront enregistrés pour examen.';
+
+  @override
+  String get distillSend => 'Envoyer au modèle';
+
+  @override
+  String get distillEmpty => 'Aucun nouveau souvenir à examiner.';
+
+  @override
+  String get memorySourceQuote => 'Citation de la session';
+
+  @override
   String get agentInstructions => 'Instructions utilisateur';
 
   @override

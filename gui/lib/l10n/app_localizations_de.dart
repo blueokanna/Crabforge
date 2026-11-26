@@ -36,6 +36,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get sessionProfileFolder => 'Profilordner';
 
   @override
+  String get distillTitle => 'Erinnerungen ableiten';
+
+  @override
+  String get distillPreview =>
+      'Prüfe die Benutzernachrichten unten, bevor du sie an die gewählte Modellroute sendest. Neue Erinnerungen werden zur Prüfung gespeichert.';
+
+  @override
+  String get distillSend => 'An Modell senden';
+
+  @override
+  String get distillEmpty =>
+      'Es wurden keine neuen Erinnerungsvorschläge gefunden.';
+
+  @override
+  String get memorySourceQuote => 'Zitat aus der Sitzung';
+
+  @override
   String get agentInstructions => 'Benutzeranweisungen';
 
   @override

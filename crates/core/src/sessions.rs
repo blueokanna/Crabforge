@@ -1,12 +1,12 @@
 use crate::agents::NativeAgent as Agent;
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use nextjson::{NsonSerialize, Value};
 use ruzstd::decoding::StreamingDecoder;
 use std::{
     cmp::Reverse,
     collections::HashSet,
     env, fs,
-    io::{BufRead, BufReader, ErrorKind, Read},
+    io::{BufRead, BufReader, ErrorKind, Read, Seek},
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -14,6 +14,8 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 const MAX_HEADER: u64 = 512 * 1024;
 const MAX_CODEX_WINDOW: u64 = 16 * 1024 * 1024;
+const MAX_EXCERPT_SCAN: u64 = 16 * 1024 * 1024;
+const MAX_EXCERPT_CHARS: usize = 24_000;
 
 #[derive(NsonSerialize)]
 pub struct Session {
@@ -30,6 +32,11 @@ pub struct Session {
 pub struct Listing {
     pub sessions: Vec<Session>,
     pub unreadable: usize,
+}
+
+pub(crate) struct Excerpt {
+    pub session: Session,
+    pub messages: Vec<String>,
 }
 
 struct Log<'a> {
@@ -109,8 +116,60 @@ fn profiles(agent: Agent, primary: PathBuf, user: Option<&Path>) -> Vec<PathBuf>
 
 fn list_in(roots: impl IntoIterator<Item = (Agent, PathBuf)>, limit: usize) -> Result<Listing> {
     let roots: Vec<_> = roots.into_iter().collect();
+    let mut result = Listing {
+        sessions: Vec::new(),
+        unreadable: 0,
+    };
+    let mut seen = HashSet::new();
+    for log in ordered_logs(&roots)? {
+        match log.session() {
+            Ok(Some(session)) if seen.insert((log.agent, log.profile, session.id.clone())) => {
+                result.sessions.push(session);
+                if result.sessions.len() == limit.clamp(1, 500) {
+                    break;
+                }
+            }
+            Ok(_) => (),
+            Err(_) => result.unreadable += 1,
+        }
+    }
+    Ok(result)
+}
+
+pub(crate) fn excerpt(agent: Agent, profile: Option<&Path>, id: &str) -> Result<Excerpt> {
+    let home = agent.home().context("client profile is unavailable")?;
+    let profile = match profile {
+        Some(profile) => {
+            let resolved = profile
+                .canonicalize()
+                .context("cannot open client profile")?;
+            profiles(agent, home, env::home_dir().as_deref())
+                .into_iter()
+                .find(|path| path.canonicalize().is_ok_and(|path| path == resolved))
+                .context("profile was not found among the client's local profiles")?
+        }
+        None => home,
+    };
+    for log in ordered_logs(&[(agent, profile)])? {
+        let Ok(mut file) = fs::File::open(&log.path) else {
+            continue;
+        };
+        let Ok(Some(session)) = log.reader(&file).and_then(|reader| log.read_header(reader)) else {
+            continue;
+        };
+        if session.id == id {
+            file.rewind()?;
+            let messages = log.read_excerpt(log.reader(&file)?)?;
+            ensure!(!messages.is_empty(), "session contains no user messages");
+            return Ok(Excerpt { session, messages });
+        }
+    }
+    anyhow::bail!("session was not found in the selected profile")
+}
+
+fn ordered_logs(roots: &[(Agent, PathBuf)]) -> Result<Vec<Log<'_>>> {
     let mut logs = Vec::new();
-    for (agent, home) in &roots {
+    for (agent, home) in roots {
         match agent {
             Agent::Claude => visit(&home.join("projects"), 1, *agent, home, false, &mut logs)?,
             Agent::Codex => {
@@ -129,24 +188,7 @@ fn list_in(roots: impl IntoIterator<Item = (Agent, PathBuf)>, limit: usize) -> R
     logs.sort_unstable_by(|a, b| {
         (Reverse(a.modified), a.archived, &a.path).cmp(&(Reverse(b.modified), b.archived, &b.path))
     });
-    let mut result = Listing {
-        sessions: Vec::new(),
-        unreadable: 0,
-    };
-    let mut seen = HashSet::new();
-    for log in logs {
-        match log.session() {
-            Ok(Some(session)) if seen.insert((log.agent, log.profile, session.id.clone())) => {
-                result.sessions.push(session);
-                if result.sessions.len() == limit.clamp(1, 500) {
-                    break;
-                }
-            }
-            Ok(_) => (),
-            Err(_) => result.unreadable += 1,
-        }
-    }
-    Ok(result)
+    Ok(logs)
 }
 
 fn visit<'a>(
@@ -195,14 +237,18 @@ fn visit<'a>(
 
 impl Log<'_> {
     fn session(&self) -> Result<Option<Session>> {
-        let file = fs::File::open(&self.path)?;
-        if self.path.extension().is_some_and(|ext| ext == "zst") {
-            let decoder =
-                StreamingDecoder::new_with_max_window_size(BufReader::new(file), MAX_CODEX_WINDOW)?;
-            self.read_header(decoder)
+        self.read_header(self.reader(fs::File::open(&self.path)?)?)
+    }
+
+    fn reader<'file>(&self, file: impl Read + 'file) -> Result<Box<dyn Read + 'file>> {
+        Ok(if self.path.extension().is_some_and(|ext| ext == "zst") {
+            Box::new(StreamingDecoder::new_with_max_window_size(
+                BufReader::new(file),
+                MAX_CODEX_WINDOW,
+            )?)
         } else {
-            self.read_header(file)
-        }
+            Box::new(file)
+        })
     }
 
     fn read_header(&self, source: impl Read) -> Result<Option<Session>> {
@@ -212,9 +258,9 @@ impl Log<'_> {
         let mut cwd = String::new();
         let mut title = String::new();
         while reader.read_until(b'\n', &mut bytes)? > 0 {
-            let row = nextjson::from_slice::<Value>(&bytes);
+            let row = decode_line(&bytes);
             bytes.clear();
-            let Ok(row) = row else { continue };
+            let Some(row) = row else { continue };
             let kind = string(&row, "/type");
             match self.agent {
                 Agent::Claude => {
@@ -228,7 +274,7 @@ impl Log<'_> {
                         cwd = string(&row, "/cwd").to_owned();
                     }
                     if title.is_empty() && kind == "user" && !flag(&row, "/isCompactSummary") {
-                        title = message_title(row.pointer("/message/content"));
+                        title = message_title(message_parts(row.pointer("/message/content")));
                     }
                 }
                 Agent::Codex => {
@@ -250,7 +296,7 @@ impl Log<'_> {
                         && string(&row, "/payload/type") == "message"
                         && string(&row, "/payload/role") == "user"
                     {
-                        title = message_title(row.pointer("/payload/content"));
+                        title = message_title(message_parts(row.pointer("/payload/content")));
                     }
                 }
             }
@@ -271,6 +317,93 @@ impl Log<'_> {
             modified: OffsetDateTime::from(self.modified).format(&Rfc3339)?,
         }))
     }
+
+    fn read_excerpt(&self, source: impl Read) -> Result<Vec<String>> {
+        let mut reader = BufReader::new(source.take(MAX_EXCERPT_SCAN));
+        let mut bytes = Vec::new();
+        let mut native = Messages::default();
+        let mut fallback = Messages::default();
+        while reader.read_until(b'\n', &mut bytes)? > 0 {
+            let row = decode_line(&bytes);
+            bytes.clear();
+            let Some(row) = row else { continue };
+            let kind = string(&row, "/type");
+            match self.agent {
+                Agent::Claude
+                    if kind == "user"
+                        && !["/isMeta", "/isSidechain", "/isCompactSummary"]
+                            .iter()
+                            .any(|p| flag(&row, p)) =>
+                {
+                    native.push(message_parts(row.pointer("/message/content")));
+                }
+                Agent::Codex
+                    if kind == "event_msg" && string(&row, "/payload/type") == "user_message" =>
+                {
+                    native.push([string(&row, "/payload/message")]);
+                }
+                Agent::Codex
+                    if kind == "response_item"
+                        && string(&row, "/payload/type") == "message"
+                        && string(&row, "/payload/role") == "user" =>
+                {
+                    fallback.push(message_parts(row.pointer("/payload/content")));
+                }
+                _ => {}
+            }
+            if native.chars == MAX_EXCERPT_CHARS {
+                break;
+            }
+        }
+        Ok(if native.values.is_empty() {
+            fallback.values
+        } else {
+            native.values
+        })
+    }
+}
+
+fn decode_line(bytes: &[u8]) -> Option<Value> {
+    nextjson::from_slice(bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(bytes)).ok()
+}
+
+#[derive(Default)]
+struct Messages {
+    chars: usize,
+    values: Vec<String>,
+}
+
+impl Messages {
+    fn push<'a>(&mut self, parts: impl IntoIterator<Item = &'a str>) {
+        let wrappers = [
+            "<command-name>",
+            "<command-message>",
+            "<command-args>",
+            "<task-notification>",
+            "Caveat: The messages below were generated",
+        ];
+        let mut text = String::new();
+        for part in parts
+            .into_iter()
+            .filter_map(user_text)
+            .filter(|part| !wrappers.iter().any(|prefix| part.starts_with(prefix)))
+        {
+            if self.chars == MAX_EXCERPT_CHARS {
+                break;
+            }
+            if !text.is_empty() {
+                text.push('\n');
+                self.chars += 1;
+            }
+            for ch in part.chars().take(MAX_EXCERPT_CHARS - self.chars) {
+                text.push(ch);
+                self.chars += 1;
+            }
+        }
+        if !text.is_empty() {
+            self.values.push(text);
+        }
+    }
 }
 
 fn string<'a>(row: &'a Value, pointer: &str) -> &'a str {
@@ -285,25 +418,36 @@ fn flag(row: &Value, pointer: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn message_title(content: Option<&Value>) -> String {
-    let Some(content) = content else {
-        return String::new();
-    };
-    if let Some(text) = content.as_str() {
-        return concise(text);
-    }
-    content
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter(|block| matches!(string(block, "/type"), "text" | "input_text"))
-        .map(|block| concise(string(block, "/text")))
+fn message_parts(content: Option<&Value>) -> impl Iterator<Item = &str> {
+    content.and_then(Value::as_str).into_iter().chain(
+        content
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter(|block| matches!(string(block, "/type"), "text" | "input_text"))
+            .map(|block| string(block, "/text")),
+    )
+}
+
+fn message_title<'a>(parts: impl Iterator<Item = &'a str>) -> String {
+    parts
+        .map(concise)
         .find(|title| !title.is_empty())
         .unwrap_or_default()
 }
 
 fn concise(text: &str) -> String {
-    let text = text.trim_start();
+    user_text(text)
+        .and_then(|text| text.lines().next())
+        .unwrap_or_default()
+        .trim()
+        .chars()
+        .take(160)
+        .collect()
+}
+
+fn user_text(text: &str) -> Option<&str> {
+    let text = text.trim();
     let generated = [
         "<environment_context>",
         "<user_instructions>",
@@ -311,16 +455,7 @@ fn concise(text: &str) -> String {
         "<system-reminder>",
         "# AGENTS.md instructions",
     ];
-    if generated.iter().any(|prefix| text.starts_with(*prefix)) {
-        return String::new();
-    }
-    text.lines()
-        .find(|line| !line.trim().is_empty())
-        .unwrap_or_default()
-        .trim()
-        .chars()
-        .take(160)
-        .collect()
+    (!text.is_empty() && !generated.iter().any(|prefix| text.starts_with(*prefix))).then_some(text)
 }
 
 #[cfg(test)]

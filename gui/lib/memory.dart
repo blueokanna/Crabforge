@@ -19,7 +19,9 @@ const _kinds = [
 const _states = ['active', 'candidate', 'archived', 'superseded'];
 
 class MemoryLibrary extends StatefulWidget {
-  const MemoryLibrary({super.key});
+  const MemoryLibrary({super.key, this.initialStatus = ''});
+
+  final String initialStatus;
 
   @override
   State<MemoryLibrary> createState() => _MemoryLibraryState();
@@ -28,7 +30,7 @@ class MemoryLibrary extends StatefulWidget {
 class _MemoryLibraryState extends State<MemoryLibrary> {
   static const pageSize = 50;
   final search = TextEditingController();
-  String status = '';
+  late String status = widget.initialStatus;
   int offset = 0;
   late Future<Map<String, dynamic>> query;
 
@@ -365,6 +367,11 @@ class _MemoryEditorState extends State<_MemoryEditor> {
               maxLines: 3,
               decoration: InputDecoration(labelText: strings.memoryWhy),
             ),
+            if (widget.entry?['source_quote'] case final String quote) ...[
+              const SizedBox(height: 10),
+              Text(strings.memorySourceQuote),
+              SelectableText(quote),
+            ],
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               initialValue: kind,

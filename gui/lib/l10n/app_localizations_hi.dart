@@ -36,6 +36,22 @@ class AppLocalizationsHi extends AppLocalizations {
   String get sessionProfileFolder => 'प्रोफ़ाइल फ़ोल्डर';
 
   @override
+  String get distillTitle => 'स्मृतियाँ निकालें';
+
+  @override
+  String get distillPreview =>
+      'चुने गए मॉडल रूट पर भेजने से पहले नीचे दिए गए उपयोगकर्ता संदेशों की समीक्षा करें। नई स्मृतियाँ समीक्षा के लिए सहेजी जाएँगी।';
+
+  @override
+  String get distillSend => 'मॉडल को भेजें';
+
+  @override
+  String get distillEmpty => 'समीक्षा के लिए कोई नई स्मृति नहीं मिली।';
+
+  @override
+  String get memorySourceQuote => 'सत्र से उद्धरण';
+
+  @override
   String get agentInstructions => 'उपयोगकर्ता निर्देश';
 
   @override

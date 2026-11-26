@@ -36,6 +36,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String get sessionProfileFolder => 'Carpeta del perfil';
 
   @override
+  String get distillTitle => 'Extraer recuerdos';
+
+  @override
+  String get distillPreview =>
+      'Revisa los mensajes del usuario antes de enviarlos a la ruta del modelo seleccionado. Los nuevos recuerdos se guardarán para su revisión.';
+
+  @override
+  String get distillSend => 'Enviar al modelo';
+
+  @override
+  String get distillEmpty => 'No se encontraron nuevos recuerdos candidatos.';
+
+  @override
+  String get memorySourceQuote => 'Cita de la sesión';
+
+  @override
   String get agentInstructions => 'Instrucciones del usuario';
 
   @override

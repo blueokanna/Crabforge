@@ -36,6 +36,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sessionProfileFolder => '配置目录';
 
   @override
+  String get distillTitle => '提炼记忆';
+
+  @override
+  String get distillPreview => '发送到所选模型路由前，请检查下方的用户消息。新记忆将保存为待审核状态。';
+
+  @override
+  String get distillSend => '发送给模型';
+
+  @override
+  String get distillEmpty => '没有发现新的候选记忆。';
+
+  @override
+  String get memorySourceQuote => '会话原文引用';
+
+  @override
   String get agentInstructions => '用户指令';
 
   @override

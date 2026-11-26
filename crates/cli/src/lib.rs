@@ -801,7 +801,7 @@ pub async fn run() -> Result<()> {
                 nextjson::to_string(&view).map_err(anyhow::Error::msg)?
             );
         }
-        Command::Memory { command } => memory::run(&dir, command)?,
+        Command::Memory { command } => memory::run(&dir, command).await?,
         Command::Sessions { agent, limit } => println!(
             "{}",
             nextjson::to_string_pretty(&crabforge_core::sessions::list(

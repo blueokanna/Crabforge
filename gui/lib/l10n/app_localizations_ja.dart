@@ -36,6 +36,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get sessionProfileFolder => 'プロファイルフォルダー';
 
   @override
+  String get distillTitle => '記憶を抽出';
+
+  @override
+  String get distillPreview =>
+      '選択したモデルルートに送信する前に、下のユーザーメッセージを確認してください。新しい記憶は確認待ちとして保存されます。';
+
+  @override
+  String get distillSend => 'モデルに送信';
+
+  @override
+  String get distillEmpty => '新しい記憶の候補はありません。';
+
+  @override
+  String get memorySourceQuote => 'セッションからの引用';
+
+  @override
   String get agentInstructions => 'ユーザー指示';
 
   @override

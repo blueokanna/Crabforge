@@ -281,6 +281,7 @@ impl Server<'_> {
                 ..Default::default()
             },
             "agent",
+            None,
         )?;
         Ok(agent_entry(&saved))
     }
@@ -305,6 +306,7 @@ impl Server<'_> {
                     ..Default::default()
                 },
                 "agent",
+                None,
             )?;
         }
         Ok(json!({"id":id,"status":"archived"}))

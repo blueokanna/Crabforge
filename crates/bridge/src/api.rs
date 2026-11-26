@@ -172,6 +172,38 @@ pub fn agent_sessions(agent: Option<String>) -> Result<String> {
     encode(&crabforge_core::sessions::list(agent, 50)?)
 }
 
+pub fn preview_session_memory(agent: String, profile: String, session: String) -> Result<String> {
+    let agent =
+        crabforge_core::agents::NativeAgent::by_id(&agent).context("unsupported session agent")?;
+    encode(&crabforge_core::memory::distill::preview(
+        agent,
+        Some(profile.as_ref()),
+        &session,
+    )?)
+}
+
+pub async fn propose_session_memory(
+    agent: String,
+    profile: String,
+    session: String,
+    model: String,
+    revision: String,
+) -> Result<String> {
+    let agent =
+        crabforge_core::agents::NativeAgent::by_id(&agent).context("unsupported session agent")?;
+    encode(
+        &crabforge_core::memory::distill::propose(
+            &config::data_dir()?,
+            agent,
+            Some(profile.as_ref()),
+            &session,
+            &model,
+            &revision,
+        )
+        .await?,
+    )
+}
+
 pub fn search_memories(query: String) -> Result<String> {
     encode(&crabforge_core::memory::search(
         &config::data_dir()?,

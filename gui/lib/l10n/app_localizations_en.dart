@@ -36,6 +36,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionProfileFolder => 'Profile folder';
 
   @override
+  String get distillTitle => 'Extract memories';
+
+  @override
+  String get distillPreview =>
+      'Review the user messages below before sending them to the selected model route. New memories will be saved for review.';
+
+  @override
+  String get distillSend => 'Send to model';
+
+  @override
+  String get distillEmpty => 'No new memory candidates were found.';
+
+  @override
+  String get memorySourceQuote => 'Quote from the session';
+
+  @override
   String get agentInstructions => 'User instructions';
 
   @override
