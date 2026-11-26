@@ -148,6 +148,18 @@ abstract class AppLocalizations {
   /// **'Copy session ID'**
   String get copySessionId;
 
+  /// No description provided for @sessionWorkingFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Working folder'**
+  String get sessionWorkingFolder;
+
+  /// No description provided for @sessionProfileFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile folder'**
+  String get sessionProfileFolder;
+
   /// No description provided for @agentInstructions.
   ///
   /// In en, this message translates to:

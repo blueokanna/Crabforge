@@ -5,6 +5,8 @@
   "noAgentSessions": "ローカルセッションが見つかりません",
   "unreadableSessions": "読み取れないセッションファイル（{count}）",
   "copySessionId": "セッション ID をコピー",
+  "sessionWorkingFolder": "作業フォルダー",
+  "sessionProfileFolder": "プロファイルフォルダー",
   "agentInstructions": "ユーザー指示",
   "agentMemoryDigest": "ユーザーメモリ",
   "agentMemoryDigestHelp": "公開すると、グローバルメモリとこのエージェントのメモリが、エージェントのユーザー指示に書き込まれます。",

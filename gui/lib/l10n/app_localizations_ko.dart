@@ -30,6 +30,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get copySessionId => '세션 ID 복사';
 
   @override
+  String get sessionWorkingFolder => '작업 폴더';
+
+  @override
+  String get sessionProfileFolder => '프로필 폴더';
+
+  @override
   String get agentInstructions => '사용자 지침';
 
   @override

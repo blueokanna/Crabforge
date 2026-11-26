@@ -30,6 +30,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get copySessionId => 'Copy session ID';
 
   @override
+  String get sessionWorkingFolder => 'Working folder';
+
+  @override
+  String get sessionProfileFolder => 'Profile folder';
+
+  @override
   String get agentInstructions => 'User instructions';
 
   @override

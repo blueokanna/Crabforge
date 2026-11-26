@@ -53,7 +53,7 @@ carbforge-cli memory publish D:\Projects\app codex
 
 要让 Agent 搜索和保存记忆，在客户端添加本地 stdio MCP 服务，命令使用 `carbforge-cli.exe` 的完整路径，参数为 `mcp memory --agent <Agent ID> --project <文件夹>`。也可将 `--project <文件夹>` 换成 `--project-key <项目键>`。使用自定义数据目录时，为客户端设置相同的 `CRABFORGE_HOME`。`memory_search` 搜索可用范围内的有效记忆，`memory_save` 创建记录或更新 Agent 写入的记忆，`memory_forget` 归档可见记录，`memory_context` 显示适用范围。直接运行 `mcp memory` 时仅开放全局记忆。
 
-打开 **客户端连接 → 本地会话**可浏览最近最多 50 个 Claude Code 和 Codex 会话、按 Agent 筛选并复制会话 ID。运行 `carbforge-cli sessions --limit 50` 可输出 JSON，使用 `--agent claude` 或 `--agent codex` 筛选。Crabforge 从 `CLAUDE_CONFIG_DIR` 或 `CODEX_HOME` 下的原生 JSONL 读取会话 ID、提示预览、时间和工作目录，默认目录为用户主目录下的 `.claude` 和 `.codex`。
+打开 **客户端连接 → 本地会话**可浏览最近最多 50 个 Claude Code 和 Codex 会话、按 Agent 筛选并复制会话 ID。运行 `carbforge-cli sessions --limit 50` 可输出 JSON，使用 `--agent claude` 或 `--agent codex` 筛选。Crabforge 读取原生 JSONL 和 Codex 的 `.jsonl.zst`，显示会话 ID、提示预览、时间、工作目录和所属配置目录。主要配置目录来自 `CLAUDE_CONFIG_DIR` 和 `CODEX_HOME`，默认为用户主目录的 `.claude` 和 `.codex`。Crabforge 也会在主要配置的同级和用户主目录内查找含会话的 Claude 或 Codex 命名目录，并检查下一层配置子目录。
 
 在**客户端连接**选中 Claude Code 或 Codex，再打开**用户指令**，即可编辑受管理的 Markdown 或预览并发布**用户记忆**。摘要包含有效的全局记忆及所选 Agent 的记忆。Crabforge 将摘要写入 `CLAUDE.md` 或 Codex 用户目录的 `AGENTS.md`，存在 `AGENTS.override.md` 时优先使用该文件。客户端会在新会话中读取该文件。使用**恢复上一版本**可撤销 Crabforge 最近一次对该文件的编辑。
 

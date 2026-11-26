@@ -6,6 +6,8 @@
   "unreadableSessions": "Unreadable session files ({count})",
   "@unreadableSessions": {"placeholders": {"count": {"type": "int"}}},
   "copySessionId": "Copy session ID",
+  "sessionWorkingFolder": "Working folder",
+  "sessionProfileFolder": "Profile folder",
   "agentInstructions": "User instructions",
   "agentMemoryDigest": "User memory",
   "agentMemoryDigestHelp": "Publishing writes global memory and this agent’s memory to its user instructions.",

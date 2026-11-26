@@ -30,6 +30,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get copySessionId => 'セッション ID をコピー';
 
   @override
+  String get sessionWorkingFolder => '作業フォルダー';
+
+  @override
+  String get sessionProfileFolder => 'プロファイルフォルダー';
+
+  @override
   String get agentInstructions => 'ユーザー指示';
 
   @override

@@ -5,6 +5,8 @@
   "noAgentSessions": "No se encontraron sesiones locales",
   "unreadableSessions": "Archivos de sesión ilegibles ({count})",
   "copySessionId": "Copiar ID de sesión",
+  "sessionWorkingFolder": "Carpeta de trabajo",
+  "sessionProfileFolder": "Carpeta del perfil",
   "agentInstructions": "Instrucciones del usuario",
   "agentMemoryDigest": "Memoria del usuario",
   "agentMemoryDigestHelp": "Al publicar, la memoria global y la de este agente se guardan en sus instrucciones de usuario.",

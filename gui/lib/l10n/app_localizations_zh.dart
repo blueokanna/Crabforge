@@ -30,6 +30,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get copySessionId => '复制会话 ID';
 
   @override
+  String get sessionWorkingFolder => '工作目录';
+
+  @override
+  String get sessionProfileFolder => '配置目录';
+
+  @override
   String get agentInstructions => '用户指令';
 
   @override

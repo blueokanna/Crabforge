@@ -30,6 +30,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get copySessionId => 'Copiar ID de sesión';
 
   @override
+  String get sessionWorkingFolder => 'Carpeta de trabajo';
+
+  @override
+  String get sessionProfileFolder => 'Carpeta del perfil';
+
+  @override
   String get agentInstructions => 'Instrucciones del usuario';
 
   @override

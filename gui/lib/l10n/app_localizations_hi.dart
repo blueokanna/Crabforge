@@ -30,6 +30,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get copySessionId => 'सत्र आईडी कॉपी करें';
 
   @override
+  String get sessionWorkingFolder => 'कार्य फ़ोल्डर';
+
+  @override
+  String get sessionProfileFolder => 'प्रोफ़ाइल फ़ोल्डर';
+
+  @override
   String get agentInstructions => 'उपयोगकर्ता निर्देश';
 
   @override

@@ -107,6 +107,8 @@ void main() {
     expect(claudeTitle, findsNothing);
     await tester.tap(codexTitle);
     await waitFor(find.text('codex-fixture-id'));
+    expect(find.text(strings.sessionProfileFolder), findsOneWidget);
+    expect(find.text(Platform.environment['CODEX_HOME']!), findsOneWidget);
     await tester.tap(
       find.descendant(
         of: find.byType(AlertDialog),

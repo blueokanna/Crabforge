@@ -5,6 +5,8 @@
   "noAgentSessions": "कोई स्थानीय सत्र नहीं मिला",
   "unreadableSessions": "ऐसी सत्र फ़ाइलें जिन्हें पढ़ा नहीं जा सका ({count})",
   "copySessionId": "सत्र आईडी कॉपी करें",
+  "sessionWorkingFolder": "कार्य फ़ोल्डर",
+  "sessionProfileFolder": "प्रोफ़ाइल फ़ोल्डर",
   "agentInstructions": "उपयोगकर्ता निर्देश",
   "agentMemoryDigest": "उपयोगकर्ता की स्मृति",
   "agentMemoryDigestHelp": "प्रकाशित करने पर वैश्विक स्मृति और इस एजेंट की स्मृति उसके उपयोगकर्ता निर्देशों में लिखी जाती हैं।",

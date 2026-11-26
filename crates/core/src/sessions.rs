@@ -1,10 +1,11 @@
 use crate::agents::NativeAgent as Agent;
 use anyhow::{Context, Result};
 use nextjson::{NsonSerialize, Value};
+use ruzstd::decoding::StreamingDecoder;
 use std::{
     cmp::Reverse,
     collections::HashSet,
-    fs,
+    env, fs,
     io::{BufRead, BufReader, ErrorKind, Read},
     path::{Path, PathBuf},
     time::SystemTime,
@@ -12,10 +13,12 @@ use std::{
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 const MAX_HEADER: u64 = 512 * 1024;
+const MAX_CODEX_WINDOW: u64 = 16 * 1024 * 1024;
 
 #[derive(NsonSerialize)]
 pub struct Session {
     pub agent: &'static str,
+    pub profile: String,
     pub id: String,
     pub cwd: String,
     pub title: String,
@@ -29,29 +32,97 @@ pub struct Listing {
     pub unreadable: usize,
 }
 
-struct Log {
+struct Log<'a> {
     agent: Agent,
+    profile: &'a Path,
     path: PathBuf,
     modified: SystemTime,
     archived: bool,
 }
 
 pub fn list(agent: Option<Agent>, limit: usize) -> Result<Listing> {
+    let user = env::home_dir();
     let roots = [Agent::Claude, Agent::Codex]
         .into_iter()
         .filter(|item| agent.is_none_or(|agent| agent == *item))
-        .filter_map(|agent| agent.home().map(|home| (agent, home)));
+        .filter_map(|agent| agent.home().map(|home| (agent, home)))
+        .flat_map(|(agent, home)| {
+            profiles(agent, home, user.as_deref())
+                .into_iter()
+                .map(move |path| (agent, path))
+        });
     list_in(roots, limit)
 }
 
+fn profiles(agent: Agent, primary: PathBuf, user: Option<&Path>) -> Vec<PathBuf> {
+    fn directories(path: &Path) -> impl Iterator<Item = PathBuf> {
+        fs::read_dir(path)
+            .into_iter()
+            .flatten()
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                entry.file_type().ok()?.is_dir().then(|| entry.path())
+            })
+    }
+
+    let has_sessions = |path: &Path| match agent {
+        Agent::Claude => path.join("projects").is_dir(),
+        Agent::Codex => path.join("sessions").is_dir() || path.join("archived_sessions").is_dir(),
+    };
+    let mut seen: HashSet<_> = primary.canonicalize().into_iter().collect();
+    let mut additional = Vec::new();
+    let mut add = |path: PathBuf| {
+        if let Ok(resolved) = path.canonicalize()
+            && seen.insert(resolved)
+        {
+            additional.push(path);
+        }
+    };
+    let parent = primary.parent().filter(|path| !path.as_os_str().is_empty());
+    for root in user
+        .into_iter()
+        .chain(parent.filter(|path| Some(*path) != user))
+    {
+        for folder in directories(root).filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| {
+                    name.trim_start_matches('.')
+                        .to_ascii_lowercase()
+                        .starts_with(agent.id())
+                })
+        }) {
+            if has_sessions(&folder) {
+                add(folder);
+            } else {
+                directories(&folder)
+                    .filter(|path| has_sessions(path))
+                    .for_each(&mut add);
+            }
+        }
+    }
+    additional.sort_unstable();
+    let mut roots = vec![primary];
+    roots.extend(additional);
+    roots
+}
+
 fn list_in(roots: impl IntoIterator<Item = (Agent, PathBuf)>, limit: usize) -> Result<Listing> {
+    let roots: Vec<_> = roots.into_iter().collect();
     let mut logs = Vec::new();
-    for (agent, home) in roots {
+    for (agent, home) in &roots {
         match agent {
-            Agent::Claude => visit(&home.join("projects"), 1, agent, false, &mut logs)?,
+            Agent::Claude => visit(&home.join("projects"), 1, *agent, home, false, &mut logs)?,
             Agent::Codex => {
-                visit(&home.join("sessions"), 3, agent, false, &mut logs)?;
-                visit(&home.join("archived_sessions"), 0, agent, true, &mut logs)?;
+                visit(&home.join("sessions"), 3, *agent, home, false, &mut logs)?;
+                visit(
+                    &home.join("archived_sessions"),
+                    0,
+                    *agent,
+                    home,
+                    true,
+                    &mut logs,
+                )?;
             }
         }
     }
@@ -65,7 +136,7 @@ fn list_in(roots: impl IntoIterator<Item = (Agent, PathBuf)>, limit: usize) -> R
     let mut seen = HashSet::new();
     for log in logs {
         match log.session() {
-            Ok(Some(session)) if seen.insert((log.agent, session.id.clone())) => {
+            Ok(Some(session)) if seen.insert((log.agent, log.profile, session.id.clone())) => {
                 result.sessions.push(session);
                 if result.sessions.len() == limit.clamp(1, 500) {
                     break;
@@ -78,12 +149,13 @@ fn list_in(roots: impl IntoIterator<Item = (Agent, PathBuf)>, limit: usize) -> R
     Ok(result)
 }
 
-fn visit(
+fn visit<'a>(
     root: &Path,
     depth: usize,
     agent: Agent,
+    profile: &'a Path,
     archived: bool,
-    logs: &mut Vec<Log>,
+    logs: &mut Vec<Log<'a>>,
 ) -> Result<()> {
     let entries = match fs::read_dir(root) {
         Ok(entries) => entries,
@@ -94,18 +166,21 @@ fn visit(
         let entry = entry?;
         let kind = entry.file_type()?;
         if kind.is_dir() && depth > 0 {
-            visit(&entry.path(), depth - 1, agent, archived, logs)?;
+            visit(&entry.path(), depth - 1, agent, profile, archived, logs)?;
         } else if kind.is_file()
             && let Some(name) = entry.file_name().to_str()
-            && name.ends_with(".jsonl")
             && match agent {
-                Agent::Claude => depth == 0,
-                Agent::Codex => name.starts_with("rollout-"),
+                Agent::Claude => depth == 0 && name.ends_with(".jsonl"),
+                Agent::Codex => {
+                    name.starts_with("rollout-")
+                        && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zst"))
+                }
             }
         {
             match entry.metadata().and_then(|metadata| metadata.modified()) {
                 Ok(modified) => logs.push(Log {
                     agent,
+                    profile,
                     path: entry.path(),
                     modified,
                     archived,
@@ -118,9 +193,20 @@ fn visit(
     Ok(())
 }
 
-impl Log {
+impl Log<'_> {
     fn session(&self) -> Result<Option<Session>> {
-        let mut reader = BufReader::new(fs::File::open(&self.path)?.take(MAX_HEADER));
+        let file = fs::File::open(&self.path)?;
+        if self.path.extension().is_some_and(|ext| ext == "zst") {
+            let decoder =
+                StreamingDecoder::new_with_max_window_size(BufReader::new(file), MAX_CODEX_WINDOW)?;
+            self.read_header(decoder)
+        } else {
+            self.read_header(file)
+        }
+    }
+
+    fn read_header(&self, source: impl Read) -> Result<Option<Session>> {
+        let mut reader = BufReader::new(source.take(MAX_HEADER));
         let mut bytes = Vec::new();
         let mut id = String::new();
         let mut cwd = String::new();
@@ -177,6 +263,7 @@ impl Log {
         }
         Ok(Some(Session {
             agent: self.agent.id(),
+            profile: self.profile.display().to_string(),
             id,
             cwd,
             title,
@@ -282,6 +369,55 @@ mod tests {
         assert!(result.sessions.iter().any(|entry| entry.id == "older"
             && entry.title == "Verify the test"
             && entry.archived));
+        Ok(())
+    }
+
+    #[test]
+    fn reads_packed_codex_sessions_and_counts_decode_failures() -> Result<()> {
+        use ruzstd::encoding::{CompressionLevel, compress_to_vec};
+
+        let home = tempfile::tempdir()?;
+        let archived = home.path().join("archived_sessions");
+        fs::create_dir(&archived)?;
+        let records = concat!(
+            "{\"type\":\"session_meta\",\"payload\":{\"id\":\"packed\",\"cwd\":\"/project\"}}\n",
+            "{\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"Verify the archive\"}}\n",
+        );
+        let packed = compress_to_vec(records.as_bytes(), CompressionLevel::Fastest);
+        fs::write(archived.join("rollout-archive.jsonl.zst"), &packed)?;
+        fs::write(archived.join("rollout-truncated.jsonl.zst"), &packed[..8])?;
+
+        let result = list_in([(Agent::Codex, home.path().to_owned())], 20)?;
+        assert_eq!(result.unreadable, 1);
+        assert_eq!(result.sessions.len(), 1);
+        let entry = &result.sessions[0];
+        assert_eq!(entry.id, "packed");
+        assert_eq!(entry.title, "Verify the archive");
+        assert_eq!(entry.cwd, "/project");
+        assert!(entry.archived);
+        Ok(())
+    }
+
+    #[test]
+    fn discovers_sibling_and_nested_profiles_with_sessions() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let user = root.path().join("user");
+        let primary = root.path().join("accounts/codex");
+        let sibling = root.path().join("accounts/.codex-work");
+        let nested = user.join(".codex-profiles/testing");
+        for folder in [
+            primary.join("sessions"),
+            sibling.join("sessions"),
+            nested.join("archived_sessions"),
+            user.join("unrelated/sessions"),
+            user.join(".codex-misplaced/level1/level2/sessions"),
+        ] {
+            fs::create_dir_all(folder)?;
+        }
+        assert_eq!(
+            profiles(Agent::Codex, primary.clone(), Some(&user)),
+            [primary, sibling, nested]
+        );
         Ok(())
     }
 }

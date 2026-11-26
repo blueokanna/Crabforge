@@ -34,6 +34,7 @@ class _AgentSessionsState extends State<AgentSessions> {
   Future<void> details(Map<String, dynamic> session) async {
     final id = session['id'] as String;
     final locale = MaterialLocalizations.of(context);
+    final strings = context.strings;
     final time = DateTime.parse(session['modified'] as String).toLocal();
     await showDialog<void>(
       context: context,
@@ -48,7 +49,12 @@ class _AgentSessionsState extends State<AgentSessions> {
             children: [
               SelectableText(session['title'] as String),
               const SizedBox(height: 12),
+              Text(strings.sessionWorkingFolder),
               SelectableText(session['cwd'] as String),
+              const SizedBox(height: 8),
+              Text(strings.sessionProfileFolder),
+              SelectableText(session['profile'] as String),
+              const SizedBox(height: 8),
               SelectableText(id),
               Text(
                 '${locale.formatMediumDate(time)} · '
