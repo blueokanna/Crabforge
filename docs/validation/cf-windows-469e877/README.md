@@ -328,6 +328,22 @@ Both CLIs tested environment variables from Magpie 0.1.4936 backups with and wit
 
 Both Windows Debug CLIs imported stdio, HTTP and SSE definitions from a Magpie 0.1.4936 encrypted backup. Reports omit command arguments, URLs, environment values and headers. Four competing processes wrote the library once. Conflicting definitions and active tool restrictions blocked the import. Explicit assignments generated native Codex, Gemini and Claude Code configuration in a project path containing Chinese characters and a space. [MCP importer](../../../crates/core/src/project_mcp/library/magpie.rs)
 
+## 技能与钩子备份迁移 / Skill and hook backup migration
+
+用 Magpie 0.1.4936 的便携配置生成加密备份。双 Windows Debug CLI 只读预览技能，保留 `SKILL.md` 的 CRLF、含中文路径的二进制附件及客户端分配。四进程并发仅写入一次。显式同步发布到 Claude Code、Codex 和 Pi，撤销保留了外部编辑。钩子用例覆盖命令遮蔽、密码错误、选名、并发、批次冲突及不兼容会话匹配条件。同步后核对 Claude Code 的 `Bash`、Codex 的 `resume` 和 Gemini 的 `run_shell_command` 及毫秒超时，并验证撤销。
+
+Both Windows Debug CLIs read an encrypted backup written by portable Magpie 0.1.4936. Skill imports preserved CRLF in `SKILL.md`, a binary attachment with a Chinese filename, and client assignments. Four competing applies wrote the library once. Explicit sync published to Claude Code, Codex and Pi, and withdrawal preserved an external edit. Hook fixtures covered command masking, a wrong passphrase, name selection, concurrent apply, conflicts and incompatible session filters. Native configuration after sync showed Claude Code's `Bash`, Codex's `resume` and Gemini's `run_shell_command` with a millisecond timeout. The fixture also checked withdrawal. [Skill importer](../../../crates/core/src/skills/magpie.rs) · [Hook importer](../../../crates/core/src/hooks/magpie.rs)
+
+Grok `1.0.92` 在回环模型夹具中恢复同一个原生会话。新建会话触发导入的 `new` 钩子，按 ID 恢复触发 `load` 钩子，无匹配条件的对照钩子触发两次。第二轮上游请求包含第一轮提示，两轮都收到模型回复。Antigravity 的会话来源转换由 Rust 单测覆盖。
+
+Grok `1.0.92` resumed the same native session against a loopback model fixture. The imported `new` hook ran on startup, the `load` hook ran on resume by ID, and the unfiltered control ran twice. The second model request retained the first prompt, and both turns received a reply. Rust unit coverage checks the Antigravity session source conversion. [Client hook encoding](../../../crates/core/src/hooks/native.rs)
+
+## 用户指令备份迁移 / User instruction backup migration
+
+双 Windows Debug CLI 从 Magpie 0.1.4936 加密备份预览活跃指令集、默认集及 Claude Code、Codex 各自的附加文本。应用保留用户文档的 BOM、CRLF 和托管区块外的内容。Codex 使用现有 `AGENTS.override.md`。区块已有不同内容时，须核对当前文件版本后才能替换。测试验证了错误口令、未知指令集、重复导入及外部编辑后的陈旧修订拒绝。
+
+Both Windows Debug CLIs previewed the active and default instruction sets plus client-specific additions from a native Magpie 0.1.4936 encrypted backup. Apply preserved BOM, CRLF and all bytes outside the managed block. Codex used the existing `AGENTS.override.md`. Replacing different managed text required a current file revision. The fixture covered a wrong passphrase, an unknown set, repeat import and stale revision rejection after an external edit. [Instruction importer](../../../crates/core/src/project_instructions/magpie.rs)
+
 ## Windows 首事件分段时序 / Windows first-event timing
 
 同一 Windows 10 主机在开发构建期间交替采样。`5cc51ab575b27a333aa007188c636f4b70508d93` 的 Actions 包和基于 `38ac6ba98ec0f13317b58060feeff2648cd4c73a` 加入 QPC 探针的本地 Release 各测 45 次。每次启动新网关进程，均返回 HTTP 200、调用上游一次、代理流量为零。首事件最小／中位／最大值分别为 `14.454/90.838/286.718 ms` 和 `14.601/102.876/290.461 ms`。

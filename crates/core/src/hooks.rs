@@ -15,8 +15,10 @@ mod antigravity;
 mod backup;
 mod dsh;
 mod grok;
+mod magpie;
 mod native;
 mod project;
+pub use magpie::import_magpie;
 pub use project::Assignment as ProjectAssignment;
 
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
@@ -275,10 +277,14 @@ impl Store {
         }
     }
 
-    fn save(&self, path: &Path) -> Result<()> {
+    fn contents(&self) -> Result<String> {
         let text = encode(self)?;
         ensure!(text.len() <= MAX_LIBRARY, "hook library exceeds 4 MiB");
-        replace(path, &text)
+        Ok(text)
+    }
+
+    fn save(&self, path: &Path) -> Result<()> {
+        replace(path, &self.contents()?)
     }
 
     fn check(&self, name: &str, revision: &str) -> Result<()> {

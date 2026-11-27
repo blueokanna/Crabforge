@@ -1,8 +1,9 @@
 use crate::config::read_limited;
 use anyhow::{Context, Result, ensure};
+use base64::{Engine, engine::general_purpose::STANDARD};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet, btree_map::Entry as MapEntry},
     fs::{self, File, Metadata},
     io::Write,
     path::{Path, PathBuf},
@@ -68,6 +69,76 @@ pub(crate) fn windows_filename(name: &str) -> bool {
 }
 
 impl Tree {
+    pub(super) fn from_backup(
+        files: BTreeMap<String, String>,
+        executable: &BTreeSet<String>,
+    ) -> Result<Self> {
+        ensure!(
+            executable.iter().all(|name| files.contains_key(name)),
+            "a Magpie skill marks a missing file executable"
+        );
+        ensure!(files.len() <= MAX_ENTRIES, "too many skill files");
+        let mut tree = Self::default();
+        let mut remaining = MAX_BYTES;
+        let mut spellings = BTreeSet::new();
+        for (name, encoded) in files {
+            let mut components = name.split('/');
+            let filename = components.next_back().unwrap_or_default();
+            ensure!(
+                components.clone().count() <= MAX_DEPTH
+                    && name.len() <= 1024
+                    && windows_filename(filename),
+                "invalid skill path {name:?}"
+            );
+            let mut path = PathBuf::new();
+            for component in components {
+                ensure!(windows_filename(component), "invalid skill path {name:?}");
+                path.push(component);
+                match tree.0.entry(path.clone()) {
+                    MapEntry::Occupied(entry) => ensure!(
+                        matches!(entry.get(), Entry::Directory),
+                        "skill path {name:?} crosses a file"
+                    ),
+                    MapEntry::Vacant(entry) => {
+                        entry.insert(Entry::Directory);
+                        Self::record_backup_path(&path, &mut spellings)?;
+                    }
+                }
+            }
+            path.push(filename);
+            Self::record_backup_path(&path, &mut spellings)?;
+            ensure!(
+                spellings.len() <= MAX_ENTRIES,
+                "source exceeds {MAX_ENTRIES} files and folders"
+            );
+            ensure!(
+                encoded.len() <= remaining.div_ceil(3) * 4,
+                "skill exceeds {MAX_BYTES} bytes"
+            );
+            let bytes = STANDARD
+                .decode(&encoded)
+                .with_context(|| format!("invalid base64 for skill file {name:?}"))?;
+            ensure!(bytes.len() <= remaining, "skill exceeds {MAX_BYTES} bytes");
+            remaining -= bytes.len();
+            tree.0.insert(
+                path,
+                Entry::File {
+                    bytes,
+                    executable: cfg!(unix) && executable.contains(&name),
+                },
+            );
+        }
+        Ok(tree)
+    }
+
+    fn record_backup_path(path: &Path, spellings: &mut BTreeSet<String>) -> Result<()> {
+        ensure!(
+            spellings.insert(path.to_string_lossy().to_uppercase()),
+            "skill path {path:?} is ambiguous on Windows"
+        );
+        Ok(())
+    }
+
     pub(crate) fn read(root: &Path) -> Result<Self> {
         let mut budget = MAX_BYTES;
         Self::read_shared(root, &mut budget)
@@ -253,6 +324,40 @@ impl Tree {
             archive.append_data(&mut header, root.join(path), bytes)?;
         }
         archive.finish()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn backup_paths_must_be_portable_and_unambiguous() -> Result<()> {
+        let empty = BTreeSet::new();
+        for names in [
+            vec!["../escape"],
+            vec!["C:/escape"],
+            vec!["scripts/../escape"],
+            vec!["scripts\\tool"],
+            vec!["scripts/con.txt"],
+            vec!["scripts/x", "Scripts/y"],
+            vec!["scripts/x", "scripts/X"],
+            vec!["scripts", "scripts/x"],
+        ] {
+            let files = names
+                .iter()
+                .map(|name| ((*name).into(), String::new()))
+                .collect();
+            assert!(Tree::from_backup(files, &empty).is_err(), "{names:?}");
+        }
+        let files = BTreeMap::from([("scripts/readme".into(), "Zm9vAA==".into())]);
+        let tree = Tree::from_backup(files, &BTreeSet::from(["scripts/readme".into()]))?;
+        let root = tempfile::tempdir()?;
+        let bundle = root.path().join("bundle");
+        tree.write(&bundle)?;
+        assert_eq!(fs::read(bundle.join("scripts/readme"))?, b"foo\0");
+        assert_eq!(Tree::read(&bundle)?.hash(), tree.hash());
         Ok(())
     }
 }

@@ -82,6 +82,22 @@ enum Command {
         #[arg(long)]
         revision: Option<String>,
     },
+    /// Preview or import a Magpie instruction set into a Claude Code or Codex user profile.
+    ImportMagpieInstructions {
+        file: PathBuf,
+        /// Target client and source of the agent-specific additions.
+        #[arg(long)]
+        agent: String,
+        /// Select a set by ID. Defaults to the set active in the backup.
+        #[arg(long)]
+        set: Option<String>,
+        /// Require this revision when replacing an existing managed block.
+        #[arg(long)]
+        revision: Option<String>,
+        /// Write the selected text to the managed block.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Search, create and edit local Agent memories.
     Memory {
         #[command(subcommand)]
@@ -1034,6 +1050,31 @@ async fn dispatch(args: Args) -> Result<()> {
             println!(
                 "{}",
                 nextjson::to_string(&view).map_err(anyhow::Error::msg)?
+            );
+        }
+        Command::ImportMagpieInstructions {
+            file,
+            agent,
+            set,
+            revision,
+            apply,
+        } => {
+            use crabforge_core::project_instructions::{MagpieInstructions, import_magpie};
+            let passphrase = backup_passphrase()?;
+            let report = import_magpie(
+                &dir,
+                &file,
+                &passphrase,
+                MagpieInstructions {
+                    agent: &agent,
+                    set: set.as_deref(),
+                    revision: revision.as_deref(),
+                    apply,
+                },
+            )?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
             );
         }
         Command::Memory { command } => memory::run(&dir, command).await?,

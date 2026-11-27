@@ -27,6 +27,16 @@ pub(super) enum Command {
         #[arg(long)]
         revision: Option<String>,
     },
+    /// Preview or restore complete skills from an encrypted Magpie backup.
+    ImportMagpie {
+        file: PathBuf,
+        /// Repeat to select several names. The default selects all skills.
+        #[arg(long = "name")]
+        names: Vec<String>,
+        /// Save the snapshots and assignments to the library for explicit sync.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Compare a remote skill's files with the library snapshot without applying changes.
     Check {
         name: String,
@@ -59,6 +69,15 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
     let edit = match command {
         Command::Discover => {
             println!("{}", skills::discover(dir)?);
+            return Ok(());
+        }
+        Command::ImportMagpie { file, names, apply } => {
+            let passphrase = super::backup_passphrase()?;
+            let report = skills::import_magpie(dir, &file, &passphrase, &names, apply)?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+            );
             return Ok(());
         }
         Command::Check { name, revision } => {

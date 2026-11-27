@@ -3,13 +3,23 @@ use clap::Subcommand;
 use crabforge_core::hooks::{self, Edit, ProjectAssignment};
 use std::{
     io::{self, Read},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 #[derive(Subcommand)]
 pub(super) enum Command {
     /// List saved hooks, native assignments and existing hooks available for adoption.
     List,
+    /// Preview or stage command hooks from an encrypted Magpie backup.
+    ImportMagpie {
+        file: PathBuf,
+        /// Repeat to select several hook names. The default selects all hooks.
+        #[arg(long = "name")]
+        names: Vec<String>,
+        /// Save definitions to the shared library for later publication.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Read a hook definition as JSON from standard input and publish it.
     Save {
         /// Existing hook name, including when editing without renaming.
@@ -45,6 +55,19 @@ pub(super) enum Command {
 pub(super) fn run(dir: &Path, project: Option<&Path>, command: Command) -> Result<()> {
     let edit = match command {
         Command::List => Edit::Read,
+        Command::ImportMagpie { file, names, apply } => {
+            ensure!(
+                project.is_none(),
+                "import Magpie hooks into the shared library"
+            );
+            let passphrase = super::backup_passphrase()?;
+            let report = hooks::import_magpie(dir, &file, &passphrase, &names, apply)?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+            );
+            return Ok(());
+        }
         Command::Save { old, revision } => {
             let mut source = String::new();
             io::stdin()

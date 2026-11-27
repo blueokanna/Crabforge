@@ -152,14 +152,15 @@ fn events(agent: Agent) -> Events {
                 "PostToolUseFailure",
                 "PermissionDenied",
                 "StopFailure",
+                "StopCancelled",
                 "Notification",
                 "SubagentStart",
                 "SubagentStop",
                 "PreCompact",
                 "PostCompact",
             ],
-            shell: "Bash",
-            edit: "Edit|Write",
+            shell: "run_terminal_command",
+            edit: "search_replace",
         },
         Agent::Dsh => Events {
             mapped: [
@@ -251,6 +252,29 @@ pub(super) fn encode(agent: Agent, hook: &Hook) -> Result<(String, Value)> {
                         "Gemini accepts one session start source or all of them"
                     );
                     if remainder == 2 { "" } else { selected }
+                }
+                Agent::Grok => {
+                    let requested = |source| starts.split('|').any(|start| start == source);
+                    let fresh = requested("startup");
+                    ensure!(
+                        fresh == requested("clear"),
+                        "Grok runs startup and clear under the same session start source"
+                    );
+                    match (fresh, requested("resume")) {
+                        (true, true) => "",
+                        (true, false) => "new",
+                        (false, true) => "load",
+                        (false, false) => {
+                            anyhow::bail!("Grok has no requested session start source")
+                        }
+                    }
+                }
+                Agent::Antigravity => {
+                    ensure!(
+                        starts.split('|').any(|start| start == "startup"),
+                        "Antigravity has no requested session start source"
+                    );
+                    ""
                 }
                 _ => starts,
             },
@@ -476,5 +500,44 @@ pub(super) fn remove(
         entries.replace(source, index, "{\"hooks\":[]}")
     } else {
         entries.remove(source, index)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn portable_session_start_preserves_client_source_filters() -> Result<()> {
+        let mut hook = Hook {
+            name: "resume-audit".into(),
+            description: String::new(),
+            event: "session-start".into(),
+            matcher: "resume".into(),
+            command: "echo fixture".into(),
+            timeout: 0,
+            agents: BTreeSet::new(),
+        };
+        assert_eq!(
+            encode(Agent::Grok, &hook)?.1["matcher"].as_str(),
+            Some("load")
+        );
+        assert!(encode(Agent::Antigravity, &hook).is_err());
+        hook.matcher = "startup".into();
+        assert!(encode(Agent::Grok, &hook).is_err());
+        assert!(
+            encode(Agent::Antigravity, &hook)?
+                .1
+                .get("matcher")
+                .is_none()
+        );
+        hook.matcher = "clear|startup|compact".into();
+        assert_eq!(
+            encode(Agent::Grok, &hook)?.1["matcher"].as_str(),
+            Some("new")
+        );
+        hook.matcher.push_str("|resume");
+        assert!(encode(Agent::Grok, &hook)?.1.get("matcher").is_none());
+        Ok(())
     }
 }

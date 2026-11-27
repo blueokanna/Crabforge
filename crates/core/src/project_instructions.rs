@@ -11,6 +11,9 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+mod magpie;
+pub use magpie::{MagpieInstructions, import_magpie};
+
 // Keeping Magpie's markers lets an existing project move between the two editors.
 const BEGIN: &str = "<!-- magpie:begin · written by magpie from its Library -->";
 const END: &str = "<!-- magpie:end -->";

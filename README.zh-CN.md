@@ -103,6 +103,8 @@ CLI 中先运行 `carbforge-cli memory distill <Agent-ID> <会话-ID>` 获取消
 
 在**客户端连接**选中 Claude Code 或 Codex，再打开**用户指令**，即可编辑受管理的 Markdown 或预览并发布**用户记忆**。摘要包含有效的全局记忆及所选 Agent 的记忆。Crabforge 将摘要写入 `CLAUDE.md` 或 Codex 用户目录的 `AGENTS.md`，存在 `AGENTS.override.md` 时优先使用该文件。客户端会在新会话中读取该文件。使用**恢复上一版本**可撤销 Crabforge 最近一次对该文件的编辑。
 
+`carbforge-cli import-magpie-instructions <备份> --agent claude` 预览 Magpie 加密备份中当前启用的共享指令集和该客户端的附加指令。Codex 使用 `--agent codex`，可用 `--set <ID>` 从预览中选择其他指令集。`--apply` 写入托管区块。已有托管文本时，沿用同一客户端和指令集并传入预览给出的 `--revision`。文件其余内容会保留。
+
 `carbforge-cli memory context --agent codex` 预览同一摘要。`carbforge-cli memory agent-instructions codex` 显示当前指令文件及修订。附加 `--publish` 发布，使用 `--preview <UTF-8 文件>` 要求摘要与已保存的预览一致，或使用 `--restore` 恢复。`--revision <修订>` 核对指令文件是否仍是已查看的版本。
 
 在 **客户端连接** 的 **规则** 中保存 Markdown 指令，并分配给 Claude Code、Cline 或 Kiro CLI。Claude Code 和 Kiro CLI 支持可选的路径模式，Cline 规则适用于每次会话。规则库显示原生文件的位置和状态。编辑、改名或删除规则时，Crabforge 会更新自己管理且内容未变化的副本。既有文件和本地修改会保留并显示冲突。点击 **应用规则** 可重试当前 Agent 配置中尚未完成的更改。
@@ -126,6 +128,8 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 使用 `skills import` 加 `--revision` 更新同名技能。`skills remove <名称>` 删除库中的技能及内容未变化的托管副本。
 
+`carbforge-cli skills import-magpie <备份>` 预览 Magpie 加密备份中携带的完整技能快照。可重复传入 `--name` 选择技能。`--apply` 将原始文件字节及受支持的客户端分配保存到库中，再用 `skills sync` 发布。预览会列出跳过的元数据。备份缺少文件或要求远程获取时，需要提供完整的技能文件夹。
+
 导入公开 GitHub 技能时，将 `SKILL.md` 或其文件夹的链接填入来源栏，也可传给 `skills import`。仓库链接会选择根目录下的技能或仓库内唯一的技能。仓库有多个技能时，请指定要导入的文件夹。**重新导入文件** 会重新获取保存的引用和目录。可以用提交链接固定来源。分支名含 `/` 时，可在仓库链接后加 `?ref=feature%2Fdocs#path/to/skill`。
 
 **已安装的技能** 扫描原生及网关客户端配置中的兼容文件夹。选择 **交由 Crabforge 管理** 后，Crabforge 校验扫描时的内容哈希，将文件保存为库快照并在原址管理该文件夹。取消分配会移除内容未变的文件夹。CLI 对应 `skills discover` 和 `skills adopt <Agent> <名称> <路径> --content <discover 返回的 content>`。
@@ -137,6 +141,8 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 在 **客户端连接 → 环境变量** 保存变量后，可分配给 Claude Code、Codex 或 Pi。Crabforge 写入 Claude 的 `env`、Codex 的 `shell_environment_policy.set`，并为 Pi 的原生和网关配置发布受管理的扩展。Pi 保留从 Shell 继承的值。Crabforge 保留客户端配置中的已有值和外部修改。变量值存于本地库和客户端配置，桌面编辑器默认隐藏值。
 
 在 **客户端连接 → 钩子** 保存生命周期命令，可按事件分配给 Claude Code、Codex、Gemini CLI 或 Cursor。Gemini 同时使用原生和 Crabforge 配置。库可原址接管兼容的命令，并显示冲突及外部修改。客户端按自身的钩子和信任设置运行命令。`carbforge-cli hooks list` 可查看修订和已有条目。`hooks save` 从标准输入读取 UTF-8 JSON 对象，字段为 `name`、`event`、`command` 和 `agents`，可选字段为 `description`、`matcher` 和以秒为单位的 `timeout`。通用事件为 `turn-end`、`after-tool`、`before-tool`、`prompt` 和 `session-start`。使用 `claude:SessionStart` 等原生事件可指定客户端专用匹配条件。`hooks adopt <key> <name>` 接管未改动的原生条目，`hooks remove <name> --revision <revision>` 撤销受管理的副本，`hooks sync` 重试发布。
+
+`carbforge-cli hooks import-magpie <备份>` 预览 Magpie 加密备份中的钩子名称、事件和客户端分配。可重复传入 `--name` 选择条目。`--apply` 将定义保存到共享库。可用 `hooks list` 审核命令，再用 `hooks sync` 发布。所选钩子的原事件及匹配条件须受分配到的每个客户端支持。
 
 **移除已安装的钩子** 会移除所选事件条目，并把原客户端配置文件保存在 Crabforge 数据目录的 `hooks/backups` 下。一个分组条目可能包含多条命令。客户端文件仍与移除后完全一致时，可从 **钩子备份** 恢复。CLI 使用 `hooks remove-installed <key>` 和 `hooks restore <id>`，其中键和 ID 分别来自 `hooks list` 的 `installed` 和 `backups` 字段。
 

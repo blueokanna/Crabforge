@@ -15,8 +15,10 @@ use std::{
 };
 
 mod catalog;
+mod magpie;
 mod remote;
 pub(crate) mod tree;
+pub use magpie::import_magpie;
 pub(crate) use remote::{
     is_repository_url, load_repository_document, load_repository_tree, read_plugin_archive,
     visit_repository_documents,
@@ -304,13 +306,17 @@ impl Store {
         }
     }
 
-    fn save(&self, path: &Path) -> Result<()> {
+    fn contents(&self) -> Result<String> {
         let text = encode(self)?;
         ensure!(
             text.len() <= MAX_LIBRARY,
             "skill library exceeds its size limit"
         );
-        replace(path, &text)
+        Ok(text)
+    }
+
+    fn save(&self, path: &Path) -> Result<()> {
+        replace(path, &self.contents()?)
     }
 
     fn skill_mut(&mut self, name: &str, expected: Option<&str>) -> Result<&mut Skill> {
