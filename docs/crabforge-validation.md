@@ -26,6 +26,16 @@ Grok Build 1.0.92 在用户和项目作用域执行 `Stop` 钩子，写入本机
 
 冻结钩子版本 `18a3d431f284c021d9e99e72bcb65d801634550e` 在加载原生客户端夹具后通过全部 153 项 Rust 测试，包含默认忽略的集成测试。审计的 28 棵依赖树均未启用 Serde、Hyper 或 Reqwest。[回归日志](validation/agent-library-followup/native-hooks-regression.log) · [依赖审计](validation/agent-library-followup/native-hooks-dependencies.csv)
 
+### 共享插件库
+
+Windows Debug 集成在 560 像素列表中浏览本地市场并选择插件包，在 1,280 像素网格中审核并复制子代理，随后更新、移除并从 TAR 重新导入插件包。测试通过 Rust 桥接创建 TAR，再经桌面界面导入。原生保存对话框待单独验收。[Windows 集成](validation/shared-plugin-library/plugin-bundles-windows.log)
+
+本机智能 HTTPS Git 夹具使用 `feature/review` 浏览多个候选，拒绝越出市场目录的路径，并重新打开选中的来源。TAR 往返保留二进制附件，导入过程无需请求 Git。复制的子代理发布到 Claude Code 和 Codex 项目文件。移除插件包后仍可同步该子代理的提示词，撤销时保留了外部编辑的 Codex 文件。[Git 夹具](validation/shared-plugin-library/plugin-bundles-https.csv)
+
+公开的 `anthropics/claude-plugins-official` 市场返回 317 个候选，其中 316 个有来源。CLI 选中并保存了含五个文件的 `frontend-design` 1.1.1。隔离的 Pi 1.6.0 进程在本地 Pi 包复制出的命令中展开位置参数和全部参数，并收到本机模型夹具响应。同一定义也生成了 Claude Code 命令文件。[公开市场](validation/shared-plugin-library/plugin-bundles-public.csv) · [Pi 进程](validation/shared-plugin-library/plugin-bundles-pi.csv)
+
+项目分配由各资源库管理。整包项目分配、同步、撤销及分配携带仍待实现，Pi 扩展和主题发布以及原生插件运行时集成也待补齐。
+
 ### Windows x64 Claude Code 插件（`ad2088c`）
 
 从 `ad2088c9daefc5548683f629f8d53a3a412c88ed` 离线构建的 ZIP 为 64,547,641 字节，SHA-256 为 `D3DD84828CB96B773C6E669FB28488C43940C78FCE4A4877D5331B90FE90ADC1`。核验 353 项构建输入、671 项包内文件、126 项资产及两个 CLI 各 97 项相同预设。三个入口的 Authenticode 状态均为 `NotSigned`。冻结版通过 154 项 Rust 测试、全目标 Clippy、Flutter 分析和两项组件测试。审计的 28 棵依赖树均未启用 Serde、Hyper 或 Reqwest。[构建输入](validation/cf-windows-ad2088c/build-inputs.sha256) · [解压清单](validation/cf-windows-ad2088c/SHA256SUMS) · [回归日志](validation/cf-windows-ad2088c/regression.log) · [依赖审计](validation/cf-windows-ad2088c/dependency-audit.csv)

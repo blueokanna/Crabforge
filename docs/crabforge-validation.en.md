@@ -26,6 +26,16 @@ Grok Build 1.0.92 ran a `Stop` hook from both scopes, wrote a local marker and r
 
 The frozen Hooks revision `18a3d431f284c021d9e99e72bcb65d801634550e` passed all 153 Rust tests with the native client fixtures and ignored integration tests enabled. The 28 dependency trees had zero enabled Serde, Hyper or Reqwest packages. [Regression](validation/agent-library-followup/native-hooks-regression.log) · [Dependency audit](validation/agent-library-followup/native-hooks-dependencies.csv)
 
+## Shared plugin library
+
+The Windows Debug test browsed a local marketplace, selected a bundle in a 560 px list, reviewed and copied a subagent in a 1,280 px grid, updated the bundle, then removed and reimported it from TAR. The test created the TAR through the Rust bridge and imported it through the interface. The native save file dialog is outside this test's coverage. [Windows integration](validation/shared-plugin-library/plugin-bundles-windows.log)
+
+The localhost smart HTTPS Git fixture used `feature/review` to browse multiple candidates, reject a path outside the marketplace, and reopen the selected source. It exported the snapshot to TAR and reimported the binary attachment without fetching from Git. A subagent copied from the bundle was published to Claude Code and Codex project files. Its prompt still synchronized after bundle removal, and withdrawal preserved the externally edited Codex file. [Git fixture](validation/shared-plugin-library/plugin-bundles-https.csv)
+
+The public `anthropics/claude-plugins-official` marketplace returned 317 candidates, with sources for 316. The CLI selected and saved `frontend-design` 1.1.1 with five files. An isolated Pi 1.6.0 process expanded positional and all-argument placeholders from a command copied from a local Pi package and received a reply from the localhost model fixture. The same definition also produced a Claude Code command file. [Public marketplace](validation/shared-plugin-library/plugin-bundles-public.csv) · [Pi process](validation/shared-plugin-library/plugin-bundles-pi.csv)
+
+Project assignments belong to the individual resource libraries. Whole-bundle assignment, synchronization, withdrawal and transfer of assignments remain pending, along with publication of Pi extensions and themes and integration with native plugin runtimes.
+
 ## Windows x64 Claude Code plugin snapshot `ad2088c`
 
 The Windows x64 ZIP built offline from `ad2088c9daefc5548683f629f8d53a3a412c88ed` is 64,547,641 bytes. Its SHA-256 is `D3DD84828CB96B773C6E669FB28488C43940C78FCE4A4877D5331B90FE90ADC1`. The package check verified 353 build inputs, 671 package files, 126 assets and 97 identical presets in both CLI executables. All three executables report `NotSigned`. The frozen revision passed 154 Rust tests, all-target Clippy, Flutter analysis and two widget tests. The 28 dependency trees contained no enabled Serde, Hyper or Reqwest. [Build inputs](validation/cf-windows-ad2088c/build-inputs.sha256) · [Package manifest](validation/cf-windows-ad2088c/SHA256SUMS) · [Regression](validation/cf-windows-ad2088c/regression.log) · [Dependency audit](validation/cf-windows-ad2088c/dependency-audit.csv)
