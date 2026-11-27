@@ -1,0 +1,3 @@
+Agent,Native prompts,Proposal requests,Valid candidates,Invalid proposals,Stale revision rejection,No duplicate candidate,Approved publication,Byte-identical restore
+claude,12,2,1,1,pass,pass,pass,pass
+codex,12,2,1,1,pass,pass,pass,pass

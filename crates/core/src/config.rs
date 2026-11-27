@@ -18,7 +18,10 @@ mod origins;
 mod rename;
 pub use crate::anthropic_auth::AuthHeader;
 pub use groups::{ImportedGroup, MemberPattern, ResolvedGroups};
-pub use magpie::{import_magpie_groups, import_magpie_providers, import_magpie_routing};
+pub use magpie::{
+    MagpieImportOptions, MagpieSettingsMode, import_magpie_backup, import_magpie_groups,
+    import_magpie_providers, import_magpie_routing,
+};
 pub use rename::rename_provider;
 
 pub const MAX_CONFIG: usize = 1024 * 1024;
@@ -165,6 +168,14 @@ fn valid_id(s: &str) -> bool {
         && s.len() <= 96
         && s.bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
+}
+
+fn valid_model_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 256
+        && id.split('/').all(|part| !matches!(part, "" | "." | ".."))
+        && id.trim() == id
+        && !id.chars().any(char::is_control)
 }
 
 fn valid_group_name(name: &str) -> bool {
@@ -440,15 +451,7 @@ impl Config {
             }
             ensure!(!p.models.is_empty(), "{} has no models", p.id);
             for m in &p.models {
-                ensure!(
-                    !m.is_empty()
-                        && m.len() <= 256
-                        && m.split('/')
-                            .all(|part| !part.is_empty() && part != "." && part != "..")
-                        && m.trim() == m
-                        && !m.chars().any(char::is_control),
-                    "invalid model id"
-                );
+                ensure!(valid_model_id(m), "invalid model id");
                 ensure!(
                     refs.insert(format!("{}/{m}", p.id)),
                     "duplicate model in {}",

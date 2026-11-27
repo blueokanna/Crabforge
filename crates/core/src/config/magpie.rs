@@ -279,8 +279,49 @@ pub fn import_magpie_providers(
 pub struct MagpieRoutingImport {
     providers: Vec<String>,
     groups: Vec<String>,
+    #[njson(skip_serializing_if = "Option::is_none")]
+    settings: Option<MagpieSettingsImport>,
     other_sections: Vec<String>,
     applied: bool,
+}
+
+#[derive(NsonDeserialize, NsonSerialize)]
+#[njson(rename_all = "camelCase")]
+struct BackupSettings {
+    #[njson(default, skip_serializing_if = "Option::is_none")]
+    port: Option<u16>,
+    #[njson(
+        default,
+        rename = "corsOrigins",
+        skip_serializing_if = "Option::is_none"
+    )]
+    cors_origins: Option<BTreeSet<String>>,
+    #[njson(default, skip_serializing_if = "Option::is_none")]
+    model_same_as: Option<BTreeMap<String, String>>,
+    #[njson(flatten, skip_serializing)]
+    other: BTreeMap<String, Value>,
+}
+
+#[derive(NsonSerialize)]
+struct MagpieSettingsImport {
+    #[njson(flatten)]
+    imported: BackupSettings,
+    skipped_fields: Vec<String>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum MagpieSettingsMode {
+    Skip,
+    Include,
+    Only,
+}
+
+pub struct MagpieImportOptions<'a> {
+    pub providers: &'a [String],
+    pub groups: &'a [String],
+    pub key_envs: &'a BTreeMap<String, String>,
+    pub settings: MagpieSettingsMode,
+    pub apply: bool,
 }
 
 pub fn import_magpie_routing(
@@ -292,31 +333,124 @@ pub fn import_magpie_routing(
     key_envs: &BTreeMap<String, String>,
     apply: bool,
 ) -> Result<MagpieRoutingImport> {
+    import_magpie_backup(
+        dir,
+        file,
+        passphrase,
+        MagpieImportOptions {
+            providers,
+            groups,
+            key_envs,
+            settings: MagpieSettingsMode::Skip,
+            apply,
+        },
+    )
+}
+
+pub fn import_magpie_backup(
+    dir: &Path,
+    file: &Path,
+    passphrase: &str,
+    options: MagpieImportOptions<'_>,
+) -> Result<MagpieRoutingImport> {
     let mut bundle = open_backup(file, passphrase)?;
     let previous = snapshot(dir)?;
     let mut cfg = Config::parse(&previous)?;
-    let definitions = take_entries(&mut bundle, "providers")?.unwrap_or_default();
-    let order = take_order(&mut bundle, "order")?;
-    let providers = restore_providers(&mut cfg, definitions, providers, key_envs, &order)?;
-    let definitions = take_entries(&mut bundle, "groups")?.unwrap_or_default();
-    let order = take_order(&mut bundle, "groupOrder")?;
-    let groups = if definitions.is_empty() && groups.is_empty() {
-        Vec::new()
+    let settings = if options.settings == MagpieSettingsMode::Skip {
+        None
     } else {
-        cfg.restore_magpie_groups(definitions, groups, &order)?
+        Some(restore_settings(&mut cfg, bundle.remove("settings"))?)
+    };
+    let (providers, groups) = if options.settings == MagpieSettingsMode::Only {
+        ensure!(
+            options.providers.is_empty()
+                && options.groups.is_empty()
+                && options.key_envs.is_empty(),
+            "settings-only import cannot select providers or groups"
+        );
+        bundle.remove("order");
+        bundle.remove("groupOrder");
+        (Vec::new(), Vec::new())
+    } else {
+        let definitions = take_entries(&mut bundle, "providers")?.unwrap_or_default();
+        let order = take_order(&mut bundle, "order")?;
+        let providers = restore_providers(
+            &mut cfg,
+            definitions,
+            options.providers,
+            options.key_envs,
+            &order,
+        )?;
+        let definitions = take_entries(&mut bundle, "groups")?.unwrap_or_default();
+        let order = take_order(&mut bundle, "groupOrder")?;
+        let groups = if definitions.is_empty() && options.groups.is_empty() {
+            Vec::new()
+        } else {
+            cfg.restore_magpie_groups(definitions, options.groups, &order)?
+        };
+        (providers, groups)
     };
     ensure!(
-        !providers.is_empty() || !groups.is_empty(),
+        !providers.is_empty() || !groups.is_empty() || settings.is_some(),
         "Magpie backup has no providers or groups to import"
     );
-    finish_import(dir, &previous, &cfg, &providers, apply)?;
+    finish_import(dir, &previous, &cfg, &providers, options.apply)?;
     bundle.remove("settingsKeys");
     bundle.remove("libraryKeys");
     Ok(MagpieRoutingImport {
         providers,
         groups,
+        settings,
         other_sections: other_sections(bundle),
-        applied: apply,
+        applied: options.apply,
+    })
+}
+
+fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettingsImport> {
+    let Some(raw @ Value::Object(_)) = raw else {
+        anyhow::bail!("Magpie backup has no settings object");
+    };
+    let mut imported: BackupSettings = nextjson::from_value(raw)
+        .map_err(|_| anyhow::anyhow!("invalid Magpie port, corsOrigins or modelSameAs setting"))?;
+    ensure!(
+        imported.port.is_some()
+            || imported.cors_origins.is_some()
+            || imported.model_same_as.is_some(),
+        "Magpie backup has no supported settings to import"
+    );
+    if let Some(port) = &mut imported.port {
+        if *port == 0 {
+            *port = Config::default().listen.port();
+        }
+        cfg.listen.set_port(*port);
+    }
+    if let Some(origins) = &mut imported.cors_origins {
+        *origins = super::origins::clean(origins)?;
+        cfg.cors_origins.clone_from(origins);
+    }
+    if let Some(names) = &imported.model_same_as {
+        for (id, name) in names {
+            ensure!(
+                id.split_once('/').is_some_and(|(provider, model)| {
+                    super::valid_id(provider)
+                        && !matches!(provider, "auto" | "group")
+                        && super::valid_model_id(model)
+                }) && super::valid_model_id(name),
+                "invalid Magpie modelSameAs entry"
+            );
+            ensure!(
+                cfg.model_same_as
+                    .get(id)
+                    .is_none_or(|current| current == name),
+                "conflicting equivalent model for {id:?}"
+            );
+        }
+        cfg.model_same_as.extend(names.clone());
+    }
+    let skipped_fields = std::mem::take(&mut imported.other).into_keys().collect();
+    Ok(MagpieSettingsImport {
+        imported,
+        skipped_fields,
     })
 }
 
@@ -618,6 +752,111 @@ mod tests {
         assert!(!stored.contains("fixture-only"));
         assert!(restore(&[], &groups, true).is_err());
         assert_eq!(fs::read_to_string(&settings)?, stored);
+        Ok(())
+    }
+
+    #[test]
+    fn settings_backup_preserves_the_loopback_host_and_skips_unselected_sections() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("settings.magpie-backup");
+        let settings = dir.path().join("settings.json");
+        let original = r#"{"listen":"[::1]:32122","model_same_as":{"old/model":"old-name"}}"#;
+        fs::write(&settings, original)?;
+        let restore = |apply| {
+            import_magpie_backup(
+                dir.path(),
+                &file,
+                PASSPHRASE,
+                MagpieImportOptions {
+                    providers: &[],
+                    groups: &[],
+                    key_envs: &BTreeMap::new(),
+                    settings: MagpieSettingsMode::Only,
+                    apply,
+                },
+            )
+        };
+        for invalid in [
+            json!({"port":65536}),
+            json!({"port":-1}),
+            json!({"port":3425, "corsOrigins":["*"]}),
+            json!({"port":3425, "modelSameAs":{"old/model":"conflicting-name"}}),
+            json!({"modelSameAs":{"missing-provider-prefix":"target"}}),
+            json!({"lanKey":"fixture-secret"}),
+        ] {
+            seal(&file, json!({"version":1, "settings":invalid}));
+            assert!(restore(true).is_err());
+            assert_eq!(fs::read_to_string(&settings)?, original);
+        }
+        seal(
+            &file,
+            json!({"version":1, "providers":[{"id":"unsupported"}], "groups":[{}],
+                "settings":{"port":0,"lan":true,"lanKey":"fixture-secret",
+                    "corsOrigins":["HTTPS://Example.org:443/"],
+                    "modelSameAs":{"lab/vendor/m":"canonical"}}}),
+        );
+        let preview = restore(false)?;
+        let preview = nextjson::to_value(&preview).unwrap();
+        assert_eq!(
+            preview,
+            json!({"providers":[], "groups":[], "settings":{"port":3425,
+                "corsOrigins":["https://example.org"], "modelSameAs":{"lab/vendor/m":"canonical"},
+                "skipped_fields":["lan","lanKey"]}, "other_sections":["groups","providers"],
+                "applied":false})
+        );
+        assert_eq!(fs::read_to_string(&settings)?, original);
+        assert!(restore(true)?.applied);
+        let stored = fs::read_to_string(&settings)?;
+        let cfg = Config::parse(&stored)?;
+        assert_eq!(cfg.listen.to_string(), "[::1]:3425");
+        assert_eq!(
+            cfg.cors_origins,
+            BTreeSet::from(["https://example.org".into()])
+        );
+        assert_eq!(cfg.model_same_as["lab/vendor/m"], "canonical");
+        assert_eq!(cfg.model_same_as["old/model"], "old-name");
+        assert!(!stored.contains("fixture-secret"));
+        Ok(())
+    }
+
+    #[test]
+    fn settings_and_routes_resolve_equivalent_models_in_the_same_import() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("routes.magpie-backup");
+        seal(
+            &file,
+            json!({"version":2, "settings":{"modelSameAs":{"lab/wire-name":"canonical"}},
+                "providers":[
+                    {"id":"lab","chat":"http://127.0.0.1:1","models":["wire-name"]},
+                    {"id":"direct","chat":"http://127.0.0.1:1","models":["m"],
+                     "fallback":["auto/canonical"]}
+                ], "groups":[{"id":"work","members":["lab/wire-name"]}]}),
+        );
+        let apply = |settings| {
+            import_magpie_backup(
+                dir.path(),
+                &file,
+                PASSPHRASE,
+                MagpieImportOptions {
+                    providers: &[],
+                    groups: &[],
+                    key_envs: &BTreeMap::new(),
+                    settings,
+                    apply: true,
+                },
+            )
+        };
+        assert!(apply(MagpieSettingsMode::Skip).is_err());
+        assert!(!dir.path().join("settings.json").exists());
+        let report = apply(MagpieSettingsMode::Include)?;
+        assert!(report.applied && report.other_sections.is_empty());
+        assert_eq!(report.providers, ["lab", "direct"]);
+        assert_eq!(report.groups, ["work"]);
+        let cfg = super::super::load(dir.path())?;
+        assert_eq!(
+            cfg.auto_stand_in("auto/canonical").as_deref(),
+            Some("lab/wire-name")
+        );
         Ok(())
     }
 }

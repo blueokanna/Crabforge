@@ -52,6 +52,13 @@ carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_A
 carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_API_KEY --apply
 ```
 
+Add `--settings` to include the gateway port, allowed browser origins and equivalent model names in the same import. Use `--settings-only` to migrate those fields on their own. The preview shows the imported values under `settings` and lists skipped settings by name in `settings.skipped_fields`. Restart the gateway to listen on the imported port at the current loopback address. A supplied origin list replaces the current list, while equivalent model names merge into the existing map. A conflicting name rejects the entire import.
+
+```powershell
+carbforge-cli import-magpie .\magpie.magpie-backup --settings-only
+carbforge-cli import-magpie .\magpie.magpie-backup --settings-only --apply
+```
+
 ## Manage client resources
 
 Open **Client connections → Project instructions** for a supported agent, then choose a project folder. Crabforge edits the Magpie-compatible Markdown block in the selected agent's file. **Restore previous version** restores the previous file after checking that the current version still matches the backup.

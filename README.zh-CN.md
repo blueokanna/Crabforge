@@ -52,6 +52,13 @@ carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_A
 carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_API_KEY --apply
 ```
 
+加 `--settings` 可同时导入网关端口、允许的浏览器来源和等价模型名。仅迁移这些设置时使用 `--settings-only`。预览在 `settings` 中显示导入值，并在 `settings.skipped_fields` 中列出跳过的字段名。重启网关后会在现有回环地址上监听导入的端口。备份中的来源列表替换现有列表，等价模型名合并到现有映射。同一模型的等价名称发生冲突时，整批导入会被拒绝。
+
+```powershell
+carbforge-cli import-magpie .\magpie.magpie-backup --settings-only
+carbforge-cli import-magpie .\magpie.magpie-backup --settings-only --apply
+```
+
 ## 管理客户端资源
 
 在「客户端连接」中选定 Agent，打开「项目指令」并选择项目文件夹。Crabforge 在 Agent 的项目文件里维护与 Magpie 兼容的 Markdown 区块。「恢复上一版本」会先检查当前文件是否与备份对应，再恢复文件。

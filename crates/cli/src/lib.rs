@@ -41,7 +41,7 @@ enum Command {
         #[command(subcommand)]
         command: Option<GroupCommand>,
     },
-    /// Preview or atomically import providers and routing groups from a sealed Magpie backup.
+    /// Preview or atomically import supported settings from a sealed Magpie backup.
     ImportMagpie {
         file: PathBuf,
         /// Select a provider by ID. Repeat to import several. Defaults to all providers.
@@ -53,6 +53,12 @@ enum Command {
         /// Read this provider's API key from the specified environment variable.
         #[arg(long = "key-env", value_parser = parse_key_env, value_name = "PROVIDER=VARIABLE")]
         key_envs: Vec<(String, String)>,
+        /// Include the gateway port, browser origins and equivalent model names from the backup.
+        #[arg(long)]
+        settings: bool,
+        /// Import those settings without loading the backup's providers or groups.
+        #[arg(long, conflicts_with_all = ["settings", "providers", "groups", "key_envs"])]
+        settings_only: bool,
         /// Save the selected settings to Crabforge's data directory in one write.
         #[arg(long)]
         apply: bool,
@@ -474,18 +480,28 @@ async fn dispatch(args: Args) -> Result<()> {
             providers,
             groups,
             key_envs,
+            settings,
+            settings_only,
             apply,
         } => {
             let key_envs = key_env_map(key_envs)?;
             let passphrase = backup_passphrase()?;
-            let report = config::import_magpie_routing(
+            let settings = match (settings, settings_only) {
+                (_, true) => config::MagpieSettingsMode::Only,
+                (true, false) => config::MagpieSettingsMode::Include,
+                (false, false) => config::MagpieSettingsMode::Skip,
+            };
+            let report = config::import_magpie_backup(
                 &dir,
                 &file,
                 &passphrase,
-                &providers,
-                &groups,
-                &key_envs,
-                apply,
+                config::MagpieImportOptions {
+                    providers: &providers,
+                    groups: &groups,
+                    key_envs: &key_envs,
+                    settings,
+                    apply,
+                },
             )?;
             println!(
                 "{}",
