@@ -1,6 +1,6 @@
 # Crabforge 0.1.0 Windows validation
 
-[简体中文](crabforge-validation.md)
+[简体中文](crabforge-validation.md) · [GitHub Actions builds and Windows desktop validation](validation/cf-windows-469e877/README.md)
 
 ## Brand assets and signing
 

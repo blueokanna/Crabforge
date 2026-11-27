@@ -188,7 +188,7 @@ Pass the full address advertised by the gateway to `carbforge-cli tunnel <addres
 
 To run the Windows x64 ZIP, extract the full archive and launch `desktop\crabforge.exe`. The two CLI executables are at the archive root. The target computer requires the x64 Microsoft Visual C++ v14 Redistributable. [Microsoft runtime download](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
 
-The Windows x64 `688ea1a` snapshot is `crabforge-0.1.0-windows-x64.zip`. Its 671 file hashes were verified inside the ZIP and after extraction. The unpacked desktop passed a TAR round trip through the Windows Save and Open dialogs. The unpacked CLI returned the first complete SSE event in 12, 8 and 2 ms across three localhost trials with a 700 ms delay before the final upstream event. [Release metadata](docs/validation/cf-windows-688ea1a/snapshot.csv) · [Windows validation](docs/crabforge-validation.en.md)
+GitHub Actions builds the Windows x64 desktop and both CLI executables. Each successful run uploads `crabforge-windows-x64-ci.zip` as an unsigned CI artifact. The signed release workflow builds from the release commit and publishes the package after Authenticode verification. [Windows builds](https://github.com/blueokanna/Crabforge/actions/workflows/windows-build.yml) · [Release guide](docs/windows-release.en.md) · [Build and desktop validation](docs/validation/cf-windows-469e877/README.md)
 
 Install the Rust MSVC toolchain, Flutter and the Visual Studio Desktop development with C++ workload. The recorded Windows builds used Rust 1.99.1, Flutter 3.47.9 and Dart 3.13.7.
 

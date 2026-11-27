@@ -1,6 +1,6 @@
 # Crabforge 0.1.0 验收记录
 
-[English](crabforge-validation.en.md)
+[English](crabforge-validation.en.md) · [GitHub Actions 构建与 Windows 桌面验收](validation/cf-windows-469e877/README.md)
 
 ### 品牌资产和签名
 

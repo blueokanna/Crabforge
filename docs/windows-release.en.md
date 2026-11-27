@@ -20,7 +20,29 @@ Use a code-signing certificate whose chain validates under the Windows Authentic
 
 Keep `Cargo.toml`, `gui/pubspec.yaml`, and `assets/pubspec.yaml` on the same product version. Run **Signed Windows release** from `main` or push the matching tag. Flutter `0.1.0+1` maps to `v0.1.0`. A higher Flutter build number is included in the tag, as in `v0.1.0+2`. A published release is write-once.
 
-Download the ZIP and its `.sha256` file from [GitHub Releases](https://github.com/blueokanna/Crabforge/releases). Compare the result of `Get-FileHash -Algorithm SHA256 <downloaded.zip>` with the published hash. Extract the ZIP and launch `desktop/crabforge.exe`. Keep its neighboring DLLs and `data` directory together. The two CLI executables are at the archive root.
+Download the ZIP and its `.sha256` file. Compare the result of `Get-FileHash -Algorithm SHA256 <downloaded.zip>` with the published hash. Extract the verified ZIP and run the checks below from its root. The signature output shows each publisher and timestamp certificate. [GitHub Releases](https://github.com/blueokanna/Crabforge/releases)
+
+```powershell
+$manifest = @(Get-Content -LiteralPath SHA256SUMS -Encoding UTF8 -ErrorAction Stop)
+if (!$manifest.Count) { throw 'SHA256SUMS is empty' }
+foreach ($entry in $manifest) {
+    $expected, $file = $entry -split '  ', 2
+    if ((Get-FileHash -LiteralPath $file -Algorithm SHA256 -ErrorAction Stop).Hash -ne $expected) {
+        throw "SHA-256 mismatch for $file"
+    }
+}
+
+$binaries = Get-ChildItem -Recurse -File -Force | Where-Object Extension -In '.exe', '.dll'
+foreach ($binary in $binaries) {
+    $signature = Get-AuthenticodeSignature -LiteralPath $binary.FullName
+    if ($signature.Status -ne 'Valid' -or !$signature.TimeStamperCertificate) {
+        throw "Invalid signature or missing timestamp for $($binary.FullName)"
+    }
+    $signature | Select-Object Path, Status, SignerCertificate, TimeStamperCertificate
+}
+```
+
+Launch `desktop/crabforge.exe` with its neighboring DLLs and `data` directory in place. The two CLI executables are at the archive root.
 
 The desktop and CLI require the Microsoft Visual C++ x64 runtime. Install the current redistributable on a Windows PC that does not already have it. [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
 

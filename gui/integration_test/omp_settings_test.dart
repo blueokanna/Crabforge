@@ -1,10 +1,9 @@
-import 'package:crabforge/material_symbols.dart';
-
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:crabforge/l10n/app_localizations.dart';
-import 'package:crabforge/main.dart' as app;
+import 'package:crabforge/main.dart';
+import 'package:crabforge/material_symbols.dart';
 import 'package:crabforge/src/rust/api.dart' as api;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,7 +27,17 @@ void main() {
     final dispatcher = tester.binding.platformDispatcher;
     dispatcher.localesTestValue = [const Locale('zh')];
     addTearDown(dispatcher.clearLocalesTestValue);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 900);
     final s = lookupAppLocalizations(const Locale('zh'));
+    Future<void> settle() => tester.pumpAndSettle(
+      const Duration(milliseconds: 50),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 8),
+    );
+
     Future<void> waitFor(Finder finder) async {
       final until = DateTime.now().add(const Duration(seconds: 45));
       while (finder.evaluate().isEmpty && DateTime.now().isBefore(until)) {
@@ -42,7 +51,7 @@ void main() {
       await tester.ensureVisible(finder.last);
       await waitFor(finder.hitTestable());
       await tester.tap(finder.hitTestable().last);
-      await tester.pumpAndSettle();
+      await settle();
     }
 
     final profile = Directory('$home/omp/profiles/work/agent');
@@ -62,8 +71,9 @@ void main() {
         }),
       );
     }
-    app.main();
+    await tester.pumpWidget(const CrabforgeApp());
     await waitFor(find.text(s.addProvider));
+    if (restart) expect(await api.uiLayout(), 'grid');
     await tap(find.text(s.clients));
     final menu = find.byType(DropdownMenu<String>);
     final input = find.descendant(
@@ -72,7 +82,7 @@ void main() {
     );
     await tester.tap(input);
     await tester.enterText(input, 'omp');
-    await tester.pumpAndSettle();
+    await settle();
     await tap(find.widgetWithText(MenuItemButton, 'omp'));
     Future<void> open({bool thinking = false}) async {
       final label = find.text(thinking ? s.thinkingLevels : s.advisorSettings);

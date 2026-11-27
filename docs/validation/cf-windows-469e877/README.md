@@ -10,14 +10,20 @@
 - 下载件的哈希与 GitHub API 一致。解压后两个 CLI 都报告 `0.1.0`，输出完全相同的 97 项预设。六个 PE 文件的 Authenticode 状态为 `NotSigned`。
 - The downloaded artifact matched GitHub's digest. Both unpacked CLIs reported `0.1.0` and returned the same 97 preset records. All six PE files showed `NotSigned` under Authenticode.
 
-后续两次 Windows x64 构建均通过，下载件的大小和 SHA-256 均与 GitHub 一致。两个包各含 311 个 Rust 许可目录和补录正文。解压后，两种 CLI 入口都返回相同的 97 项预设。
+下表的 Windows x64 构建均通过，下载件的大小和 SHA-256 均与 GitHub 一致。每个包均含 311 个 Rust 许可目录和补录正文。解压后，两种 CLI 入口都返回相同的 97 项预设。
 
-Both follow-up Windows x64 builds passed. The downloaded ZIP sizes and SHA-256 digests matched GitHub. Each package contains 311 Rust license directories and the supplemental texts. Both unpacked CLI entry points returned the same 97 presets.
+The Windows x64 builds below passed. The downloaded ZIP sizes and SHA-256 digests matched GitHub. Each package contains 311 Rust license directories and the supplemental texts. Both unpacked CLI entry points returned the same 97 presets.
 
 | 源码 / Source | ZIP bytes | ZIP SHA-256 | GitHub Actions |
 | --- | ---: | --- | --- |
 | `ba09164c4a2265462ef736d64722f1b20b085206` | 65,007,925 | `E2499BD9C1C9052497A41BAA8A30C6241F95B5F418403A5E5273A69A267EC423` | [Run 45952941977](https://github.com/blueokanna/Crabforge/actions/runs/45952941977) · [Artifact 15179225625](https://github.com/blueokanna/Crabforge/actions/runs/45952941977/artifacts/15179225625) |
 | `99c87e1449f7990fa348646f6724520330be7921` | 65,007,919 | `A414C719C0AD97F66EA7D71DB4BFD52D5BB6939AAEA5D6E402DF6508F8B3A1DA` | [Run 45954001089](https://github.com/blueokanna/Crabforge/actions/runs/45954001089) · [Artifact 15178467899](https://github.com/blueokanna/Crabforge/actions/runs/45954001089/artifacts/15178467899) |
+| `26acbe6ac39bd140580d74762c4182ce64a21f46` | 65,008,011 | `0582F62878FF1DF612B206B7188E6B344B3DB6F6E20966ADE9F8A0D688B1C25C` | [Run 45955859685](https://github.com/blueokanna/Crabforge/actions/runs/45955859685) · [Artifact 15179309529](https://github.com/blueokanna/Crabforge/actions/runs/45955859685/artifacts/15179309529) |
+| `6191cfd264c031e5cd4ed01c48b9a77ccc5560bf` | 65,009,120 | `A3E090CFA94A8841CEE7B35146F7DCEC4CAAAB0984474C1BEB5ECE94E2BE59AF` | [Run 45958239454](https://github.com/blueokanna/Crabforge/actions/runs/45958239454) · [Artifact 15180043889](https://github.com/blueokanna/Crabforge/actions/runs/45958239454/artifacts/15180043889) |
+
+`26acbe6` 和 `6191cfd` 的每个包均含 668 个文件，与解压后的 SHA-256 逐项一致。两个 CLI 均报告 `0.1.0`，六个 Windows PE 的 Authenticode 状态均为 `NotSigned`。产品 PNG、三套文字字体和图标字体通过字节核对。Rust 补录许可正文的 SHA-256 为 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`。
+
+All 668 archive entries in each package from `26acbe6` and `6191cfd` matched their extracted file hashes. Both CLI executables reported `0.1.0`, and all six Windows PE files reported `NotSigned` under Authenticode. The product PNG, three text fonts and icon font passed byte verification. The supplemental Rust license texts had SHA-256 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`.
 
 RustSec 使用 `cargo-audit 0.23.0` 和公告库提交 `c9f6c91a44dbad9d71742329e9df061279f9c4be` 扫描该锁文件，发现零项已知漏洞和一项停止维护提示。`paste 1.0.15` 由 `if-watch` 的非 Windows netlink 依赖链引入，在 Windows x64 的全特性启用图中未出现。
 
@@ -35,9 +41,9 @@ The fixture used two loopback providers and one route group. The Windows integra
 
 [Light 1200](light-1200.jpg) · [Light 560](light-560.jpg) · [Dark 1200](dark-1200.jpg) · [Dark 560](dark-560.jpg) · [48 original PNGs](captures.zip) · [PNG checksums](captures.sha256)
 
-GitHub Actions 的 Release 构建中，三套文字字体和产品 PNG 均与原件逐字节一致。包内的 Material Symbols Rounded 裁剪版为 229,580 字节，包含应用引用的 82 个唯一图标码点和 `FILL`、`GRAD`、`opsz`、`wght` 四条可变轴。
+GitHub Actions 的 Release 构建中，三套文字字体和产品 PNG 均与原件逐字节一致。两套主字体均覆盖英语译文用到的 47 个拉丁字母，简体中文译文中的 388 个汉字均由 HarmonyOS Sans SC 提供。包内的 Material Symbols Rounded 裁剪版为 229,580 字节，包含应用引用的 82 个唯一图标码点和 `FILL`、`GRAD`、`opsz`、`wght` 四条可变轴。
 
-The three text fonts and the product PNG in the GitHub build match their source files byte for byte. The bundled Material Symbols Rounded subset is 229,580 bytes and retains all 82 distinct icon codepoints used by the app and the `FILL`, `GRAD`, `opsz`, and `wght` axes. [Font source manifest](../../../assets/fonts/manifest.json)
+The three text fonts and the product PNG in the GitHub build match their source files byte for byte. Both primary fonts cover the 47 Latin letters used in the English locale. HarmonyOS Sans SC supplies all 388 Han characters in the Simplified Chinese locale. The bundled Material Symbols Rounded subset is 229,580 bytes and retains all 82 distinct icon codepoints used by the app and the `FILL`, `GRAD`, `opsz`, and `wght` axes. [Font source manifest](../../../assets/fonts/manifest.json)
 
 在解压后的 CI Release 桌面中，Windows Graphics Capture 记录了 24 次导航操作。从点击到首个窗口内容变化，中位数为 62.306 ms，范围为 55.134–89.929 ms。[原始帧记录](window-capture-frames.csv)
 
@@ -59,6 +65,10 @@ The environment variable, Hooks and native Claude Code plugin cases also passed.
 
 The project MCP rerun edited a native server configuration before removing its library entry. Both layouts showed the retained entry, and the project configuration matched the manually edited bytes. [Project MCP test](../../../gui/integration_test/project_mcp_test.dart)
 
+Oh My Pi 19.2.1 配合 Bun 1.4.5，在独立 `work` 配置中保存了 Advisor、思考级别、模型角色和协议。冷启动首轮在 MSBuild 退出，重跑一度停在桌面测试中。将测试窗口设为 1,280 × 900 逻辑像素并限定动画等待后，在新的隔离配置上连续跑通首次设置和独立冷启动。新进程读回了网格布局及保存值，也通过了角色和协议恢复检查。
+
+Oh My Pi 19.2.1 with Bun 1.4.5 saved advisor, thinking, role model and protocol settings in an isolated `work` profile. The first cold-start attempt stopped in MSBuild and the next timed out during the desktop test. With a 1,280 × 900 logical-pixel test viewport and bounded animation waits, the first-use and cold-start tests both passed on a fresh profile. The new process restored the grid and saved values, and passed the role and protocol reset checks. [Oh My Pi test](../../../gui/integration_test/omp_settings_test.dart)
+
 ## 内存、流式请求和 P2P / Memory, streaming, and P2P
 
 使用解压的 CI 产物，每个内存场景测三轮。下表为工作集／私有字节中位数，单位为 MiB。Magpie 的桌面结果包括 WebView2 子进程。
@@ -77,6 +87,26 @@ The unpacked CI artifact ran three rounds per memory workload. The table reports
 
 The loopback SSE fixture delayed the final event by approximately 700 ms. First events arrived at 11, 5, and 17 ms. The streams ended at 730, 719, and 720 ms. Same-host tests over IPv6 loopback, an assigned global IPv6 address, and Kubo 0.43.1 Circuit Relay v2 after a failed direct QUIC dial all returned 401 without authorization and 200 with authorization. Tests across public hosts and separate NATs remain outstanding. [Streaming samples](forward-h1.csv) · [IPv6 samples](ipv6.csv)
 
+`6191cfd` 在同一台 Windows 主机上通过了四项 P2P 回归。Kubo 0.43.1 与 Rust 节点双向传输鉴权请求，两项 IPv6 中继测试覆盖预约和直连失败后的回退，DCUtR 测试停止中继后仍能经直连发起新请求。
+
+`6191cfd` passed four P2P regression cases on one Windows host. Kubo 0.43.1 and the Rust peer exchanged authenticated requests in both directions. Two IPv6 relay cases verified reservation and fallback after a failed direct dial. The DCUtR case sent a new request over the upgraded direct connection after shutting down the relay. [Kubo test](../../../crates/core/tests/kubo.rs) · [Relay tests](../../../crates/core/tests/relay.rs) · [DCUtR test](../../../crates/core/src/peer/tests.rs)
+
+同一源码还通过了四项外部夹具测试。llama.cpp `b12722` 加载 `SmolLM2-135M-Instruct-Q4_K_M.gguf`，六个协议入口均取得实际模型输出，Ollama Python SDK `0.6.3` 成功列出模型并读取流式 token。Magpie `0.1.4936` 使用隔离配置通过两项 QUIC 测试，分别转发固定上游回复和本地模型推理结果。
+
+The same source passed four additional fixture tests. llama.cpp `b12722` loaded `SmolLM2-135M-Instruct-Q4_K_M.gguf`, and six protocol entry points returned model output. The official Ollama Python SDK `0.6.3` listed models and read streamed tokens. Two QUIC tests with Magpie `0.1.4936` in an isolated profile passed, one forwarding a fixed upstream response and one generating output from local weights. [llama.cpp tests](../../../crates/core/tests/llama.rs) · [Magpie tests](../../../crates/cli/tests/magpie.rs)
+
+`26acbe6` 的解压 CLI 用独立数据目录连接本机 HTTP 夹具。`models lab --sync` 刷新了 `free:lab/*` 路由组，Magpie 兼容 JSON 导入第二个目录后按其本地目录解析同一规则。嵌入请求在首选上游返回 429 后，经嵌套手选组一次回退取得 200。图像编辑、音频转录和翻译均返回 200。上游核对了改写后的模型 ID、文件名和原始二进制字段。
+
+The unpacked CLI from `26acbe6` used an isolated profile and a loopback HTTP fixture. `models lab --sync` refreshed the `free:lab/*` route group. Importing the Magpie-compatible JSON into a second profile resolved the same rule against its local catalog. An embeddings request received 429 from its primary upstream and then 200 on one fallback through a nested manual group. Image edits, audio transcriptions, and audio translations all returned 200. The upstream fixture checked the rewritten model ID, the filename, and the unchanged binary bytes. [Routing tests](../../../crates/cli/tests/groups.rs) · [Multipart tests](../../../crates/core/tests/media.rs)
+
+Magpie `0.1.4936` 与 `26acbe6` 的解压 CLI 在独立配置间实际往返导入一个加权组。往返生成的 JSON 一致，保留成员顺序、备注和权重。含自动推理级别分类器的 Magpie 导出被明确拒绝，接收方设置逐字节保持原样。整库备份恢复和分类器执行仍待移植。
+
+Magpie `0.1.4936` and the unpacked CLI from `26acbe6` exchanged a weighted group between isolated profiles. The re-exported JSON matched the original and preserved member order, the note and weights. Crabforge rejected a native export with automatic effort classification and left the receiver's settings byte for byte intact. Full backup restore and classifier execution remain migration gaps. [Routing group import](../../../crates/core/src/config/groups/share.rs)
+
+同一包的 `mcp memory` 通过独立进程的标准输入输出完成 `2025-11-25` 协议协商、工具枚举、项目隔离和保存去重。第二项目不能归档第一项目的记录。MCP 拒绝改写 CLI 创建的记忆。客户端归档记录后，CLI 以当前修订恢复成功，再用旧修订提交时被拒绝。恢复的记录在新 MCP 进程中可检索。
+
+The same package's `mcp memory` negotiated protocol `2025-11-25` over stdio, listed its tools, isolated projects and deduplicated saves. A process scoped to the second project could not archive a record from the first. MCP rejected a change to a record created by the CLI. After the client archived a record, the CLI restored it with the current revision and rejected a subsequent edit with the old revision. A new MCP process found the restored record. [Memory MCP tests](../../../crates/core/src/memory/mcp.rs)
+
 ## 签名与许可 / Signing and licenses
 
 本地隔离测试使用临时自签名证书。SignTool 添加了 RFC 3161 时间戳，随后因证书链不受信任拒绝该文件。签名脚本清除了临时密钥，发布目录未创建。正式发布需要受信任的发布者密钥。
@@ -86,6 +116,10 @@ An isolated local test used a temporary self-signed certificate. SignTool applie
 GitHub 发布试跑以 `ba09164c4a2265462ef736d64722f1b20b085206` 为源。`identify` 和 `build` 成功，`sign` 下载并校验 CI 包后报告三项签名设置缺失，`publish` 跳过。仓库 Release 列表为零条。
 
 The GitHub release trial used source `ba09164c4a2265462ef736d64722f1b20b085206`. `identify` and `build` passed. `sign` downloaded and verified the CI archive, then reported that the three signing settings were missing. `publish` was skipped, and the repository had zero release entries. [Release trial 45952988583](https://github.com/blueokanna/Crabforge/actions/runs/45952988583) · [Signing job 140361568621](https://github.com/blueokanna/Crabforge/actions/runs/45952988583/job/140361568621)
+
+双语发布指南的 PowerShell 示例通过了本地验证。有效时间戳签名和 UTF-8 路径可正确核对，空清单、缺失清单、篡改文件及未签名的 CI 二进制均被拒绝。
+
+The bilingual release guides' PowerShell example verified a timestamped signature and a UTF-8 file path. It rejected missing and empty manifests, a modified file and an unsigned CI executable. [中文发布指南](../../windows-release.md) · [English release guide](../../windows-release.en.md)
 
 CI 归档中有 311 个 Rust 许可目录。后续打包脚本为 28 个 crate 加入对应上游提交的许可正文。`base256emoji`、`base45`、`futures-bounded`、`if-watch`、`match-lookup`、`no-proxy` 和 `yaml-edit` 在对应提交的包目录至仓库根目录中只有 Cargo 许可声明可供归档。
 

@@ -188,7 +188,7 @@ carbforge-cli project-mcp library sync
 
 运行 Windows x64 版时，先完整解压 ZIP，再启动 `desktop\crabforge.exe`。两个 CLI 入口位于解压根目录。目标计算机需要安装 x64 版 Microsoft Visual C++ v14 可再发行组件。[微软运行库下载](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
 
-Windows x64 `688ea1a` 冻结包为 `crabforge-0.1.0-windows-x64.zip`，包内及解压后共逐项核对 671 个文件哈希。解压版桌面通过 Windows 原生保存和打开对话框完成 TAR 往返。本机上游将 SSE 末事件延后 700 毫秒，解压版 CLI 三轮的首个完整事件分别在 12、8、2 毫秒到达。[发布信息](docs/validation/cf-windows-688ea1a/snapshot.csv) · [Windows 验收记录](docs/crabforge-validation.md)
+GitHub Actions 构建 Windows x64 桌面和两个 CLI。成功的构建上传未签名的 `crabforge-windows-x64-ci.zip`。签名发布工作流从发行提交构建，并在通过 Authenticode 验证后公开发布包。[Windows 构建](https://github.com/blueokanna/Crabforge/actions/workflows/windows-build.yml) · [发布指南](docs/windows-release.md) · [构建与桌面验收](docs/validation/cf-windows-469e877/README.md)
 
 安装 Rust 的 MSVC 工具链、Flutter 和 Visual Studio 的「使用 C++ 的桌面开发」工作负载。已记录的构建环境为 Rust 1.99.1、Flutter 3.47.9 和 Dart 3.13.7。
 

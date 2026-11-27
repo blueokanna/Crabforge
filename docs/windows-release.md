@@ -20,7 +20,29 @@
 
 同步 `Cargo.toml`、`gui/pubspec.yaml` 和 `assets/pubspec.yaml` 中的产品版本。在 `main` 手动运行 **Signed Windows release**，或推送匹配标签。Flutter `0.1.0+1` 对应 `v0.1.0`，更高构建号会保留在标签中，例如 `v0.1.0+2`。已经公开的版本不可覆盖。
 
-从 [GitHub Releases](https://github.com/blueokanna/Crabforge/releases)下载 ZIP 和 `.sha256`。使用 `Get-FileHash -Algorithm SHA256 <下载的ZIP>` 核对摘要。解压后运行 `desktop/crabforge.exe`，保持同目录的 DLL 和 `data` 目录完整。两个 CLI 位于解压根目录。
+下载 ZIP 和 `.sha256`。使用 `Get-FileHash -Algorithm SHA256 <下载的ZIP>` 核对发布摘要。校验后解压，在解压根目录执行下列命令。签名输出列出各二进制文件的发布者和时间戳证书。[GitHub Releases](https://github.com/blueokanna/Crabforge/releases)
+
+```powershell
+$manifest = @(Get-Content -LiteralPath SHA256SUMS -Encoding UTF8 -ErrorAction Stop)
+if (!$manifest.Count) { throw 'SHA256SUMS is empty' }
+foreach ($entry in $manifest) {
+    $expected, $file = $entry -split '  ', 2
+    if ((Get-FileHash -LiteralPath $file -Algorithm SHA256 -ErrorAction Stop).Hash -ne $expected) {
+        throw "SHA-256 mismatch for $file"
+    }
+}
+
+$binaries = Get-ChildItem -Recurse -File -Force | Where-Object Extension -In '.exe', '.dll'
+foreach ($binary in $binaries) {
+    $signature = Get-AuthenticodeSignature -LiteralPath $binary.FullName
+    if ($signature.Status -ne 'Valid' -or !$signature.TimeStamperCertificate) {
+        throw "Invalid signature or missing timestamp for $($binary.FullName)"
+    }
+    $signature | Select-Object Path, Status, SignerCertificate, TimeStamperCertificate
+}
+```
+
+运行 `desktop/crabforge.exe`，保持同目录的 DLL 和 `data` 目录完整。两个 CLI 位于解压根目录。
 
 桌面和 CLI 需要 Microsoft Visual C++ x64 运行库。若 Windows 尚未安装，请安装当前版本。[Microsoft Visual C++ Redistributable](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)
 
