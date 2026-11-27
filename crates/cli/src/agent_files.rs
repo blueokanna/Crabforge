@@ -1,9 +1,9 @@
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use clap::Subcommand;
 use crabforge_core::agent_files::{self, Edit, Entry, ImportRequest, Kind, ProjectAssignment};
 use std::{
     io::{self, Read},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 #[derive(Subcommand)]
@@ -16,6 +16,16 @@ pub(super) enum Command {
     ProbeSource { source: String },
     /// Import selected resource files from a preview request read as UTF-8 JSON.
     ImportSource,
+    /// Preview or restore user library definitions from an encrypted Magpie backup.
+    ImportMagpie {
+        file: PathBuf,
+        /// Repeat to select several names. The default selects the whole section.
+        #[arg(long = "name")]
+        names: Vec<String>,
+        /// Save the definitions to Crabforge's library.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Set a shared subagent's clients in a project. Omit --agent to withdraw it.
     Assign {
         name: String,
@@ -57,6 +67,19 @@ pub(super) fn run(dir: &Path, kind: Kind, project: Option<&Path>, command: Comma
         Command::ImportSource => Edit::ImportSource {
             request: ImportRequest::from_json(&document()?)?,
         },
+        Command::ImportMagpie { file, names, apply } => {
+            ensure!(
+                project.is_none(),
+                "import Magpie resources into the user library"
+            );
+            let passphrase = super::backup_passphrase()?;
+            let report = agent_files::import_magpie(dir, kind, &file, &passphrase, &names, apply)?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+            );
+            return Ok(());
+        }
         Command::Assign {
             name,
             revision,

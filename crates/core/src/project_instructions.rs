@@ -197,7 +197,9 @@ fn agent_target(agent: &str) -> Result<PathBuf> {
     let names: &[&str] = match agent {
         NativeAgent::Claude => &["CLAUDE.md"],
         NativeAgent::Codex => &["AGENTS.override.md", "AGENTS.md"],
-        NativeAgent::Pi => anyhow::bail!("user instructions support Claude Code and Codex"),
+        NativeAgent::Gemini | NativeAgent::Pi => {
+            anyhow::bail!("user instructions support Claude Code and Codex")
+        }
     };
     let root = agent
         .home()

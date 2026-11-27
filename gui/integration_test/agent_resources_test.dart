@@ -92,6 +92,22 @@ void main() {
         'message': {'role': 'user', 'content': 'Pi session fixture'},
       })}\n',
     );
+    final geminiProject = Directory(
+      '${home.path}/agents/gemini/.gemini/tmp/fixture',
+    );
+    final geminiLog = File('${geminiProject.path}/chats/session-fixture.jsonl');
+    geminiLog.parent.createSync(recursive: true);
+    File('${geminiProject.path}/.project_root')
+        .writeAsStringSync(home.absolute.path);
+    geminiLog.writeAsStringSync(
+      '${jsonEncode({'sessionId': 'gemini-fixture-id', 'projectHash': 'fixture'})}\n${jsonEncode({
+        'id': 'gemini-user-entry',
+        'type': 'user',
+        'content': [
+          {'text': 'Gemini session fixture'},
+        ],
+      })}\n',
+    );
     File('${home.path}/settings.json').writeAsStringSync(
       jsonEncode({
         'listen': '127.0.0.1:0',
@@ -176,6 +192,28 @@ void main() {
         of: find.byType(AlertDialog),
         matching: find.text('Pi session fixture'),
       ),
+      findsOneWidget,
+    );
+    expect(requests, isEmpty);
+    await tester.tap(find.text(strings.cancel));
+    await tester.pumpAndSettle();
+    await tester.tap(filter);
+    await tester.pumpAndSettle();
+    final geminiFilter = find.descendant(
+      of: find.byType(DropdownMenuItem<String>),
+      matching: find.text('Gemini CLI'),
+    );
+    await tester.tap(geminiFilter.hitTestable());
+    final geminiTitle = find.text('Gemini session fixture');
+    await waitFor(geminiTitle);
+    expect(tester.widget<DropdownButton<String>>(filter).value, 'gemini');
+    expect(piTitle, findsNothing);
+    await tester.tap(geminiTitle);
+    await waitFor(find.text('gemini-fixture-id'));
+    await tester.tap(find.text(strings.distillTitle));
+    await waitFor(find.text(strings.distillPreview));
+    expect(
+      find.descendant(of: find.byType(AlertDialog), matching: geminiTitle),
       findsOneWidget,
     );
     expect(requests, isEmpty);

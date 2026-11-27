@@ -137,7 +137,7 @@ enum Command {
         #[command(subcommand)]
         command: plugin_bundles::Command,
     },
-    /// Discover recent local Claude Code, Codex and Pi sessions.
+    /// Discover recent local Claude Code, Codex, Gemini CLI and Pi sessions.
     Sessions {
         #[arg(long, value_enum)]
         agent: Option<SessionAgent>,
@@ -250,6 +250,7 @@ enum Command {
 enum SessionAgent {
     Claude,
     Codex,
+    Gemini,
     Pi,
 }
 
@@ -258,6 +259,7 @@ impl From<SessionAgent> for crabforge_core::agents::NativeAgent {
         match agent {
             SessionAgent::Claude => Self::Claude,
             SessionAgent::Codex => Self::Codex,
+            SessionAgent::Gemini => Self::Gemini,
             SessionAgent::Pi => Self::Pi,
         }
     }

@@ -1,9 +1,11 @@
 mod discovery;
 mod import;
+mod magpie;
 mod native;
 mod shared;
 pub use import::Request as ImportRequest;
 pub(crate) use import::bundle_entry;
+pub use magpie::import_magpie;
 pub use shared::Assignment as ProjectAssignment;
 
 use crate::{config::read_limited, native_settings, project_instructions::replace};
@@ -281,12 +283,17 @@ impl Store {
         }
     }
 
-    fn persist(&self, path: &Path) -> Result<()> {
+    fn contents(&self) -> Result<String> {
         let contents = encode(self)?;
         ensure!(
             contents.len() <= MAX_LIBRARY,
             "agent resource library exceeds 16 MiB"
         );
+        Ok(contents)
+    }
+
+    fn persist(&self, path: &Path) -> Result<()> {
+        let contents = self.contents()?;
         fs::create_dir_all(path.parent().context("missing library directory")?)?;
         replace(path, &contents)
     }

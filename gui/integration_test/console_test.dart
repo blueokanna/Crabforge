@@ -178,7 +178,11 @@ void main() {
       final finder = matches.last;
       await tester.ensureVisible(finder);
       await tester.tap(finder);
-      await tester.pumpAndSettle();
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
     }
 
     app.main();
@@ -626,28 +630,32 @@ void main() {
       listed.map((row) => row['id']),
       isNot(contains('group/renamed-copy')),
     );
-    final req = await http.postUrl(
-      Uri.parse('http://${status['address']}/agent/codex/v1/chat/completions'),
-    );
-    req.headers.set('Authorization', 'Bearer ${await native.gatewayKey()}');
-    req.headers.set('session_id', 'desktop-test-session');
-    req.headers.set('Origin', 'https://client.example');
-    req.write(
-      jsonEncode({
-        'model': 'group/parent',
-        'messages': [
-          {'role': 'user', 'content': 'hello'},
-        ],
-      }),
-    );
-    final resp = await req.close();
-    expect(resp.statusCode, 200);
-    expect(
-      resp.headers.value('access-control-allow-origin'),
-      'https://client.example',
-    );
-    expect(resp.headers.value('x-magpie-session'), 'desktop-test-session');
-    expect(await utf8.decoder.bind(resp).join(), contains('desktop reply'));
+    Future<void> requestParent(String address, String session) async {
+      final req = await http.postUrl(
+        Uri.parse('http://$address/agent/codex/v1/chat/completions'),
+      );
+      req.headers.set('Authorization', 'Bearer ${await native.gatewayKey()}');
+      req.headers.set('session_id', session);
+      req.headers.set('Origin', 'https://client.example');
+      req.write(
+        jsonEncode({
+          'model': 'group/parent',
+          'messages': [
+            {'role': 'user', 'content': 'hello'},
+          ],
+        }),
+      );
+      final resp = await req.close();
+      expect(resp.statusCode, 200);
+      expect(
+        resp.headers.value('access-control-allow-origin'),
+        'https://client.example',
+      );
+      expect(resp.headers.value('x-magpie-session'), session);
+      expect(await utf8.decoder.bind(resp).join(), contains('desktop reply'));
+    }
+
+    await requestParent(status['address'] as String, 'desktop-test-session');
     await tapText('路由');
     await waitFor(find.text('group/parent → group/renamed → local'));
     expect(find.textContaining('Codex'), findsOneWidget);
@@ -688,8 +696,10 @@ void main() {
       jsonDecode(settings.readAsStringSync())['group_last_picks']['parent'],
       'group/renamed',
     );
-    await tester.tap(parentCard);
-    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(of: parentCard, matching: find.text('group/parent')),
+    );
+    await waitFor(find.text(zh.editGroup));
     await tapText(zh.rotateMembers);
     await tapText(zh.manualRouting);
     await tapText(zh.save);
@@ -699,6 +709,21 @@ void main() {
       ),
     );
     await tapText('网关');
+    await tapText('启动网关');
+    await waitFor(find.text('停止网关'));
+    final restarted = jsonDecode(await native.status());
+    await requestParent(
+      restarted['address'] as String,
+      'desktop-restored-pick',
+    );
+    await tapText('路由');
+    await waitFor(find.text('group/parent → group/renamed → local'));
+    await waitFor(
+      find.textContaining(zh.routeSession('desktop-restored-pick')),
+    );
+    await tapText('网关');
+    await tapText('停止网关');
+    await waitFor(find.text('启动网关'));
 
     final remote = Directory('$path/peer')..createSync();
     File('${remote.path}/settings.json').writeAsStringSync(

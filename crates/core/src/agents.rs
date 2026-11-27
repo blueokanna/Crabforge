@@ -112,6 +112,7 @@ pub mod omp_profiles;
 pub enum NativeAgent {
     Claude,
     Codex,
+    Gemini,
     Pi,
 }
 
@@ -120,6 +121,7 @@ impl NativeAgent {
         match id {
             "claude" => Some(Self::Claude),
             "codex" => Some(Self::Codex),
+            "gemini" => Some(Self::Gemini),
             "pi" => Some(Self::Pi),
             _ => None,
         }
@@ -129,6 +131,7 @@ impl NativeAgent {
         match self {
             Self::Claude => "claude",
             Self::Codex => "codex",
+            Self::Gemini => "gemini",
             Self::Pi => "pi",
         }
     }
@@ -136,14 +139,22 @@ impl NativeAgent {
     pub(crate) fn home(self) -> Option<std::path::PathBuf> {
         use std::{env, path::PathBuf};
 
-        let (key, folder) = match self {
-            Self::Claude => ("CLAUDE_CONFIG_DIR", ".claude"),
-            Self::Codex => ("CODEX_HOME", ".codex"),
-            Self::Pi => ("PI_CODING_AGENT_DIR", ".pi/agent"),
+        let (key, folder, relative_to_home) = match self {
+            Self::Claude => ("CLAUDE_CONFIG_DIR", ".claude", false),
+            Self::Codex => ("CODEX_HOME", ".codex", false),
+            Self::Gemini => ("GEMINI_CLI_HOME", ".gemini", true),
+            Self::Pi => ("PI_CODING_AGENT_DIR", ".pi/agent", false),
         };
         env::var_os(key)
             .filter(|path| !path.is_empty())
             .map(PathBuf::from)
+            .map(|path| {
+                if relative_to_home {
+                    path.join(folder)
+                } else {
+                    path
+                }
+            })
             .or_else(|| env::home_dir().map(|home| home.join(folder)))
     }
 }

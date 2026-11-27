@@ -18,6 +18,13 @@ const PROJECT_SUBAGENTS: &[&str] = &[
     "claude", "codex", "opencode", "gemini", "qwen", "droid", "cursor", "copilot", "agy",
 ];
 
+pub(super) fn user_agents(kind: Kind) -> &'static [&'static str] {
+    match kind {
+        Kind::Subagent => SUBAGENTS,
+        Kind::Command => COMMANDS,
+    }
+}
+
 pub(super) struct Profiles {
     pub(super) kind: Kind,
     pub(super) agents: &'static [&'static str],
@@ -104,14 +111,9 @@ impl Profiles {
                 ],
             ),
         ]);
-        let agents = if kind == Kind::Subagent {
-            SUBAGENTS
-        } else {
-            COMMANDS
-        };
         Ok(Self {
             kind,
-            agents,
+            agents: user_agents(kind),
             homes,
             project_scope: false,
         })
@@ -282,7 +284,7 @@ fn subagent(agent: &str, entry: &Entry) -> Result<String> {
 
 static POSITIONAL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\$[0-9]+").unwrap());
 
-fn command(agent: &str, toml: bool, entry: &Entry) -> Result<String> {
+pub(super) fn command(agent: &str, toml: bool, entry: &Entry) -> Result<String> {
     let mut prompt = body(&entry.prompt);
     let positions = POSITIONAL.find_iter(&prompt).filter(|token| {
         prompt.as_bytes()[..token.start()]

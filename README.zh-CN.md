@@ -91,13 +91,15 @@ carbforge-cli memory publish D:\Projects\app codex
 
 要让 Agent 搜索和保存记忆，在客户端添加本地 stdio MCP 服务，命令使用 `carbforge-cli.exe` 的完整路径，参数为 `mcp memory --agent <Agent ID> --project <文件夹>`。也可将 `--project <文件夹>` 换成 `--project-key <项目键>`。使用自定义数据目录时，为客户端设置相同的 `CRABFORGE_HOME`。`memory_search` 搜索可用范围内的有效记忆，`memory_save` 创建记录或更新 Agent 写入的记忆，`memory_forget` 归档可见记录，`memory_context` 显示适用范围。直接运行 `mcp memory` 时仅开放全局记忆。
 
-打开 **客户端连接 → 本地会话**可浏览最近最多 50 个 Claude Code、Codex 和 Pi 会话、按 Agent 筛选并复制会话 ID。运行 `carbforge-cli sessions --limit 50` 可输出 JSON，使用 `--agent claude`、`--agent codex` 或 `--agent pi` 筛选。Crabforge 读取原生 JSONL 和 Codex 的 `.jsonl.zst`，显示会话 ID、提示预览、时间、工作目录和所属配置目录。Claude Code 和 Codex 的主要配置目录来自 `CLAUDE_CONFIG_DIR` 和 `CODEX_HOME`，默认为用户主目录的 `.claude` 和 `.codex`。Crabforge 也会在主要配置的同级和用户主目录内查找含会话的 Claude 或 Codex 命名目录，并检查下一层配置子目录。
+打开 **客户端连接 → 本地会话**可浏览最近最多 50 个 Claude Code、Codex、Gemini CLI 和 Pi 会话，并复制会话 ID。运行 `carbforge-cli sessions --limit 50` 可输出 JSON，使用 `--agent claude`、`--agent codex`、`--agent gemini` 或 `--agent pi` 筛选。Crabforge 读取原生 JSONL 和 Codex 的 `.jsonl.zst`，显示会话 ID、提示预览、时间、工作目录和所属配置目录。Claude Code 和 Codex 的主要配置目录来自 `CLAUDE_CONFIG_DIR` 和 `CODEX_HOME`，默认为用户主目录的 `.claude` 和 `.codex`。Crabforge 也会在主要配置的同级和用户主目录内查找含会话的 Claude 或 Codex 命名目录，并检查下一层配置子目录。
+
+Gemini CLI 的 JSONL 和旧版 JSON 会话位于 `.gemini` 配置目录下的 `tmp/<项目>/chats`。Crabforge 从 `GEMINI_CLI_HOME` 或用户主目录查找 `.gemini`，也会查看 Crabforge 数据目录下的 `agents/gemini/.gemini`。若 Gemini 已在 `.project_root` 记录项目文件夹，详情中会显示该路径。记忆预览优先使用用户看到的提示文本，按撤回后的历史提取内容，并跳过已编辑的提示、生成的上下文及工具结果。Gemini 会话文件上限为 16 MiB。
 
 Pi 显示的配置目录为实际的会话存储目录。Crabforge 查看 `PI_CODING_AGENT_SESSION_DIR`、`PI_CODING_AGENT_DIR` 下的 `sessions` 目录（配置目录默认为 `~/.pi/agent`），以及 Crabforge 数据目录下的 `agents/pi/sessions`。用自定义 `--session-dir` 保存会话后，可设置 `PI_CODING_AGENT_SESSION_DIR` 让 Crabforge 找到它们。Pi 记忆预览从最后保存的分支提取用户原话，跳过受 Pi 上下文编辑影响的提示。记忆预览支持不超过 16 MiB 的 Pi 日志。
 
 在会话详情中选择**提炼记忆**，检查用户消息并选择已配置的模型路由。点击**发送给模型**会通过该路由提交预览。Crabforge 核对引用原文后，保存最多五条候选记忆。在**记忆**中审核，将状态设为**有效**后即可纳入对应范围的摘要和 MCP 搜索。
 
-CLI 中先运行 `carbforge-cli memory distill claude <会话-ID>` 获取消息和预览修订，再运行 `carbforge-cli memory distill claude <会话-ID> --model <路由-ID> --revision <修订>`。如果会话位于其他已发现的配置目录，两次命令均加上 `--profile <配置目录>`。Codex 会话使用 `codex`。运行 `carbforge-cli memory search --status candidate` 可查看待审核记忆。
+CLI 中先运行 `carbforge-cli memory distill <Agent-ID> <会话-ID>` 获取消息和预览修订，再加上 `--model <路由-ID> --revision <修订>` 提交预览。如果会话位于其他已发现的配置目录，两次命令均加上 `--profile <配置目录>`。运行 `carbforge-cli memory search --status candidate` 可查看待审核记忆。
 
 在**客户端连接**选中 Claude Code 或 Codex，再打开**用户指令**，即可编辑受管理的 Markdown 或预览并发布**用户记忆**。摘要包含有效的全局记忆及所选 Agent 的记忆。Crabforge 将摘要写入 `CLAUDE.md` 或 Codex 用户目录的 `AGENTS.md`，存在 `AGENTS.override.md` 时优先使用该文件。客户端会在新会话中读取该文件。使用**恢复上一版本**可撤销 Crabforge 最近一次对该文件的编辑。
 
@@ -149,6 +151,8 @@ DeepSeek Harness 的用户分配覆盖 `$DSH_HOME/profiles`（默认为 `~/.dsh/
 在 **客户端连接 → 斜杠命令** 向 Claude Code、OpenCode、Pi、Gemini CLI、Qwen Code 和 Factory Droid 发布可复用提示词。`$ARGUMENTS` 表示全部参数。Claude Code、OpenCode 和 Pi 也可用 `$1`、`$2` 等引用单个参数。Crabforge 按客户端格式转换占位符，并报告无法发布的分配。Codex 可用技能保存可复用提示词。
 
 选择 **导入斜杠命令** 可从文件、本地文件夹或 Git URL 预览外部 Markdown 或 TOML 命令。导入将提示词和描述复制到库，并保留来源供后续检查更新。文件布局可识别格式时，Crabforge 会转换 Claude、Pi、Gemini 和 Qwen 的占位符。CLI 使用 `commands probe-source <来源>` 和 `commands import-source`，JSON 请求格式与子代理相同。
+
+运行 `carbforge-cli commands import-magpie .\magpie.magpie-backup` 或 `carbforge-cli subagents import-magpie .\magpie.magpie-backup` 可从 Magpie 加密备份恢复资源定义。重复使用 `--name <名称>` 可筛选条目。预览列出客户端分配、名称冲突和跳过的元数据。加上 `--apply` 后，Crabforge 检查冲突并一次性写入所选区段，相同定义会跳过。使用 `list` 审核已保存的定义，再通过 `sync` 发布到所选客户端。
 
 在 **客户端连接 → Claude Code 插件** 管理 Claude Code 用户配置中的插件和市场。将 Claude Code 加入 `PATH` 后，可以添加本地目录或远程市场，浏览市场目录、安装和更新插件，或卸载插件并保留持久数据。CLI 提供 `claude-plugins list`、`available`、`add-marketplace`、`update-marketplace`、`remove-marketplace`、`install`、`update` 和 `uninstall`。用 `list` 返回的 `--revision` 配合 `enable` 或 `disable` 修改用户配置。
 

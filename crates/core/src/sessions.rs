@@ -12,6 +12,7 @@ use std::{
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+mod gemini;
 mod pi;
 
 const MAX_HEADER: u64 = 512 * 1024;
@@ -50,7 +51,7 @@ struct Log<'a> {
 }
 
 pub fn list(dir: &Path, agent: Option<Agent>, limit: usize) -> Result<Listing> {
-    let roots = [Agent::Claude, Agent::Codex, Agent::Pi]
+    let roots = [Agent::Claude, Agent::Codex, Agent::Gemini, Agent::Pi]
         .into_iter()
         .filter(|item| agent.is_none_or(|agent| agent == *item))
         .flat_map(|agent| {
@@ -62,23 +63,30 @@ pub fn list(dir: &Path, agent: Option<Agent>, limit: usize) -> Result<Listing> {
 }
 
 fn session_profiles(dir: &Path, agent: Agent) -> Vec<PathBuf> {
-    if agent == Agent::Pi {
-        let configured = env::var_os("PI_CODING_AGENT_SESSION_DIR")
+    let paths: Vec<_> = match agent {
+        Agent::Pi => env::var_os("PI_CODING_AGENT_SESSION_DIR")
             .filter(|path| !path.is_empty())
-            .map(PathBuf::from);
-        let native = agent.home().map(|home| home.join("sessions"));
-        let managed = dir.join("agents/pi/sessions");
-        let mut seen = HashSet::new();
-        return configured
+            .map(PathBuf::from)
             .into_iter()
-            .chain(native)
-            .chain([managed])
-            .filter(|path| seen.insert(path.canonicalize().unwrap_or_else(|_| path.clone())))
-            .collect();
-    }
-    agent.home().map_or_else(Vec::new, |home| {
-        profiles(agent, home, env::home_dir().as_deref())
-    })
+            .chain(agent.home().map(|home| home.join("sessions")))
+            .chain([dir.join("agents/pi/sessions")])
+            .collect(),
+        Agent::Gemini => agent
+            .home()
+            .into_iter()
+            .chain([dir.join("agents/gemini/.gemini")])
+            .collect(),
+        _ => {
+            return agent.home().map_or_else(Vec::new, |home| {
+                profiles(agent, home, env::home_dir().as_deref())
+            });
+        }
+    };
+    let mut seen = HashSet::new();
+    paths
+        .into_iter()
+        .filter(|path| seen.insert(path.canonicalize().unwrap_or_else(|_| path.clone())))
+        .collect()
 }
 
 fn profiles(agent: Agent, primary: PathBuf, user: Option<&Path>) -> Vec<PathBuf> {
@@ -95,7 +103,7 @@ fn profiles(agent: Agent, primary: PathBuf, user: Option<&Path>) -> Vec<PathBuf>
     let has_sessions = |path: &Path| match agent {
         Agent::Claude => path.join("projects").is_dir(),
         Agent::Codex => path.join("sessions").is_dir() || path.join("archived_sessions").is_dir(),
-        Agent::Pi => false,
+        Agent::Gemini | Agent::Pi => false,
     };
     let mut seen: HashSet<_> = primary.canonicalize().into_iter().collect();
     let mut additional = Vec::new();
@@ -174,11 +182,19 @@ pub(crate) fn excerpt(
                 .context("profile was not found among the client's local profiles")?;
             vec![known]
         }
-        None if agent == Agent::Pi => session_profiles(dir, agent),
+        None if matches!(agent, Agent::Gemini | Agent::Pi) => session_profiles(dir, agent),
         None => vec![agent.home().context("client profile is unavailable")?],
     };
     let roots: Vec<_> = profiles.into_iter().map(|path| (agent, path)).collect();
     for log in ordered_logs(&roots)? {
+        if log.agent == Agent::Gemini {
+            if let Ok(Some(excerpt)) = log.gemini_excerpt()
+                && excerpt.session.id == id
+            {
+                return Ok(excerpt);
+            }
+            continue;
+        }
         let Ok(mut file) = fs::File::open(&log.path) else {
             continue;
         };
@@ -210,6 +226,22 @@ fn ordered_logs(roots: &[(Agent, PathBuf)]) -> Result<Vec<Log<'_>>> {
                     true,
                     &mut logs,
                 )?;
+            }
+            Agent::Gemini => {
+                let projects = match fs::read_dir(home.join("tmp")) {
+                    Ok(projects) => projects,
+                    Err(error) if error.kind() == ErrorKind::NotFound => continue,
+                    Err(error) => return Err(error.into()),
+                };
+                for project in projects {
+                    let project = project?;
+                    if project.file_type()?.is_dir() {
+                        let chats = project.path().join("chats");
+                        if fs::symlink_metadata(&chats).is_ok_and(|metadata| metadata.is_dir()) {
+                            visit(&chats, 0, *agent, home, false, &mut logs)?;
+                        }
+                    }
+                }
             }
             Agent::Pi => visit(home, 1, *agent, home, false, &mut logs)?,
         }
@@ -246,6 +278,10 @@ fn visit<'a>(
                     name.starts_with("rollout-")
                         && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zst"))
                 }
+                Agent::Gemini => {
+                    name.starts_with("session-")
+                        && (name.ends_with(".json") || name.ends_with(".jsonl"))
+                }
                 Agent::Pi => name.ends_with(".jsonl"),
             }
         {
@@ -267,7 +303,22 @@ fn visit<'a>(
 
 impl Log<'_> {
     fn session(&self) -> Result<Option<Session>> {
+        if self.agent == Agent::Gemini {
+            return Ok(self.gemini_excerpt()?.map(|excerpt| excerpt.session));
+        }
         self.read_header(self.reader(fs::File::open(&self.path)?)?)
+    }
+
+    fn gemini_excerpt(&self) -> Result<Option<Excerpt>> {
+        let Some(log) = gemini::read(fs::File::open(&self.path)?)? else {
+            return Ok(None);
+        };
+        let title = message_title(log.messages.iter().map(String::as_str));
+        let cwd = gemini::working_folder(&self.path);
+        Ok(Some(Excerpt {
+            session: self.summary(log.id, cwd, title)?,
+            messages: log.messages,
+        }))
     }
 
     fn reader<'file>(&self, file: impl Read + 'file) -> Result<Box<dyn Read + 'file>> {
@@ -329,6 +380,7 @@ impl Log<'_> {
                         title = message_title(message_parts(row.pointer("/payload/content")));
                     }
                 }
+                Agent::Gemini => unreachable!("Gemini uses native conversation records"),
                 Agent::Pi => {
                     if id.is_empty() {
                         if pi::version(&row).is_none() {
@@ -351,7 +403,11 @@ impl Log<'_> {
         if id.is_empty() || title.is_empty() {
             return Ok(None);
         }
-        Ok(Some(Session {
+        Ok(Some(self.summary(id, cwd, title)?))
+    }
+
+    fn summary(&self, id: String, cwd: String, title: String) -> Result<Session> {
+        Ok(Session {
             agent: self.agent.id(),
             profile: self.profile.display().to_string(),
             id,
@@ -359,7 +415,7 @@ impl Log<'_> {
             title,
             archived: self.archived,
             modified: OffsetDateTime::from(self.modified).format(&Rfc3339)?,
-        }))
+        })
     }
 
     fn read_excerpt(&self, source: impl Read) -> Result<Vec<String>> {

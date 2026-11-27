@@ -927,4 +927,61 @@ mod tests {
         assert!(memory::read(&store, "m_second").is_err());
         Ok(())
     }
+
+    #[test]
+    fn resource_backup_import_is_read_only_until_apply_and_checks_the_whole_batch() -> Result<()> {
+        use crate::agent_files::{Kind, import_magpie};
+
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("resources.magpie-backup");
+        let store = dir.path().join("crabforge");
+        let command = json!({"name":"inspect","description":"Inspect","prompt":"Read $1","agents":["claude"]});
+        let subagent = json!({"name":"reviewer","description":"Review","prompt":"Check the report.",
+            "agents":["codex"],"effort":"high","fromHash":"fixture"});
+        seal(
+            &file,
+            json!({"version":2,"library":{"commands":[command],"subagents":[subagent]}}),
+        );
+        let report = |kind, apply| -> Result<Value> {
+            let report = import_magpie(&store, kind, &file, PASSPHRASE, &[], apply)?;
+            nextjson::to_value(&report).map_err(anyhow::Error::msg)
+        };
+        assert_eq!(
+            report(Kind::Command, false)?["resources"][0]["action"],
+            json!("create")
+        );
+        let subagents = report(Kind::Subagent, false)?;
+        assert_eq!(
+            subagents["resources"][0]["skipped_fields"],
+            json!(["fromHash"])
+        );
+        assert_eq!(subagents["other_library_sections"], json!(["commands"]));
+        assert!(!store.exists());
+        report(Kind::Command, true)?;
+        report(Kind::Subagent, true)?;
+        let library = store.join("commands/library.json");
+        let before = std::fs::read(&library)?;
+        assert_eq!(
+            report(Kind::Command, true)?["resources"][0]["action"],
+            json!("identical")
+        );
+
+        seal(
+            &file,
+            json!({"version":2,"library":{"commands":[
+                {"name":"ahead","description":"New","prompt":"Keep me pending","agents":null},
+                {"name":"inspect","description":"Conflict","prompt":"Different text","agents":null},
+                {"name":"unsupported","description":"Unsupported","prompt":"Read $1","agents":["gemini"]}
+            ]}}),
+        );
+        assert!(report(Kind::Command, true).is_err());
+        let selected = ["ahead".to_owned(), "inspect".to_owned()];
+        let preview = import_magpie(&store, Kind::Command, &file, PASSPHRASE, &selected, false)?;
+        let preview = nextjson::to_value(&preview).map_err(anyhow::Error::msg)?;
+        assert_eq!(preview["resources"][0]["action"], json!("create"));
+        assert_eq!(preview["resources"][1]["action"], json!("conflict"));
+        assert!(import_magpie(&store, Kind::Command, &file, PASSPHRASE, &selected, true).is_err());
+        assert_eq!(std::fs::read(&library)?, before);
+        Ok(())
+    }
 }
