@@ -6,6 +6,14 @@
 
 `assets/brands` 中的 119 个文件与本地 Magpie 参考快照的 `internal/gui/assets/icons` 逐文件 SHA-256 相同。包内附带 Magpie 与 Lobe Icons 的 MIT 声明。OpenAI 的标志使用另受品牌指南及其授权条款约束，Anthropic 商业服务条款第 F 节将知识产权授权限于条款明确授予的范围。正式售卖所需的品牌授权核定仍在进行。当前 Windows 用户没有可访问私钥的代码签名证书，冻结包的 Authenticode 状态为 `NotSigned`。[第三方声明](../THIRD_PARTY_NOTICES) · [OpenAI 品牌指南](https://openai.com/brand/#usage-terms) · [Anthropic 商业条款](https://www.anthropic.com/legal/commercial-terms#f-intellectual-property)
 
+### 子代理来源、项目分配与原生钩子恢复
+
+外部子代理导入提交 `7b5d20afc69aff6347ec2bd5846d5e199f89ce67` 通过 Windows Debug 宽窄布局的本地导入和更新。CLI 从本机智能 HTTPS Git 仓库的 `feature/review` 导入，并重新打开保存的来源。公开 `msitarzewski/agency-agents` 工程目录返回 66 个候选。导入 `backend-architect` 后复查保存的 URL，状态为 `unchanged`。[本机 Git 夹具](validation/agent-library-followup/subagent-git-https.csv) · [公开 GitHub](validation/agent-library-followup/subagent-github.csv)
+
+项目子代理分配提交 `92ba1938d645c295c968ba99f2b6ca6a71b5bcd0` 通过六项定向 Rust 测试、全目标 Clippy 和 Windows Debug 集成。CLI 将共享定义分别发布到两个项目的 Claude Code 和 Codex，更新两处提示词，撤销时保留外部编辑。桌面在宽窄窗口验证了项目分配与撤销，并保留用户配置副本。[CLI 结果](validation/agent-library-followup/shared-subagents.csv) · [Windows 集成](validation/agent-library-followup/shared-subagents.log)
+
+原生钩子恢复提交 `18a92bf5098e7ecea83893577fe963e49331f8ac` 通过五项定向 Rust 测试、全目标 Clippy、Flutter 分析和 Windows Debug 集成。CLI 的 Codex 夹具验证了后续分组位置保留、过期移除和恢复被拒绝，以及 BOM、换行和注释逐字节恢复。桌面在网格中移除已有 Claude 钩子，并在列表中恢复。[CLI 结果](validation/agent-library-followup/hook-recovery.csv) · [Windows 集成](validation/agent-library-followup/hook-recovery.log)
+
 ### Windows x64 子代理与斜杠命令（`5b905b3`）
 
 从 `5b905b39d790a4eae9625b7995714373f72230ec` 离线构建的 ZIP 为 63,745,300 字节，SHA-256 为 `8C405A7762C8D1D8EFF01E75BDD83FBBF7754FB7622B9412725020A6975E4B7B`。核对 340 项构建输入、671 项解压清单、126 项资产及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。Clippy、Flutter 分析及两项组件测试通过。三个入口的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-5b905b3/build-inputs.sha256) · [解压清单](validation/cf-windows-5b905b3/SHA256SUMS) · [依赖审计](validation/cf-windows-5b905b3/dependency-audit.csv)

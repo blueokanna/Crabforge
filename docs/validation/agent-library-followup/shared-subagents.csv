@@ -1,0 +1,5 @@
+Operation,Observed behavior
+Assign,Claude Markdown in project A and Codex TOML in project B with no user-wide publication
+Update,Both projects received the revised prompt
+Withdraw,Project A external edit kept; project B assignment persisted
+Remove shared definition,Project B unchanged file removed; project A edit still present
