@@ -1,0 +1,10 @@
+App,Round,Processes,WorkingSetMiB,PrivateMiB
+Crabforge,1,1,135.55,196.82
+Magpie main,1,1,77.39,93.43
+Magpie with WebView2,1,8,439.92,505.15
+Crabforge,2,1,134.68,196.41
+Magpie main,2,1,82.45,99.24
+Magpie with WebView2,2,8,488.02,558.43
+Crabforge,3,1,133.88,193.38
+Magpie main,3,1,86.84,103.57
+Magpie with WebView2,3,8,490.27,547.03

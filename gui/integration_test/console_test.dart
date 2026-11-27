@@ -1,11 +1,10 @@
-import 'package:crabforge/material_symbols.dart';
-
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:crabforge/main.dart' as app;
 import 'package:crabforge/language.dart';
 import 'package:crabforge/l10n/app_localizations.dart';
+import 'package:crabforge/material_symbols.dart';
 import 'package:crabforge/src/rust/api.dart' as native;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -191,16 +190,22 @@ void main() {
     ]) {
       await tester.tap(picker);
       await tester.pumpAndSettle();
+      final choices = find.byType(PopupMenuItem<String>);
       expect(
         tester
-            .widgetList<CheckedPopupMenuItem<String>>(
-              find.byType(CheckedPopupMenuItem<String>),
-            )
+            .widgetList<PopupMenuItem<String>>(choices)
             .map((item) => item.value),
-        ['zh', 'en', 'fr', 'de', 'hi', 'ja', 'ko', 'pt', 'es'],
+        ['', 'zh', 'en', 'fr', 'de', 'hi', 'ja', 'ko', 'pt', 'es'],
+      );
+      expect(
+        find.descendant(
+          of: choices,
+          matching: find.byIcon(CrabforgeSymbols.check),
+        ),
+        findsOneWidget,
       );
       final item = find.widgetWithText(
-        CheckedPopupMenuItem<String>,
+        PopupMenuItem<String>,
         languageNames[code]!,
       );
       await tester.ensureVisible(item);
