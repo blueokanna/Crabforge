@@ -82,6 +82,9 @@ pub struct Provider {
     pub model_protocols: BTreeMap<String, crate::catalog::RelayProtocols>,
     #[njson(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub model_reasoning_levels: BTreeMap<String, Vec<String>>,
+    /// Known input context sizes in tokens, with an optional provider-wide `*` default.
+    #[njson(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub contexts: BTreeMap<String, u32>,
 }
 
 #[derive(Clone, Debug, NsonSerialize, NsonDeserialize)]
@@ -525,6 +528,17 @@ impl Config {
                 ensure!(valid_model_id(model), "invalid model ID {model:?}");
                 effort::validate_levels(levels, true)
                     .with_context(|| format!("model {}/{model}", p.id))?;
+            }
+            for (model, &tokens) in &p.contexts {
+                ensure!(
+                    model == "*" || valid_model_id(model),
+                    "invalid model ID {model:?}"
+                );
+                ensure!(
+                    tokens > 0,
+                    "context size for {}/{model} must be positive",
+                    p.id
+                );
             }
         }
         ensure!(

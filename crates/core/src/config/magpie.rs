@@ -104,6 +104,7 @@ struct BackupProvider {
     auth_header: AuthHeader,
     models: Vec<String>,
     catalog: String,
+    contexts: BTreeMap<String, u32>,
     fallback: Vec<String>,
     patience: Option<i32>,
     no_stand_in: bool,
@@ -180,6 +181,7 @@ impl BackupProvider {
             free_models,
             model_protocols: BTreeMap::new(),
             model_reasoning_levels: BTreeMap::new(),
+            contexts: self.contexts,
         })
     }
 }

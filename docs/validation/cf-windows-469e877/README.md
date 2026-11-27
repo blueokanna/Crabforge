@@ -396,6 +396,12 @@ Windows Debug 桌面通过完整控制台集成测试，经 `flutter_rust_bridge
 
 The Windows Debug desktop passed the full console integration test. At 1,200 and 560 logical pixels it saved `effort: auto`, the classifier, rules, and retry limits through `flutter_rust_bridge`. Rendering stalled while the test window was minimized. The test completed after the window was restored. [Desktop regression](../../../gui/integration_test/console_layout_test.dart)
 
+### 工具续轮的路由决策 / Routing decisions across tool calls
+
+Windows Debug 的 156 项 Rust 测试和全目标 Clippy 通过，33 项测试忽略。回归核对工具续轮保留组规则和推理等级、按会话隔离、实时暂停、用户新消息重新路由及容量增长后切换。两个 CLI 均从 Magpie 0.1.4936 的加密备份导入供应商级和模型级 `contexts`，并验证请求达到阈值后选择容量更大的模型。 [网关回归](../../../crates/core/tests/gateway.rs)
+
+Windows Debug passed 156 Rust tests and all-target Clippy, with 33 tests ignored. The regression checked that tool continuations retain the group's rule and reasoning level, decisions stay scoped to a session, pauses apply immediately, a new user message routes afresh, and an oversized request can switch to a larger context. Both CLIs imported provider and model `contexts` from an encrypted Magpie 0.1.4936 backup and verified that the request switched models at the threshold. [Gateway regression](../../../crates/core/tests/gateway.rs)
+
 ## Grok Build 会话 / Grok Build sessions
 
 Grok Build 1.0.92 通过回环夹具启动原生会话，并用同一个会话 ID 继续到第 12 轮。每轮上游收到之前的用户提示。两个 Windows Debug CLI 均列出原生会话 ID、项目和配置路径，从日志恢复完全相同的 12 条用户原话和预览修订，并拒绝未经发现的配置目录。Rust 回归覆盖分段提示、客户端内部操作和子代理日志。

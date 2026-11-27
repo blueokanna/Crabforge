@@ -39,7 +39,8 @@ pub(super) fn compile(
                 .collect::<HashMap<_, _>>();
             let rules = rules
                 .iter()
-                .map(|rule| {
+                .enumerate()
+                .map(|(index, rule)| {
                     let targets = rule
                         .targets()
                         .map(|target| {
@@ -48,7 +49,7 @@ pub(super) fn compile(
                                 .map_or_else(|| target.to_owned(), |id| (*id).clone())
                         })
                         .collect();
-                    Rule::compile(rule, targets)
+                    Rule::compile(index, rule, targets)
                 })
                 .collect::<Result<_>>()?;
             Ok((group.clone(), rules))
@@ -59,6 +60,7 @@ pub(super) fn compile(
 pub(super) struct Order<'a> {
     pub members: Vec<(bool, usize, &'a str)>,
     pub primary: Option<&'a Rule>,
+    pub grew: bool,
 }
 
 pub(super) fn ordered<'a>(
@@ -66,6 +68,8 @@ pub(super) fn ordered<'a>(
     rules: &'a [Rule],
     facts: &Facts,
     intent: Option<&str>,
+    held: Option<Option<usize>>,
+    context: impl Fn(&str) -> Option<u32>,
 ) -> Order<'a> {
     let key = intent.map(str::to_lowercase);
     let matching = rules
@@ -80,14 +84,50 @@ pub(super) fn ordered<'a>(
         .filter(|rule| rule.pause)
         .flat_map(|rule| rule.targets.iter().map(String::as_str))
         .collect::<HashSet<_>>();
+    let live_target =
+        |target: &String| !paused.contains(target.as_str()) && members.contains(target);
+    let available = |rule: &&Rule| !rule.pause && rule.targets.iter().any(live_target);
+    let mut matching = matching.into_iter().filter(available).collect::<Vec<_>>();
+    let mut grew = false;
+    if let Some(saved) = held {
+        let pinned = saved.and_then(|index| rules.get(index));
+        let limit = pinned.map_or_else(
+            || {
+                members
+                    .iter()
+                    .filter(|id| live_target(id))
+                    .filter_map(|id| context(id))
+                    .min()
+            },
+            |rule| rule.targets.first().and_then(|id| context(id)),
+        );
+        grew = limit.is_some_and(|limit| {
+            facts.tokens as u64 * 100 >= u64::from(limit) * 95
+                && matching.first().is_some_and(|rule| {
+                    Some(rule.index) != saved
+                        && rule
+                            .targets
+                            .iter()
+                            .find(|target| live_target(target))
+                            .and_then(|id| context(id))
+                            .is_some_and(|next| next > limit && next as usize >= facts.tokens)
+                })
+        });
+        if !grew {
+            match pinned {
+                Some(rule) if available(&rule) => matching.insert(0, rule),
+                None => matching.clear(),
+                _ => {}
+            }
+        }
+    }
+    let primary = matching.first().copied();
     let mut ranked = HashMap::new();
-    let mut primary = None;
-    for rule in matching.into_iter().filter(|rule| !rule.pause) {
+    for rule in matching {
         for target in rule.targets.iter().map(String::as_str) {
             if paused.contains(target) {
                 continue;
             }
-            primary.get_or_insert(rule);
             let rank = ranked.len();
             ranked.entry(target).or_insert(rank);
         }
@@ -105,6 +145,7 @@ pub(super) fn ordered<'a>(
             .map(|(index, member)| (ranked.contains_key(member), index, member))
             .collect(),
         primary,
+        grew,
     }
 }
 
@@ -120,6 +161,7 @@ pub(super) fn intents<'a>(rules: &'a [Rule], facts: &Facts) -> Vec<&'a str> {
 }
 
 pub(super) struct Rule {
+    pub index: usize,
     pub targets: Vec<String>,
     pub pause: bool,
     pub use_effort: String,
@@ -137,9 +179,10 @@ pub(super) struct Rule {
 }
 
 impl Rule {
-    pub fn compile(rule: &RoutingRule, targets: Vec<String>) -> Result<Self> {
+    pub fn compile(index: usize, rule: &RoutingRule, targets: Vec<String>) -> Result<Self> {
         let intent = rule.intent.split_whitespace().collect::<Vec<_>>().join(" ");
         Ok(Self {
+            index,
             targets,
             pause: rule.pause,
             use_effort: rule.use_effort.clone(),
@@ -205,6 +248,7 @@ pub(super) struct Facts {
     previous_message: String,
     previous_reply: String,
     turn_identity: Option<[u8; 32]>,
+    continued: bool,
     system: Vec<String>,
     last: Vec<String>,
 }
@@ -249,6 +293,7 @@ impl Facts {
             previous_message: String::new(),
             previous_reply: String::new(),
             turn_identity: None,
+            continued: false,
             system: Vec::new(),
             last: Vec::new(),
         };
@@ -290,16 +335,20 @@ impl Facts {
                 for turn in turns {
                     let role = field(turn, "role").unwrap_or("user");
                     let mut text = Vec::new();
-                    if let Some(content) = turn.get(if format == Format::Gemini {
+                    let content = turn.get(if format == Format::Gemini {
                         "parts"
                     } else {
                         "content"
-                    }) {
+                    });
+                    if let Some(content) = content {
                         collect_text(content, &mut text, &mut facts.images);
                     }
-                    length += text.iter().map(|s| s.len()).sum::<usize>() + tool_length(turn);
+                    length +=
+                        text.iter().map(|s| s.len()).sum::<usize>() + tool_length(turn, content);
                     if matches!(role, "system" | "developer") {
                         facts.extend_system(text);
+                    } else if tool_result(turn, role, content) {
+                        facts.continued = !facts.message.is_empty();
                     } else if role == "user"
                         && (turn.get("type").is_none() || field(turn, "type") == Some("message"))
                     {
@@ -314,6 +363,7 @@ impl Facts {
                             .filter(|text| !is_context(text))
                             .collect::<Vec<_>>();
                         if !said.is_empty() {
+                            facts.continued = false;
                             let message = said.join("\n");
                             if let Some(hash) = &mut turn_hash {
                                 hash_text(hash, &reply);
@@ -323,8 +373,11 @@ impl Facts {
                             facts.previous_reply = std::mem::take(&mut reply);
                         }
                         facts.last = text.into_iter().map(str::to_owned).collect();
-                    } else if matches!(role, "assistant" | "model") && !text.is_empty() {
-                        reply = text.join("\n");
+                    } else if matches!(role, "assistant" | "model") {
+                        facts.continued = false;
+                        if !text.is_empty() {
+                            reply = text.join("\n");
+                        }
                     }
                 }
             }
@@ -349,6 +402,15 @@ impl Facts {
 
     pub fn turn_identity(&self) -> Option<[u8; 32]> {
         self.turn_identity
+    }
+
+    pub fn affinity_turn(&self) -> Option<[u8; 32]> {
+        self.turn_identity
+            .filter(|_| !self.message.trim().is_empty())
+    }
+
+    pub fn continued(&self) -> bool {
+        self.continued
     }
 
     fn extend_system(&mut self, text: Vec<&str>) {
@@ -475,7 +537,17 @@ fn collect_text<'a>(content: &'a Value, text: &mut Vec<&'a str>, images: &mut bo
     }
 }
 
-fn tool_length(turn: &Value) -> usize {
+fn tool_result(turn: &Value, role: &str, content: Option<&Value>) -> bool {
+    role == "tool"
+        || field(turn, "type") == Some("function_call_output")
+        || content.and_then(Value::as_array).is_some_and(|parts| {
+            parts.iter().any(|part| {
+                field(part, "type") == Some("tool_result") || part.get("functionResponse").is_some()
+            })
+        })
+}
+
+fn tool_length(turn: &Value, content: Option<&Value>) -> usize {
     ["name", "arguments", "output"]
         .iter()
         .filter_map(|key| field(turn, key))
@@ -484,6 +556,24 @@ fn tool_length(turn: &Value) -> usize {
         + turn
             .get("tool_calls")
             .map_or(0, |calls| calls.to_string().len())
+        + content
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .map(|part| {
+                let value = if field(part, "type") == Some("tool_result") {
+                    part.get("content")
+                } else {
+                    part.get("functionResponse")
+                        .or_else(|| part.get("functionCall"))
+                };
+                value.map_or(0, |value| {
+                    value
+                        .as_str()
+                        .map_or_else(|| value.to_string().len(), str::len)
+                })
+            })
+            .sum::<usize>()
 }
 
 fn is_context(text: &str) -> bool {

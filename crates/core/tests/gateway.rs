@@ -251,6 +251,7 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
         no_stand_in: false,
         model_protocols: Default::default(),
         model_reasoning_levels: Default::default(),
+        contexts: Default::default(),
         free_models: Default::default(),
         catalog: String::new(),
         web_site: None,
@@ -916,7 +917,7 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
     let url = format!("http://{}/v1/chat/completions", service.addr);
     let token = config::token(dir.path())?;
     let client = crabforge_test_support::Client::with_timeout(Duration::from_secs(5));
-    let send = |group: &str, message: &str, with_tools: bool| {
+    let send = |group: &str, message: &str, with_tools: bool, reasoning: &str| {
         let mut messages = vec![
             json!({"role":"system","content":"Internal system instructions"}),
             json!({"role":"user","content":"Open the report"}),
@@ -929,8 +930,7 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
                 json!({"role":"tool","content":"Tool output","tool_call_id":"report"}),
             ]);
         }
-        let request = json!({"model":group,"messages":messages,
-            "reasoning_effort": if with_tools { "high" } else { "none" }});
+        let request = json!({"model":group,"messages":messages,"reasoning_effort":reasoning});
         client
             .post(&url)
             .bearer_auth(&token)
@@ -939,34 +939,37 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
             .send()
     };
     assert_eq!(
-        send("group/outer", "Review it", false)
+        send("group/outer", "Review it", false, "none")
             .await?
             .text()
             .await?,
         "usual"
     );
     assert_eq!(
-        send("group/manual", "Review it", false)
+        send("group/manual", "Review it", false, "none")
             .await?
             .text()
             .await?,
         "usual"
     );
     let (first, concurrent) = tokio::join!(
-        send("group/intent", "Review it", false),
-        send("group/intent", "Review it", false),
+        send("group/intent", "Review it", false, "none"),
+        send("group/intent", "Review it", false, "none"),
     );
     assert_eq!(first?.text().await?, "review");
     assert_eq!(concurrent?.text().await?, "review");
     assert_eq!(
-        send("group/intent", "Review it", true)
+        send("group/intent", "Review it", true, "high")
             .await?
             .text()
             .await?,
         "review"
     );
     assert_eq!(
-        send("group/intent", "Thanks", false).await?.text().await?,
+        send("group/intent", "Thanks", false, "none")
+            .await?
+            .text()
+            .await?,
         "usual"
     );
     assert_eq!(
@@ -978,18 +981,22 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
     );
 
     calls.lock().unwrap().clear();
-    for (group, with_tools, expected) in [
-        ("group/changing", false, "usual"),
-        ("group/changing", false, "usual"),
-        ("group/changing", true, "deep"),
-        ("group/changing", true, "deep"),
-        ("group/changing", false, "usual"),
-        ("group/transient", false, "usual"),
-        ("group/transient", true, "review"),
-        ("group/transient", false, "review"),
+    for (group, with_tools, reasoning, expected) in [
+        ("group/changing", false, "none", "usual"),
+        ("group/changing", false, "none", "usual"),
+        ("group/changing", true, "high", "usual"),
+        ("group/changing", false, "high", "deep"),
+        ("group/changing", false, "high", "deep"),
+        ("group/changing", false, "none", "usual"),
+        ("group/transient", false, "none", "usual"),
+        ("group/transient", true, "high", "review"),
+        ("group/transient", false, "none", "review"),
     ] {
         assert_eq!(
-            send(group, "Review it", with_tools).await?.text().await?,
+            send(group, "Review it", with_tools, reasoning)
+                .await?
+                .text()
+                .await?,
             expected
         );
     }
@@ -997,6 +1004,7 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
         *calls.lock().unwrap(),
         [
             "changing",
+            "usual",
             "usual",
             "usual",
             "changing",
@@ -1019,6 +1027,98 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
         ["group/classifier"]
     );
     assert_eq!(restored.group_rules[&report.id][0].intent, "Review report");
+    service.stop().await;
+    upstream.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn tool_continuation_holds_the_rule_until_paused_or_outgrown() -> Result<()> {
+    let mock = Router::new().route(
+        "/v1/chat/completions",
+        post(|request: Incoming| async move {
+            let body: Value = nextjson::from_slice(&request.body).unwrap();
+            format!(
+                "{}:{}",
+                body["model"].as_str().unwrap(),
+                body["reasoning_effort"].as_str().unwrap()
+            )
+        }),
+    );
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let upstream = tokio::spawn(crabforge_test_support::server::serve(listener, mock));
+    let root = tempdir()?;
+    let cfg = json!({
+        "listen":"127.0.0.1:0",
+        "providers":[{"id":"fixture","models":["small","large","backup"],
+            "contexts":{"*":1000,"small":100},
+            "model_reasoning_levels":{"small":["medium","high"],"large":["medium","high"]},
+            "endpoints":{"chat":format!("http://{addr}/v1")}}],
+        "groups":{"review":["fixture/backup","fixture/large","fixture/small","group/manual"],
+            "manual":["fixture/large","fixture/backup"]},
+        "group_picks":{"manual":"fixture/large"},
+        "group_rules":{"review":[
+            {"use":"fixture/small","pause":true,"folders":["C:/paused"]},
+            {"use":"fixture/large","tokens":95,"useEffort":"high"},
+            {"use":"fixture/small","effort":"low","where":[{"field":"effort","op":"is","value":"low"}],"useEffort":"medium"}
+        ]}
+    });
+    config::save(
+        root.path(),
+        &config::snapshot(root.path())?,
+        &cfg.to_string(),
+    )?;
+    let service = Service::start(root.path()).await?;
+    let url = format!("http://{}/v1/chat/completions", service.addr);
+    let token = config::token(root.path())?;
+    let client = crabforge_test_support::Client::default();
+    let send = |session: &str, effort: &str, result: Option<usize>, paused: bool, new: bool| {
+        let mut messages = vec![json!({"role":"user","content":"Review the report"})];
+        if paused {
+            messages.insert(
+                0,
+                json!({"role":"system","content":"Working directory: C:/paused"}),
+            );
+        }
+        if let Some(size) = result {
+            messages.push(
+                json!({"role":"assistant","tool_calls":[{"id":"report","type":"function",
+                "function":{"name":"report","arguments":"{}"}}]}),
+            );
+            messages
+                .push(json!({"role":"tool","tool_call_id":"report","content":"x".repeat(size)}));
+        }
+        if new {
+            messages.push(json!({"role":"user","content":"Check it again"}));
+        }
+        client
+            .post(&url)
+            .bearer_auth(&token)
+            .header("x-session-id", session)
+            .body(
+                json!({"model":"group/review","messages":messages,"reasoning_effort":effort})
+                    .to_string(),
+            )
+            .send()
+    };
+    for (session, effort, result, paused, new, expected) in [
+        ("original", "low", None, false, false, "small:medium"),
+        ("original", "high", Some(8), false, false, "small:medium"),
+        ("different", "high", Some(8), false, false, "backup:high"),
+        ("original", "high", Some(8), true, false, "backup:high"),
+        ("original", "high", Some(8), false, true, "backup:high"),
+        ("original", "low", Some(400), false, false, "large:high"),
+        ("original", "low", Some(8), false, false, "large:high"),
+    ] {
+        assert_eq!(
+            send(session, effort, result, paused, new)
+                .await?
+                .text()
+                .await?,
+            expected
+        );
+    }
     service.stop().await;
     upstream.abort();
     Ok(())

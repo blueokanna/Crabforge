@@ -20,6 +20,7 @@ use subtle::ConstantTimeEq;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use url::Url;
 
+mod affinity;
 mod classifier;
 mod cors;
 mod effort;
@@ -81,6 +82,7 @@ pub struct Gateway {
     rounds: BTreeMap<String, Round>,
     rules: BTreeMap<String, Vec<rules::Rule>>,
     classifier_cache: classifier::Cache,
+    turn_affinity: affinity::Cache,
     models: Bytes,
     client: ForwardClient,
     vertex_tokens: BTreeMap<String, crate::vertex::auth::TokenCache>,
@@ -320,6 +322,7 @@ fn router_with_client(
         rounds,
         rules,
         classifier_cache: Default::default(),
+        turn_affinity: Default::default(),
         group_ids,
         skip_in_sorted_catalog: hidden_aliases,
         ordered_group_refs,
@@ -1362,6 +1365,7 @@ mod tests {
             no_stand_in: false,
             model_protocols: Default::default(),
             model_reasoning_levels: Default::default(),
+            contexts: Default::default(),
             free_models: Default::default(),
             id: "aws".into(),
             catalog: String::new(),

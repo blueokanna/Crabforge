@@ -1,5 +1,5 @@
 use super::{
-    Api, Config, Destination, Gateway, NativeProtocols, Round, Target,
+    Api, Config, Destination, Gateway, NativeProtocols, Round, Target, affinity,
     classifier::{Choice, Classification, Question},
 };
 use futures_util::{Stream, StreamExt, stream};
@@ -60,6 +60,7 @@ enum Plan<'a> {
         branches: Vec<(usize, Plan<'a>)>,
         preferred: usize,
         classify: Option<Box<Decision<'a>>>,
+        remember: Option<Box<Remember>>,
     },
 }
 
@@ -90,6 +91,12 @@ struct Decision<'a> {
     automatic: bool,
     via: Vec<&'a str>,
     outer_limits: Limits<'a>,
+}
+
+struct Remember {
+    key: affinity::Key,
+    decision: affinity::Decision,
+    replaced: Option<Option<usize>>,
 }
 
 #[derive(Default)]
@@ -277,6 +284,7 @@ impl Gateway {
                             mut branches,
                             preferred,
                             classify,
+                            remember,
                         } => {
                             if let Some(mut decision) = classify {
                                 if !branches.iter().any(|(_, plan)| {
@@ -307,9 +315,7 @@ impl Gateway {
                                     judged.insert(key, choice);
                                     choice
                                 };
-                                if let Some(choice) = choice
-                                    && (choice.intent.is_some() || choice.effort.is_some())
-                                {
+                                if let Some(choice) = choice {
                                     // Assign shared descendants in the chosen rule order. A model already
                                     // attempted through another branch still runs only once per round.
                                     let mut available = Visited {
@@ -327,12 +333,25 @@ impl Gateway {
                                     continue;
                                 }
                             }
+                            if let Some(remember) = remember
+                                && branches.iter().any(|(_, plan)| {
+                                    plan.has_model(&self.config, &emitted, unrestricted)
+                                })
+                            {
+                                let Remember {
+                                    key,
+                                    decision,
+                                    replaced,
+                                } = *remember;
+                                self.turn_affinity.remember(key, decision, replaced);
+                            }
                             if preferred != 0 && preferred < branches.len() {
                                 pending.push(Plan::Group {
                                     round,
                                     branches: branches.split_off(preferred),
                                     preferred: 0,
                                     classify: None,
+                                    remember: None,
                                 });
                             } else if preferred == 0
                                 && let Some(round) = round
@@ -347,6 +366,24 @@ impl Gateway {
             },
         )
         .fuse()
+    }
+
+    fn member_context(&self, id: &str, picks: &BTreeMap<String, usize>) -> Option<u32> {
+        match *self.routes.get(id)? {
+            Route::Disabled => None,
+            Route::Model(target) => {
+                let p = &self.config.providers[target.provider];
+                p.contexts
+                    .get(&p.models[target.model])
+                    .or_else(|| p.contexts.get("*"))
+                    .copied()
+            }
+            Route::Group { index, .. } => self
+                .live_members(&self.group_ids[index]["group/".len()..], picks)
+                .iter()
+                .filter_map(|id| self.member_context(id, picks))
+                .min(),
+        }
     }
 
     fn expand<'a>(
@@ -400,14 +437,29 @@ impl Gateway {
         let members = self.live_members(name, request.picks);
         let outer_limits = limits;
         let mut limits = outer_limits.within(&self.config, name);
-        limits.automatic_effort = limits
-            .automatic_effort
-            .or(choice.and_then(|choice| choice.effort));
         let facts = request.facts.filter(|_| !request.picks.contains_key(name));
         let rules = self.rules.get(name).map_or(&[][..], Vec::as_slice);
+        let settings = self.config.group_classifiers.get(name);
+        let key = facts
+            .filter(|_| !rules.is_empty() || settings.is_some())
+            .and_then(super::rules::Facts::affinity_turn)
+            .map(|turn| affinity::Key { group: index, turn });
+        let held = facts
+            .filter(|facts| facts.continued())
+            .and(key)
+            .and_then(|key| self.turn_affinity.get(key));
+        let intent = held
+            .as_ref()
+            .and_then(|held| held.intent.as_deref())
+            .or_else(|| choice.and_then(|choice| choice.intent));
+        let effort = held
+            .as_ref()
+            .and_then(|held| held.effort)
+            .or_else(|| choice.and_then(|choice| choice.effort));
+        limits.automatic_effort = limits.automatic_effort.or(effort);
         let classify = facts
-            .filter(|_| choice.is_none())
-            .zip(self.config.group_classifiers.get(name))
+            .filter(|_| choice.is_none() && held.is_none())
+            .zip(settings)
             .and_then(|(facts, settings)| {
                 let intents = super::rules::intents(rules, facts);
                 let automatic = settings.automatic_effort()
@@ -428,16 +480,36 @@ impl Gateway {
                 })
             });
         let ordered = facts.filter(|_| !rules.is_empty()).map(|facts| {
-            let intent = choice.and_then(|choice| choice.intent);
-            let ordered = super::rules::ordered(members, rules, facts, intent);
+            let ordered = super::rules::ordered(
+                members,
+                rules,
+                facts,
+                intent,
+                held.as_ref().map(|held| held.rule),
+                |id| self.member_context(id, request.picks),
+            );
             if ordered.members.len() < members.len() {
                 request.paused.store(true, Ordering::Relaxed);
             }
             ordered
         });
+        let grew = ordered.as_ref().is_some_and(|ordered| ordered.grew);
         let (mut ordered, primary) = ordered.map_or((None, None), |order| {
             (Some(order.members.into_iter()), order.primary)
         });
+        let remember = key
+            .filter(|_| classify.is_none() && (held.is_none() || grew))
+            .map(|key| {
+                Box::new(Remember {
+                    key,
+                    decision: affinity::Decision {
+                        rule: primary.map(|rule| rule.index),
+                        intent: intent.map(str::to_owned),
+                        effort,
+                    },
+                    replaced: held.as_ref().map(|held| held.rule),
+                })
+            });
         let mut original = members.iter().enumerate();
         let mut preferred_count = 0;
         let mut branches = Vec::new();
@@ -472,6 +544,7 @@ impl Gateway {
             branches,
             preferred: preferred_count,
             classify,
+            remember,
         })
     }
 }

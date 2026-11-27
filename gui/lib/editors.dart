@@ -511,6 +511,8 @@ class _ProviderEditorState extends State<ProviderEditor> {
                     if (reasoningLevels.containsKey(id))
                       id: reasoningLevels[id],
                 },
+              if (widget.provider?['contexts'] case final JsonMap contexts)
+                'contexts': contexts,
               if (freeModels.isNotEmpty)
                 'free_models': linesOf(models.text)
                     .where(freeModels.contains)

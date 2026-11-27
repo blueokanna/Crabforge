@@ -90,6 +90,7 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
                 no_stand_in: false,
                 model_protocols: Default::default(),
                 model_reasoning_levels: Default::default(),
+                contexts: Default::default(),
                 free_models: Default::default(),
                 id: name.to_string(),
                 catalog: String::new(),
