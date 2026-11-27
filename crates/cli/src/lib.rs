@@ -241,6 +241,19 @@ impl From<SessionAgent> for crabforge_core::agents::NativeAgent {
 
 #[derive(Subcommand)]
 enum ProviderCommand {
+    /// Preview provider settings from a sealed Magpie backup, or add them with --apply.
+    ImportMagpie {
+        file: PathBuf,
+        /// Select a provider by ID. Repeat to import several. Defaults to all providers.
+        #[arg(long = "provider")]
+        providers: Vec<String>,
+        /// Read this provider's API key from the specified environment variable.
+        #[arg(long = "key-env", value_parser = parse_key_env, value_name = "PROVIDER=VARIABLE")]
+        key_envs: Vec<(String, String)>,
+        /// Save the selected settings to Crabforge's data directory.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Rename a provider and migrate its saved model references.
     Rename { from: String, to: String },
     /// Show or replace the ordered fallback models and groups. Use none to clear.
@@ -251,6 +264,40 @@ enum ProviderCommand {
         #[arg(action = clap::ArgAction::Set, value_parser = parse_stand_in)]
         setting: bool,
     },
+}
+
+fn parse_key_env(input: &str) -> Result<(String, String), String> {
+    input
+        .split_once('=')
+        .filter(|(provider, variable)| !provider.is_empty() && !variable.is_empty())
+        .map(|(provider, variable)| (provider.to_owned(), variable.to_owned()))
+        .ok_or_else(|| "expected PROVIDER=VARIABLE".into())
+}
+
+fn backup_passphrase() -> Result<zeroize::Zeroizing<String>> {
+    use std::io::{BufRead, IsTerminal, Read, stdin};
+    const MAX_PASSPHRASE: u64 = 16 * 1024;
+    if stdin().is_terminal() {
+        return Ok(zeroize::Zeroizing::new(rpassword::prompt_password(
+            "Magpie backup passphrase: ",
+        )?));
+    }
+    let mut line = zeroize::Zeroizing::new(String::new());
+    stdin()
+        .lock()
+        .take(MAX_PASSPHRASE + 1)
+        .read_line(&mut line)?;
+    ensure!(
+        line.len() as u64 <= MAX_PASSPHRASE,
+        "Magpie backup passphrase is too long"
+    );
+    if line.ends_with('\n') {
+        line.pop();
+        if line.ends_with('\r') {
+            line.pop();
+        }
+    }
+    Ok(line)
 }
 
 fn parse_stand_in(input: &str) -> Result<bool, String> {
@@ -383,6 +430,35 @@ pub async fn run() -> Result<()> {
         None => config::data_dir()?,
     };
     match args.command {
+        Command::Provider {
+            command:
+                ProviderCommand::ImportMagpie {
+                    file,
+                    providers,
+                    key_envs,
+                    apply,
+                },
+        } => {
+            let count = key_envs.len();
+            let key_envs: std::collections::BTreeMap<_, _> = key_envs.into_iter().collect();
+            ensure!(
+                key_envs.len() == count,
+                "specify one key environment variable per provider"
+            );
+            let passphrase = backup_passphrase()?;
+            let report = config::import_magpie_providers(
+                &dir,
+                &file,
+                &passphrase,
+                &providers,
+                &key_envs,
+                apply,
+            )?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+            );
+        }
         Command::Provider {
             command: ProviderCommand::Rename { from, to },
         } => {

@@ -20,10 +20,11 @@ The Windows x64 builds below passed. The downloaded ZIP sizes and SHA-256 digest
 | `99c87e1449f7990fa348646f6724520330be7921` | 65,007,919 | `A414C719C0AD97F66EA7D71DB4BFD52D5BB6939AAEA5D6E402DF6508F8B3A1DA` | [Run 45954001089](https://github.com/blueokanna/Crabforge/actions/runs/45954001089) · [Artifact 15178467899](https://github.com/blueokanna/Crabforge/actions/runs/45954001089/artifacts/15178467899) |
 | `26acbe6ac39bd140580d74762c4182ce64a21f46` | 65,008,011 | `0582F62878FF1DF612B206B7188E6B344B3DB6F6E20966ADE9F8A0D688B1C25C` | [Run 45955859685](https://github.com/blueokanna/Crabforge/actions/runs/45955859685) · [Artifact 15179309529](https://github.com/blueokanna/Crabforge/actions/runs/45955859685/artifacts/15179309529) |
 | `6191cfd264c031e5cd4ed01c48b9a77ccc5560bf` | 65,009,120 | `A3E090CFA94A8841CEE7B35146F7DCEC4CAAAB0984474C1BEB5ECE94E2BE59AF` | [Run 45958239454](https://github.com/blueokanna/Crabforge/actions/runs/45958239454) · [Artifact 15180043889](https://github.com/blueokanna/Crabforge/actions/runs/45958239454/artifacts/15180043889) |
+| `17cae79c1b4b8e2d7686340e6db6c71ff9ebb7aa` | 65,009,118 | `9420794F712625C1EC371F56A533490700E4C2DB2E5B2E3A26F9752F96351182` | [Run 45961563177](https://github.com/blueokanna/Crabforge/actions/runs/45961563177) · [Artifact 15181248050](https://github.com/blueokanna/Crabforge/actions/runs/45961563177/artifacts/15181248050) |
 
-`26acbe6` 和 `6191cfd` 的每个包均含 668 个文件，与解压后的 SHA-256 逐项一致。两个 CLI 均报告 `0.1.0`，六个 Windows PE 的 Authenticode 状态均为 `NotSigned`。产品 PNG、三套文字字体和图标字体通过字节核对。Rust 补录许可正文的 SHA-256 为 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`。
+`26acbe6`、`6191cfd` 和 `17cae79` 的每个包均含 668 个文件，与解压后的 SHA-256 逐项一致。两个 CLI 均报告 `0.1.0`，六个 Windows PE 的 Authenticode 状态均为 `NotSigned`。产品 PNG、三套文字字体和图标字体通过字节核对。Rust 补录许可正文的 SHA-256 为 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`。
 
-All 668 archive entries in each package from `26acbe6` and `6191cfd` matched their extracted file hashes. Both CLI executables reported `0.1.0`, and all six Windows PE files reported `NotSigned` under Authenticode. The product PNG, three text fonts and icon font passed byte verification. The supplemental Rust license texts had SHA-256 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`.
+All 668 archive entries in each package from `26acbe6`, `6191cfd` and `17cae79` matched their extracted file hashes. Both CLI executables reported `0.1.0`, and all six Windows PE files reported `NotSigned` under Authenticode. The product PNG, three text fonts and icon font passed byte verification. The supplemental Rust license texts had SHA-256 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`.
 
 RustSec 使用 `cargo-audit 0.23.0` 和公告库提交 `c9f6c91a44dbad9d71742329e9df061279f9c4be` 扫描该锁文件，发现零项已知漏洞和一项停止维护提示。`paste 1.0.15` 由 `if-watch` 的非 Windows netlink 依赖链引入，在 Windows x64 的全特性启用图中未出现。
 
@@ -32,6 +33,10 @@ RustSec scanned the lockfile with `cargo-audit 0.23.0` and advisory database com
 锁定依赖的全特性启用图覆盖运行、构建和测试依赖。所有目标共 417 个唯一包版本，Windows x64 为 339 个。两者均未启用 Serde 系列、Hyper 或 Reqwest，且均包含锁定的 Courierust `1.1.3`、NextJSON `0.1.5`、RustBinary `0.1.10`、recurse-x `0.2.6` 和 libp2p `0.57.1`。
 
 The locked, all-features graphs include runtime, build and test dependencies. The audit counted 417 distinct package rows across all targets and 339 for Windows x64. Neither graph enabled packages from Serde, Hyper or Reqwest. Both used the pinned Courierust `1.1.3`, NextJSON `0.1.5`, RustBinary `0.1.10`, recurse-x `0.2.6` and libp2p `0.57.1`.
+
+供应商备份导入增加 `rpassword 7.5.5` 和 `rtoolbox 0.0.6`，两者均随包提供 Apache-2.0 许可正文。依赖图重查为全目标 419 个、Windows x64 341 个，五个指定版本一致，禁用依赖为零。RustSec 公告库 `8b75c83c3c9142dd18e93d75b8d895a13d285861` 的扫描结果仍为零项已知漏洞及上述 `paste` 维护提示。
+
+The provider backup import adds `rpassword 7.5.5` and `rtoolbox 0.0.6`. Both registry packages include their Apache-2.0 license text. The updated dependency graphs count 419 packages across targets and 341 on Windows x64, retain all five required versions and enable no disallowed packages. RustSec database revision `8b75c83c3c9142dd18e93d75b8d895a13d285861` reported zero known vulnerabilities and the same `paste` maintenance warning.
 
 ## 桌面 / Desktop
 
@@ -52,6 +57,10 @@ Windows Graphics Capture recorded 24 navigations in the unpacked CI Release desk
 独立的控制台集成测试通过了九语菜单顺序、供应商编辑、分组路由、通过解压 CLI 发送请求以及冷启动恢复。
 
 A separate console integration run passed the nine-language menu ordering, provider editing, route-group changes, requests through the unpacked CLI, and cold-start restoration.
+
+`17cae79` 的 Windows Debug 复测通过 11 轮隔离进程。控制台测试使用 `6191cfd` 的解压 CLI 发请求，另启进程检查恢复。其余用例覆盖项目 MCP、Codex 会话、共享插件、环境变量、子代理、斜杠命令、规则、技能、Hooks 和 Claude Code 原生插件。
+
+The Windows Debug rerun on `17cae79` passed 11 isolated invocations. The console case used the unpacked CLI from `6191cfd` and verified recovery in a second process. The other cases covered project MCP, Codex sessions, shared plugins, environment variables, subagents, slash commands, rules, skills, hooks and native Claude Code plugins. [Integration tests](../../../gui/integration_test)
 
 后续 Windows Debug 测试在独立配置下通过了项目 MCP、共享插件库、子代理和斜杠命令。规则与技能用例也通过了源码更新后的复测。技能用例确认删除库条目后，保留的原生副本仍可在列表与网格中查看，外部编辑的二进制附件逐字节保留。
 
@@ -102,6 +111,10 @@ The unpacked CLI from `26acbe6` used an isolated profile and a loopback HTTP fix
 Magpie `0.1.4936` 与 `26acbe6` 的解压 CLI 在独立配置间实际往返导入一个加权组。往返生成的 JSON 一致，保留成员顺序、备注和权重。含自动推理级别分类器的 Magpie 导出被明确拒绝，接收方设置逐字节保持原样。整库备份恢复和分类器执行仍待移植。
 
 Magpie `0.1.4936` and the unpacked CLI from `26acbe6` exchanged a weighted group between isolated profiles. The re-exported JSON matched the original and preserved member order, the note and weights. Crabforge rejected a native export with automatic effort classification and left the receiver's settings byte for byte intact. Full backup restore and classifier execution remain migration gaps. [Routing group import](../../../crates/core/src/config/groups/share.rs)
+
+后续 Windows 实测用 Magpie `0.1.4936` 生成了带中文文件名和口令的原生加密备份。两个 CLI 入口都预览了指定供应商，应用后保留排序、旧 ID 和回退。使用旧 ID 发出的回环请求在主供应商返回 429 后仅回退一次并获 200。HTTP 夹具确认密钥来自指定环境变量。错误口令、密文篡改、已关闭供应商及 ID 冲突均被拒绝，目标设置逐字节保持原样。整库恢复仍待移植。[供应商导入说明](../../../README.zh-CN.md#从-magpie-导入供应商)
+
+A subsequent Windows test created a native encrypted backup with Magpie `0.1.4936` using a Chinese filename and passphrase. Both CLI entry points previewed the selected providers. Applying the import preserved order, a former ID and fallback settings. A loopback request using the former ID received a 429 from the primary and a 200 from one fallback. The HTTP fixture confirmed that the API key came from the selected environment variable. Wrong passphrases, modified ciphertext, disabled providers and ID conflicts left the destination settings byte for byte intact. Full backup restoration remains outstanding. [Provider import guide](../../../README.md#import-providers-from-magpie)
 
 同一包的 `mcp memory` 通过独立进程的标准输入输出完成 `2025-11-25` 协议协商、工具枚举、项目隔离和保存去重。第二项目不能归档第一项目的记录。MCP 拒绝改写 CLI 创建的记忆。客户端归档记录后，CLI 以当前修订恢复成功，再用旧修订提交时被拒绝。恢复的记录在新 MCP 进程中可检索。
 

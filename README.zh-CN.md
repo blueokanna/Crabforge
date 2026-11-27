@@ -25,6 +25,19 @@ carbforge-cli agent claude group/work
 
 Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\com.blue.crabforge`。设置绝对路径 `CRABFORGE_HOME` 或传入 `--data-dir` 可以使用独立配置。客户端访问网关时使用 `carbforge-cli key` 输出的密钥。
 
+## 从 Magpie 导入供应商
+
+使用 `magpie backup` 生成的 `.magpie-backup` 文件。CLI 会提示输入备份口令，输入内容不可见。先运行第一条命令预览，再加 `--apply` 保存。省略 `--provider` 可选择全部供应商，重复此选项可选择多个。
+
+```powershell
+carbforge-cli provider import-magpie .\magpie.magpie-backup --provider deepseek --key-env deepseek=DEEPSEEK_API_KEY
+carbforge-cli provider import-magpie .\magpie.magpie-backup --provider deepseek --key-env deepseek=DEEPSEEK_API_KEY --apply
+```
+
+导入支持包含明确模型 ID 和标准 HTTP API 端点的供应商，并保留已支持的路由设置。供应商 ID 和旧 ID 必须唯一。启动 Crabforge 前，在指定环境变量中设置 API 密钥。结果中的 `other_sections` 列出备份的其他区段。导入供应商后，可用 `magpie group share <id> --text` 导出兼容的路由组，再用 `carbforge-cli group import <file>` 导入。备份超过 64 MiB 时，可用 `magpie backup --no-usage --no-library` 生成较小的文件。
+
+## 管理客户端资源
+
 在「客户端连接」中选定 Agent，打开「项目指令」并选择项目文件夹。Crabforge 在 Agent 的项目文件里维护与 Magpie 兼容的 Markdown 区块。「恢复上一版本」会先检查当前文件是否与备份对应，再恢复文件。
 
 对于 Gemini CLI、Qwen Code、Qoder 和 Qoder CN，Crabforge 依次检查项目设置、适用的 Crabforge profile 和 Agent 用户设置中的 `context.fileName`。配置为列表时取第一个非空名称。文件必须位于项目目录内。

@@ -25,6 +25,19 @@ carbforge-cli agent claude group/work
 
 On Windows, the configuration, gateway key and P2P identity live under `%LOCALAPPDATA%\com.blue.crabforge`. Set `CRABFORGE_HOME` to an absolute path or pass `--data-dir` to use an isolated configuration. `carbforge-cli key` prints the credential for clients of that gateway.
 
+## Import providers from Magpie
+
+Use a `.magpie-backup` from `magpie backup`. The CLI prompts for its passphrase without echo. Run the first command to preview, then add `--apply` to save the result. Omit `--provider` to select all providers, or repeat it to select several.
+
+```powershell
+carbforge-cli provider import-magpie .\magpie.magpie-backup --provider deepseek --key-env deepseek=DEEPSEEK_API_KEY
+carbforge-cli provider import-magpie .\magpie.magpie-backup --provider deepseek --key-env deepseek=DEEPSEEK_API_KEY --apply
+```
+
+The import supports providers with explicit model IDs and standard HTTP API endpoints. It preserves supported routing settings and requires unique provider IDs and aliases. Set the API key in the specified environment variable before starting Crabforge. The result lists other backup sections under `other_sections`. To migrate a supported route group, export it with `magpie group share <id> --text`, then use `carbforge-cli group import <file>` after importing its providers. For backups above 64 MiB, create a smaller file with `magpie backup --no-usage --no-library`.
+
+## Manage client resources
+
 Open **Client connections → Project instructions** for a supported agent, then choose a project folder. Crabforge edits the Magpie-compatible Markdown block in the selected agent's file. **Restore previous version** restores the previous file after checking that the current version still matches the backup.
 
 For Gemini CLI, Qwen Code, Qoder and Qoder CN, Crabforge checks `context.fileName` in the project settings, then the applicable Crabforge profile and the Agent's user settings. A list uses its first nonempty name. The file must be inside the project.

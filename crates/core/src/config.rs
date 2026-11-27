@@ -13,10 +13,12 @@ use nextjson::{NsonDeserialize, NsonSerialize};
 use tempfile::NamedTempFile;
 use url::Url;
 mod groups;
+mod magpie;
 mod origins;
 mod rename;
 pub use crate::anthropic_auth::AuthHeader;
 pub use groups::{ImportedGroup, MemberPattern, ResolvedGroups};
+pub use magpie::import_magpie_providers;
 pub use rename::rename_provider;
 
 pub const MAX_CONFIG: usize = 1024 * 1024;
