@@ -463,11 +463,21 @@ Local Windows testing used an encrypted backup produced by Magpie `0.1.4936`. Bo
 
 The downloaded Windows Actions package for `4968112838e68326b601f2d413ae42a4b0cac49e` passed acceptance. Run `46009593581`, job `140541409874` and artifact `15203569739` identify the 65,809,862-byte ZIP with SHA-256 `3e57920eda348d3cb63f3e2896aa4d0d96f5112f123fb66727632dd3c3e14227`. All 670 files matched the archive contents. The extracted manifest had SHA-256 `52c422ff59df1a3d750121295083250ece80060bc8ce5b61ffbfcfdf25fa38e6`, and all six PE files reported `NotSigned`. CI reported 145 Rust tests passed and 33 ignored. The downloaded desktop launched and closed cleanly, and both CLIs passed native backup, timeout fallback and editing checks. Pi, Gemini and Grok passed 12 turns each. The proxied remote `main` check at the end of acceptance matched the full build SHA. [Windows job](https://github.com/blueokanna/Crabforge/actions/runs/46009593581/job/140541409874) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/46009593581/artifacts/15203569739)
 
+## 分类缓存候选变化与恢复 / Classifier cache scope and recovery
+
+同一会话、同一用户轮的候选意图列表变化时会重新分类。列表恢复后可复用此前明确的 `0`，新列表的正向结果也可独立复用。分类器全部返回 HTTP 503 时先按普通路由处理，随后同轮请求再次分类，恢复后的判断可复用。Windows 网关回归和全量 153 项 Rust 测试通过，忽略 33 项，全目标 Clippy 通过。 [网关回归](../../../crates/core/tests/gateway.rs)
+
+The gateway classifies again when the list of eligible intents changes within the same user turn. It can reuse the explicit `0` when the original list returns and independently reuse a positive answer for the new list. When every classifier returns HTTP 503, the gateway uses ordinary routing for that request, classifies again on the next request in the turn and reuses the recovered decision. The Windows gateway regression and all 153 enabled Rust tests passed, with 33 ignored. Clippy passed for all targets. [Gateway regression](../../../crates/core/tests/gateway.rs)
+
 ## SSE 保活 / SSE keepalives
 
 Windows 本机通过 153 项 Rust 测试，忽略 33 项，全目标 Clippy 通过。保活回归覆盖跨块的 UTF-8 BOM 和 CRLF、完整事件边界及三种协议的晚到错误。两版 Debug CLI 均在回环 Chat 夹具中收到两次等待注释，然后在九秒首段超时后收到完整后备流。启用等待保活时，晚到的上游 HTTP 503 和 `Retry-After` 出现在 SSE 错误事件中。默认请求保留 HTTP 503、重试头与原始错误正文。 [网关测试](../../../crates/core/tests/gateway.rs) · [SSE 单测](../../../crates/core/src/gateway/keepalive.rs)
 
 On Windows, 153 Rust tests passed, 33 were ignored, and Clippy passed for all targets. The keepalive regressions covered a split UTF-8 BOM, split CRLF, complete event boundaries and late error frames in all three protocols. Both Debug CLIs received two wait comments from the loopback Chat fixture and the complete fallback stream after the nine-second first-content deadline. With wait keepalives enabled, the late upstream HTTP 503 and `Retry-After` arrived in the SSE error event. The default request preserved HTTP 503, the retry header and the original error body. [Gateway test](../../../crates/core/tests/gateway.rs) · [SSE unit tests](../../../crates/core/src/gateway/keepalive.rs)
+
+Windows 低负载复测观察了 30 分钟。采样每 30 秒查看一次约十秒的全机 CPU 忙碌率。观察期内各采样窗均高于探针采用的 25% 启动阈值，因此未启动新的配对流测试。此前的 60 次回环请求和同期 CPU 数据仍可复核。 [请求 CSV](sse-repeat-46005007334.csv) · [CPU CSV](sse-repeat-46005007334-cpu.csv)
+
+The Windows low-load probe observed the host for 30 minutes. About every 30 seconds, it measured system-wide CPU busy time over roughly ten seconds. Every sampled window exceeded the probe's 25% start threshold, so the probe did not start a new paired stream run. The earlier 60 loopback requests and their concurrent CPU measurements remain available. [Request CSV](sse-repeat-46005007334.csv) · [CPU CSV](sse-repeat-46005007334-cpu.csv)
 
 ## 签名与许可 / Signing and licenses
 

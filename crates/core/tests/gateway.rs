@@ -805,7 +805,12 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
             async move {
                 let body: Value = nextjson::from_slice(&request.body).unwrap();
                 let model = body["model"].as_str().unwrap();
-                seen.lock().unwrap().push(model.to_owned());
+                let first_call = {
+                    let mut seen = seen.lock().unwrap();
+                    let first_call = !seen.iter().any(|call| call == model);
+                    seen.push(model.to_owned());
+                    first_call
+                };
                 match model {
                     "slow" => {
                         tokio::time::sleep(Duration::from_secs(3)).await;
@@ -841,6 +846,33 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
                             json!({"choices":[{"message":{"content":label}}]}).to_string(),
                         )
                     }
+                    "changing" => {
+                        let prompt: Value =
+                            nextjson::from_str(body["messages"][1]["content"].as_str().unwrap())
+                                .unwrap();
+                        let kinds = prompt["kinds"].as_array().unwrap();
+                        let label = match kinds.as_slice() {
+                            [general] if general["intent"].as_str() == Some("General review") => {
+                                "0"
+                            }
+                            [general, deep]
+                                if general["intent"].as_str() == Some("General review")
+                                    && deep["intent"].as_str() == Some("Deep review") =>
+                            {
+                                "2"
+                            }
+                            _ => panic!("unexpected classifier kinds: {kinds:?}"),
+                        };
+                        (
+                            StatusCode::OK,
+                            json!({"choices":[{"message":{"content":label}}]}).to_string(),
+                        )
+                    }
+                    "transient" if first_call => (StatusCode::SERVICE_UNAVAILABLE, String::new()),
+                    "transient" => (
+                        StatusCode::OK,
+                        json!({"choices":[{"message":{"content":"1"}}]}).to_string(),
+                    ),
                     _ => (StatusCode::OK, model.to_owned()),
                 }
             }
@@ -853,21 +885,28 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
     let cfg = json!({
         "listen":"127.0.0.1:0",
         "classify_timeout":2,
-        "providers":[{"id":"fixture","models":["slow","decide","usual","review"],
+        "providers":[{"id":"fixture","models":["slow","decide","changing","transient","usual","review","deep"],
             "endpoints":{"chat":format!("http://{addr}/v1")}}],
         "groups":{
             "outer":["fixture/usual","group/intent"],
             "intent":["fixture/usual","fixture/review"],
             "classifier":["fixture/decide"],
+            "changing":["fixture/usual","fixture/review","fixture/deep"],
+            "transient":["fixture/usual","fixture/review"],
             "manual":["fixture/usual","fixture/review"]
         },
         "group_picks":{"manual":"fixture/usual"},
         "group_rules":{
             "intent":[{"use":"fixture/review","intent":"Review report"}],
+            "changing":[{"use":"fixture/review","intent":"General review"},
+                        {"use":"fixture/deep","intent":"Deep review","effort":"high"}],
+            "transient":[{"use":"fixture/review","intent":"Review report"}],
             "manual":[{"use":"fixture/review","intent":"Review report"}]
         },
         "group_classifiers":{
             "intent":{"classifier":"fixture/slow","classifierMore":["group/classifier"],"classifyPrompt":"Judge which task was requested."},
+            "changing":{"classifier":"fixture/changing"},
+            "transient":{"classifier":"fixture/transient"},
             "manual":{"classifier":"fixture/decide"}
         }
     });
@@ -889,11 +928,13 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
                 json!({"role":"tool","content":"Tool output","tool_call_id":"report"}),
             ]);
         }
+        let request = json!({"model":group,"messages":messages,
+            "reasoning_effort": if with_tools { "high" } else { "none" }});
         client
             .post(&url)
             .bearer_auth(&token)
             .header("x-session-id", "intent-fixture")
-            .body(json!({"model":group,"messages":messages}).to_string())
+            .body(request.to_string())
             .send()
     };
     assert_eq!(
@@ -932,6 +973,40 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
         [
             "usual", "usual", "slow", "decide", "review", "review", "review", "slow", "decide",
             "usual"
+        ]
+    );
+
+    calls.lock().unwrap().clear();
+    for (group, with_tools, expected) in [
+        ("group/changing", false, "usual"),
+        ("group/changing", false, "usual"),
+        ("group/changing", true, "deep"),
+        ("group/changing", true, "deep"),
+        ("group/changing", false, "usual"),
+        ("group/transient", false, "usual"),
+        ("group/transient", true, "review"),
+        ("group/transient", false, "review"),
+    ] {
+        assert_eq!(
+            send(group, "Review it", with_tools).await?.text().await?,
+            expected
+        );
+    }
+    assert_eq!(
+        *calls.lock().unwrap(),
+        [
+            "changing",
+            "usual",
+            "usual",
+            "changing",
+            "deep",
+            "deep",
+            "usual",
+            "transient",
+            "usual",
+            "transient",
+            "review",
+            "review"
         ]
     );
 
