@@ -49,6 +49,7 @@ pub(super) struct Candidate<'a> {
     pub via: Vec<&'a str>,
     pub first_content: Option<Duration>,
     pub patience: Duration,
+    pub effort: Option<&'a str>,
 }
 
 enum Plan<'a> {
@@ -86,7 +87,7 @@ struct Decision<'a> {
     settings: &'a crate::config::Classifiers,
     intents: Vec<&'a str>,
     via: Vec<&'a str>,
-    outer_limits: Limits,
+    outer_limits: Limits<'a>,
 }
 
 #[derive(Default)]
@@ -105,12 +106,14 @@ pub(super) struct RequestRoute<'a> {
 }
 
 #[derive(Clone, Copy)]
-struct Limits {
+struct Limits<'a> {
     first_content: Option<i32>,
     patience: i32,
+    group_effort: Option<&'a str>,
+    member_effort: Option<&'a str>,
 }
 
-impl Limits {
+impl<'a> Limits<'a> {
     fn within(self, config: &Config, group: &str) -> Self {
         let inherit = |values: &BTreeMap<String, i32>, enclosing| {
             values
@@ -124,7 +127,18 @@ impl Limits {
                 .first_content
                 .map(|seconds| inherit(&config.group_first_content, seconds)),
             patience: inherit(&config.group_patience, self.patience),
+            ..self
         }
+    }
+
+    fn for_member(mut self, primary: Option<&'a super::rules::Rule>, member: &str) -> Self {
+        if let Some(rule) = primary.filter(|rule| !rule.use_effort.is_empty()) {
+            self.group_effort.get_or_insert(&rule.use_effort);
+            if rule.targets.iter().any(|target| target == member) {
+                self.member_effort.get_or_insert(&rule.use_effort);
+            }
+        }
+        self
     }
 }
 
@@ -188,6 +202,8 @@ impl Gateway {
                 Route::Model(target) => self.config.providers[target.provider].patience,
                 _ => self.config.default_group_patience,
             },
+            group_effort: None,
+            member_effort: None,
         };
         // A direct request keeps its origin even when the primary lacks this protocol.
         let unrestricted =
@@ -329,7 +345,7 @@ impl Gateway {
         request: &RequestRoute<'a>,
         via: &mut Vec<&'a str>,
         seen: &mut Visited,
-        limits: Limits,
+        limits: Limits<'a>,
         intent: Option<&str>,
     ) -> Option<Plan<'a>> {
         let index = match route {
@@ -358,6 +374,7 @@ impl Gateway {
                             0 => Duration::from_secs(60),
                             seconds => Duration::from_secs(seconds.max(0) as u64),
                         },
+                        effort: limits.member_effort.or(limits.group_effort),
                     })
                     .map(Plan::Model);
             }
@@ -389,12 +406,15 @@ impl Gateway {
                     })
                 })
             });
-        let mut ordered = rules.map(|(facts, rules)| {
+        let ordered = rules.map(|(facts, rules)| {
             let ordered = super::rules::ordered(members, rules, facts, intent);
-            if ordered.len() < members.len() {
+            if ordered.members.len() < members.len() {
                 request.paused.store(true, Ordering::Relaxed);
             }
-            ordered.into_iter()
+            ordered
+        });
+        let (mut ordered, primary) = ordered.map_or((None, None), |order| {
+            (Some(order.members.into_iter()), order.primary)
         });
         let mut original = members.iter().enumerate();
         let mut preferred_count = 0;
@@ -409,7 +429,14 @@ impl Gateway {
             if nested {
                 via.push(member);
             }
-            let choices = self.expand(child, request, via, seen, limits, None);
+            let choices = self.expand(
+                child,
+                request,
+                via,
+                seen,
+                limits.for_member(primary, member),
+                None,
+            );
             if nested {
                 via.pop();
             }

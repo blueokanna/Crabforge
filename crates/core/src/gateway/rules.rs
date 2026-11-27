@@ -56,26 +56,40 @@ pub(super) fn compile(
         .collect()
 }
 
+pub(super) struct Order<'a> {
+    pub members: Vec<(bool, usize, &'a str)>,
+    pub primary: Option<&'a Rule>,
+}
+
 pub(super) fn ordered<'a>(
     members: &'a [String],
-    rules: &[Rule],
+    rules: &'a [Rule],
     facts: &Facts,
     intent: Option<&str>,
-) -> Vec<(bool, usize, &'a str)> {
-    let mut paused = HashSet::new();
-    let mut ranked = HashMap::new();
+) -> Order<'a> {
     let key = intent.map(str::to_lowercase);
-    for rule in rules.iter().filter(|rule| {
-        (rule.intent.is_empty() || key.as_deref() == Some(rule.intent_key.as_str()))
-            && rule.matches(facts)
-    }) {
-        if rule.pause {
-            paused.extend(rule.targets.iter().map(String::as_str));
-        } else {
-            for target in &rule.targets {
-                let rank = ranked.len();
-                ranked.entry(target.as_str()).or_insert(rank);
+    let matching = rules
+        .iter()
+        .filter(|rule| {
+            (rule.intent.is_empty() || key.as_deref() == Some(rule.intent_key.as_str()))
+                && rule.matches(facts)
+        })
+        .collect::<Vec<_>>();
+    let paused = matching
+        .iter()
+        .filter(|rule| rule.pause)
+        .flat_map(|rule| rule.targets.iter().map(String::as_str))
+        .collect::<HashSet<_>>();
+    let mut ranked = HashMap::new();
+    let mut primary = None;
+    for rule in matching.into_iter().filter(|rule| !rule.pause) {
+        for target in rule.targets.iter().map(String::as_str) {
+            if paused.contains(target) {
+                continue;
             }
+            primary.get_or_insert(rule);
+            let rank = ranked.len();
+            ranked.entry(target).or_insert(rank);
         }
     }
     let mut order = members
@@ -85,10 +99,13 @@ pub(super) fn ordered<'a>(
         .filter(|(_, member)| !paused.contains(member))
         .collect::<Vec<_>>();
     order.sort_by_key(|(_, member)| ranked.get(member).copied().unwrap_or(usize::MAX));
-    order
-        .into_iter()
-        .map(|(index, member)| (ranked.contains_key(member), index, member))
-        .collect()
+    Order {
+        members: order
+            .into_iter()
+            .map(|(index, member)| (ranked.contains_key(member), index, member))
+            .collect(),
+        primary,
+    }
 }
 
 pub(super) fn intents<'a>(rules: &'a [Rule], facts: &Facts) -> Vec<&'a str> {
@@ -105,6 +122,7 @@ pub(super) fn intents<'a>(rules: &'a [Rule], facts: &Facts) -> Vec<&'a str> {
 pub(super) struct Rule {
     pub targets: Vec<String>,
     pub pause: bool,
+    pub use_effort: String,
     min_tokens: usize,
     images: bool,
     effort: String,
@@ -124,6 +142,7 @@ impl Rule {
         Ok(Self {
             targets,
             pause: rule.pause,
+            use_effort: rule.use_effort.clone(),
             min_tokens: rule.tokens as usize,
             images: rule.images,
             effort: rule.effort.clone(),

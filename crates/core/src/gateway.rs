@@ -22,6 +22,7 @@ use url::Url;
 
 mod classifier;
 mod cors;
+mod effort;
 mod first_content;
 mod keepalive;
 mod native;
@@ -99,15 +100,21 @@ struct Model<'a> {
     native_endpoints: Vec<&'static str>,
     #[njson(skip_serializing_if = "Option::is_none")]
     magpie_prefers: Option<&'static str>,
+    #[njson(skip_serializing_if = "Option::is_none")]
+    reasoning_levels: Option<&'a [String]>,
 }
 
-fn listed_model<'a>(id: &'a str, route: Route, config: &Config) -> Model<'a> {
+fn listed_model<'a>(id: &'a str, route: Route, config: &'a Config) -> Model<'a> {
     let protocols = route.protocols().expect("listed route");
-    let free = if let Route::Model(t) = route {
+    let (free, reasoning_levels) = if let Route::Model(t) = route {
         let provider = &config.providers[t.provider];
-        provider.free_models.contains(&provider.models[t.model])
+        let model = &provider.models[t.model];
+        (
+            provider.free_models.contains(model),
+            config.model_levels(provider, model),
+        )
     } else {
-        false
+        (false, &[][..])
     };
     Model {
         id,
@@ -117,6 +124,7 @@ fn listed_model<'a>(id: &'a str, route: Route, config: &Config) -> Model<'a> {
         owned_by: "crabforge",
         native_endpoints: protocols.endpoints(),
         magpie_prefers: protocols.preferred_endpoint(),
+        reasoning_levels: (!reasoning_levels.is_empty()).then_some(reasoning_levels),
     }
 }
 
@@ -936,12 +944,26 @@ async fn forward(
         } else {
             None
         };
+        let rewritten = candidate
+            .effort
+            .zip(api.format())
+            .filter(|_| translation.is_none())
+            .and_then(|(effort, format)| {
+                effort::rewrite(
+                    format,
+                    &bytes,
+                    (range.is_some() && &asked != model).then_some(model.as_str()),
+                    effort,
+                    gw.config.model_levels(p, model),
+                )
+            });
         let vertex_body = if p.endpoints.vertex.is_some()
             && let Api::Messages(path) = native
         {
-            let data = converted
-                .as_ref()
-                .map_or(bytes.as_ref(), |body| body.body.as_slice());
+            let data = converted.as_ref().map_or_else(
+                || rewritten.as_deref().unwrap_or(&bytes),
+                |body| body.body.as_slice(),
+            );
             match crate::vertex::claude_body(&mut url, model, path == "messages/count_tokens", data)
             {
                 Ok(body) => Some(body),
@@ -1027,6 +1049,8 @@ async fn forward(
             }
         } else if let Some(converted) = converted {
             vec![converted.body.into()]
+        } else if let Some(rewritten) = rewritten {
+            vec![rewritten]
         } else {
             match &range {
                 Some(r) if &asked != model => {
@@ -1337,6 +1361,7 @@ mod tests {
             patience: -1,
             no_stand_in: false,
             model_protocols: Default::default(),
+            model_reasoning_levels: Default::default(),
             free_models: Default::default(),
             id: "aws".into(),
             catalog: String::new(),

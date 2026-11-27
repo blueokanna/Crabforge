@@ -15,6 +15,8 @@ pub struct RoutingRule {
     #[njson(skip_serializing_if = "String::is_empty")]
     pub effort: String,
     #[njson(skip_serializing_if = "String::is_empty")]
+    pub use_effort: String,
+    #[njson(skip_serializing_if = "String::is_empty")]
     pub intent: String,
     #[njson(skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<String>,
@@ -63,6 +65,15 @@ impl RoutingRule {
             self.effort
         );
         ensure!(
+            self.use_effort.is_empty()
+                || matches!(
+                    self.use_effort.as_str(),
+                    "low" | "medium" | "high" | "xhigh" | "max"
+                ),
+            "invalid requested reasoning effort {:?}",
+            self.use_effort
+        );
+        ensure!(
             self.agents.iter().all(|a| !a.trim().is_empty()),
             "empty agent ID"
         );
@@ -85,6 +96,7 @@ impl RoutingRule {
                     && self.tokens == 0
                     && !self.images
                     && self.effort.is_empty()
+                    && self.use_effort.is_empty()
                     && self.intent.is_empty()
                     && !self.compact
                     && self.conditions.iter().all(|c| c.field == "agent"),

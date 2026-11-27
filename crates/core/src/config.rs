@@ -12,6 +12,7 @@ use http::request::Builder as RequestBuilder;
 use nextjson::{NsonDeserialize, NsonSerialize};
 use tempfile::NamedTempFile;
 use url::Url;
+pub(crate) mod effort;
 pub(crate) mod groups;
 pub use groups::rules::{Classifiers, RoutingRule, RuleSet};
 mod magpie;
@@ -79,6 +80,8 @@ pub struct Provider {
     /// Protocol information advertised by an upstream gateway for individual models.
     #[njson(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub model_protocols: BTreeMap<String, crate::catalog::RelayProtocols>,
+    #[njson(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub model_reasoning_levels: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Clone, Debug, NsonSerialize, NsonDeserialize)]
@@ -137,6 +140,8 @@ pub struct Config {
     pub auto_group_skip: BTreeSet<String>,
     #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub model_same_as: BTreeMap<String, String>,
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
+    pub model_efforts: BTreeMap<String, Vec<String>>,
     #[njson(skip_serializing_if = "BTreeSet::is_empty")]
     pub rotating_groups: BTreeSet<String>,
     #[njson(skip_serializing_if = "BTreeMap::is_empty")]
@@ -182,6 +187,7 @@ impl Default for Config {
             hidden_auto_groups: BTreeSet::new(),
             auto_group_skip: BTreeSet::new(),
             model_same_as: BTreeMap::new(),
+            model_efforts: BTreeMap::new(),
             rotating_groups: BTreeSet::new(),
             group_weights: BTreeMap::new(),
             group_last_weights: BTreeMap::new(),
@@ -218,6 +224,12 @@ fn valid_model_id(id: &str) -> bool {
         && id.split('/').all(|part| !matches!(part, "" | "." | ".."))
         && id.trim() == id
         && !id.chars().any(char::is_control)
+}
+
+fn valid_model_ref(id: &str) -> bool {
+    id.split_once('/').is_some_and(|(provider, model)| {
+        valid_id(provider) && provider != "group" && valid_model_id(model)
+    })
 }
 
 fn valid_group_name(name: &str) -> bool {
@@ -430,6 +442,10 @@ impl Config {
             self.listen.ip().is_loopback(),
             "gateway must listen on loopback"
         );
+        for (id, levels) in &self.model_efforts {
+            ensure!(valid_model_ref(id), "invalid model reference {id:?}");
+            effort::validate_levels(levels, false).with_context(|| format!("model {id}"))?;
+        }
         let mut ids = HashSet::new();
         let mut refs = HashSet::new();
         for p in &self.providers {
@@ -504,6 +520,11 @@ impl Config {
                     "duplicate model in {}",
                     p.id
                 );
+            }
+            for (model, levels) in &p.model_reasoning_levels {
+                ensure!(valid_model_id(model), "invalid model ID {model:?}");
+                effort::validate_levels(levels, true)
+                    .with_context(|| format!("model {}/{model}", p.id))?;
             }
         }
         ensure!(

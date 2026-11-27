@@ -35,6 +35,8 @@ For requests addressed directly to a provider, set **Retry patience** in that pr
 
 To route generation requests conditionally, edit **Routing rules (JSON)** in the route group or run `carbforge-cli group rules work rules.json`. Run `carbforge-cli group rules work` to print the saved rules, or save `[]` to clear them. The `use` and optional `more` entries name members of the group. Matching rules put their members first in rule order, then the group's strategy orders the other members. A matching `pause` removes its member for the request. Manual selection takes precedence. Rules travel with Magpie shares and encrypted group backups. Restart the gateway after saving.
 
+A rule can set `useEffort` to `low`, `medium`, `high`, `xhigh` or `max` for requests that already ask for reasoning. When forwarding native OpenAI Chat Completions, Responses or Anthropic Messages requests, the gateway fits the rule's level to each attempted model's known levels, including on fallback. The client's setting passes through when levels are unknown. Use **Discover models** in the provider editor or `carbforge-cli models primary --sync` to load advertised levels. For a model without advertised levels, set `carbforge-cli model spec primary/model --reasoning low,medium,high`. Use `--reasoning auto` to clear the custom list. Magpie imports preserve `useEffort` in groups and `modelEfforts` with `--settings` or `--settings-only`.
+
 For `intent` rules, supply an object in the same editor or CLI command. `classifier` and `classifierMore` accept configured model and group IDs. `classifyPrompt` is optional.
 
 ```json

@@ -235,6 +235,11 @@ enum Command {
         #[arg(long)]
         sync: bool,
     },
+    /// Inspect or edit the reasoning levels configured for a model.
+    Model {
+        #[command(subcommand)]
+        command: ModelCommand,
+    },
     /// Show the active settings, or validate and import a JSON file.
     Config { file: Option<PathBuf> },
     /// Print the gateway API key for configuring an agent.
@@ -270,6 +275,17 @@ enum SessionAgent {
     Grok,
     Omp,
     Pi,
+}
+
+#[derive(clap::Subcommand)]
+enum ModelCommand {
+    /// Show or set reasoning levels for a provider/model ID.
+    Spec {
+        id: String,
+        /// Comma-separated levels, or auto to clear the custom list.
+        #[arg(long)]
+        reasoning: Option<String>,
+    },
 }
 
 impl From<SessionAgent> for crabforge_core::agents::NativeAgent {
@@ -1041,6 +1057,7 @@ async fn dispatch(args: Args) -> Result<()> {
                     p.models.clone_from(&catalog.models);
                     p.free_models = catalog.free_models;
                     p.model_protocols = catalog.model_protocols;
+                    p.model_reasoning_levels = catalog.model_reasoning_levels;
                     if let Some(mode) = catalog.learned_auth {
                         p.endpoints.auth_header = mode;
                     }
@@ -1053,6 +1070,30 @@ async fn dispatch(args: Args) -> Result<()> {
             for model in models {
                 println!("{model}");
             }
+        }
+        Command::Model {
+            command: ModelCommand::Spec { id, reasoning },
+        } => {
+            let previous = config::snapshot(&dir)?;
+            let mut cfg = config::Config::parse(&previous)?;
+            if let Some(reasoning) = reasoning {
+                let levels = if reasoning.trim().eq_ignore_ascii_case("auto") {
+                    vec![]
+                } else {
+                    reasoning
+                        .split(',')
+                        .map(|level| level.trim().to_ascii_lowercase())
+                        .collect()
+                };
+                cfg.set_model_efforts(&id, levels)?;
+                config::save(&dir, &previous, &cfg.to_json()?)?;
+            }
+            println!(
+                "{}",
+                cfg.model_efforts
+                    .get(&id)
+                    .map_or_else(|| "auto".into(), |levels| levels.join(","))
+            );
         }
         Command::Agents => {
             let base = config::load(&dir)?.listen;

@@ -376,6 +376,16 @@ Both Windows Debug CLIs imported `intent`, `classifier`, `classifierMore`, `clas
 
 Two concurrent requests for the same named session and user turn shared one primary and backup classifier sequence. A request with appended tool results reused the verdict, and a different user message classified again. Both Debug CLIs passed tool continuation checks for a matched intent and a `0` verdict. Rust reported 150 passed and 33 ignored, and Clippy passed. The all-target and Windows x64 graphs contained 423 and 343 unique package versions respectively, including all five pinned dependencies and zero prohibited packages. [Gateway regression](../../../crates/core/tests/gateway.rs)
 
+### 路由规则推理等级 / Reasoning levels in routing rules
+
+两个 Windows Debug CLI 均从 Magpie 0.1.4936 原版加密备份恢复 `useEffort` 和 `modelEfforts`。回归核对分享、供应商改名、自定义等级的设置与清除、上游目录的无效等级和重复项过滤，以及目录等级优先。网关回归核对每次尝试的实际请求，覆盖嵌套回退、同距向上拟合、未知模型等级、关闭推理的 Responses 请求，以及 Anthropic 自适应模式和预算上限。Rust 通过 154 项，忽略 33 项，全目标 Clippy 通过。Flutter 分析与四项单测通过。 [网关回归](../../../crates/core/tests/gateway.rs)
+
+Both Windows Debug CLIs restored `useEffort` and `modelEfforts` from a native encrypted Magpie 0.1.4936 backup. The fixture checked sharing, provider rename, setting and clearing custom levels, filtering invalid and duplicate catalog levels, and catalog precedence. The gateway regression inspected the actual requests for nested fallback, an upward tie, unknown levels, a Responses request with reasoning disabled, and adaptive and budget-limited Anthropic thinking. Rust reported 154 passed and 33 ignored. All-target Clippy, Flutter analysis and four Flutter unit tests passed. [Gateway regression](../../../crates/core/tests/gateway.rs)
+
+Windows Debug 桌面通过 `flutter_rust_bridge` 在 1,200 和 560 逻辑像素宽度下分别保存 `medium` 和 `high`，两次编辑供应商时均保留已有的目录推理等级。 [桌面回归](../../../gui/integration_test/console_layout_test.dart)
+
+The Windows Debug desktop saved `medium` and `high` at 1,200 and 560 logical pixels respectively through `flutter_rust_bridge`. Editing the provider at either width preserved its saved catalog levels. [Desktop regression](../../../gui/integration_test/console_layout_test.dart)
+
 ## Grok Build 会话 / Grok Build sessions
 
 Grok Build 1.0.92 通过回环夹具启动原生会话，并用同一个会话 ID 继续到第 12 轮。每轮上游收到之前的用户提示。两个 Windows Debug CLI 均列出原生会话 ID、项目和配置路径，从日志恢复完全相同的 12 条用户原话和预览修订，并拒绝未经发现的配置目录。Rust 回归覆盖分段提示、客户端内部操作和子代理日志。

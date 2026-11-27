@@ -250,6 +250,7 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
         patience: -1,
         no_stand_in: false,
         model_protocols: Default::default(),
+        model_reasoning_levels: Default::default(),
         free_models: Default::default(),
         catalog: String::new(),
         web_site: None,
@@ -1018,6 +1019,151 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
         ["group/classifier"]
     );
     assert_eq!(restored.group_rules[&report.id][0].intent, "Review report");
+    service.stop().await;
+    upstream.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn route_rule_effort_fits_each_model_and_preserves_native_options() -> Result<()> {
+    use std::sync::{Arc, Mutex};
+
+    let calls = Arc::new(Mutex::new(Vec::<Value>::new()));
+    let seen = calls.clone();
+    let answer = move |request: Incoming| {
+        let seen = seen.clone();
+        async move {
+            let body: Value = nextjson::from_slice(&request.body).unwrap();
+            let status = if body["model"].as_str() == Some("primary") {
+                StatusCode::SERVICE_UNAVAILABLE
+            } else {
+                StatusCode::OK
+            };
+            seen.lock().unwrap().push(body);
+            (status, "reply")
+        }
+    };
+    let mock = Router::new()
+        .route("/v1/chat/completions", post(answer.clone()))
+        .route("/v1/responses", post(answer.clone()))
+        .route("/v1/messages", post(answer));
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let upstream = tokio::spawn(crabforge_test_support::server::serve(listener, mock));
+    let dir = tempdir()?;
+    let base = format!("http://{addr}/v1");
+    let cfg = json!({
+        "listen":"127.0.0.1:0",
+        "providers":[{"id":"fixture", "models":["primary","backup","unknown"],
+            "model_reasoning_levels":{"primary":["low","medium"]},
+            "endpoints":{"chat":base,"responses":base,"anthropic":base}}],
+        "model_efforts":{"fixture/primary":["low"],"fixture/backup":["low","high","xhigh"]},
+        "groups":{
+            "outer":["fixture/primary","group/nested"],
+            "nested":["fixture/backup"],
+            "unknown":["fixture/unknown"]
+        },
+        "group_rules":{
+            "outer":[{"use":"fixture/primary","effort":"on","useEffort":"high"}],
+            "nested":[{"use":"fixture/backup","effort":"on","useEffort":"max"}],
+            "unknown":[{"use":"fixture/unknown","effort":"on","useEffort":"high"}]
+        }
+    });
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let service = Service::start(dir.path()).await?;
+    let token = config::token(dir.path())?;
+    let client = crabforge_test_support::Client::with_timeout(Duration::from_secs(5));
+    let send = |path: &str, body: Value| {
+        client
+            .post(format!("http://{}/v1/{path}", service.addr))
+            .bearer_auth(&token)
+            .body(body.to_string())
+            .send()
+    };
+    assert_eq!(
+        send(
+            "chat/completions",
+            json!({"model":"group/outer","reasoning_effort":"low",
+        "messages":[{"role":"user","content":"Review"}]})
+        )
+        .await?
+        .status(),
+        200
+    );
+    assert_eq!(
+        send(
+            "chat/completions",
+            json!({"model":"group/unknown","reasoning_effort":"low",
+        "messages":[{"role":"user","content":"Review"}]})
+        )
+        .await?
+        .status(),
+        200
+    );
+    assert_eq!(
+        send(
+            "responses",
+            json!({"model":"group/nested","input":"Review",
+        "reasoning":{"effort":"low","summary":"auto","context":"all_turns"}})
+        )
+        .await?
+        .status(),
+        200
+    );
+    assert_eq!(send("messages", json!({"model":"group/nested","max_tokens":5000,
+        "thinking":{"type":"enabled","budget_tokens":1024},"output_config":{"effort":"low","format":{"type":"json_schema"}},
+        "messages":[{"role":"user","content":"Review"}]})).await?.status(), 200);
+    assert_eq!(
+        send(
+            "messages",
+            json!({"model":"group/nested","max_tokens":5000,
+        "thinking":{"type":"adaptive"},"messages":[{"role":"user","content":"Review"}]})
+        )
+        .await?
+        .status(),
+        200
+    );
+    assert_eq!(
+        send(
+            "responses",
+            json!({"model":"group/nested","input":"Title",
+        "reasoning":{"effort":"none"}})
+        )
+        .await?
+        .status(),
+        200
+    );
+
+    let requests = calls.lock().unwrap().clone();
+    assert_eq!(requests.len(), 7);
+    assert_eq!(requests[0]["model"].as_str(), Some("primary"));
+    assert_eq!(requests[0]["reasoning_effort"].as_str(), Some("medium"));
+    assert_eq!(requests[1]["model"].as_str(), Some("backup"));
+    assert_eq!(requests[1]["reasoning_effort"].as_str(), Some("xhigh"));
+    assert_eq!(requests[2]["reasoning_effort"].as_str(), Some("low"));
+    assert_eq!(requests[3]["reasoning"]["effort"].as_str(), Some("xhigh"));
+    assert_eq!(requests[3]["reasoning"]["summary"].as_str(), Some("auto"));
+    assert_eq!(
+        requests[3]["reasoning"]["context"].as_str(),
+        Some("all_turns")
+    );
+    assert_eq!(
+        requests[4]["thinking"]["budget_tokens"].as_u64(),
+        Some(4999)
+    );
+    assert_eq!(
+        requests[4]["output_config"]["effort"].as_str(),
+        Some("xhigh")
+    );
+    assert_eq!(
+        requests[4]["output_config"]["format"]["type"].as_str(),
+        Some("json_schema")
+    );
+    assert_eq!(
+        requests[5]["output_config"]["effort"].as_str(),
+        Some("xhigh")
+    );
+    assert_eq!(requests[6]["reasoning"]["effort"].as_str(), Some("none"));
     service.stop().await;
     upstream.abort();
     Ok(())

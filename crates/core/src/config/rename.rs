@@ -125,6 +125,16 @@ impl Config {
             .into_iter()
             .map(|(id, model)| (rename(&id).unwrap_or(id), model))
             .collect();
+        for (id, levels) in std::mem::take(&mut self.model_efforts) {
+            let id = rename(&id).unwrap_or(id);
+            ensure!(
+                self.model_efforts
+                    .get(&id)
+                    .is_none_or(|saved| saved == &levels),
+                "conflicting reasoning levels for {id:?}"
+            );
+            self.model_efforts.insert(id, levels);
+        }
         if self.auto_group_skip.remove(from) {
             self.auto_group_skip.insert(to.to_owned());
         }

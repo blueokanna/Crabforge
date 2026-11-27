@@ -177,6 +177,9 @@ class _ProviderEditorState extends State<ProviderEditor> {
         modelProtocols = Map<String, dynamic>.from(
           result['model_protocols'] ?? {},
         );
+        reasoningLevels = Map<String, dynamic>.from(
+          result['model_reasoning_levels'] ?? {},
+        );
         discoveryMessage = context.strings.modelsRead(ids.length);
       }
     } catch (e) {
@@ -192,6 +195,9 @@ class _ProviderEditorState extends State<ProviderEditor> {
   );
   late JsonMap modelProtocols = Map<String, dynamic>.from(
     widget.provider?['model_protocols'] ?? {},
+  );
+  late JsonMap reasoningLevels = Map<String, dynamic>.from(
+    widget.provider?['model_reasoning_levels'] ?? {},
   );
   late final models = TextEditingController(
     text: (widget.provider?['models'] as List?)?.join('\n'),
@@ -498,6 +504,12 @@ class _ProviderEditorState extends State<ProviderEditor> {
                 'model_protocols': {
                   for (final id in linesOf(models.text))
                     if (modelProtocols.containsKey(id)) id: modelProtocols[id],
+                },
+              if (reasoningLevels.isNotEmpty)
+                'model_reasoning_levels': {
+                  for (final id in linesOf(models.text))
+                    if (reasoningLevels.containsKey(id))
+                      id: reasoningLevels[id],
                 },
               if (freeModels.isNotEmpty)
                 'free_models': linesOf(models.text)

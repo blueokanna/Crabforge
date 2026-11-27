@@ -179,6 +179,7 @@ impl BackupProvider {
             no_stand_in: self.no_stand_in,
             free_models,
             model_protocols: BTreeMap::new(),
+            model_reasoning_levels: BTreeMap::new(),
         })
     }
 }
@@ -321,6 +322,8 @@ struct BackupSettings {
     cors_origins: Option<BTreeSet<String>>,
     #[njson(default, skip_serializing_if = "Option::is_none")]
     model_same_as: Option<BTreeMap<String, String>>,
+    #[njson(default, skip_serializing_if = "Option::is_none")]
+    model_efforts: Option<BTreeMap<String, Vec<String>>>,
     #[njson(
         default,
         rename = "groupFirstToken",
@@ -449,6 +452,7 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
         imported.port.is_some()
             || imported.cors_origins.is_some()
             || imported.model_same_as.is_some()
+            || imported.model_efforts.is_some()
             || imported.group_first_content.is_some()
             || imported.group_patience.is_some()
             || imported.classify_timeout.is_some(),
@@ -482,6 +486,22 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
             );
         }
         cfg.model_same_as.extend(names.clone());
+    }
+    if let Some(efforts) = &imported.model_efforts {
+        for (id, levels) in efforts {
+            ensure!(
+                super::valid_model_ref(id),
+                "invalid Magpie modelEfforts entry {id:?}"
+            );
+            super::effort::validate_levels(levels, false)?;
+            ensure!(
+                cfg.model_efforts
+                    .get(id)
+                    .is_none_or(|saved| saved == levels),
+                "conflicting reasoning levels for {id:?}"
+            );
+        }
+        cfg.model_efforts.extend(efforts.clone());
     }
     if let Some(seconds) = imported.group_first_content {
         cfg.default_group_first_content = seconds;

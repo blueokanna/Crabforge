@@ -44,6 +44,10 @@ void main() {
                 'id': id,
                 'models': [model],
                 'endpoints': {'chat': 'http://127.0.0.1:1/v1'},
+                if (id == 'openai')
+                  'model_reasoning_levels': {
+                    model: ['low', 'high'],
+                  },
               },
           ],
           'groups': {
@@ -252,7 +256,12 @@ void main() {
       await saveAndRead(
         (cfg) => (cfg['providers'] as List).any(
           (item) =>
-              item['id'] == 'openai' && item['patience'] == providerPatience,
+              item['id'] == 'openai' &&
+              item['patience'] == providerPatience &&
+              listEquals(item['model_reasoning_levels']?['gpt-4.1'] as List?, [
+                'low',
+                'high',
+              ]),
         ),
       );
       await openPage(nav, strings.groups);
@@ -262,6 +271,7 @@ void main() {
       final patience = width == 1200 ? 10 : -1;
       final tokens = width == 1200 ? 100 : 200;
       final intent = 'Review $width';
+      final effort = width == 1200 ? 'medium' : 'high';
       await saveLimits(
         seconds,
         patience,
@@ -270,10 +280,11 @@ void main() {
             cfg['group_patience']?['review'] == patience &&
             cfg['group_rules']?['review']?[0]['tokens'] == tokens &&
             cfg['group_rules']?['review']?[0]['intent'] == intent &&
+            cfg['group_rules']?['review']?[0]['useEffort'] == effort &&
             cfg['group_classifiers']?['review']?['classifier'] ==
                 'openai/gpt-4.1',
         routingRules:
-            '{"classifier":"openai/gpt-4.1","rules":[{"use":"openai/gpt-4.1","tokens":$tokens,"intent":"$intent"}]}',
+            '{"classifier":"openai/gpt-4.1","rules":[{"use":"openai/gpt-4.1","tokens":$tokens,"intent":"$intent","useEffort":"$effort"}]}',
       );
       await openPage(nav, strings.gateway);
       await tester.tap(find.text(strings.networkSettings));

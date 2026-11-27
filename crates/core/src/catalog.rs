@@ -55,6 +55,7 @@ struct Entry {
     free: Option<nextjson::Value>,
     native_endpoints: Option<nextjson::Value>,
     magpie_prefers: Option<nextjson::Value>,
+    reasoning_levels: Option<nextjson::Value>,
     #[njson(rename = "supportedGenerationMethods")]
     methods: Option<Vec<String>>,
 }
@@ -219,6 +220,7 @@ pub struct ModelCatalog {
     pub models: Vec<String>,
     pub free_models: std::collections::BTreeSet<String>,
     pub model_protocols: BTreeMap<String, RelayProtocols>,
+    pub model_reasoning_levels: BTreeMap<String, Vec<String>>,
     #[njson(skip)]
     pub learned_auth: Option<crate::config::AuthHeader>,
 }
@@ -270,6 +272,9 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
                 catalog.free_models.extend(page.free_models);
                 for (id, protocols) in page.model_protocols {
                     catalog.model_protocols.entry(id).or_insert(protocols);
+                }
+                for (id, levels) in page.model_reasoning_levels {
+                    catalog.model_reasoning_levels.entry(id).or_insert(levels);
                 }
             }
             Err(e) => {
@@ -448,6 +453,27 @@ async fn fetch(source: &Source, auth: &mut CatalogAuth<'_>) -> Result<ModelCatal
                             .model_protocols
                             .entry(id.to_owned())
                             .or_insert(hints);
+                    }
+                    if let Some(values) = entry
+                        .reasoning_levels
+                        .as_ref()
+                        .and_then(nextjson::Value::as_array)
+                    {
+                        let mut seen = HashSet::new();
+                        let levels = values
+                            .iter()
+                            .filter_map(nextjson::Value::as_str)
+                            .filter(|level| {
+                                crate::config::effort::rank(level).is_some() && seen.insert(*level)
+                            })
+                            .map(str::to_owned)
+                            .collect::<Vec<_>>();
+                        if !levels.is_empty() {
+                            catalog
+                                .model_reasoning_levels
+                                .entry(id.to_owned())
+                                .or_insert(levels);
+                        }
                     }
                     catalog.models.push(id.to_owned());
                 }
