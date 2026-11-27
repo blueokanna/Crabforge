@@ -106,6 +106,14 @@ void main() {
     await tap(find.widgetWithText(TextButton, 'Remove'));
     await waitFor(find.text('No skills imported'));
     expect(attachment.readAsBytesSync(), [4, 5, 6]);
+    final preserved = find.ancestor(
+      of: find.text('Claude Code · Existing file kept'),
+      matching: find.byType(CollectionTile),
+    );
+    expect(tester.widget<CollectionTile>(preserved).grid, isFalse);
+    await tap(action('Grid view'));
+    expect(tester.widget<CollectionTile>(preserved).grid, isTrue);
+    await tap(action('List view'));
 
     const other = 'crabforge-installed-fixture';
     final own = Directory('${claude.path}/skills/$other')..createSync();

@@ -16,7 +16,7 @@
 
 The fixture used two loopback providers and one route group. The Windows integration test captured 48 views across six main pages, widths of 1,200 and 560 logical pixels, both brightness settings, and list and grid layouts. All nine locales exercised narrow navigation. The test also read the native DWM accent, checked both high-contrast schemes, and verified that a new process restored HarmonyOS Sans SC. The screenshots come from the Windows Debug integration test.
 
-[Light 1200](light-1200.jpg) · [Light 560](light-560.jpg) · [Dark 1200](dark-1200.jpg) · [Dark 560](dark-560.jpg) · [48 PNG checksums](captures.sha256)
+[Light 1200](light-1200.jpg) · [Light 560](light-560.jpg) · [Dark 1200](dark-1200.jpg) · [Dark 560](dark-560.jpg) · [48 original PNGs](captures.zip) · [PNG checksums](captures.sha256)
 
 GitHub Actions 的 Release 构建中，三套文字字体和产品 PNG 均与原件逐字节一致。包内的 Material Symbols Rounded 裁剪版为 229,580 字节，包含应用引用的 82 个唯一图标码点和 `FILL`、`GRAD`、`opsz`、`wght` 四条可变轴。
 
@@ -29,6 +29,10 @@ Windows Graphics Capture recorded 24 navigations in the unpacked CI Release desk
 独立的控制台集成测试通过了九语菜单顺序、供应商编辑、分组路由、通过解压 CLI 发送请求以及冷启动恢复。
 
 A separate console integration run passed the nine-language menu ordering, provider editing, route-group changes, requests through the unpacked CLI, and cold-start restoration.
+
+后续 Windows Debug 测试在独立配置下通过了项目 MCP、共享插件库、子代理和斜杠命令。规则与技能用例也通过了源码更新后的复测。技能用例确认删除库条目后，保留的原生副本仍可在列表与网格中查看，外部编辑的二进制附件逐字节保留。
+
+Follow-up Windows Debug tests passed for project MCP, shared plugin bundles, subagents, and slash commands in isolated profiles. The rule and skill cases passed after the layout update. The skill case verified that both layouts show the retained native copy after the library entry is removed, and that the externally edited binary attachment is preserved byte for byte.
 
 ## 内存、流式请求和 P2P / Memory, streaming, and P2P
 

@@ -212,12 +212,19 @@ class _AgentRulesState extends State<AgentRules> {
                         );
                       },
                     ),
-                    for (final entry in detached)
-                      SliverToBoxAdapter(
-                        child: ListTile(
-                          title: Text(entry.key),
-                          subtitle: placements(context, entry.value),
-                        ),
+                    if (detached.isNotEmpty)
+                      CollectionSliver(
+                        grid: grid,
+                        height: 170,
+                        children: [
+                          for (final entry in detached)
+                            CollectionTile(
+                              grid: grid,
+                              leading: const Icon(CrabforgeSymbols.rule),
+                              title: Text(entry.key),
+                              detail: placements(context, entry.value),
+                            ),
+                        ],
                       ),
                   ],
                 ),

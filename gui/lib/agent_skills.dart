@@ -229,12 +229,19 @@ class _AgentSkillsState extends State<AgentSkills> {
                         );
                       },
                     ),
-                    for (final entry in missing)
-                      SliverToBoxAdapter(
-                        child: ListTile(
-                          title: Text(entry.key),
-                          subtitle: _placements(entry.value),
-                        ),
+                    if (missing.isNotEmpty)
+                      CollectionSliver(
+                        grid: grid,
+                        height: 174,
+                        children: [
+                          for (final entry in missing)
+                            CollectionTile(
+                              grid: grid,
+                              leading: const Icon(CrabforgeSymbols.extension),
+                              title: Text(entry.key),
+                              detail: _placements(entry.value),
+                            ),
+                        ],
                       ),
                   ],
                 ),

@@ -58,7 +58,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
           cargo fmt --all -- --check
-          $graph = cargo tree --locked --workspace --target all --edges normal,build,dev --prefix none --format '{p}'
+          $graph = cargo tree --locked --workspace --all-features --target all --edges normal,build,dev --prefix none --format '{p}'
           $blocked = $graph | Where-Object { $_ -match '^\S*serde\S* v|^(hyper(?:-[\w-]+)?|reqwest(?:-[\w-]+)?) v' }
           if ($blocked) { throw "Prohibited enabled dependencies: $($blocked -join ', ')" }
           cargo clippy --locked --workspace --all-targets -- -D warnings

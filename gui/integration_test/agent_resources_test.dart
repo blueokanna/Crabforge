@@ -103,11 +103,15 @@ void main() {
     await tester.pumpWidget(const CrabforgeApp());
 
     Future<void> waitFor(Finder target) async {
+      final loading = find.byType(CircularProgressIndicator);
       final deadline = DateTime.now().add(const Duration(seconds: 10));
-      while (target.evaluate().isEmpty && DateTime.now().isBefore(deadline)) {
+      await tester.pump();
+      while ((target.evaluate().isEmpty || loading.evaluate().isNotEmpty) &&
+          DateTime.now().isBefore(deadline)) {
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(target, findsOneWidget);
+      expect(loading, findsNothing);
       await tester.pumpAndSettle(
         const Duration(milliseconds: 50),
         EnginePhase.sendSemanticsUpdate,
@@ -140,10 +144,14 @@ void main() {
       find.descendant(of: library, matching: find.byType(GridView)),
       findsOneWidget,
     );
-    await tester.tap(find.byType(DropdownButton<String>));
+    final filter = find.byType(DropdownButton<String>);
+    await tester.tap(filter);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Codex').last);
+    await tester.tap(
+      find.widgetWithText(DropdownMenuItem<String>, 'Codex').hitTestable(),
+    );
     await waitFor(codexTitle);
+    expect(tester.widget<DropdownButton<String>>(filter).value, 'codex');
     expect(claudeTitle, findsNothing);
     await tester.tap(codexTitle);
     await waitFor(find.text('codex-fixture-id'));
