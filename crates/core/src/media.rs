@@ -4,6 +4,8 @@ use futures_util::stream;
 use http::header;
 use std::convert::Infallible;
 
+pub(crate) mod speech;
+
 pub(crate) struct Upload {
     pub model: String,
     pub content_type: String,

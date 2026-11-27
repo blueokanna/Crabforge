@@ -424,6 +424,12 @@ Windows Debug 通过 159 项 Rust 测试和全目标 Clippy，33 项忽略。回
 
 Windows Debug passed 159 Rust tests and all-target Clippy, with 33 tests ignored. Loopback tests checked inline PNG, MIME type, and text order in all twelve directions between the four protocols. They also verified that representable HTTP image URLs pass through and unrepresentable fields return HTTP 400. Both CLIs converted PNG and WAV input between Chat and Gemini, preserved tool-result order, and returned the Chat SSE terminator and a Gemini JSON reply. OpenCode Go's original-protocol fallback preserved the explicit image-detail setting byte for byte. [Protocol regression](../../../crates/core/tests/protocols.rs) · [Original-protocol fallback](../../../crates/core/src/gateway/console_test.rs)
 
+### Gemini 语音合成 / Gemini speech synthesis
+
+Windows Debug 通过 160 项 Rust 测试及全目标 Clippy，33 项忽略。回环夹具通过两个 CLI 核对 `generateContent` 的音色和朗读提示、WAV 文件头、PCM 原始采样及 SSE 请求的 400 响应。Rust 回归还验证了畸形 PCM 触发组回退、带额外 RIFF 块的 WAV 可以转换为 PCM，以及原生 OpenAI 兼容中转返回原音频。Google AI Studio 和 Vertex AI 实际端点的验收需要供应商凭据。 [媒体回归](../../../crates/core/tests/media.rs)
+
+Windows Debug passed 160 Rust tests and all-target Clippy, with 33 tests ignored. A loopback fixture exercised both CLIs and checked the `generateContent` voice and spoken prompt, the WAV header, exact PCM samples, and HTTP 400 for an SSE request. The Rust regression also covered group fallback after malformed PCM, PCM extraction from WAV with an extra RIFF chunk, and audio passthrough on a native OpenAI-compatible relay. Live Google AI Studio and Vertex AI verification requires provider credentials. [Media regression](../../../crates/core/tests/media.rs)
+
 ### 供应商重试历史构建 / Historical provider retry build
 
 按完整 SHA 补验 `649c036b07986275aeef4529d1228dc4fec7d3ae` 时，Run `46024892156` 在 Rust 检查阶段失败。`config.rs:441` 将重试时限校验插入了环境变量校验的表达式，导致语法错误，Windows 包未生成。后继 `dfd58df4c3c3461d8969f5a654a40c437c15bb13` 已修正校验位置，其下载验收包括供应商重试。 [Windows job 140593634231](https://github.com/blueokanna/Crabforge/actions/runs/46024892156/job/140593634231)

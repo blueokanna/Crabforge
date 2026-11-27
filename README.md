@@ -41,6 +41,8 @@ When the gateway translates a request across those protocols, it maps the reques
 
 Translated user turns can carry inline base64 images across all four protocols. Chat, Responses, and Messages can also pass HTTP image URLs directly to the selected provider. For translation to Gemini, send inline image data. WAV and MP3 audio can travel between Chat and Gemini, including recordings returned by a Chat tool when the target is Gemini. The target model must support the input modality. Provider-specific file IDs and explicit image-detail settings that the destination cannot represent require a compatible endpoint.
 
+To synthesize speech, send `POST /v1/audio/speech` with `model` and `input`. For a Gemini TTS model configured on a Gemini-only endpoint, Google AI Studio, or Vertex AI, the gateway calls `generateContent` and returns WAV. Set `response_format` to `pcm` for raw 24 kHz, 16-bit mono audio. Requests for MP3, Opus, AAC, or FLAC receive `audio/wav` on this route. Use a Gemini voice name or an OpenAI voice such as `nova`, which maps to `Zephyr`. Describe pacing in `instructions`. The Gemini `generateContent` route returns a complete audio response and ignores `speed`.
+
 Add `"effort":"auto"` beside `classifier` in a group's routing JSON to let the classifier estimate reasoning effort for requests that ask for it. The gateway can ask for intent and effort in one call, reuse the answer on tool continuations in the same named session and carry it into nested groups. A matched rule's `useEffort` takes precedence. Shares and encrypted group backups preserve the setting.
 
 For `intent` rules, supply an object in the same editor or CLI command. `classifier` and `classifierMore` accept configured model and group IDs. `classifyPrompt` is optional.

@@ -36,6 +36,7 @@ mod routing;
 mod session;
 
 use crate::config::{Config, Provider};
+use crate::media::speech;
 use crate::translate::{self, Format};
 use crate::webchat::{Site, WebPrompt};
 use round::Round;
@@ -377,6 +378,18 @@ impl<'a> Api<'a> {
         if let Some(site) = p.web_site {
             return matches!(self, Self::Chat("chat/completions"))
                 .then_some(Destination::Browser(site));
+        }
+        if matches!(self, Self::Chat("audio/speech"))
+            && speech::gemini_model(model)
+            && (p.endpoints.vertex.is_some()
+                || p.endpoints.chat.is_empty()
+                || Url::parse(&p.endpoints.chat)
+                    .is_ok_and(|url| url.host_str() == Some("generativelanguage.googleapis.com")))
+        {
+            let native = Api::Gemini("generateContent");
+            if let Some(url) = native.url(p, model) {
+                return Some(Destination::Upstream(url, native, None));
+            }
         }
         // A relay can expose every HTTP API while a particular upstream model
         // accepts only one. Translate once at this gateway when the directory
@@ -938,7 +951,7 @@ async fn forward(
                 }
                 Err(e) => {
                     // Go can translate on its side when the incoming protocol has
-                    // features our text/tool converter cannot represent.
+                    // features the converter cannot represent.
                     if crate::opencode::Console::request(&url) == Some(crate::opencode::Console::Go)
                         && let Some(direct) = api.provider_url(p, model, false)
                         && crate::opencode::Console::request(&direct)
@@ -954,6 +967,15 @@ async fn forward(
                         return failure(StatusCode::BAD_REQUEST, &e.to_string());
                     }
                 }
+            }
+        } else {
+            None
+        };
+        let speech = if matches!((api, native), (Api::Chat("audio/speech"), Api::Gemini(_))) {
+            match speech::Speech::gemini(&bytes) {
+                Ok(speech) => Some(speech),
+                Err(_) if candidates.advance().await => continue,
+                Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
             }
         } else {
             None
@@ -1007,6 +1029,7 @@ async fn forward(
             "openai-beta",
         ] {
             if translation.is_none()
+                && speech.is_none()
                 && ollama.is_none()
                 && let Some(value) = headers.get(h)
             {
@@ -1054,6 +1077,7 @@ async fn forward(
             }
         }
         let stream = converted.as_ref().is_some_and(|body| body.stream);
+        let speech_format = speech.as_ref().map(|speech| speech.format);
         let parts = if let Some(body) = vertex_body {
             vec![body.into()]
         } else if let Some(upload) = &upload {
@@ -1064,6 +1088,8 @@ async fn forward(
             }
         } else if let Some(converted) = converted {
             vec![converted.body.into()]
+        } else if let Some(speech) = speech {
+            vec![speech.body]
         } else if let Some(rewritten) = rewritten {
             vec![rewritten]
         } else {
@@ -1146,6 +1172,10 @@ async fn forward(
             && status.is_success()
         {
             translate::convert_reply(upstream, from, to, &asked, stream, permit.clone()).await
+        } else if let Some(format) = speech_format
+            && status.is_success()
+        {
+            format.reply(upstream).await
         } else {
             Ok(upstream_response(upstream, permit.clone()))
         };

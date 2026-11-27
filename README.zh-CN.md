@@ -41,6 +41,8 @@ OpenAI Chat Completions、Responses 和 Anthropic Messages 的 SSE 响应开启�
 
 四种协议之间转译用户消息时，可以携带内联 Base64 图片。Chat、Responses 和 Messages 也可将 HTTP 图片 URL 直接传给所选供应商。转译到 Gemini 时请使用内联图片。Chat 与 Gemini 之间支持 WAV 和 MP3 音频输入，Chat 工具返回的录音也可转发到 Gemini。目标模型须支持相应的输入模态。供应商专用文件 ID 以及目标协议无法表达的图片细节设置需要兼容端点。
 
+合成语音时，向 `POST /v1/audio/speech` 发送 `model` 和 `input`。通过 Gemini 专用端点、Google AI Studio 或 Vertex AI 使用 Gemini TTS 模型时，网关调用 `generateContent` 并返回 WAV。将 `response_format` 设为 `pcm` 可获取 24 kHz、16 位单声道原始音频。此路径收到 MP3、Opus、AAC 或 FLAC 请求时会返回 `audio/wav`。`voice` 可填写 Gemini 音色名或 OpenAI 音色名，例如 `nova` 对应 `Zephyr`。用 `instructions` 描述语速。Gemini `generateContent` 返回完整音频并忽略 `speed`。
+
 在路由组 JSON 的 `classifier` 同级加入 `"effort":"auto"`，由分类器为已请求推理的请求评估等级。网关可在一次调用中判定意图与等级，并在同一命名会话的工具续轮中复用结果、传给嵌套组。命中规则的 `useEffort` 优先。路由组分享和加密备份均保留该设置。
 
 配置 `intent` 规则时，在同一编辑器或 CLI 命令中传入 JSON 对象。`classifier` 和 `classifierMore` 接受已配置的模型和路由组 ID，`classifyPrompt` 可选。
