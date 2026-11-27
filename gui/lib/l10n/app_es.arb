@@ -229,6 +229,8 @@
   "invalidFirstContent": "Introduce un número entero entre -1 y 2147483647.",
   "groupPatienceSeconds": "Plazo de reintentos (segundos)",
   "groupPatienceHelp": "Usa 0 para heredar el plazo o -1 para desactivar los reintentos.",
+  "groupRoutingRules": "Reglas de enrutamiento (JSON)",
+  "invalidGroupRoutingRules": "Introduce un array JSON de objetos de regla.",
   "defaultGroupPatienceHelp": "Usa 0 para 60 segundos o -1 para desactivar los reintentos.",
   "invalidGroupPatience": "Introduce un número entero entre -1 y 240.",
   "enableMember": "Activar miembro",

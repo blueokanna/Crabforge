@@ -1486,6 +1486,18 @@ abstract class AppLocalizations {
   /// **'Use 0 to inherit, or -1 to disable retries.'**
   String get groupPatienceHelp;
 
+  /// No description provided for @groupRoutingRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Routing rules (JSON)'**
+  String get groupRoutingRules;
+
+  /// No description provided for @invalidGroupRoutingRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a JSON array of rule objects.'**
+  String get invalidGroupRoutingRules;
+
   /// No description provided for @defaultGroupPatienceHelp.
   ///
   /// In en, this message translates to:

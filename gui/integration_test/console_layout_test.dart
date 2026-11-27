@@ -209,12 +209,21 @@ void main() {
     Future<void> saveLimits(
       int firstContent,
       int patience,
-      bool Function(Map) persisted,
-    ) async {
+      bool Function(Map) persisted, {
+      String? routingRules,
+    }) async {
       await tester.ensureVisible(timeoutField);
       await tester.enterText(timeoutField, '$firstContent');
       await tester.ensureVisible(patienceField);
       await tester.enterText(patienceField, '$patience');
+      if (routingRules != null) {
+        final field = find.widgetWithText(
+          TextFormField,
+          strings.groupRoutingRules,
+        );
+        await tester.ensureVisible(field);
+        await tester.enterText(field, routingRules);
+      }
       await tester.tap(saveRouteLimits);
       final deadline = DateTime.now().add(const Duration(seconds: 10));
       var saved = false;
@@ -235,12 +244,15 @@ void main() {
       await tester.pumpAndSettle();
       final seconds = width == 1200 ? 2 : -1;
       final patience = width == 1200 ? 10 : -1;
+      final tokens = width == 1200 ? 100 : 200;
       await saveLimits(
         seconds,
         patience,
         (cfg) =>
             cfg['group_first_content']?['review'] == seconds &&
-            cfg['group_patience']?['review'] == patience,
+            cfg['group_patience']?['review'] == patience &&
+            cfg['group_rules']?['review']?[0]['tokens'] == tokens,
+        routingRules: '[{"use":"openai/gpt-4.1","tokens":$tokens}]',
       );
       await openPage(nav, strings.gateway);
       await tester.tap(find.text(strings.networkSettings));

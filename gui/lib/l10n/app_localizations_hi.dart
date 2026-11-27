@@ -773,6 +773,12 @@ class AppLocalizationsHi extends AppLocalizations {
       'पहले से तय समय सीमा के लिए 0 और फिर से कोशिश बंद करने के लिए -1 डालें।';
 
   @override
+  String get groupRoutingRules => 'रूटिंग नियम (JSON)';
+
+  @override
+  String get invalidGroupRoutingRules => 'नियम ऑब्जेक्ट की JSON सूची डालें।';
+
+  @override
   String get defaultGroupPatienceHelp =>
       '60 सेकंड के लिए 0 और फिर से कोशिश बंद करने के लिए -1 डालें।';
 

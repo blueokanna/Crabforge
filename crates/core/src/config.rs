@@ -12,7 +12,8 @@ use http::request::Builder as RequestBuilder;
 use nextjson::{NsonDeserialize, NsonSerialize};
 use tempfile::NamedTempFile;
 use url::Url;
-mod groups;
+pub(crate) mod groups;
+pub use groups::rules::RoutingRule;
 mod magpie;
 mod origins;
 mod rename;
@@ -107,6 +108,8 @@ pub struct Config {
     #[njson(skip_serializing_if = "patience_is_off")]
     pub default_group_patience: i32,
     #[njson(skip_serializing_if = "BTreeMap::is_empty")]
+    pub group_rules: BTreeMap<String, Vec<RoutingRule>>,
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_off: BTreeMap<String, BTreeSet<String>>,
     /// Groups whose direct model members are omitted from client catalogs.
     #[njson(skip_serializing_if = "BTreeSet::is_empty")]
@@ -160,6 +163,7 @@ impl Default for Config {
             default_group_first_content: 0,
             group_patience: BTreeMap::new(),
             default_group_patience: -1,
+            group_rules: BTreeMap::new(),
             group_off: BTreeMap::new(),
             group_unlists: BTreeSet::new(),
             disabled_groups: BTreeSet::new(),
@@ -594,6 +598,30 @@ impl Config {
                     (refs.contains(m) || m.starts_with("group/")) && seen.insert(m),
                     "group {group}: missing or duplicate member {m}"
                 );
+            }
+        }
+        for (group, rules) in &self.group_rules {
+            let stored = self
+                .groups
+                .get(group)
+                .context("routing rules reference an unknown group")?;
+            let expanded = resolved.expanded.get(group).unwrap_or(stored);
+            let members: HashSet<_> = stored
+                .iter()
+                .chain(expanded)
+                .chain(&resolved.members[group])
+                .map(String::as_str)
+                .collect();
+            for (index, rule) in rules.iter().enumerate() {
+                rule.validate()
+                    .with_context(|| format!("group {group}, rule {}", index + 1))?;
+                for target in rule.targets() {
+                    ensure!(
+                        members.contains(target),
+                        "group {group}, rule {}: unknown member {target:?}",
+                        index + 1
+                    );
+                }
             }
         }
         ensure!(

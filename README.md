@@ -29,6 +29,24 @@ To limit how long a group waits for its first streamed text, reasoning or tool c
 
 For temporary upstream overload and rate limits, set **Retry patience** in the route group editor or pass `--patience <seconds>` to `group set`. After the initial failover attempts, the gateway can retry busy members with increasing delays and honor `Retry-After` within each member's budget. Use `0` to inherit, `-1` to disable retries, or `1` to `240` seconds. Set the gateway default in **Gateway → Network settings** or with `group default-patience <seconds>`, where `0` selects 60 seconds. Existing configurations start with retries disabled. Restart the gateway to apply changes.
 
+To route generation requests conditionally, edit **Routing rules (JSON)** in the route group or run `carbforge-cli group rules work rules.json`. Run `carbforge-cli group rules work` to print the saved rules, or save `[]` to clear them. The `use` and optional `more` entries name members of the group. Matching rules put their members first in rule order, then the group's strategy orders the other members. A matching `pause` removes its member for the request. Manual selection takes precedence. Rules travel with Magpie shares and encrypted group backups. Restart the gateway after saving.
+
+```json
+[
+  {
+    "use": "local/review",
+    "where": [{"field": "message", "op": "starts", "value": "review"}]
+  },
+  {
+    "use": "backup/general",
+    "pause": true,
+    "time": {"from": "22:00", "to": "06:00", "days": ["fri"], "zone": "Asia/Shanghai"}
+  }
+]
+```
+
+Conditions on the same rule must all hold. Rules can check estimated `tokens`, `images`, reasoning `effort`, `agents`, `compact`, `folders`, `exceptFolders` and `time`. The `where` array supports `tokens` and `effort` comparisons, `agent` and `subagent` checks, and `contains`, `excludes`, `starts` or `matches` on `message`, `system` or `last`. Overnight windows use the calendar day on which they start in the configured IANA time zone.
+
 ## Import providers from Magpie
 
 Use a `.magpie-backup` from `magpie backup`. The CLI prompts for its passphrase without echo. Run the first command to preview, then add `--apply` to save the result. Omit `--provider` to select all providers, or repeat it to select several.

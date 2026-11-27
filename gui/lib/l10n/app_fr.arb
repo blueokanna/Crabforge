@@ -229,6 +229,8 @@
   "invalidFirstContent": "Saisissez un nombre entier entre -1 et 2147483647.",
   "groupPatienceSeconds": "Délai de nouvelle tentative (secondes)",
   "groupPatienceHelp": "Utilisez 0 pour hériter du délai ou -1 pour désactiver les nouvelles tentatives.",
+  "groupRoutingRules": "Règles de routage (JSON)",
+  "invalidGroupRoutingRules": "Saisissez un tableau JSON d’objets de règle.",
   "defaultGroupPatienceHelp": "Utilisez 0 pour 60 secondes ou -1 pour désactiver les nouvelles tentatives.",
   "invalidGroupPatience": "Saisissez un nombre entier entre -1 et 240.",
   "enableMember": "Activer le membre",

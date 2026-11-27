@@ -236,6 +236,8 @@
   "invalidFirstContent": "Enter a whole number from -1 to 2147483647.",
   "groupPatienceSeconds": "Retry patience (seconds)",
   "groupPatienceHelp": "Use 0 to inherit, or -1 to disable retries.",
+  "groupRoutingRules": "Routing rules (JSON)",
+  "invalidGroupRoutingRules": "Enter a JSON array of rule objects.",
   "defaultGroupPatienceHelp": "Use 0 for 60 seconds, or -1 to disable retries.",
   "invalidGroupPatience": "Enter a whole number from -1 to 240.",
   "enableMember": "Enable member",

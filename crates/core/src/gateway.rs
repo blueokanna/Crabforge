@@ -24,6 +24,7 @@ mod cors;
 mod first_content;
 mod native;
 mod patience;
+mod rules;
 pub use native::{NativeProtocols, native_protocols};
 mod ollama;
 mod round;
@@ -75,6 +76,7 @@ pub struct Gateway {
     skip_in_sorted_catalog: std::collections::BTreeSet<String>,
     ordered_group_refs: Vec<String>,
     rounds: BTreeMap<String, Round>,
+    rules: BTreeMap<String, Vec<rules::Rule>>,
     models: Bytes,
     client: ForwardClient,
     vertex_tokens: BTreeMap<String, crate::vertex::auth::TokenCache>,
@@ -175,6 +177,7 @@ fn router_with_client(
         }
     }
     let mut resolved = config.resolved_groups();
+    let rules = rules::compile(&config, &resolved)?;
     let mut hidden_aliases = config.unlisted_model_ids(&resolved);
     let ordered_group_refs = if config.group_display_order.is_empty() {
         vec![]
@@ -304,6 +307,7 @@ fn router_with_client(
             .map(|p| (p.id.clone(), Default::default()))
             .collect(),
         rounds,
+        rules,
         group_ids,
         skip_in_sorted_catalog: hidden_aliases,
         ordered_group_refs,
@@ -790,8 +794,23 @@ async fn forward(
     } else {
         BTreeMap::new()
     };
-    let mut candidates = patience::Attempts::new(gw.candidates(*route, api, &picks));
+    let facts = api
+        .format()
+        .filter(|_| {
+            !gw.rules.is_empty()
+                && (matches!(route, Route::Group { .. }) || !route.fallbacks(&gw.config).is_empty())
+        })
+        .and_then(|format| rules::Facts::read(format, &bytes, caller, headers));
+    let paused = std::sync::atomic::AtomicBool::new(false);
+    let mut candidates =
+        patience::Attempts::new(gw.candidates(*route, api, &picks, facts.as_ref(), &paused));
     if !candidates.has_more() {
+        if paused.load(std::sync::atomic::Ordering::Relaxed) {
+            return failure(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "route group has no available unpaused member",
+            );
+        }
         return failure(
             StatusCode::BAD_REQUEST,
             "model has no endpoint for this protocol",

@@ -229,6 +229,8 @@
   "invalidFirstContent": "-1 から 2147483647 までの整数を入力してください。",
   "groupPatienceSeconds": "再試行の制限時間（秒）",
   "groupPatienceHelp": "0 で設定を継承し、-1 で再試行を無効にします。",
+  "groupRoutingRules": "ルーティングルール（JSON）",
+  "invalidGroupRoutingRules": "ルールオブジェクトの JSON 配列を入力してください。",
   "defaultGroupPatienceHelp": "0 は 60 秒、-1 は再試行を無効にします。",
   "invalidGroupPatience": "-1 から 240 までの整数を入力してください。",
   "enableMember": "メンバーを有効にする",

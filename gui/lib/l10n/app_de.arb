@@ -229,6 +229,8 @@
   "invalidFirstContent": "Geben Sie eine ganze Zahl von -1 bis 2147483647 ein.",
   "groupPatienceSeconds": "Wiederholungszeit (Sekunden)",
   "groupPatienceHelp": "0 übernimmt die Vorgabe, -1 deaktiviert Wiederholungen.",
+  "groupRoutingRules": "Routingregeln (JSON)",
+  "invalidGroupRoutingRules": "Geben Sie ein JSON-Array mit Regelobjekten ein.",
   "defaultGroupPatienceHelp": "0 entspricht 60 Sekunden, -1 deaktiviert Wiederholungen.",
   "invalidGroupPatience": "Geben Sie eine ganze Zahl von -1 bis 240 ein.",
   "enableMember": "Mitglied aktivieren",

@@ -747,8 +747,9 @@ mod tests {
                     {"id":"backup","was":["old-backup"],"chat":"http://127.0.0.1:1","models":["m"]}
                 ],
                 "groups":[
-                    {"id":"work","former":["old-work"],"members":["group/tools"],"firstToken":15,"patience":30},
-                    {"id":"tools","members":["backup/m"],"firstToken":-1,"patience":-1},
+                    {"id":"work","former":["old-work"],"members":["group/old-tools"],"firstToken":15,"patience":30,
+                     "rules":[{"use":"group/tools","where":[{"field":"message","op":"contains","value":"review"}]}]},
+                    {"id":"tools","former":["old-tools"],"members":["backup/m"],"firstToken":-1,"patience":-1},
                     {"id":"unsupported","members":["lab/m"],"redact":"on"}
                 ]
             }),
@@ -795,6 +796,11 @@ mod tests {
         let (restored, group) = cfg.import_group(&share, false)?;
         assert_eq!(restored.group_first_content[&group.id], 15);
         assert_eq!(restored.group_patience[&group.id], 30);
+        assert_eq!(restored.group_rules[&group.id][0].target, "group/tools");
+        let renamed = cfg.renamed_group("tools", "build")?;
+        assert_eq!(renamed.group_rules["work"][0].target, "group/build");
+        let (copied, name) = renamed.copied_group("work", "Rules example")?;
+        assert_eq!(copied.group_rules[&name][0].conditions[0].value, "review");
         assert!(!stored.contains("fixture-only"));
         assert!(restore(&[], &groups, true).is_err());
         assert_eq!(fs::read_to_string(&settings)?, stored);

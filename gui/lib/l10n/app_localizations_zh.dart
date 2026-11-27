@@ -752,6 +752,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groupPatienceHelp => '0 表示继承，-1 表示关闭重试。';
 
   @override
+  String get groupRoutingRules => '路由规则（JSON）';
+
+  @override
+  String get invalidGroupRoutingRules => '请输入由规则对象组成的 JSON 数组。';
+
+  @override
   String get defaultGroupPatienceHelp => '0 表示 60 秒，-1 表示关闭重试。';
 
   @override

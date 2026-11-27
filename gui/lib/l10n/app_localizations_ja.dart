@@ -759,6 +759,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get groupPatienceHelp => '0 で設定を継承し、-1 で再試行を無効にします。';
 
   @override
+  String get groupRoutingRules => 'ルーティングルール（JSON）';
+
+  @override
+  String get invalidGroupRoutingRules => 'ルールオブジェクトの JSON 配列を入力してください。';
+
+  @override
   String get defaultGroupPatienceHelp => '0 は 60 秒、-1 は再試行を無効にします。';
 
   @override

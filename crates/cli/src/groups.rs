@@ -1,5 +1,22 @@
 use anyhow::{Context, Result};
 use crabforge_core::config::Config;
+use std::{io::Read, path::PathBuf};
+
+pub(super) fn read_definition(file: Option<PathBuf>) -> Result<String> {
+    let reader: Box<dyn Read> = match file {
+        Some(path) if path.as_os_str() != "-" => Box::new(std::fs::File::open(path)?),
+        _ => Box::new(std::io::stdin().lock()),
+    };
+    let mut text = String::new();
+    reader
+        .take(crabforge_core::config::MAX_CONFIG as u64 + 1)
+        .read_to_string(&mut text)?;
+    anyhow::ensure!(
+        text.len() <= crabforge_core::config::MAX_CONFIG,
+        "group definition exceeds 1 MiB"
+    );
+    Ok(text)
+}
 
 pub(super) fn show(config: &Config, id: &str) -> Result<()> {
     let groups = config.resolved_groups();
@@ -68,6 +85,13 @@ pub(super) fn show(config: &Config, id: &str) -> Result<()> {
         "order"
     };
     println!("routing\t{routing}");
+    if let Some(rules) = config
+        .group_rules
+        .get(name)
+        .filter(|rules| !rules.is_empty())
+    {
+        println!("rules\t{}", rules.len());
+    }
     for rule in config.group_match.get(name).into_iter().flatten() {
         println!("match\t{}\t{}", rule.as_str(), config.pattern_hits(rule));
     }

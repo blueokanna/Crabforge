@@ -759,6 +759,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get groupPatienceHelp => '0은 설정을 상속하고, -1은 재시도를 끕니다.';
 
   @override
+  String get groupRoutingRules => '라우팅 규칙(JSON)';
+
+  @override
+  String get invalidGroupRoutingRules => '규칙 객체의 JSON 배열을 입력하세요.';
+
+  @override
   String get defaultGroupPatienceHelp => '0은 60초를 적용하고, -1은 재시도를 끕니다.';
 
   @override

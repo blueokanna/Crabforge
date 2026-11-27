@@ -229,6 +229,8 @@
   "invalidFirstContent": "请输入 -1 到 2147483647 之间的整数。",
   "groupPatienceSeconds": "繁忙重试时限（秒）",
   "groupPatienceHelp": "0 表示继承，-1 表示关闭重试。",
+  "groupRoutingRules": "路由规则（JSON）",
+  "invalidGroupRoutingRules": "请输入由规则对象组成的 JSON 数组。",
   "defaultGroupPatienceHelp": "0 表示 60 秒，-1 表示关闭重试。",
   "invalidGroupPatience": "请输入 -1 到 240 之间的整数。",
   "enableMember": "启用成员",

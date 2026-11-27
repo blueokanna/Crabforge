@@ -769,6 +769,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupPatienceHelp => 'Use 0 to inherit, or -1 to disable retries.';
 
   @override
+  String get groupRoutingRules => 'Routing rules (JSON)';
+
+  @override
+  String get invalidGroupRoutingRules => 'Enter a JSON array of rule objects.';
+
+  @override
   String get defaultGroupPatienceHelp =>
       'Use 0 for 60 seconds, or -1 to disable retries.';
 

@@ -450,6 +450,11 @@ enum GroupCommand {
         #[arg(allow_negative_numbers = true)]
         seconds: i32,
     },
+    /// Show routing rules as JSON, or replace them from a file. Use - for standard input.
+    Rules {
+        id: String,
+        file: Option<PathBuf>,
+    },
     /// Create or update a group with explicit IDs, glob patterns, re: expressions or free: rules.
     Set {
         id: String,
@@ -500,7 +505,18 @@ fn parse_weight(input: &str) -> Result<(String, u32), String> {
 }
 
 pub fn run() -> Result<()> {
-    dispatch(Args::parse())
+    // Clap's generated command builders can exceed the Windows main thread's
+    // stack in unoptimized builds. Keep parsing off that stack before dispatch.
+    #[cfg(windows)]
+    let args = std::thread::Builder::new()
+        .name("crabforge-cli-args".into())
+        .stack_size(4 * 1024 * 1024)
+        .spawn(Args::parse)?
+        .join()
+        .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+    #[cfg(not(windows))]
+    let args = Args::parse();
+    dispatch(args)
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -648,17 +664,7 @@ async fn dispatch(args: Args) -> Result<()> {
                 }
                 GroupCommand::Share { id } => println!("{}", cfg.share_group(&id)?),
                 GroupCommand::Import { file, replace } => {
-                    use std::io::Read;
-                    let reader: Box<dyn Read> = match file {
-                        Some(path) if path.as_os_str() != "-" => {
-                            Box::new(std::fs::File::open(path)?)
-                        }
-                        _ => Box::new(std::io::stdin().lock()),
-                    };
-                    let mut text = String::new();
-                    reader
-                        .take(config::MAX_CONFIG as u64 + 1)
-                        .read_to_string(&mut text)?;
+                    let text = groups::read_definition(file)?;
                     let (modified, report) = cfg.import_group(&text, replace)?;
                     config::save(&dir, &previous, &modified.to_json()?)?;
                     println!(
@@ -667,6 +673,30 @@ async fn dispatch(args: Args) -> Result<()> {
                     );
                 }
                 GroupCommand::Show { id } => groups::show(&cfg, &id)?,
+                GroupCommand::Rules { id, file } => {
+                    let id = cfg.group_name(&id);
+                    ensure!(
+                        cfg.groups.contains_key(&id),
+                        "unknown saved route group {id}"
+                    );
+                    if let Some(file) = file {
+                        let text = groups::read_definition(Some(file))?;
+                        let rules: Vec<config::RoutingRule> =
+                            nextjson::from_str(&text).map_err(anyhow::Error::msg)?;
+                        if rules.is_empty() {
+                            cfg.group_rules.remove(&id);
+                        } else {
+                            cfg.group_rules.insert(id, rules);
+                        }
+                        config::save(&dir, &previous, &cfg.to_json()?)?;
+                    } else {
+                        let rules = cfg.group_rules.get(&id).map_or(&[][..], Vec::as_slice);
+                        println!(
+                            "{}",
+                            nextjson::to_string_pretty(&rules).map_err(anyhow::Error::msg)?
+                        );
+                    }
+                }
                 GroupCommand::ByName(args) => {
                     ensure!(args.len() == 1, "expected group show <id>");
                     groups::show(&cfg, &args[0])?;
@@ -923,6 +953,7 @@ async fn dispatch(args: Args) -> Result<()> {
                     cfg.group_notes.remove(&id);
                     cfg.group_first_content.remove(&id);
                     cfg.group_patience.remove(&id);
+                    cfg.group_rules.remove(&id);
                     cfg.group_off.remove(&id);
                     cfg.group_unlists.remove(&id);
                     cfg.group_display_order.retain(|name| name != &id);

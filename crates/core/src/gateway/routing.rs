@@ -1,6 +1,7 @@
 use super::{Api, Config, Destination, Gateway, NativeProtocols, Round, Target};
 use std::{
     collections::{BTreeMap, HashSet},
+    sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 
@@ -52,6 +53,7 @@ enum Plan<'a> {
     Group {
         round: Option<&'a Round>,
         branches: Vec<(usize, Plan<'a>)>,
+        preferred: usize,
     },
 }
 
@@ -70,6 +72,13 @@ impl Plan<'_> {
 struct Visited {
     models: HashSet<(usize, usize)>,
     groups: HashSet<usize>,
+}
+
+struct RequestRoute<'a> {
+    api: Api<'a>,
+    picks: &'a BTreeMap<String, usize>,
+    facts: Option<&'a super::rules::Facts>,
+    paused: &'a AtomicBool,
 }
 
 #[derive(Clone, Copy)]
@@ -140,6 +149,8 @@ impl Gateway {
         route: Route,
         api: Api<'a>,
         picks: &'a BTreeMap<String, usize>,
+        facts: Option<&'a super::rules::Facts>,
+        paused: &'a AtomicBool,
     ) -> impl Iterator<Item = Candidate<'a>> + 'a {
         let mut seen = Visited::default();
         let backups = route.fallbacks(&self.config).iter().filter_map(|id| {
@@ -163,12 +174,18 @@ impl Gateway {
         // A direct request keeps its origin even when the primary lacks this protocol.
         let mut unrestricted =
             matches!(route, Route::Model(t) if !self.config.providers[t.provider].no_stand_in);
+        let request = RequestRoute {
+            api,
+            picks,
+            facts,
+            paused,
+        };
         std::iter::from_fn(move || {
             loop {
                 let plan = pending.pop().or_else(|| {
                     roots.find_map(|(root, group)| {
                         let mut via = group.into_iter().collect();
-                        self.expand(root, api, picks, &mut via, &mut seen, limits)
+                        self.expand(root, &request, &mut via, &mut seen, limits)
                     })
                 })?;
                 match plan {
@@ -194,9 +211,18 @@ impl Gateway {
                     Plan::Group {
                         round,
                         mut branches,
+                        preferred,
                     } => {
-                        // A subgroup spends its turn only when forwarding reaches it.
-                        if let Some(round) = round {
+                        if preferred != 0 && preferred < branches.len() {
+                            pending.push(Plan::Group {
+                                round,
+                                branches: branches.split_off(preferred),
+                                preferred: 0,
+                            });
+                        } else if preferred == 0
+                            && let Some(round) = round
+                        {
+                            // A subgroup spends its turn only when forwarding reaches it.
                             round.order(&mut branches);
                         }
                         pending.extend(branches.into_iter().rev().map(|(_, plan)| plan));
@@ -209,8 +235,7 @@ impl Gateway {
     fn expand<'a>(
         &'a self,
         route: Route,
-        api: Api<'a>,
-        picks: &BTreeMap<String, usize>,
+        request: &RequestRoute<'a>,
         via: &mut Vec<&'a str>,
         seen: &mut Visited,
         limits: Limits,
@@ -223,7 +248,8 @@ impl Gateway {
                     return None;
                 }
                 let p = &self.config.providers[target.provider];
-                return api
+                return request
+                    .api
                     .destination(p, &p.models[target.model])
                     .map(|destination| Candidate {
                         target,
@@ -246,26 +272,45 @@ impl Gateway {
         }
         let id = &self.group_ids[index];
         let name = &id["group/".len()..];
-        let members = self.live_members(name, picks);
+        let members = self.live_members(name, request.picks);
         let limits = limits.within(&self.config, name);
+        let mut ordered = request
+            .facts
+            .filter(|_| !request.picks.contains_key(name))
+            .zip(self.rules.get(name))
+            .map(|(facts, rules)| {
+                let ordered = super::rules::ordered(members, rules, facts);
+                if ordered.len() < members.len() {
+                    request.paused.store(true, Ordering::Relaxed);
+                }
+                ordered.into_iter()
+            });
+        let mut original = members.iter().enumerate();
+        let mut preferred_count = 0;
         let mut branches = Vec::new();
-        for (i, member) in members.iter().enumerate() {
+        let next = || match &mut ordered {
+            Some(ranked) => ranked.next(),
+            None => original.next().map(|(i, id)| (false, i, id.as_str())),
+        };
+        for (preferred, i, member) in std::iter::from_fn(next) {
             let child = self.routes[member];
             let nested = matches!(child, Route::Group { .. });
             if nested {
                 via.push(member);
             }
-            let choices = self.expand(child, api, picks, via, seen, limits);
+            let choices = self.expand(child, request, via, seen, limits);
             if nested {
                 via.pop();
             }
             if let Some(plan) = choices {
+                preferred_count += usize::from(preferred);
                 branches.push((i, plan));
             }
         }
         (!branches.is_empty()).then(|| Plan::Group {
             round: self.rounds.get(id),
             branches,
+            preferred: preferred_count,
         })
     }
 }

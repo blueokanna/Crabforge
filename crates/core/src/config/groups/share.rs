@@ -21,6 +21,8 @@ struct SharedGroup {
     first_content: i32,
     #[njson(skip_serializing_if = "crate::config::is_zero")]
     patience: i32,
+    #[njson(skip_serializing_if = "Vec::is_empty")]
+    rules: Vec<super::rules::RoutingRule>,
     #[njson(skip_serializing_if = "String::is_empty")]
     note: String,
     #[njson(skip_serializing_if = "String::is_empty")]
@@ -277,6 +279,9 @@ impl Config {
         self.group_notes.insert(id.to_owned(), group.note);
         self.set_group_first_content(id, group.first_content);
         self.set_group_patience(id, group.patience);
+        if !group.rules.is_empty() {
+            self.group_rules.insert(id.into(), group.rules);
+        }
         if disabled {
             self.disabled_groups.insert(id.to_owned());
         }
@@ -316,7 +321,7 @@ impl Config {
         } else {
             "order"
         };
-        let group = SharedGroup {
+        let mut group = SharedGroup {
             name: self.group_labels.get(&id).unwrap_or(&id).clone(),
             members: Some(members.clone()),
             patterns: self
@@ -349,10 +354,24 @@ impl Config {
                 .copied()
                 .unwrap_or_default(),
             patience: self.group_patience.get(&id).copied().unwrap_or_default(),
+            rules: self.group_rules.get(&id).cloned().unwrap_or_default(),
             unlists: self.group_unlists.contains(&id),
-            id,
+            id: id.clone(),
             ..Default::default()
         };
+        if !group.rules.is_empty() {
+            let displayed = groups.display_members(self, &id);
+            for rule in &mut group.rules {
+                rule.remap(|target| {
+                    let member = displayed
+                        .iter()
+                        .zip(&groups.members[&id])
+                        .find(|(saved, canonical)| *saved == target || *canonical == target)
+                        .map_or(target, |(saved, _)| saved);
+                    Some(member.to_owned())
+                });
+            }
+        }
         ensure!(
             group
                 .members
@@ -362,6 +381,8 @@ impl Config {
                 .chain(&group.off)
                 .chain(group.weights.keys())
                 .chain(std::iter::once(&group.pick))
+                .map(String::as_str)
+                .chain(group.rules.iter().flat_map(|rule| rule.targets()))
                 .all(|m| without_account(m) == m),
             "a member's literal # suffix cannot be represented in a Magpie share"
         );
@@ -485,6 +506,19 @@ impl Config {
         cfg.group_notes.insert(id.clone(), group.note);
         cfg.set_group_first_content(&id, group.first_content);
         cfg.set_group_patience(&id, group.patience);
+        cfg.group_rules.remove(&id);
+        if !group.rules.is_empty() {
+            for rule in &mut group.rules {
+                for target in rule.targets() {
+                    ensure!(
+                        here(target).is_some(),
+                        "shared routing rule member {target:?} is unavailable"
+                    );
+                }
+                rule.remap(here);
+            }
+            cfg.group_rules.insert(id.clone(), group.rules);
+        }
         cfg.group_unlists.remove(&id);
         if group.unlists {
             cfg.group_unlists.insert(id.clone());

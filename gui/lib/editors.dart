@@ -538,6 +538,7 @@ typedef GroupSelection = ({
   String note,
   int firstContent,
   int patience,
+  List<JsonMap> routingRules,
   bool listMembers,
   List<String> off,
   List<String> members,
@@ -562,6 +563,7 @@ class GroupEditor extends StatefulWidget {
     required this.listMembers,
     required this.firstContent,
     required this.patience,
+    required this.routingRules,
     this.pick,
     this.name,
     this.note,
@@ -570,6 +572,7 @@ class GroupEditor extends StatefulWidget {
   final bool listMembers;
   final int firstContent;
   final int patience;
+  final List<JsonMap> routingRules;
   final GroupStrategy strategy;
   final Map<String, int> weights;
   final String? pick;
@@ -584,6 +587,7 @@ class _GroupEditorState extends State<GroupEditor> {
   late final note = TextEditingController(text: widget.note);
   final firstContent = GlobalKey<FormFieldState<String>>();
   final patience = GlobalKey<FormFieldState<String>>();
+  final routingRules = GlobalKey<FormFieldState<String>>();
   late bool listMembers = widget.listMembers;
   late final named = [...widget.members];
   late final patterns = TextEditingController(text: widget.patterns.join('\n'));
@@ -733,6 +737,25 @@ class _GroupEditorState extends State<GroupEditor> {
                   if (v != null) setState(() => strategy = v);
                 },
               ),
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: TextFormField(
+                  key: routingRules,
+                  initialValue: const JsonEncoder.withIndent('  ')
+                      .convert(widget.routingRules),
+                  minLines: 1,
+                  maxLines: 8,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    labelText: context.strings.groupRoutingRules,
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: (value) => readRoutingRules(value) == null
+                      ? context.strings.invalidGroupRoutingRules
+                      : null,
+                ),
+              ),
               const SizedBox(height: 16),
               EditorCollection(
                 count: members.length,
@@ -878,12 +901,18 @@ class _GroupEditorState extends State<GroupEditor> {
               : () {
                   final field = firstContent.currentState!;
                   final wait = patience.currentState!;
-                  if (!field.validate() || !wait.validate()) return;
+                  final routing = routingRules.currentState!;
+                  if (!field.validate() ||
+                      !wait.validate() ||
+                      !routing.validate()) {
+                    return;
+                  }
                   Navigator.pop<GroupSelection>(context, (
                     name: name.text.trim(),
                     note: note.text,
                     firstContent: int.parse(field.value!.trim()),
                     patience: int.parse(wait.value!.trim()),
+                    routingRules: readRoutingRules(routing.value)!,
                     listMembers: listMembers,
                     off: members.where(off.contains).toList(),
                     members: members.where(named.contains).toList(),
@@ -907,6 +936,19 @@ class _GroupEditorState extends State<GroupEditor> {
   bool validWeight(String? text) {
     final value = int.tryParse(text ?? '');
     return value != null && value > 0 && value <= 1000;
+  }
+
+  List<JsonMap>? readRoutingRules(String? text) {
+    final source = text?.trim() ?? '';
+    if (source.isEmpty) return [];
+    try {
+      final value = jsonDecode(source);
+      return value is List && value.every((rule) => rule is JsonMap)
+          ? List<JsonMap>.from(value)
+          : null;
+    } on FormatException {
+      return null;
+    }
   }
 }
 

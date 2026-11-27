@@ -779,6 +779,13 @@ class AppLocalizationsDe extends AppLocalizations {
       '0 übernimmt die Vorgabe, -1 deaktiviert Wiederholungen.';
 
   @override
+  String get groupRoutingRules => 'Routingregeln (JSON)';
+
+  @override
+  String get invalidGroupRoutingRules =>
+      'Geben Sie ein JSON-Array mit Regelobjekten ein.';
+
+  @override
   String get defaultGroupPatienceHelp =>
       '0 entspricht 60 Sekunden, -1 deaktiviert Wiederholungen.';
 

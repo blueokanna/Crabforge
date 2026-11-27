@@ -1,6 +1,7 @@
 use super::{Config, Provider};
 use std::collections::{BTreeMap, BTreeSet};
 mod pattern;
+pub(crate) mod rules;
 mod share;
 pub use pattern::MemberPattern;
 pub use share::ImportedGroup;
@@ -266,6 +267,9 @@ impl Config {
         if let Some(&seconds) = self.group_patience.get(&from) {
             cfg.group_patience.insert(id.clone(), seconds);
         }
+        if let Some(rules) = self.group_rules.get(&from) {
+            cfg.group_rules.insert(id.clone(), rules.clone());
+        }
         if let Some(weights) = self.group_weights.get(&from) {
             cfg.group_weights.insert(id.clone(), weights.clone());
         }
@@ -411,6 +415,18 @@ impl Config {
         }
         if let Some(seconds) = cfg.group_patience.remove(&from) {
             cfg.group_patience.insert(to.into(), seconds);
+        }
+        if let Some(rules) = cfg.group_rules.remove(&from) {
+            cfg.group_rules.insert(to.into(), rules);
+        }
+        for rule in cfg.group_rules.values_mut().flatten() {
+            rule.remap(|id| {
+                Some(if references_group(id) {
+                    new.clone()
+                } else {
+                    id.to_owned()
+                })
+            });
         }
         if cfg.rotating_groups.remove(&from) {
             cfg.rotating_groups.insert(to.into());

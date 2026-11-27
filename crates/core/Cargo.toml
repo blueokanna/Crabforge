@@ -50,6 +50,7 @@ tar = { version = "0.4.46", default-features = false }
 open = "5"
 futures-util = "0.3"
 fancy-regex = "0.20.2"
+jiff = { version = "1.0.3", default-features = false, features = ["tz-system", "tzdb-bundle-always", "tzdb-zoneinfo", "tzdb-concatenated"] }
 glob = "0.3.4"
 regex = "1"
 ruzstd = { version = "=0.9.1", default-features = false, features = ["std"] }

@@ -96,6 +96,9 @@ impl Config {
                 .map(|id| rename(&id).unwrap_or(id))
                 .collect();
         }
+        for rule in self.group_rules.values_mut().flatten() {
+            rule.remap(|id| Some(rename(id).unwrap_or_else(|| id.to_owned())));
+        }
         for pick in self
             .group_picks
             .values_mut()

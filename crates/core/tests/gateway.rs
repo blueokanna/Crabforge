@@ -585,6 +585,105 @@ async fn group_patience_retries_busy_members_in_order_within_their_budget() -> R
 }
 
 #[tokio::test]
+async fn group_rules_order_compatible_members_and_respect_pauses_and_manual_picks() -> Result<()> {
+    let mock = Router::new().route(
+        "/v1/chat/completions",
+        post(|request: Incoming| async move {
+            let body: Value = nextjson::from_slice(&request.body).unwrap();
+            let model = body["model"].as_str().unwrap();
+            let status = if model == "busy" {
+                StatusCode::SERVICE_UNAVAILABLE
+            } else {
+                StatusCode::OK
+            };
+            (status, model.to_owned())
+        }),
+    );
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let upstream = tokio::spawn(crabforge_test_support::server::serve(listener, mock));
+    let dir = tempdir()?;
+    let cfg = json!({
+        "listen":"127.0.0.1:0",
+        "providers":[{"id":"fixture","models":["usual","busy","second","paused"],
+            "endpoints":{"chat":format!("http://{addr}/v1")}}],
+        "groups":{
+            "inner":["fixture/usual","fixture/paused","fixture/second","fixture/busy"],
+            "outer":["group/inner"],
+            "manual":["fixture/usual","fixture/paused"],
+            "closed":["fixture/paused"]
+        },
+        "rotating_groups":["inner"],
+        "group_picks":{"manual":"fixture/paused"},
+        "group_rules":{
+            "inner":[
+                {"use":"fixture/paused","pause":true,"agents":["claude"]},
+                {"use":"fixture/busy","more":["fixture/paused","fixture/second"],"folders":["C:/work/repo"],
+                 "where":[{"field":"message","op":"matches","value":"/^review\\b/"},
+                    {"field":"effort","op":"gte","value":"medium"},
+                    {"field":"subagent","op":"not"}]},
+                {"use":"fixture/second","images":true}
+            ],
+            "manual":[{"use":"fixture/paused","pause":true,"agents":["claude"]}],
+            "closed":[{"use":"fixture/paused","pause":true,"agents":["claude"]}]
+        }
+    });
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let service = Service::start(dir.path()).await?;
+    let url = format!("http://{}/v1/chat/completions", service.addr);
+    let token = config::token(dir.path())?;
+    let client = crabforge_test_support::Client::default();
+    let send = |group: &str, user: Value, subagent: bool| {
+        let mut request = client
+            .post(&url)
+            .bearer_auth(&token)
+            .header("user-agent", "claude-cli/2.1.332");
+        if subagent {
+            request = request.header("x-claude-code-agent-id", "reviewer");
+        }
+        request.body(json!({"model":group,"reasoning_effort":"high","messages":[
+            {"role":"developer","content":"<env>\nWorking directory: /mnt/c/work/repo/src\n</env>"},
+            {"role":"user","content":user}
+        ]}).to_string()).send()
+    };
+    let response = send("group/outer", json!("Review the result"), false).await?;
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.text().await?, "second");
+    let response = send("group/outer", json!("Review the result"), true).await?;
+    assert_eq!(response.text().await?, "usual");
+    let image =
+        json!([{"type":"image_url","image_url":{"url":"https://example.invalid/image.png"}}]);
+    assert_eq!(
+        send("group/outer", image, false).await?.text().await?,
+        "second"
+    );
+    assert_eq!(
+        send("group/manual", json!("hello"), false)
+            .await?
+            .text()
+            .await?,
+        "paused"
+    );
+    assert_eq!(
+        send("group/closed", json!("hello"), false).await?.status(),
+        503
+    );
+    assert_eq!(
+        service
+            .history
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|attempt| attempt.status)
+            .collect::<Vec<_>>(),
+        [503, 200, 200, 200, 200]
+    );
+    service.stop().await;
+    upstream.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn quic_peer_identity_and_gateway_key_are_both_required() -> Result<()> {
     let server_dir = tempdir()?;
     let client_dir = tempdir()?;

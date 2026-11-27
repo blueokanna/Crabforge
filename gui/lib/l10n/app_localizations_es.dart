@@ -777,6 +777,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Usa 0 para heredar el plazo o -1 para desactivar los reintentos.';
 
   @override
+  String get groupRoutingRules => 'Reglas de enrutamiento (JSON)';
+
+  @override
+  String get invalidGroupRoutingRules =>
+      'Introduce un array JSON de objetos de regla.';
+
+  @override
   String get defaultGroupPatienceHelp =>
       'Usa 0 para 60 segundos o -1 para desactivar los reintentos.';
 

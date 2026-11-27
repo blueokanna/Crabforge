@@ -780,6 +780,13 @@ class AppLocalizationsFr extends AppLocalizations {
       'Utilisez 0 pour hériter du délai ou -1 pour désactiver les nouvelles tentatives.';
 
   @override
+  String get groupRoutingRules => 'Règles de routage (JSON)';
+
+  @override
+  String get invalidGroupRoutingRules =>
+      'Saisissez un tableau JSON d’objets de règle.';
+
+  @override
   String get defaultGroupPatienceHelp =>
       'Utilisez 0 pour 60 secondes ou -1 pour désactiver les nouvelles tentatives.';
 
