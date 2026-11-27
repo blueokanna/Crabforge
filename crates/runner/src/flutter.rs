@@ -35,6 +35,10 @@ unsafe extern "C" {
         result: &mut LRESULT,
     ) -> bool;
     pub fn FlutterDesktopEngineReloadSystemFonts(engine: Handle);
+    pub fn FlutterDesktopEngineGetPluginRegistrar(
+        engine: Handle,
+        plugin_name: *const c_char,
+    ) -> Handle;
     pub fn FlutterDesktopEngineSetNextFrameCallback(
         engine: Handle,
         callback: unsafe extern "C" fn(Handle),
@@ -42,4 +46,9 @@ unsafe extern "C" {
     );
     pub fn FlutterDesktopViewControllerForceRedraw(controller: Handle);
     pub fn FlutterDesktopResyncOutputStreams();
+}
+
+// The matching Flutter plugin is linked by windows/flutter/generated_plugins.cmake.
+unsafe extern "C" {
+    pub fn FileSelectorWindowsRegisterWithRegistrar(registrar: Handle);
 }

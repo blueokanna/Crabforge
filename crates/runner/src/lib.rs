@@ -188,6 +188,10 @@ unsafe fn run(instance: HINSTANCE) -> i32 {
         };
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, (&raw const state) as isize);
         SetParent(child, hwnd);
+        FileSelectorWindowsRegisterWithRegistrar(FlutterDesktopEngineGetPluginRegistrar(
+            engine,
+            c"FileSelectorWindows".as_ptr(),
+        ));
         MoveWindow(child, 0, 0, rect.right, rect.bottom, 1);
         SetFocus(child);
         FlutterDesktopEngineSetNextFrameCallback(engine, show, hwnd);
