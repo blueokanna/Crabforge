@@ -113,6 +113,7 @@ pub enum NativeAgent {
     Claude,
     Codex,
     Gemini,
+    Grok,
     Pi,
 }
 
@@ -122,6 +123,7 @@ impl NativeAgent {
             "claude" => Some(Self::Claude),
             "codex" => Some(Self::Codex),
             "gemini" => Some(Self::Gemini),
+            "grok" => Some(Self::Grok),
             "pi" => Some(Self::Pi),
             _ => None,
         }
@@ -132,6 +134,7 @@ impl NativeAgent {
             Self::Claude => "claude",
             Self::Codex => "codex",
             Self::Gemini => "gemini",
+            Self::Grok => "grok",
             Self::Pi => "pi",
         }
     }
@@ -143,6 +146,7 @@ impl NativeAgent {
             Self::Claude => ("CLAUDE_CONFIG_DIR", ".claude", false),
             Self::Codex => ("CODEX_HOME", ".codex", false),
             Self::Gemini => ("GEMINI_CLI_HOME", ".gemini", true),
+            Self::Grok => ("GROK_HOME", ".grok", false),
             Self::Pi => ("PI_CODING_AGENT_DIR", ".pi/agent", false),
         };
         env::var_os(key)

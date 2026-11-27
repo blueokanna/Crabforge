@@ -91,9 +91,11 @@ carbforge-cli memory publish D:\Projects\app codex
 
 要让 Agent 搜索和保存记忆，在客户端添加本地 stdio MCP 服务，命令使用 `carbforge-cli.exe` 的完整路径，参数为 `mcp memory --agent <Agent ID> --project <文件夹>`。也可将 `--project <文件夹>` 换成 `--project-key <项目键>`。使用自定义数据目录时，为客户端设置相同的 `CRABFORGE_HOME`。`memory_search` 搜索可用范围内的有效记忆，`memory_save` 创建记录或更新 Agent 写入的记忆，`memory_forget` 归档可见记录，`memory_context` 显示适用范围。直接运行 `mcp memory` 时仅开放全局记忆。
 
-打开 **客户端连接 → 本地会话**可浏览最近最多 50 个 Claude Code、Codex、Gemini CLI 和 Pi 会话，并复制会话 ID。运行 `carbforge-cli sessions --limit 50` 可输出 JSON，使用 `--agent claude`、`--agent codex`、`--agent gemini` 或 `--agent pi` 筛选。Crabforge 读取原生 JSONL 和 Codex 的 `.jsonl.zst`，显示会话 ID、提示预览、时间、工作目录和所属配置目录。Claude Code 和 Codex 的主要配置目录来自 `CLAUDE_CONFIG_DIR` 和 `CODEX_HOME`，默认为用户主目录的 `.claude` 和 `.codex`。Crabforge 也会在主要配置的同级和用户主目录内查找含会话的 Claude 或 Codex 命名目录，并检查下一层配置子目录。
+打开 **客户端连接 → 本地会话**可浏览最近最多 50 个 Claude Code、Codex、Gemini CLI、Grok Build 和 Pi 会话，并复制会话 ID。运行 `carbforge-cli sessions --limit 50` 可输出 JSON，使用 `--agent claude`、`--agent codex`、`--agent gemini`、`--agent grok` 或 `--agent pi` 筛选。Crabforge 读取原生 JSONL 和 Codex 的 `.jsonl.zst`，显示会话 ID、标题、时间、工作目录和所属配置目录。Claude Code 和 Codex 的主要配置目录来自 `CLAUDE_CONFIG_DIR` 和 `CODEX_HOME`，默认为用户主目录的 `.claude` 和 `.codex`。Crabforge 也会在主要配置的同级和用户主目录内查找含会话的 Claude 或 Codex 命名目录，并检查下一层配置子目录。
 
 Gemini CLI 的 JSONL 和旧版 JSON 会话位于 `.gemini` 配置目录下的 `tmp/<项目>/chats`。Crabforge 从 `GEMINI_CLI_HOME` 或用户主目录查找 `.gemini`，也会查看 Crabforge 数据目录下的 `agents/gemini/.gemini`。若 Gemini 已在 `.project_root` 记录项目文件夹，详情中会显示该路径。记忆预览优先使用用户看到的提示文本，按撤回后的历史提取内容，并跳过已编辑的提示、生成的上下文及工具结果。Gemini 会话文件上限为 16 MiB。
+
+Grok Build 的 `summary.json` 和 `updates.jsonl` 位于 `GROK_HOME/sessions` 或 `~/.grok/sessions`。记忆预览会拼接分段写入的用户提示，并跳过工具事件、助手回复、客户端内部操作和子代理会话。用于记忆预览的 Grok 更新日志上限为 16 MiB。
 
 Pi 显示的配置目录为实际的会话存储目录。Crabforge 查看 `PI_CODING_AGENT_SESSION_DIR`、`PI_CODING_AGENT_DIR` 下的 `sessions` 目录（配置目录默认为 `~/.pi/agent`），以及 Crabforge 数据目录下的 `agents/pi/sessions`。用自定义 `--session-dir` 保存会话后，可设置 `PI_CODING_AGENT_SESSION_DIR` 让 Crabforge 找到它们。Pi 记忆预览从最后保存的分支提取用户原话，跳过受 Pi 上下文编辑影响的提示。记忆预览支持不超过 16 MiB 的 Pi 日志。
 

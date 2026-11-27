@@ -342,6 +342,12 @@ The unpacked CLI's three loopback SSE first events arrived at `20.984`, `14.220`
 
 Both Windows Debug CLIs read an encrypted backup produced by portable Magpie 0.1.4936. The Claude Code import preserved a disabled plugin and a colliding local marketplace, reported affected plugins, and left the file byte-identical on reapply. Four competing shared bundle imports created one snapshot. The exported TAR matched every original file, including CRLF and a binary attachment with a Chinese filename. The fixture covered same-name content conflicts, a source-only entry, and explicit Codex project assignment and withdrawal. [Claude Code settings](../../../crates/core/src/claude_plugins/transfer.rs) · [Shared bundles](../../../crates/core/src/plugin_bundles/magpie.rs)
 
+## Grok Build 会话 / Grok Build sessions
+
+Grok Build 1.0.92 通过回环夹具启动原生会话，并用同一个会话 ID 继续到第 12 轮。每轮上游收到之前的用户提示。两个 Windows Debug CLI 均列出原生会话 ID、项目和配置路径，从日志恢复完全相同的 12 条用户原话和预览修订，并拒绝未经发现的配置目录。Rust 回归覆盖分段提示、客户端内部操作和子代理日志。
+
+Grok Build 1.0.92 started a native session against a loopback fixture and resumed the same session ID through turn 12. The upstream received the earlier user prompts on each turn. Both Windows Debug CLIs listed the native ID, project and profile, extracted the same 12 original prompts and preview revision, and rejected an unconfigured profile. The Rust regression covers split prompts, host turns and subagent logs. [Session reader](../../../crates/core/src/sessions/grok.rs)
+
 ## 技能与钩子备份迁移 / Skill and hook backup migration
 
 用 Magpie 0.1.4936 的便携配置生成加密备份。双 Windows Debug CLI 只读预览技能，保留 `SKILL.md` 的 CRLF、含中文路径的二进制附件及客户端分配。四进程并发仅写入一次。显式同步发布到 Claude Code、Codex 和 Pi，撤销保留了外部编辑。钩子用例覆盖命令遮蔽、密码错误、选名、并发、批次冲突及不兼容会话匹配条件。同步后核对 Claude Code 的 `Bash`、Codex 的 `resume` 和 Gemini 的 `run_shell_command` 及毫秒超时，并验证撤销。

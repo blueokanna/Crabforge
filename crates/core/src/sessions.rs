@@ -13,6 +13,7 @@ use std::{
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 mod gemini;
+mod grok;
 mod pi;
 
 const MAX_HEADER: u64 = 512 * 1024;
@@ -51,14 +52,20 @@ struct Log<'a> {
 }
 
 pub fn list(dir: &Path, agent: Option<Agent>, limit: usize) -> Result<Listing> {
-    let roots = [Agent::Claude, Agent::Codex, Agent::Gemini, Agent::Pi]
-        .into_iter()
-        .filter(|item| agent.is_none_or(|agent| agent == *item))
-        .flat_map(|agent| {
-            session_profiles(dir, agent)
-                .into_iter()
-                .map(move |path| (agent, path))
-        });
+    let roots = [
+        Agent::Claude,
+        Agent::Codex,
+        Agent::Gemini,
+        Agent::Grok,
+        Agent::Pi,
+    ]
+    .into_iter()
+    .filter(|item| agent.is_none_or(|agent| agent == *item))
+    .flat_map(|agent| {
+        session_profiles(dir, agent)
+            .into_iter()
+            .map(move |path| (agent, path))
+    });
     list_in(roots, limit)
 }
 
@@ -76,6 +83,7 @@ fn session_profiles(dir: &Path, agent: Agent) -> Vec<PathBuf> {
             .into_iter()
             .chain([dir.join("agents/gemini/.gemini")])
             .collect(),
+        Agent::Grok => return agent.home().into_iter().collect(),
         _ => {
             return agent.home().map_or_else(Vec::new, |home| {
                 profiles(agent, home, env::home_dir().as_deref())
@@ -103,7 +111,7 @@ fn profiles(agent: Agent, primary: PathBuf, user: Option<&Path>) -> Vec<PathBuf>
     let has_sessions = |path: &Path| match agent {
         Agent::Claude => path.join("projects").is_dir(),
         Agent::Codex => path.join("sessions").is_dir() || path.join("archived_sessions").is_dir(),
-        Agent::Gemini | Agent::Pi => false,
+        Agent::Gemini | Agent::Grok | Agent::Pi => false,
     };
     let mut seen: HashSet<_> = primary.canonicalize().into_iter().collect();
     let mut additional = Vec::new();
@@ -195,6 +203,17 @@ pub(crate) fn excerpt(
             }
             continue;
         }
+        if log.agent == Agent::Grok {
+            if let Ok(Some(summary)) = grok::summary(&log.path)
+                && summary.id == id
+            {
+                let messages = grok::excerpt(&log.path)?;
+                ensure!(!messages.is_empty(), "session contains no user messages");
+                let session = log.grok_session(summary, &messages)?;
+                return Ok(Excerpt { session, messages });
+            }
+            continue;
+        }
         let Ok(mut file) = fs::File::open(&log.path) else {
             continue;
         };
@@ -243,6 +262,7 @@ fn ordered_logs(roots: &[(Agent, PathBuf)]) -> Result<Vec<Log<'_>>> {
                     }
                 }
             }
+            Agent::Grok => visit(&home.join("sessions"), 2, *agent, home, false, &mut logs)?,
             Agent::Pi => visit(home, 1, *agent, home, false, &mut logs)?,
         }
     }
@@ -282,6 +302,7 @@ fn visit<'a>(
                     name.starts_with("session-")
                         && (name.ends_with(".json") || name.ends_with(".jsonl"))
                 }
+                Agent::Grok => depth == 0 && name == "updates.jsonl",
                 Agent::Pi => name.ends_with(".jsonl"),
             }
         {
@@ -306,7 +327,27 @@ impl Log<'_> {
         if self.agent == Agent::Gemini {
             return Ok(self.gemini_excerpt()?.map(|excerpt| excerpt.session));
         }
+        if self.agent == Agent::Grok {
+            let Some(summary) = grok::summary(&self.path)? else {
+                return Ok(None);
+            };
+            let messages = if summary.title.is_empty() {
+                grok::messages(fs::File::open(&self.path)?.take(MAX_HEADER))?
+            } else {
+                Vec::new()
+            };
+            return Ok(Some(self.grok_session(summary, &messages)?));
+        }
         self.read_header(self.reader(fs::File::open(&self.path)?)?)
+    }
+
+    fn grok_session(&self, summary: grok::Summary, messages: &[String]) -> Result<Session> {
+        let title = if summary.title.is_empty() {
+            message_title(messages.iter().map(String::as_str))
+        } else {
+            summary.title
+        };
+        self.summary(summary.id, summary.cwd, title)
     }
 
     fn gemini_excerpt(&self) -> Result<Option<Excerpt>> {
@@ -381,6 +422,7 @@ impl Log<'_> {
                     }
                 }
                 Agent::Gemini => unreachable!("Gemini uses native conversation records"),
+                Agent::Grok => unreachable!("Grok uses a separate session summary"),
                 Agent::Pi => {
                     if id.is_empty() {
                         if pi::version(&row).is_none() {

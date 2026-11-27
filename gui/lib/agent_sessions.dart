@@ -13,6 +13,7 @@ const _agentNames = {
   'claude': 'Claude Code',
   'codex': 'Codex',
   'gemini': 'Gemini CLI',
+  'grok': 'Grok Build',
   'pi': 'Pi',
 };
 
