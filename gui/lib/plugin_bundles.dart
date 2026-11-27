@@ -7,7 +7,18 @@ import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
 
-part 'plugin_bundles_pi.dart';
+part 'plugin_bundles_project.dart';
+
+String _projectPackagesTitle(
+  BuildContext context,
+  api.ProjectPluginAgent agent,
+) => switch (agent) {
+  api.ProjectPluginAgent.pi => context.strings.piProjectPackages,
+  api.ProjectPluginAgent.claude => context.strings.claudeProjectPackages,
+  api.ProjectPluginAgent.codex => context.strings.codexProjectPackages,
+  api.ProjectPluginAgent.antigravity =>
+    context.strings.antigravityProjectPackages,
+};
 
 typedef _Json = Map<String, dynamic>;
 
@@ -390,16 +401,17 @@ class _PluginBundlesState extends State<PluginBundles> {
                     icon: const Icon(Icons.download_outlined),
                     label: Text(strings.importPluginBundle),
                   ),
-                  TextButton.icon(
-                    onPressed: _busy
-                        ? null
-                        : () => showDialog<void>(
-                            context: context,
-                            builder: (_) => const _PiProjectPackages(),
-                          ),
-                    icon: const Icon(Icons.folder_outlined),
-                    label: Text(strings.piProjectPackages),
-                  ),
+                  for (final agent in api.ProjectPluginAgent.values)
+                    TextButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : () => showDialog<void>(
+                              context: context,
+                              builder: (_) => _ProjectPackages(agent),
+                            ),
+                      icon: const Icon(Icons.folder_outlined),
+                      label: Text(_projectPackagesTitle(context, agent)),
+                    ),
                   IconButton(
                     onPressed: _busy ? null : () => _refresh(api.pluginBundles),
                     icon: const Icon(Icons.refresh),

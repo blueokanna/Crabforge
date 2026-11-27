@@ -478,6 +478,101 @@ pub fn archive_pi_project_plugin_bundle(
     )
 }
 
+pub enum ProjectPluginAgent {
+    Pi,
+    Claude,
+    Codex,
+    Antigravity,
+}
+
+fn edit_project_plugin_bundles(
+    agent: ProjectPluginAgent,
+    project: &str,
+    edit: crabforge_core::plugin_bundles::ProjectEdit<'_>,
+) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit, WorkspaceAgent};
+    let project = std::path::Path::new(project);
+    let operation = match agent {
+        ProjectPluginAgent::Pi => Edit::PiProject { project, edit },
+        ProjectPluginAgent::Claude => Edit::ClaudeProject { project, edit },
+        ProjectPluginAgent::Codex => Edit::WorkspaceProject {
+            agent: WorkspaceAgent::Codex,
+            project,
+            edit,
+        },
+        ProjectPluginAgent::Antigravity => Edit::WorkspaceProject {
+            agent: WorkspaceAgent::Antigravity,
+            project,
+            edit,
+        },
+    };
+    plugin_bundles::edit(&config::data_dir()?, operation)
+}
+
+pub fn project_plugin_bundles(agent: ProjectPluginAgent, project: String) -> Result<String> {
+    use crabforge_core::plugin_bundles::ProjectEdit;
+    edit_project_plugin_bundles(agent, &project, ProjectEdit::Read)
+}
+
+pub fn set_project_plugin_bundle(
+    agent: ProjectPluginAgent,
+    project: String,
+    name: String,
+    project_revision: String,
+    bundle_revision: Option<String>,
+) -> Result<String> {
+    use crabforge_core::plugin_bundles::ProjectEdit;
+    edit_project_plugin_bundles(
+        agent,
+        &project,
+        ProjectEdit::Set {
+            name: &name,
+            project_revision: &project_revision,
+            bundle_revision: bundle_revision.as_deref(),
+        },
+    )
+}
+
+pub fn transfer_project_plugin_bundles(
+    agent: ProjectPluginAgent,
+    project: String,
+    project_revision: String,
+    assignments: Option<String>,
+) -> Result<String> {
+    use crabforge_core::plugin_bundles::ProjectEdit;
+    let project_revision = &project_revision;
+    edit_project_plugin_bundles(
+        agent,
+        &project,
+        match assignments.as_deref() {
+            Some(assignments) => ProjectEdit::Apply {
+                project_revision,
+                assignments,
+            },
+            None => ProjectEdit::Export { project_revision },
+        },
+    )
+}
+
+pub fn archive_project_plugin_bundle(
+    agent: ProjectPluginAgent,
+    project: String,
+    name: String,
+    project_revision: String,
+    output: String,
+) -> Result<String> {
+    use crabforge_core::plugin_bundles::ProjectEdit;
+    edit_project_plugin_bundles(
+        agent,
+        &project,
+        ProjectEdit::Archive {
+            name: &name,
+            project_revision: &project_revision,
+            output: std::path::Path::new(&output),
+        },
+    )
+}
+
 pub fn preview_plugin_bundle(source: String) -> Result<String> {
     use crabforge_core::plugin_bundles::{self, Edit};
     plugin_bundles::edit(&config::data_dir()?, Edit::Preview { source: &source })

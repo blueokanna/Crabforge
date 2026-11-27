@@ -1156,6 +1156,36 @@ abstract class AppLocalizations {
   /// **'Pi project packages'**
   String get piProjectPackages;
 
+  /// No description provided for @claudeProjectPackages.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code project plugins'**
+  String get claudeProjectPackages;
+
+  /// No description provided for @codexProjectPackages.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex project plugins'**
+  String get codexProjectPackages;
+
+  /// No description provided for @antigravityProjectPackages.
+  ///
+  /// In en, this message translates to:
+  /// **'Antigravity project plugins'**
+  String get antigravityProjectPackages;
+
+  /// No description provided for @workspacePluginConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'The client can run code from the reviewed plugin when you open this trusted project.'**
+  String get workspacePluginConfirm;
+
+  /// No description provided for @claudePackageConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code will install the reviewed plugin for this project. It can run plugin hooks when you open the project.'**
+  String get claudePackageConfirm;
+
   /// No description provided for @piPackageConfirm.
   ///
   /// In en, this message translates to:

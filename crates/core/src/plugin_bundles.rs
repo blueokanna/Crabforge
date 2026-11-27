@@ -24,12 +24,17 @@ const MARKET: &str = ".claude-plugin/marketplace.json";
 const MAX_INDEX: usize = 8 * 1024 * 1024;
 const MAX_MANIFEST: usize = 256 * 1024;
 
+mod claude_project;
 mod marketplace;
 mod pi;
 mod pi_project;
+mod project;
 mod resources;
+mod workspace_project;
 
-pub use pi_project::Edit as PiProjectEdit;
+pub use project::Edit as ProjectEdit;
+pub use project::Edit as PiProjectEdit;
+pub use workspace_project::Agent as WorkspaceAgent;
 
 pub enum Edit<'a> {
     Read,
@@ -63,6 +68,15 @@ pub enum Edit<'a> {
     PiProject {
         project: &'a Path,
         edit: PiProjectEdit<'a>,
+    },
+    ClaudeProject {
+        project: &'a Path,
+        edit: ProjectEdit<'a>,
+    },
+    WorkspaceProject {
+        agent: WorkspaceAgent,
+        project: &'a Path,
+        edit: ProjectEdit<'a>,
     },
 }
 
@@ -465,6 +479,18 @@ pub fn edit(dir: &Path, operation: Edit<'_>) -> Result<String> {
         }
         Edit::PiProject { project, edit } => {
             return pi_project::edit(dir, &library, &snapshots, &bundles, project, edit);
+        }
+        Edit::ClaudeProject { project, edit } => {
+            return claude_project::edit(dir, &library, &snapshots, &bundles, project, edit);
+        }
+        Edit::WorkspaceProject {
+            agent,
+            project,
+            edit,
+        } => {
+            return workspace_project::edit(
+                agent, dir, &library, &snapshots, &bundles, project, edit,
+            );
         }
     }
     if !matches!(operation, Edit::Read) {

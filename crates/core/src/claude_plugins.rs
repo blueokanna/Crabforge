@@ -17,8 +17,8 @@ use std::{
 mod transfer;
 pub use transfer::{export_settings, import_settings, import_settings_file};
 
-const ENABLED: &str = "enabledPlugins";
-const MARKETPLACES: &str = "extraKnownMarketplaces";
+pub(crate) const ENABLED: &str = "enabledPlugins";
+pub(crate) const MARKETPLACES: &str = "extraKnownMarketplaces";
 const EMPTY: &str = "{}\n";
 
 pub enum Edit<'a> {
@@ -82,7 +82,7 @@ fn read(path: &Path) -> Result<Option<String>> {
     native_settings::read(&native_settings::path(path)?)
 }
 
-fn read_object(path: &Path) -> Result<Value> {
+pub(crate) fn read_object(path: &Path) -> Result<Value> {
     let source = read(path)?;
     let value = nextjson::from_str::<Value>(
         source
@@ -134,7 +134,7 @@ fn patch_setting(source: &str, field: &str, id: &str, value: Option<Value>) -> R
     }
 }
 
-fn project_target(project: &Path, home: &Path) -> Result<(PathBuf, PathBuf)> {
+pub(crate) fn project_target(project: &Path, home: &Path) -> Result<(PathBuf, PathBuf)> {
     let root = project
         .canonicalize()
         .context("project directory is unavailable")?;
@@ -466,6 +466,15 @@ fn read_tail(mut file: std::fs::File) -> Result<String> {
 }
 
 fn run_claude(dir: &Path, args: &[&str], target: Option<&str>) -> Result<std::fs::File> {
+    let _guard = native_settings::lock(dir)?;
+    run_plugin_command(None, args, target)
+}
+
+pub(crate) fn run_plugin_command(
+    project: Option<&Path>,
+    args: &[&str],
+    target: Option<&str>,
+) -> Result<std::fs::File> {
     let path = env::var_os("PATH").context("PATH is unavailable")?;
     let names: &[&str] = if cfg!(windows) {
         &["claude.exe", "claude.cmd"]
@@ -477,10 +486,12 @@ fn run_claude(dir: &Path, args: &[&str], target: Option<&str>) -> Result<std::fs
         .flat_map(|dir| names.iter().map(move |name| dir.join(name)))
         .find(|path| path.is_file())
         .context("Claude Code must be on PATH to manage marketplaces and installations")?;
-    let _guard = native_settings::lock(dir)?;
     let mut stdout = tempfile::tempfile()?;
     let stderr = tempfile::tempfile()?;
     let mut command = Command::new(executable);
+    if let Some(project) = project {
+        command.current_dir(native_settings::conventional_path(project));
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

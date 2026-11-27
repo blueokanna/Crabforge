@@ -579,6 +579,23 @@ class AppLocalizationsKo extends AppLocalizations {
   String get piProjectPackages => 'Pi 프로젝트 패키지';
 
   @override
+  String get claudeProjectPackages => 'Claude Code 프로젝트 플러그인';
+
+  @override
+  String get codexProjectPackages => 'Codex 프로젝트 플러그인';
+
+  @override
+  String get antigravityProjectPackages => 'Antigravity 프로젝트 플러그인';
+
+  @override
+  String get workspacePluginConfirm =>
+      '이 신뢰할 수 있는 프로젝트를 열면 클라이언트가 검토한 플러그인의 코드를 실행할 수 있습니다.';
+
+  @override
+  String get claudePackageConfirm =>
+      'Claude Code가 이 프로젝트에 검토한 플러그인을 설치합니다. 프로젝트를 열면 Claude Code가 플러그인 훅을 실행할 수 있습니다.';
+
+  @override
   String get piPackageConfirm => '신뢰하는 프로젝트를 열면 Pi가 패키지의 확장을 실행할 수 있습니다.';
 
   @override

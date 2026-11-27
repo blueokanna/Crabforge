@@ -24,13 +24,23 @@ void main() {
     final source = Directory('${root.path}/bundle-source');
     final manifest = File('${source.path}/.claude-plugin/plugin.json');
     manifest.parent.createSync(recursive: true);
-    void version(String value) => manifest.writeAsStringSync(
-      jsonEncode({
+    void version(String value) {
+      final content = jsonEncode({
         'name': 'desktop-reviewer',
         'description': 'Plugin fixture',
         'version': value,
-      }),
-    );
+      });
+      for (final name in [
+        '.claude-plugin',
+        '.codex-plugin',
+        '.antigravity-plugin',
+      ]) {
+        final file = File('${source.path}/$name/plugin.json');
+        file.parent.createSync(recursive: true);
+        file.writeAsStringSync(content);
+      }
+    }
+
     version('1.0.0');
     final agent = File('${source.path}/agents/review.md');
     agent.parent.createSync(recursive: true);
@@ -69,8 +79,8 @@ void main() {
       const Duration(seconds: 30),
     );
 
-    Future<void> waitFor(Finder target) async {
-      final deadline = DateTime.now().add(const Duration(seconds: 30));
+    Future<void> waitFor(Finder target, {int seconds = 30}) async {
+      final deadline = DateTime.now().add(Duration(seconds: seconds));
       while (target.evaluate().isEmpty && DateTime.now().isBefore(deadline)) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -246,6 +256,70 @@ void main() {
     await tap(below(row, find.byTooltip('Unassign from this project')));
     await waitFor(below(row, find.text('1.0.0 · Available to assign')));
     expect(jsonDecode(settings.readAsStringSync())['packages'], isEmpty);
+    await tap(below(dialog, find.text('Close')));
+
+    for (final (client, label, confirmation) in [
+      if (Platform.environment['CRABFORGE_TEST_CLAUDE_PLUGINS'] == '1')
+        (
+          api.ProjectPluginAgent.claude,
+          'Claude Code',
+          'Claude Code will install',
+        ),
+      if (Platform.environment['CODEX_HOME']?.startsWith(root.path) ?? false)
+        (api.ProjectPluginAgent.codex, 'Codex', 'The client can run code'),
+      (
+        api.ProjectPluginAgent.antigravity,
+        'Antigravity',
+        'The client can run code',
+      ),
+    ]) {
+      final workspace = Directory('${root.path}/${client.name}-project')
+        ..createSync();
+      tester.view.physicalSize = const Size(560, 800);
+      await settle();
+      await tap(below(page, find.text('$label project plugins')));
+      final toList = below(dialog, find.byTooltip('List view'));
+      if (toList.evaluate().isNotEmpty) await tap(toList);
+      await tester.enterText(
+        below(dialog, find.widgetWithText(TextField, 'Project folder')),
+        workspace.path,
+      );
+      await tap(below(dialog, find.text('Open project')));
+      final plugin = below(
+        dialog,
+        find.byKey(const ValueKey('desktop-reviewer')),
+      );
+      expect(below(dialog, find.byType(SliverList)), findsOneWidget);
+      await tap(below(plugin, find.byTooltip('Assign to this project')));
+      await waitFor(find.textContaining(confirmation));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await waitFor(below(plugin, find.text('2.0.0 · Assigned')), seconds: 145);
+      final projectView = jsonDecode(
+        await api.projectPluginBundles(agent: client, project: workspace.path),
+      );
+      final transfers = jsonDecode(
+        await api.transferProjectPluginBundles(
+          agent: client,
+          project: workspace.path,
+          projectRevision: projectView['revision'] as String,
+        ),
+      );
+      expect(transfers['kind'], 'crabforge-${client.name}-project');
+      expect((transfers['packages'] as Map).keys.single, 'desktop-reviewer');
+      tester.view.physicalSize = const Size(1280, 900);
+      await settle();
+      final toGrid = below(dialog, find.byTooltip('Grid view'));
+      if (toGrid.evaluate().isNotEmpty) await tap(toGrid);
+      expect(below(dialog, find.byType(SliverGrid)), findsOneWidget);
+      await tester.tap(
+        below(plugin, find.byTooltip('Unassign from this project')),
+      );
+      await waitFor(
+        below(plugin, find.text('2.0.0 · Available to assign')),
+        seconds: 145,
+      );
+      await tap(below(dialog, find.text('Close')));
+    }
     expect(tester.takeException(), isNull);
   });
 }

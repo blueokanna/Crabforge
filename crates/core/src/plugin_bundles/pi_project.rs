@@ -1,10 +1,13 @@
-use super::{Bundle, PI, Tree, check_revision, encode, revision};
+use super::{
+    Bundle, PI, Tree, check_revision, encode,
+    project::{self, Edit, MAX_LEDGER, Row, View, checksum, hash, path_key, verified_tree},
+    revision,
+};
 use crate::{
     config::read_limited, native_settings, project_instructions::replace, project_mcp::jsonc,
 };
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value};
-use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     env, fs,
@@ -14,28 +17,6 @@ use std::{
 
 const PACKAGES: &str = "packages";
 const EMPTY: &str = "{}\n";
-const MAX_LEDGER: usize = 1024 * 1024;
-
-pub enum Edit<'a> {
-    Read,
-    Set {
-        name: &'a str,
-        project_revision: &'a str,
-        bundle_revision: Option<&'a str>,
-    },
-    Export {
-        project_revision: &'a str,
-    },
-    Archive {
-        name: &'a str,
-        project_revision: &'a str,
-        output: &'a Path,
-    },
-    Apply {
-        project_revision: &'a str,
-        assignments: &'a str,
-    },
-}
 
 #[derive(Default, NsonDeserialize, NsonSerialize)]
 struct Store {
@@ -49,44 +30,7 @@ struct Pending {
     after: String,
 }
 
-#[derive(NsonDeserialize, NsonSerialize)]
-struct Assignments {
-    kind: String,
-    version: u32,
-    packages: BTreeMap<String, String>,
-}
-
 const ASSIGNMENT_KIND: &str = "crabforge-pi-project";
-
-#[derive(NsonSerialize)]
-struct View<'a> {
-    revision: String,
-    packages: Vec<Row<'a>>,
-}
-
-#[derive(NsonSerialize)]
-struct Row<'a> {
-    name: &'a str,
-    version: Option<&'a str>,
-    bundle_revision: Option<String>,
-    assigned: bool,
-    can_export_snapshot: bool,
-    status: &'static str,
-}
-
-fn hash(text: &str) -> String {
-    hex::encode(Sha256::digest(text.as_bytes()))
-}
-
-fn path_key(path: &Path) -> Result<String> {
-    let path = native_settings::conventional_path(path);
-    let text = path.to_str().context("Pi package paths must be UTF-8")?;
-    Ok(if cfg!(windows) {
-        text.replace('/', "\\").to_lowercase()
-    } else {
-        text.to_owned()
-    })
-}
 
 fn home_relative(path: &Path) -> Option<PathBuf> {
     let relative = path.strip_prefix("~").ok()?;
@@ -175,11 +119,7 @@ impl Store {
             let (content, _) = assigned_snapshot(name, assigned, project, objects, packages)?;
             selections.insert(name.clone(), content.to_owned());
         }
-        encode(&Assignments {
-            kind: ASSIGNMENT_KIND.to_owned(),
-            version: 1,
-            packages: selections,
-        })
+        project::export(ASSIGNMENT_KIND, selections)
     }
 }
 
@@ -207,10 +147,6 @@ fn assigned_snapshot<'a>(
     Ok((content, tree))
 }
 
-fn checksum(value: &str) -> bool {
-    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
-}
-
 fn is_pi(bundle: &Bundle) -> bool {
     bundle.manifests.iter().any(|manifest| manifest == PI)
 }
@@ -218,15 +154,6 @@ fn is_pi(bundle: &Bundle) -> bool {
 fn verified_source(project: &Path, objects: &Path, content: &str) -> Result<String> {
     let (folder, _) = verified_tree(objects, content)?;
     source(project, &folder)
-}
-
-fn verified_tree(objects: &Path, content: &str) -> Result<(PathBuf, Tree)> {
-    let expected = objects.join(content);
-    let folder = expected.canonicalize()?;
-    ensure!(folder == expected, "saved Pi package was redirected");
-    let tree = Tree::read(&folder)?;
-    ensure!(tree.hash() == content, "saved plugin snapshot was modified");
-    Ok((folder, tree))
 }
 
 struct Packages {
@@ -373,20 +300,7 @@ pub(super) fn edit(
     let text = settings.as_deref().unwrap_or(EMPTY);
     let mut packages = Packages::read(&project, text)?;
     let objects = crate::rules::resolved_folder(&std::path::absolute(objects)?)?;
-    let project_revision = match &edit {
-        Edit::Read => None,
-        Edit::Set {
-            project_revision, ..
-        }
-        | Edit::Export { project_revision }
-        | Edit::Archive {
-            project_revision, ..
-        }
-        | Edit::Apply {
-            project_revision, ..
-        } => Some(*project_revision),
-    };
-    if let Some(expected) = project_revision {
+    if let Some(expected) = edit.expected() {
         ensure!(
             store.revision(&identity, settings.as_deref())? == expected,
             "Pi project packages changed; reload them"
@@ -417,39 +331,26 @@ pub(super) fn edit(
                 .transpose()?;
             BTreeMap::from([(name.to_ascii_lowercase(), desired)])
         }
-        Edit::Apply { assignments, .. } => {
-            ensure!(
-                assignments.len() <= MAX_LEDGER,
-                "Pi project assignment document exceeds 1 MiB"
-            );
-            let plan: Assignments =
-                nextjson::from_str(assignments.strip_prefix('\u{feff}').unwrap_or(assignments))
-                    .map_err(anyhow::Error::msg)?;
-            ensure!(
-                plan.kind == ASSIGNMENT_KIND && plan.version == 1,
-                "unsupported Pi project assignment document"
-            );
-            plan.packages
-                .into_iter()
-                .map(|(name, content)| {
-                    let bundle = bundles
+        Edit::Apply { assignments, .. } => project::import(ASSIGNMENT_KIND, assignments)?
+            .into_iter()
+            .map(|(name, content)| {
+                let bundle = bundles
+                    .get(&name)
+                    .filter(|bundle| is_pi(bundle) && bundle.content == content)
+                    .with_context(|| {
+                        format!("import the matching Pi package snapshot for {name}")
+                    })?;
+                let desired = verified_source(&project, &objects, &bundle.content)?;
+                ensure!(
+                    store
+                        .entries
                         .get(&name)
-                        .filter(|bundle| is_pi(bundle) && bundle.content == content)
-                        .with_context(|| {
-                            format!("import the matching Pi package snapshot for {name}")
-                        })?;
-                    let desired = verified_source(&project, &objects, &bundle.content)?;
-                    ensure!(
-                        store
-                            .entries
-                            .get(&name)
-                            .is_none_or(|previous| *previous == desired),
-                        "Pi project already has a different assignment for {name}"
-                    );
-                    Ok((name, Some(desired)))
-                })
-                .collect::<Result<_>>()?
-        }
+                        .is_none_or(|previous| *previous == desired),
+                    "Pi project already has a different assignment for {name}"
+                );
+                Ok((name, Some(desired)))
+            })
+            .collect::<Result<_>>()?,
     };
 
     let mut updates = BTreeMap::new();
@@ -623,9 +524,9 @@ mod tests {
                 },
             },
         )?;
-        let carried: Assignments = nextjson::from_str(&travel).map_err(anyhow::Error::msg)?;
+        let carried = project::import(ASSIGNMENT_KIND, &travel)?;
         assert_eq!(
-            carried.packages,
+            carried,
             BTreeMap::from([("reviewer".to_owned(), second.content.clone())])
         );
         let archive = temp.path().join("carry.tar");

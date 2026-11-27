@@ -574,6 +574,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get piProjectPackages => 'Pi 项目包';
 
   @override
+  String get claudeProjectPackages => 'Claude Code 项目插件';
+
+  @override
+  String get codexProjectPackages => 'Codex 项目插件';
+
+  @override
+  String get antigravityProjectPackages => 'Antigravity 项目插件';
+
+  @override
+  String get workspacePluginConfirm => '打开这个受信任的项目时，客户端可以运行已审核插件中的代码。';
+
+  @override
+  String get claudePackageConfirm =>
+      'Claude Code 将为此项目安装已审核的插件。打开项目时，Claude Code 可以运行插件钩子。';
+
+  @override
   String get piPackageConfirm => '打开受信任的项目时，Pi 可以运行包中的扩展。';
 
   @override

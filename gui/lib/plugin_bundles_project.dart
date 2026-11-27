@@ -1,20 +1,29 @@
 part of 'plugin_bundles.dart';
 
-const _piAssignmentsType = XTypeGroup(label: 'JSON', extensions: ['json']);
+const _assignmentsType = XTypeGroup(label: 'JSON', extensions: ['json']);
 
-class _PiProjectPackages extends StatefulWidget {
-  const _PiProjectPackages();
+class _ProjectPackages extends StatefulWidget {
+  const _ProjectPackages(this.agent);
+
+  final api.ProjectPluginAgent agent;
 
   @override
-  State<_PiProjectPackages> createState() => _PiProjectPackagesState();
+  State<_ProjectPackages> createState() => _ProjectPackagesState();
 }
 
-class _PiProjectPackagesState extends State<_PiProjectPackages> {
+class _ProjectPackagesState extends State<_ProjectPackages> {
   final _folder = TextEditingController();
   String? _project;
   _Json? _view;
   Object? _error;
   bool _busy = false;
+
+  String get _confirmation => switch (widget.agent) {
+    api.ProjectPluginAgent.pi => context.strings.piPackageConfirm,
+    api.ProjectPluginAgent.claude => context.strings.claudePackageConfirm,
+    api.ProjectPluginAgent.codex || api.ProjectPluginAgent.antigravity =>
+      context.strings.workspacePluginConfirm,
+  };
 
   @override
   void dispose() {
@@ -46,7 +55,10 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
   Future<void> _open() async {
     final project = _folder.text.trim();
     if (_busy || project.isEmpty) return;
-    await _run(project, () => api.piProjectPluginBundles(project: project));
+    await _run(
+      project,
+      () => api.projectPluginBundles(agent: widget.agent, project: project),
+    );
   }
 
   Future<void> _browse() async {
@@ -66,7 +78,7 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
         context: context,
         builder: (context) => AlertDialog(
           title: Text(name),
-          content: Text(strings.piPackageConfirm),
+          content: Text(_confirmation),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -83,7 +95,8 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
     }
     await _run(
       project,
-      () => api.setPiProjectPluginBundle(
+      () => api.setProjectPluginBundle(
+        agent: widget.agent,
         project: project,
         name: name,
         projectRevision: view['revision'] as String,
@@ -94,8 +107,8 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
 
   Future<void> _export() async {
     final output = await getSaveLocation(
-      suggestedName: 'pi-project-packages.json',
-      acceptedTypeGroups: const [_piAssignmentsType],
+      suggestedName: '${widget.agent.name}-project-packages.json',
+      acceptedTypeGroups: const [_assignmentsType],
     );
     if (!mounted || output == null) return;
     final project = _project!;
@@ -105,7 +118,8 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
       _error = null;
     });
     try {
-      final text = await api.transferPiProjectPluginBundles(
+      final text = await api.transferProjectPluginBundles(
+        agent: widget.agent,
         project: project,
         projectRevision: revision,
       );
@@ -121,7 +135,7 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
   }
 
   Future<void> _apply() async {
-    final file = await openFile(acceptedTypeGroups: const [_piAssignmentsType]);
+    final file = await openFile(acceptedTypeGroups: const [_assignmentsType]);
     if (!mounted || file == null) return;
     final project = _project!;
     final revision = _view!['revision'] as String;
@@ -130,7 +144,7 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(file.name),
-        content: Text(strings.piPackageConfirm),
+        content: Text(_confirmation),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -152,7 +166,8 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
       if (bytes.length > 1024 * 1024) {
         throw FormatException(strings.piAssignmentsTooLarge);
       }
-      return api.transferPiProjectPluginBundles(
+      return api.transferProjectPluginBundles(
+        agent: widget.agent,
         project: project,
         projectRevision: revision,
         assignments: utf8.decode(bytes),
@@ -171,7 +186,8 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
       _error = null;
     });
     try {
-      await api.archivePiProjectPluginBundle(
+      await api.archiveProjectPluginBundle(
+        agent: widget.agent,
         project: _project!,
         name: name,
         projectRevision: _view!['revision'] as String,
@@ -190,7 +206,7 @@ class _PiProjectPackagesState extends State<_PiProjectPackages> {
     final grid = CollectionLayout.of(context).grid;
     final rows = (_view?['packages'] as List?) ?? const [];
     return AlertDialog(
-      title: EditorHeading(strings.piProjectPackages),
+      title: EditorHeading(_projectPackagesTitle(context, widget.agent)),
       content: SizedBox(
         width: 680,
         height: 350,

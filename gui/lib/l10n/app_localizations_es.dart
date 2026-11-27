@@ -588,6 +588,23 @@ class AppLocalizationsEs extends AppLocalizations {
   String get piProjectPackages => 'Paquetes de proyecto de Pi';
 
   @override
+  String get claudeProjectPackages => 'Plugins de proyecto de Claude Code';
+
+  @override
+  String get codexProjectPackages => 'Plugins de proyecto de Codex';
+
+  @override
+  String get antigravityProjectPackages => 'Plugins de proyecto de Antigravity';
+
+  @override
+  String get workspacePluginConfirm =>
+      'El cliente puede ejecutar código del plugin revisado al abrir este proyecto de confianza.';
+
+  @override
+  String get claudePackageConfirm =>
+      'Claude Code instalará el plugin revisado para este proyecto. Al abrir el proyecto, Claude Code puede ejecutar los hooks del plugin.';
+
+  @override
   String get piPackageConfirm =>
       'Pi puede ejecutar extensiones de paquetes al abrir un proyecto de confianza.';
 

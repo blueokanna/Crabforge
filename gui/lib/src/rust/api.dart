@@ -7,7 +7,7 @@ import 'frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `decode`, `encode`, `read_preference`, `write_preference`
+// These functions are ignored because they are not marked as `pub`: `decode`, `edit_project_plugin_bundles`, `encode`, `read_preference`, `write_preference`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Tunnel`
 
 Future<void> webLogin({required String site}) =>
@@ -290,6 +290,54 @@ Future<String> archivePiProjectPluginBundle({
   required String projectRevision,
   required String output,
 }) => RustLib.instance.api.crateApiArchivePiProjectPluginBundle(
+  project: project,
+  name: name,
+  projectRevision: projectRevision,
+  output: output,
+);
+
+Future<String> projectPluginBundles({
+  required ProjectPluginAgent agent,
+  required String project,
+}) => RustLib.instance.api.crateApiProjectPluginBundles(
+  agent: agent,
+  project: project,
+);
+
+Future<String> setProjectPluginBundle({
+  required ProjectPluginAgent agent,
+  required String project,
+  required String name,
+  required String projectRevision,
+  String? bundleRevision,
+}) => RustLib.instance.api.crateApiSetProjectPluginBundle(
+  agent: agent,
+  project: project,
+  name: name,
+  projectRevision: projectRevision,
+  bundleRevision: bundleRevision,
+);
+
+Future<String> transferProjectPluginBundles({
+  required ProjectPluginAgent agent,
+  required String project,
+  required String projectRevision,
+  String? assignments,
+}) => RustLib.instance.api.crateApiTransferProjectPluginBundles(
+  agent: agent,
+  project: project,
+  projectRevision: projectRevision,
+  assignments: assignments,
+);
+
+Future<String> archiveProjectPluginBundle({
+  required ProjectPluginAgent agent,
+  required String project,
+  required String name,
+  required String projectRevision,
+  required String output,
+}) => RustLib.instance.api.crateApiArchiveProjectPluginBundle(
+  agent: agent,
   project: project,
   name: name,
   projectRevision: projectRevision,
@@ -663,3 +711,5 @@ Future<void> setRunning({required bool on_}) =>
     RustLib.instance.api.crateApiSetRunning(on_: on_);
 
 Future<String> status() => RustLib.instance.api.crateApiStatus();
+
+enum ProjectPluginAgent { pi, claude, codex, antigravity }

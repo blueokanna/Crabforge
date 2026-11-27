@@ -1,6 +1,6 @@
 use anyhow::{Result, ensure};
 use clap::Subcommand;
-use crabforge_core::plugin_bundles::{self, Edit, PiProjectEdit};
+use crabforge_core::plugin_bundles::{self, Edit, ProjectEdit, WorkspaceAgent};
 use std::{
     fs::File,
     io::Read,
@@ -50,15 +50,33 @@ pub(super) enum Command {
     PiProject {
         project: PathBuf,
         #[command(subcommand)]
-        command: PiProjectCommand,
+        command: ProjectCommand,
+    },
+    /// List or change Claude Code plugin assignments in a project.
+    ClaudeProject {
+        project: PathBuf,
+        #[command(subcommand)]
+        command: ProjectCommand,
+    },
+    /// List or change Codex plugin assignments in a project.
+    CodexProject {
+        project: PathBuf,
+        #[command(subcommand)]
+        command: ProjectCommand,
+    },
+    /// List or change Antigravity plugin assignments in a project.
+    AntigravityProject {
+        project: PathBuf,
+        #[command(subcommand)]
+        command: ProjectCommand,
     },
 }
 
 #[derive(Subcommand)]
-pub(super) enum PiProjectCommand {
-    /// List the Pi bundles and their assignment status.
+pub(super) enum ProjectCommand {
+    /// List the bundles and their assignment status.
     List,
-    /// Assign a reviewed Pi package or sync an existing assignment to its latest saved revision.
+    /// Assign a reviewed package or sync an existing assignment to its latest saved revision.
     Assign {
         name: String,
         #[arg(long)]
@@ -130,40 +148,42 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
             path,
             copy: copy.as_deref(),
         },
-        Command::PiProject { project, command } => Edit::PiProject {
-            project,
-            edit: match command {
-                PiProjectCommand::List => PiProjectEdit::Read,
-                PiProjectCommand::Assign {
+        scope @ (Command::PiProject { project, command }
+        | Command::ClaudeProject { project, command }
+        | Command::CodexProject { project, command }
+        | Command::AntigravityProject { project, command }) => {
+            let edit = match command {
+                ProjectCommand::List => ProjectEdit::Read,
+                ProjectCommand::Assign {
                     name,
                     bundle_revision,
                     project_revision,
-                } => PiProjectEdit::Set {
+                } => ProjectEdit::Set {
                     name,
                     project_revision,
                     bundle_revision: Some(bundle_revision),
                 },
-                PiProjectCommand::Withdraw {
+                ProjectCommand::Withdraw {
                     name,
                     project_revision,
-                } => PiProjectEdit::Set {
+                } => ProjectEdit::Set {
                     name,
                     project_revision,
                     bundle_revision: None,
                 },
-                PiProjectCommand::Export { project_revision } => {
-                    PiProjectEdit::Export { project_revision }
+                ProjectCommand::Export { project_revision } => {
+                    ProjectEdit::Export { project_revision }
                 }
-                PiProjectCommand::Archive {
+                ProjectCommand::Archive {
                     name,
                     output,
                     project_revision,
-                } => PiProjectEdit::Archive {
+                } => ProjectEdit::Archive {
                     name,
                     project_revision,
                     output,
                 },
-                PiProjectCommand::Apply {
+                ProjectCommand::Apply {
                     file,
                     project_revision,
                 } => {
@@ -172,15 +192,29 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
                         .read_to_string(&mut assignments)?;
                     ensure!(
                         assignments.len() <= 1024 * 1024,
-                        "Pi project assignment document exceeds 1 MiB"
+                        "project assignment document exceeds 1 MiB"
                     );
-                    PiProjectEdit::Apply {
+                    ProjectEdit::Apply {
                         project_revision,
                         assignments: &assignments,
                     }
                 }
-            },
-        },
+            };
+            match scope {
+                Command::PiProject { .. } => Edit::PiProject { project, edit },
+                Command::ClaudeProject { .. } => Edit::ClaudeProject { project, edit },
+                Command::CodexProject { .. } => Edit::WorkspaceProject {
+                    agent: WorkspaceAgent::Codex,
+                    project,
+                    edit,
+                },
+                _ => Edit::WorkspaceProject {
+                    agent: WorkspaceAgent::Antigravity,
+                    project,
+                    edit,
+                },
+            }
+        }
     };
     println!("{}", plugin_bundles::edit(dir, edit)?);
     Ok(())
