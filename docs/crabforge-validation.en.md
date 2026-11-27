@@ -40,7 +40,9 @@ The shared plugin merge `340d95dc49f086dfea0451658897b4cddba5cea6` passed 156 Ru
 
 The Rust audit covers runtime, build and test dependencies for Windows x64 and all Cargo targets. `Cargo.lock` still records the optional `hyper`, `hyper-util`, `serde`, `serde_core` and `serde_derive` packages. The enabled dependency trees use none of them.
 
-Project assignments belong to the individual resource libraries. Whole-bundle assignment, synchronization, withdrawal and transfer of assignments remain pending, along with publication of Pi extensions and themes and integration with native plugin runtimes.
+The Pi project package follow-up adds whole-package assignment, synchronization, withdrawal and transfer through the CLI and the nine-language desktop. Pi 1.6.0 discovered the fixture skill and theme, expanded its prompt arguments and ran the snapshot's `session_start` extension. Four turns received replies from a localhost model. The project kept using 1.0.0 until explicit synchronization, switched to 2.0.0, and restored the original settings bytes on withdrawal. The CLI transferred assignments to a separate project and Crabforge profile. It rejected a missing snapshot, applied the same JSON after a matching TAR import and withdrew the destination's ownership. [Pi native round trip](validation/shared-plugin-library/pi-project-native.csv)
+
+Whole-bundle project assignments and their transfer remain pending for Claude Code, Codex and Antigravity. The individual resource libraries and the Claude Code native plugin controls have their own placement and ownership records.
 
 ## Windows x64 shared plugin snapshot `688ea1a`
 

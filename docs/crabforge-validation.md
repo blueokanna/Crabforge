@@ -40,7 +40,9 @@ Windows Release 的 Rust 运行器在 `688ea1a` 注册了 Flutter 文件选择�
 
 Rust 依赖审计覆盖 Windows x64 与 Cargo 全目标的常规、构建及测试依赖。`Cargo.lock` 中还有可选的 `hyper`、`hyper-util`、`serde`、`serde_core` 和 `serde_derive` 记录，当前启用的依赖树均未使用这些包。
 
-项目分配由各资源库管理。整包项目分配、同步、撤销及分配携带仍待实现，Pi 扩展和主题发布以及原生插件运行时集成也待补齐。
+Pi 项目包通过 CLI 和九语桌面支持整包分配、同步、撤销及携带。Pi 1.6.0 发现了夹具的技能和主题，展开提示模板参数，并执行快照中的 `session_start` 扩展。四轮均收到本机模型响应。显式同步前项目继续使用 1.0.0，同步后切换到 2.0.0，撤销后原有项目设置逐字节恢复。CLI 将分配携带到独立项目及 Crabforge 配置，拒绝缺失的快照，导入匹配的 TAR 后应用同一份 JSON，并撤销目标的所有权。[Pi 原生往返](validation/shared-plugin-library/pi-project-native.csv)
+
+Claude Code、Codex 和 Antigravity 的整包项目分配及携带待实现。各资源库与 Claude Code 原生插件入口分别记录其配置位置和所有权。
 
 ### Windows x64 共享插件库（`688ea1a`）
 
