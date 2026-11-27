@@ -10,6 +10,37 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get importSubagents => 'Subagenten importieren';
+
+  @override
+  String get subagentImportSource =>
+      'Markdown-Datei, lokaler Ordner oder Git-URL';
+
+  @override
+  String get subagentChooseFile => 'Markdown-Datei auswählen';
+
+  @override
+  String get subagentChooseFolder => 'Quellordner auswählen';
+
+  @override
+  String get subagentScanSource => 'Quelle durchsuchen';
+
+  @override
+  String get subagentImportTruncated =>
+      'Nur ein Teil der Quelle wurde durchsucht. Wählen Sie einen kleineren Ordner, um weitere Dateien zu sehen.';
+
+  @override
+  String subagentImportStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'update': 'Aktualisierung verfügbar',
+      'unchanged': 'Bereits importiert',
+      'edited': 'Lokale Änderungen beibehalten',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get findNativeResources => 'Vorhandene Dateien suchen';
 
   @override

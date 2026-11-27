@@ -174,10 +174,7 @@ pub(super) fn adopt(
 }
 
 fn parse(profiles: &Profiles, target: &Target, original: &str) -> Result<Entry> {
-    let source = original
-        .strip_prefix('\u{feff}')
-        .unwrap_or(original)
-        .replace("\r\n", "\n");
+    let source = normalize(original);
     let mut entry = Entry {
         name: target.name.clone(),
         description: String::new(),
@@ -202,24 +199,8 @@ fn parse(profiles: &Profiles, target: &Target, original: &str) -> Result<Entry> 
             entry.effort = string("model_reasoning_effort");
         }
     } else {
-        let (front, body) = if let Some(front) = source.strip_prefix("---\n") {
-            if let Some(body) = front.strip_prefix("---\n") {
-                ("", body)
-            } else {
-                front
-                    .split_once("\n---\n")
-                    .context("unclosed Markdown front matter")?
-            }
-        } else {
-            ("", source.as_str())
-        };
-        let docs = YamlOwned::load_from_str(front).map_err(anyhow::Error::msg)?;
-        let root = docs.first();
-        ensure!(
-            docs.len() <= 1 && root.is_none_or(YamlOwned::is_mapping),
-            "expected a front matter mapping"
-        );
-        let field = |key| root.and_then(|root| root.as_mapping_get(key));
+        let (root, body) = markdown(&source)?;
+        let field = |key| root.as_ref().and_then(|root| root.as_mapping_get(key));
         let string = |key| field(key).and_then(YamlOwned::as_str).map(str::to_owned);
         let strings = |key| match field(key) {
             Some(value) => value
@@ -247,6 +228,32 @@ fn parse(profiles: &Profiles, target: &Target, original: &str) -> Result<Entry> 
     }
     entry.validate(profiles.kind, profiles.agents)?;
     Ok(entry)
+}
+
+pub(super) fn normalize(original: &str) -> String {
+    original
+        .strip_prefix('\u{feff}')
+        .unwrap_or(original)
+        .replace("\r\n", "\n")
+}
+
+pub(super) fn markdown(source: &str) -> Result<(Option<YamlOwned>, &str)> {
+    let Some(front) = source.strip_prefix("---\n") else {
+        return Ok((None, source));
+    };
+    let (front, body) = if let Some(body) = front.strip_prefix("---\n") {
+        ("", body)
+    } else {
+        front
+            .split_once("\n---\n")
+            .context("unclosed Markdown front matter")?
+    };
+    let mut docs = YamlOwned::load_from_str(front).map_err(anyhow::Error::msg)?;
+    ensure!(
+        docs.len() <= 1 && docs.first().is_none_or(YamlOwned::is_mapping),
+        "expected a front matter mapping"
+    );
+    Ok((docs.pop(), body))
 }
 
 static CLAUDE_ARGUMENT: LazyLock<Regex> =

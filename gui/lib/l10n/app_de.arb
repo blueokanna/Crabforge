@@ -1,4 +1,11 @@
 {
+  "importSubagents": "Subagenten importieren",
+  "subagentImportSource": "Markdown-Datei, lokaler Ordner oder Git-URL",
+  "subagentChooseFile": "Markdown-Datei auswählen",
+  "subagentChooseFolder": "Quellordner auswählen",
+  "subagentScanSource": "Quelle durchsuchen",
+  "subagentImportTruncated": "Nur ein Teil der Quelle wurde durchsucht. Wählen Sie einen kleineren Ordner, um weitere Dateien zu sehen.",
+  "subagentImportStatus": "{status, select, update{Aktualisierung verfügbar} unchanged{Bereits importiert} edited{Lokale Änderungen beibehalten} other{}}",
   "findNativeResources": "Vorhandene Dateien suchen",
   "noNativeResources": "Keine vorhandenen Dateien gefunden",
   "nativeResourceScanLimit": "Die ersten 512 gefundenen Dateien werden angezeigt.",

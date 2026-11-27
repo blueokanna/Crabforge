@@ -159,5 +159,63 @@ void main() {
     await waitFor(find.text('Claude Code · Existing file kept'));
     expect(claude.readAsStringSync(), 'External edit');
     expect(codex.existsSync(), isFalse);
+
+    final source = File('$root/external/review.md');
+    source.parent.createSync(recursive: true);
+    void writeSource(String prompt) => source.writeAsStringSync(
+      '---\nname: imported-review\ndescription: Checks a change\n---\n$prompt\n',
+    );
+
+    final importer = find.byKey(const ValueKey('import-subagents'));
+    final candidate = below(importer, find.text('imported-review'));
+    Future<void> scanSource({Finder? saved}) async {
+      if (saved == null) {
+        await tap(below(subagents, find.text('Import subagents')));
+        await tester.enterText(
+          below(importer, find.byType(TextField)),
+          source.path,
+        );
+        await tester.pumpAndSettle();
+      } else {
+        await tap(below(saved, find.byTooltip('Check for updates')));
+      }
+      await tap(below(importer, find.text('Scan source')));
+      await waitFor(candidate);
+    }
+
+    Future<void> selectSource() => tap(below(importer, find.byType(Checkbox)));
+    Future<void> importSource() => tap(
+      below(importer, find.widgetWithText(FilledButton, 'Import subagents')),
+    );
+
+    writeSource('First prompt.');
+    await scanSource();
+    await verifyLayout(importer, false);
+    await selectSource();
+    await tap(below(importer, find.widgetWithText(FilterChip, 'Claude Code')));
+    await importSource();
+    final imported = find.byKey(const ValueKey('imported-review'));
+    await waitFor(imported);
+    final nativeImport = File('$root/claude/agents/imported-review.md');
+    expect(nativeImport.readAsStringSync(), contains('First prompt.'));
+
+    writeSource('Revised prompt.');
+    tester.view.physicalSize = const Size(1280, 900);
+    await tester.pumpAndSettle();
+    await scanSource(saved: imported);
+    await verifyLayout(importer, true);
+    await waitFor(below(importer, find.text('Update available')));
+    await selectSource();
+    await importSource();
+    await waitFor(imported);
+    expect(nativeImport.readAsStringSync(), contains('Revised prompt.'));
+
+    await scanSource(saved: imported);
+    await waitFor(below(importer, find.text('Already imported')));
+    expect(
+      tester.widget<Checkbox>(below(importer, find.byType(Checkbox))).onChanged,
+      isNull,
+    );
+    await tap(below(importer, find.text('Cancel')));
   });
 }

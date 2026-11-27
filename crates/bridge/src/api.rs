@@ -319,7 +319,7 @@ pub fn agent_files(
     name: Option<String>,
     revision: Option<String>,
 ) -> Result<String> {
-    use crabforge_core::agent_files::{self, Edit, Entry, Kind};
+    use crabforge_core::agent_files::{self, Edit, Entry, ImportRequest, Kind};
     let kind = if subagents {
         Kind::Subagent
     } else {
@@ -328,6 +328,14 @@ pub fn agent_files(
     let edit = match action.as_str() {
         "list" => Edit::Read,
         "discover" => Edit::Discover,
+        "probe-source" => Edit::ProbeSource {
+            source: source.context("missing source path or URL")?,
+        },
+        "import-source" => Edit::ImportSource {
+            request: ImportRequest::from_json(
+                source.as_deref().context("missing import request")?,
+            )?,
+        },
         "adopt" => Edit::Adopt {
             agent: name.context("missing client ID")?,
             path: source.context("missing native resource path")?,

@@ -19,7 +19,7 @@ const MAX_DOWNLOAD: u64 = 32 * 1024 * 1024;
 const MAX_TAR: u64 = 128 * 1024 * 1024;
 const MAX_HEADERS: usize = 32_768;
 
-pub(super) fn is_url(input: &str) -> bool {
+pub(crate) fn is_repository_url(input: &str) -> bool {
     input.contains("://")
         || input
             .split_once(':')
@@ -40,11 +40,15 @@ enum Repository {
 
 impl Repository {
     fn open(input: &str) -> Result<Self> {
+        Self::open_with_document(input, Some(DOCUMENT))
+    }
+
+    fn open_with_document(input: &str, document: Option<&str>) -> Result<Self> {
         if Url::parse(input).is_ok_and(|url| {
             url.scheme() == "https"
                 && matches!(url.host_str(), Some("github.com" | "www.github.com"))
         }) {
-            Ok(Self::GitHub(Source::parse(input)?))
+            Ok(Self::GitHub(Source::parse(input, document)?))
         } else {
             Ok(Self::Git(git::Source::parse(input)?))
         }
@@ -81,15 +85,15 @@ fn valid_path(path: &str) -> bool {
 }
 
 impl Source {
-    fn parse(input: &str) -> Result<Self> {
-        let url = Url::parse(input).context("invalid skill source URL")?;
+    fn parse(input: &str, document: Option<&str>) -> Result<Self> {
+        let url = Url::parse(input).context("invalid GitHub source URL")?;
         ensure!(
             url.scheme() == "https"
                 && matches!(url.host_str(), Some("github.com" | "www.github.com"))
                 && url.port().is_none()
                 && url.username().is_empty()
                 && url.password().is_none(),
-            "use an HTTPS GitHub repository, folder or SKILL.md URL"
+            "use an HTTPS GitHub repository, folder or file URL"
         );
         let components = url
             .path()
@@ -122,17 +126,27 @@ impl Source {
             }
             folder = url.fragment().map(unescape).transpose()?;
         } else if let [kind, branch, path @ ..] = tail {
-            ensure!(
-                url.fragment().is_none(),
-                "use one GitHub skill folder per source"
-            );
+            ensure!(url.fragment().is_none(), "use one GitHub path per source");
             let path = match kind.as_str() {
                 "tree" => path,
-                "blob" => match path.split_last() {
-                    Some((file, directories)) if file == DOCUMENT => directories,
-                    _ => anyhow::bail!("the GitHub file URL must point to {DOCUMENT}"),
-                },
-                _ => anyhow::bail!("use a GitHub repository, folder or SKILL.md URL"),
+                "blob" => {
+                    let (file, directories) =
+                        path.split_last().context("missing GitHub filename")?;
+                    if let Some(document) = document {
+                        ensure!(
+                            file == document,
+                            "the GitHub file URL must point to {document}"
+                        );
+                        directories
+                    } else {
+                        ensure!(
+                            is_markdown(file),
+                            "the GitHub file URL must point to Markdown"
+                        );
+                        path
+                    }
+                }
+                _ => anyhow::bail!("use a GitHub repository, folder or file URL"),
             };
             reference = branch.clone();
             if kind == "blob" || !path.is_empty() {
@@ -152,7 +166,7 @@ impl Source {
         );
         ensure!(
             folder.as_deref().is_none_or(valid_path),
-            "invalid GitHub skill folder"
+            "invalid GitHub path"
         );
         Ok(Self {
             owner: owner.clone(),
@@ -240,6 +254,45 @@ fn document_folder(path: &str) -> Option<&str> {
         path.strip_suffix("/SKILL.md")
             .filter(|path| valid_path(path))
     }
+}
+
+fn is_markdown(path: &str) -> bool {
+    path.rsplit_once('.')
+        .is_some_and(|(_, suffix)| suffix.eq_ignore_ascii_case("md"))
+}
+
+pub(crate) fn visit_repository_markdown(
+    input: &str,
+    mut visit: impl FnMut(&str, String, &mut dyn Read) -> Result<()>,
+) -> Result<()> {
+    let repo = Repository::open_with_document(input, None)?;
+    let selected = repo.folder().unwrap_or_default();
+    let mut archive = repo.archive()?;
+    for (index, entry) in Archive::new(&mut archive).entries()?.enumerate() {
+        ensure!(index < MAX_HEADERS, "too many entries in the Git archive");
+        let mut entry = entry?;
+        if !entry.header().entry_type().is_file() {
+            continue;
+        }
+        let raw = entry.path_bytes().into_owned();
+        let Ok(path) = relative(&raw) else { continue };
+        if !valid_path(path) || !is_markdown(path) {
+            continue;
+        }
+        if path
+            .rsplit('/')
+            .next()
+            .is_some_and(|name| name.eq_ignore_ascii_case(DOCUMENT))
+            || selected.is_empty()
+            || path == selected
+            || path
+                .strip_prefix(selected)
+                .is_some_and(|tail| tail.starts_with('/'))
+        {
+            visit(path, repo.canonical(path), &mut entry)?;
+        }
+    }
+    Ok(())
 }
 
 fn find_folder(
@@ -449,7 +502,7 @@ mod tests {
                 EntryType::Regular,
             ),
         ])?;
-        let source = Source::parse("https://github.com/team/repo")?;
+        let source = Source::parse("https://github.com/team/repo", Some(DOCUMENT))?;
         let folder = find_folder(&mut archive, source.folder.as_deref(), |folder| {
             source.canonical(folder)
         })?
@@ -457,7 +510,7 @@ mod tests {
         assert_eq!(folder, "tools/report");
         let canonical = source.canonical(&folder);
         assert_eq!(
-            Source::parse(&canonical)?.folder.as_deref(),
+            Source::parse(&canonical, Some(DOCUMENT))?.folder.as_deref(),
             Some(folder.as_str())
         );
         let temp = tempfile::tempdir()?;
@@ -467,6 +520,7 @@ mod tests {
         assert!(!temp.path().join("sibling.txt").exists());
         let pinned = Source::parse(
             "https://github.com/team/repo/blob/feature%2Fdocs/tools/report/SKILL.md",
+            Some(DOCUMENT),
         )?;
         assert_eq!(pinned.reference, "feature/docs");
         assert_eq!(pinned.folder.as_deref(), Some("tools/report"));
@@ -475,7 +529,7 @@ mod tests {
 
     #[test]
     fn rejects_ambiguous_repositories_and_invalid_bundle_paths() -> Result<()> {
-        let source = Source::parse("https://github.com/team/repo")?;
+        let source = Source::parse("https://github.com/team/repo", Some(DOCUMENT))?;
         let mut archive = fixture(&[
             ("repo-main/one/SKILL.md", b"one", EntryType::Regular),
             ("repo-main/two/SKILL.md", b"two", EntryType::Regular),
@@ -500,8 +554,10 @@ mod tests {
             let temp = tempfile::tempdir()?;
             assert!(extract(&mut archive, "one", temp.path()).is_err());
         }
-        assert!(Source::parse("https://github.com/user/repo#one/%2E%2E").is_err());
-        assert!(Source::parse("https://github.com@other.example/user/repo").is_err());
+        assert!(Source::parse("https://github.com/user/repo#one/%2E%2E", Some(DOCUMENT)).is_err());
+        assert!(
+            Source::parse("https://github.com@other.example/user/repo", Some(DOCUMENT)).is_err()
+        );
         Ok(())
     }
 }
