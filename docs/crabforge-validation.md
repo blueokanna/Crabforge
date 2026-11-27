@@ -6,6 +6,16 @@
 
 `assets/brands` 中的 119 个文件与本地 Magpie 参考快照的 `internal/gui/assets/icons` 逐文件 SHA-256 相同。包内附带 Magpie 与 Lobe Icons 的 MIT 声明。OpenAI 的标志使用另受品牌指南及其授权条款约束，Anthropic 商业服务条款第 F 节将知识产权授权限于条款明确授予的范围。正式售卖所需的品牌授权核定仍在进行。当前 Windows 用户没有可访问私钥的代码签名证书，冻结包的 Authenticode 状态为 `NotSigned`。[第三方声明](../THIRD_PARTY_NOTICES) · [OpenAI 品牌指南](https://openai.com/brand/#usage-terms) · [Anthropic 商业条款](https://www.anthropic.com/legal/commercial-terms#f-intellectual-property)
 
+### Windows x64 子代理与斜杠命令（`5b905b3`）
+
+从 `5b905b39d790a4eae9625b7995714373f72230ec` 离线构建的 ZIP 为 63,745,300 字节，SHA-256 为 `8C405A7762C8D1D8EFF01E75BDD83FBBF7754FB7622B9412725020A6975E4B7B`。核对 340 项构建输入、671 项解压清单、126 项资产及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。Clippy、Flutter 分析及两项组件测试通过。三个入口的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-5b905b3/build-inputs.sha256) · [解压清单](validation/cf-windows-5b905b3/SHA256SUMS) · [依赖审计](validation/cf-windows-5b905b3/dependency-audit.csv)
+
+解压 CLI 向原生及网关 profile 发布 12 个用户文件，向项目发布九个文件。Claude Code 和 OpenCode 2.4.1 将发布的子代理提示词发送给本机模型夹具。Claude Code、Pi 和 OpenCode 会话 API 展开位置参数与全部参数，Gemini CLI 和 Qwen Code 展开全部参数。原址接管保留 UTF-8 BOM 和 CRLF，撤销时保留外部修改的文件。[客户端进程验收](validation/cf-windows-5b905b3/agent-files-process.csv)
+
+143 项 Rust 全量回归和十二轮 Windows Debug 集成全部通过。Flutter 帧回调采集 575 帧，UI 构建 P90/P99 为 2.139/13.132 ms，帧总跨度 P90/P99 为 3.487/14.363 ms。四帧总跨度超过 16.67 ms，最长 25.053 ms。GPU 与物理显示计时仍待实测。[Rust 回归](validation/cf-windows-5b905b3/regression.log) · [Windows 集成](validation/cf-windows-5b905b3/) · [Profile 日志](validation/cf-windows-5b905b3/profile.log) · [逐帧数据](validation/cf-windows-5b905b3/profile-frames.json)
+
+三轮解压 Release 启动的工作集／私有字节中位数分别为 Crabforge 154.76/231.28 MiB、Magpie 主进程 79.55/97.30 MiB、含七个 WebView2 子进程的 Magpie 449.81/426.68 MiB。上游等待 700 ms 时，本机 SSE 首事件为 11、2、2 ms，末事件为 719、705、705 ms。同机 IPv6 回环、网卡全局 IPv6 地址及 Kubo 回退均以无效密钥收到 401，以有效密钥收到 200。[内存](validation/cf-windows-5b905b3/desktop-comparison.csv) · [SSE](validation/cf-windows-5b905b3/forward-h1.csv) · [IPv6](validation/cf-windows-5b905b3/ipv6.csv)
+
 ### Windows x64 Hooks（`1ef0c50`）
 
 从 `1ef0c50d7c0c918283d2585b2821e4dd057e21ad` 离线构建的 ZIP 为 63,341,802 字节，SHA-256 为 `1437C6C0FAB40A80F6829B8CC91A950F314B4B6D2A7F790DB6FD4233C5B8DD2C`。核对 334 项构建输入、671 项解压清单、126 项资产，以及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。全目标 Clippy、Flutter 分析和两项组件测试通过。三个入口的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-1ef0c50/build-inputs.sha256) · [解压清单](validation/cf-windows-1ef0c50/SHA256SUMS) · [依赖审计](validation/cf-windows-1ef0c50/dependency-audit.csv)

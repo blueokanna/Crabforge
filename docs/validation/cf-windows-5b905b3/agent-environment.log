@@ -1,0 +1,7 @@
+00:00 +0: loading D:/RustProject/Crabforge/dist/cf-windows-5b905b3/source/gui/integration_test/agent_environment_test.dart
+Building Windows application...                                    25.2s
+√ Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: Manage environment variables in both layouts
+00:14 +1: (tearDownAll)
+00:14 +1: All tests passed!

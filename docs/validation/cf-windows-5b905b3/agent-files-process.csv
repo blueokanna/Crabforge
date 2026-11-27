@@ -1,0 +1,13 @@
+Client,Feature,Observed behavior
+claude,Slash command,Both positional arguments and all-arguments placeholder observed in model request
+pi,Slash command,Both positional arguments and all-arguments placeholder observed in model request
+claude,Subagent,Native agent instructions observed in model request
+gemini,Slash command,Headless gateway profile expanded all arguments and received the model response
+qwen 0.28.4,Slash command,Headless gateway profile expanded all arguments and received the model response
+opencode 2.4.1,Subagent,Standalone debug agents discovered the native Markdown and its system prompt
+opencode 2.4.1,Subagent,Native run sent the agent system prompt and received the local model response
+opencode 2.4.1,Slash command,Native session API expanded positional and all-arguments placeholders
+Nine client formats,User subagents,12 files published across native and gateway profiles
+Nine client formats,Project subagents,Nine files contained in the project
+CLI,Withdrawal,External edit and independently scoped files preserved
+CLI,Native command adoption,BOM and CRLF retained while Claude argument read as $1

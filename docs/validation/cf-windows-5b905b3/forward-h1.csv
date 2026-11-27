@@ -1,0 +1,4 @@
+Route,Trial,HTTP,ConnectRequests,UpstreamRequests,FirstEventMs,FinalEventMs
+loopback with HTTP_PROXY set,1,200,0,1,11,719
+loopback with HTTP_PROXY set,2,200,0,1,2,705
+loopback with HTTP_PROXY set,3,200,0,1,2,705
