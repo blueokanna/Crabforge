@@ -12,7 +12,10 @@ use http_body::Body as _;
 use simoom_http1::{
     BodyDecoder, BodyEvent, EMPTY_HEADER, Framing, Limits, RequestParser, Status, write::http_date,
 };
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     sync::mpsc,
@@ -111,7 +114,10 @@ impl Input {
     }
 }
 
-pub(super) async fn serve(io: impl AsyncRead + AsyncWrite + Unpin, app: &Gateway) -> Result<()> {
+pub(super) async fn serve(
+    io: impl AsyncRead + AsyncWrite + Unpin,
+    app: &Arc<Gateway>,
+) -> Result<()> {
     let (mut read, mut write) = tokio::io::split(io);
     let (tx, chunks) = mpsc::channel(1);
     let mut input = Input {
@@ -138,7 +144,7 @@ pub(super) async fn serve(io: impl AsyncRead + AsyncWrite + Unpin, app: &Gateway
 async fn exchanges(
     input: &mut Input,
     out: &mut (impl AsyncWrite + Unpin),
-    app: &Gateway,
+    app: &Arc<Gateway>,
 ) -> Result<()> {
     loop {
         let parsed = timeout(Duration::from_secs(15), input.head())

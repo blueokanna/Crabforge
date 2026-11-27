@@ -23,6 +23,7 @@ use url::Url;
 mod classifier;
 mod cors;
 mod first_content;
+mod keepalive;
 mod native;
 mod patience;
 mod rules;
@@ -586,7 +587,7 @@ fn selection(bytes: &[u8]) -> nextjson::Result<(String, Range<usize>)> {
 }
 
 pub(crate) async fn dispatch(
-    gw: &Gateway,
+    gw: &Arc<Gateway>,
     req: Request<impl Future<Output = Result<Bytes>>>,
 ) -> Response {
     let (parts, body) = req.into_parts();
@@ -618,7 +619,7 @@ pub(crate) async fn dispatch(
         let mut response = if let Some(endpoint) = ollama {
             endpoint.serve(gw, &caller, &parts, body).await
         } else {
-            serve_http(gw, &caller, path, &parts, body).await
+            serve_http(gw, agent, path, &parts, body).await
         };
         caller.set_response_headers(response.headers_mut());
         response
@@ -636,8 +637,8 @@ pub(crate) async fn dispatch(
 }
 
 async fn serve_http(
-    gw: &Gateway,
-    caller: &Caller<'_>,
+    gw: &Arc<Gateway>,
+    agent: Option<&'static str>,
     path: &str,
     parts: &http::request::Parts,
     body: impl Future<Output = Result<Bytes>>,
@@ -713,6 +714,32 @@ async fn serve_http(
         Ok(input) => input,
         Err((status, msg)) => return failure(status, msg),
     };
+    let streaming = keepalive::protocol(api).filter(|_| first_content::requested(api, &bytes));
+    if let Some((api, format)) = streaming
+        && parts
+            .headers
+            .get("x-crabforge-keepalive")
+            .is_some_and(|v| v == "true")
+    {
+        let gateway = gw.clone();
+        let headers = parts.headers.clone();
+        let model = selection(&bytes)
+            .map(|(model, _)| model)
+            .unwrap_or_default();
+        let send = async move {
+            let caller = Caller::new(agent, &headers);
+            let input = Inbound {
+                api,
+                path_model: None,
+                headers: &headers,
+                bytes,
+                ollama: None,
+                classifier: false,
+            };
+            forward(&gateway, &caller, input, permit).await
+        };
+        return keepalive::send(send, format, model).await;
+    }
     let input = Inbound {
         api,
         path_model: path_model.as_deref(),
@@ -721,7 +748,12 @@ async fn serve_http(
         ollama: None,
         classifier: false,
     };
-    forward(gw, caller, input, permit).await
+    let response = forward(gw, &Caller::new(agent, &parts.headers), input, permit).await;
+    if streaming.is_some() {
+        keepalive::relay(response)
+    } else {
+        response
+    }
 }
 
 struct Inbound<'a> {

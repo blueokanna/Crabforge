@@ -484,6 +484,102 @@ async fn group_first_content_deadline_holds_preludes_and_respects_nested_overrid
 }
 
 #[tokio::test]
+async fn opted_in_sse_wait_keeps_first_content_fallback_and_late_errors() -> Result<()> {
+    const COMMENT: &str = ": keepalive\n\n";
+    const REPLY: &str =
+        "data: {\"choices\":[{\"delta\":{\"content\":\"backup\"}}]}\n\ndata: [DONE]\n\n";
+    let (release, held) = watch::channel(false);
+    let mock = Router::new().route(
+        "/{provider}/chat/completions",
+        post(move |Incoming { param: id, .. }| {
+            let mut held = held.clone();
+            async move {
+                if id == "ready" {
+                    return (
+                        StatusCode::OK,
+                        [("content-type", "text/event-stream")],
+                        REPLY,
+                    );
+                }
+                if id != "busy" {
+                    held.wait_for(|value| *value).await.unwrap();
+                }
+                (
+                    StatusCode::TOO_MANY_REQUESTS,
+                    [("retry-after", "7")],
+                    r#"{"error":{"message":"upstream busy"}}"#,
+                )
+            }
+        }),
+    );
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let upstream = tokio::spawn(crabforge_test_support::server::serve(listener, mock));
+    let dir = tempdir()?;
+    let providers = ["slow", "ready", "busy"].map(
+        |id| json!({"id":id,"models":["m"],"endpoints":{"chat":format!("http://{addr}/{id}")}}),
+    );
+    let cfg = json!({
+        "listen":"127.0.0.1:0","providers":providers,
+        "groups":{"pool":["slow/m","ready/m"]},"group_first_content":{"pool":4}
+    });
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let service = Service::start(dir.path()).await?;
+    let token = config::token(dir.path())?;
+    let client = crabforge_test_support::Client::with_timeout(Duration::from_secs(12));
+    let url = format!("http://{}/v1/chat/completions", service.addr);
+    let send = |model: &str, keepalive: bool| {
+        client
+            .post(&url)
+            .bearer_auth(&token)
+            .header("x-crabforge-keepalive", keepalive.to_string())
+            .body(
+                json!({"model":model,"messages":[{"role":"user","content":"hello"}],"stream":true})
+                    .to_string(),
+            )
+            .send()
+    };
+    let fast_error = send("busy/m", true).await?;
+    assert_eq!(fast_error.status(), 429);
+    assert_eq!(fast_error.headers().get("retry-after").unwrap(), "7");
+    let (fallback, late) = tokio::join!(send("group/pool", true), send("slow/m", true));
+    let mut fallback = fallback?;
+    let mut late = late?;
+    for response in [&mut fallback, &mut late] {
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.chunk().await?.unwrap(), COMMENT);
+    }
+    assert_eq!(fallback.text().await?, REPLY);
+    let unchanged = send("slow/m", false);
+    tokio::pin!(unchanged);
+    assert!(
+        timeout(Duration::from_millis(50), unchanged.as_mut())
+            .await
+            .is_err()
+    );
+    release.send(true)?;
+    let unchanged = unchanged.await?;
+    assert_eq!(unchanged.status(), 429);
+    assert_eq!(unchanged.headers().get("retry-after").unwrap(), "7");
+    let body = late.text().await?;
+    let error: Value = nextjson::from_str(body.strip_prefix("data: ").unwrap().trim())
+        .map_err(anyhow::Error::msg)?;
+    assert_eq!(error["error"]["status"], json!(429));
+    assert_eq!(error["error"]["retry_after"], json!("7"));
+    assert!(
+        service
+            .history
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|a| a.provider == "slow" && a.status == 504)
+    );
+    service.stop().await;
+    upstream.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn patience_retries_busy_members_within_group_or_direct_provider_budgets() -> Result<()> {
     use std::sync::{Arc, Mutex};
     use tokio::time::Instant;
