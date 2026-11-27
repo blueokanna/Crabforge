@@ -2,14 +2,21 @@ use crate::{config::effort::rank, translate::Format};
 use bytes::Bytes;
 use nextjson::{Value, json};
 
+mod gemini;
+pub(super) use gemini::thinking as gemini_thinking;
+
 pub(super) fn rewrite(
     format: Format,
     bytes: &[u8],
-    model: Option<&str>,
+    model: &str,
+    rewrite_model: bool,
     requested: &str,
     levels: &[String],
 ) -> Option<Bytes> {
-    let target = fitted(requested, levels)?;
+    let target = match format {
+        Format::Gemini => requested,
+        _ => fitted(requested, levels.iter().map(String::as_str))?,
+    };
     let mut body: Value = nextjson::from_slice(bytes).ok()?;
     match format {
         Format::Chat => {
@@ -28,19 +35,17 @@ pub(super) fn rewrite(
             reasoning.insert("effort".into(), target.into());
         }
         Format::Messages => messages(&mut body, target)?,
-        Format::Gemini => return None,
+        Format::Gemini => gemini::rewrite(&mut body, model, target, levels)?,
     }
-    if let Some(model) = model {
+    if rewrite_model {
         body.as_object_mut()?.insert("model".into(), model.into());
     }
     Some(nextjson::to_vec(&body).ok()?.into())
 }
 
-fn fitted<'a>(requested: &str, levels: &'a [String]) -> Option<&'a str> {
+fn fitted<'a>(requested: &str, levels: impl Iterator<Item = &'a str>) -> Option<&'a str> {
     let desired = rank(requested)?;
     levels
-        .iter()
-        .map(String::as_str)
         .filter_map(|level| {
             let place = rank(level)?;
             (1..=6).contains(&place).then_some((level, place))
@@ -67,12 +72,7 @@ fn messages(body: &mut Value, target: &str) -> Option<()> {
     };
     if !adaptive {
         let max = body.get("max_tokens").and_then(Value::as_u64).unwrap_or(0);
-        let budget = match rank(target)? {
-            1 | 2 => 4096,
-            3 => 10_000,
-            4 => 24_000,
-            _ => 32_000,
-        };
+        let budget = budget(target)?;
         let budget = if max > 0 { budget.min(max - 1) } else { budget };
         if budget < 1024 {
             return None;
@@ -95,4 +95,14 @@ fn messages(body: &mut Value, target: &str) -> Option<()> {
             .insert("effort".into(), target.into());
     }
     Some(())
+}
+
+fn budget(level: &str) -> Option<u64> {
+    Some(match rank(level)? {
+        1 | 2 => 4096,
+        3 => 10_000,
+        4 => 24_000,
+        5..=7 => 32_000,
+        _ => return None,
+    })
 }

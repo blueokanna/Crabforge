@@ -402,6 +402,24 @@ Windows Debug 的 156 项 Rust 测试和全目标 Clippy 通过，33 项测试�
 
 Windows Debug passed 156 Rust tests and all-target Clippy, with 33 tests ignored. The regression checked that tool continuations retain the group's rule and reasoning level, decisions stay scoped to a session, pauses apply immediately, a new user message routes afresh, and an oversized request can switch to a larger context. Both CLIs imported provider and model `contexts` from an encrypted Magpie 0.1.4936 backup and verified that the request switched models at the threshold. [Gateway regression](../../../crates/core/tests/gateway.rs)
 
+### 原生 Gemini 推理 / Native Gemini reasoning
+
+双 Windows CLI 从 Magpie 0.1.4936 原版加密备份导入组规则。回环上游逐次记录 Gemini 4 Neon 的 `XHIGH`、Gemini 2.5 Flash 回退的 `24576` token 预算和客户端显式传入的 `thinkingBudget: 0`。Rust 回归覆盖 Gemini 3.1 Pro 的自动 `MEDIUM` 及两种字段命名。真实 Google 端点仍待有凭据的验收。 [网关回归](../../../crates/core/tests/gateway.rs) · [Gemini 思考配置](https://ai.google.dev/gemini-api/docs/thinking)
+
+Both Windows CLIs imported the group rule from an encrypted Magpie 0.1.4936 backup. The loopback upstream recorded `XHIGH` on Gemini 4 Neon, a 24,576-token budget on the Gemini 2.5 Flash fallback, and the client's explicit `thinkingBudget: 0`. The Rust regression covered automatic `MEDIUM` on Gemini 3.1 Pro and both naming conventions. Live Google endpoints still require credentialed acceptance. [Gateway regression](../../../crates/core/tests/gateway.rs) · [Gemini thinking configuration](https://ai.google.dev/gemini-api/docs/thinking)
+
+### 供应商重试历史构建 / Historical provider retry build
+
+按完整 SHA 补验 `649c036b07986275aeef4529d1228dc4fec7d3ae` 时，Run `46024892156` 在 Rust 检查阶段失败。`config.rs:441` 将重试时限校验插入了环境变量校验的表达式，导致语法错误，Windows 包未生成。后继 `dfd58df4c3c3461d8969f5a654a40c437c15bb13` 已修正校验位置，其下载验收包括供应商重试。 [Windows job 140593634231](https://github.com/blueokanna/Crabforge/actions/runs/46024892156/job/140593634231)
+
+The Windows check for `649c036b07986275aeef4529d1228dc4fec7d3ae` failed in run `46024892156`. The retry-patience check interrupted the environment-variable expression at `config.rs:441`, causing a syntax error before the Windows package could be built. The successor `dfd58df4c3c3461d8969f5a654a40c437c15bb13` moves the check to its own statement. Its download fixture includes provider retry coverage. [Windows job 140593634231](https://github.com/blueokanna/Crabforge/actions/runs/46024892156/job/140593634231)
+
+### 高级路由历史下载包 / Historical conditional routing package
+
+提交 `2446bb2ac33b326362d57532ff3052818223174f` 通过 Windows Run `46022086824`，149 项 Rust 测试通过，33 项忽略。ZIP 为 66,695,421 字节，SHA-256 为 `2be9d84d5eafe69c09a8a841e6217534c280b8ce2f19519540497e5fbd9e5c29`。676 项清单的 SHA-256 为 `233d28110482aa740c1cf90d166f7a90b2c1b17d7f283eeb3c8153e77afda430`。六个 PE 均为 `NotSigned`。Release 桌面、双 CLI、条件路由、组重试及四个客户端各 12 轮通过。验后经代理复核远端 `main` 为 `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9`，包含构建 SHA。 [Job 140584006318](https://github.com/blueokanna/Crabforge/actions/runs/46022086824/job/140584006318) · [Artifact 15212745581](https://github.com/blueokanna/Crabforge/actions/runs/46022086824/artifacts/15212745581)
+
+Windows run `46022086824` built `2446bb2ac33b326362d57532ff3052818223174f` and passed 149 Rust tests with 33 ignored. The 66,695,421-byte ZIP has SHA-256 `2be9d84d5eafe69c09a8a841e6217534c280b8ce2f19519540497e5fbd9e5c29`. The 676-entry manifest has SHA-256 `233d28110482aa740c1cf90d166f7a90b2c1b17d7f283eeb3c8153e77afda430`. All six PE files reported `NotSigned`. The Release desktop, both CLIs, conditional routing, group retries and 12 turns in each of four clients passed. The proxied remote `main` check returned `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9`, which includes the build SHA. [Job 140584006318](https://github.com/blueokanna/Crabforge/actions/runs/46022086824/job/140584006318) · [Artifact 15212745581](https://github.com/blueokanna/Crabforge/actions/runs/46022086824/artifacts/15212745581)
+
 ## Grok Build 会话 / Grok Build sessions
 
 Grok Build 1.0.92 通过回环夹具启动原生会话，并用同一个会话 ID 继续到第 12 轮。每轮上游收到之前的用户提示。两个 Windows Debug CLI 均列出原生会话 ID、项目和配置路径，从日志恢复完全相同的 12 条用户原话和预览修订，并拒绝未经发现的配置目录。Rust 回归覆盖分段提示、客户端内部操作和子代理日志。

@@ -1125,6 +1125,141 @@ async fn tool_continuation_holds_the_rule_until_paused_or_outgrown() -> Result<(
 }
 
 #[tokio::test]
+async fn gemini_effort_fits_the_native_model_on_each_attempt() -> Result<()> {
+    use crabforge_test_support::server::IntoResponse;
+    use std::sync::{Arc, Mutex};
+
+    let calls = Arc::new(Mutex::new(Vec::<(String, Value)>::new()));
+    let seen = calls.clone();
+    let mock = Router::new()
+        .route(
+            "/v1/chat/completions",
+            post(|_: Incoming| async {
+                json!({"choices":[{"message":{"content":"{\"intent\":0,\"effort\":\"medium\"}"}}]})
+                    .to_string()
+            }),
+        )
+        .fallback(post(move |req: Incoming| {
+            let seen = seen.clone();
+            async move {
+                let path = req.uri.path();
+                let model = path
+                    .split('/')
+                    .next_back()
+                    .unwrap()
+                    .split(':')
+                    .next()
+                    .unwrap();
+                let body: Value = nextjson::from_slice(&req.body).unwrap();
+                assert!(body.get("model").is_none());
+                seen.lock().unwrap().push((model.to_owned(), body));
+                if model == "gemini-4-neon" {
+                    (StatusCode::SERVICE_UNAVAILABLE, "busy").into_response()
+                } else if path.ends_with(":streamGenerateContent") {
+                    (
+                        [(http::header::CONTENT_TYPE, "text/event-stream")],
+                        "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ready\"}]},\"finishReason\":\"STOP\"}]}\r\n\r\n",
+                    )
+                        .into_response()
+                } else {
+                    (StatusCode::OK, "ready").into_response()
+                }
+            }
+        }));
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let base = format!("http://{}", listener.local_addr()?);
+    let upstream = tokio::spawn(crabforge_test_support::server::serve(listener, mock));
+    let root = tempdir()?;
+    let cfg = json!({"listen":"127.0.0.1:0","providers":[
+        {"id":"google","models":["gemini-4-neon","gemini-2.5-flash","gemini-3.1-pro-preview","custom"],"endpoints":{"gemini":&base}},
+        {"id":"classifier","models":["judge"],"endpoints":{"chat":format!("{base}/v1")}}
+    ],"groups":{
+        "fixed":["google/gemini-4-neon","google/gemini-2.5-flash"],
+        "automatic":["google/gemini-3.1-pro-preview"],
+        "unknown":["google/custom"]
+    },"group_rules":{"fixed":[{"use":"google/gemini-4-neon","more":["google/gemini-2.5-flash"],"useEffort":"xhigh",
+        "where":[{"field":"message","op":"starts","value":"review"}]}],
+        "unknown":[{"use":"google/custom","useEffort":"high","where":[{"field":"message","op":"starts","value":"review"}]}]},
+    "group_classifiers":{"automatic":{"classifier":"classifier/judge","effort":"auto"}}});
+    config::save(
+        root.path(),
+        &config::snapshot(root.path())?,
+        &cfg.to_string(),
+    )?;
+    let service = Service::start(root.path()).await?;
+    let token = config::token(root.path())?;
+    let client = crabforge_test_support::Client::default();
+    let send = |group: &str, action: &str, options: Value| {
+        let mut body = json!({"contents":[{"role":"user","parts":[{"text":"Review the report"}]}]});
+        body.as_object_mut()
+            .unwrap()
+            .extend(options.as_object().unwrap().clone());
+        client
+            .post(format!(
+                "http://{}/v1beta/models/group/{group}:{action}",
+                service.addr
+            ))
+            .bearer_auth(&token)
+            .body(body.to_string())
+            .send()
+    };
+    let options = json!({"generationConfig":{"temperature":0.7,"thinkingConfig":{"thinkingLevel":"LOW","includeThoughts":true}}});
+    let reply = send("fixed", "streamGenerateContent", options).await?;
+    assert_eq!(reply.status(), 200);
+    assert_eq!(
+        reply.text().await?,
+        "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ready\"}]},\"finishReason\":\"STOP\"}]}\r\n\r\n"
+    );
+    let options = json!({"generation_config":{"thinking_config":{"thinking_budget":-1,"include_thoughts":false}}});
+    assert_eq!(
+        send("automatic", "generateContent", options)
+            .await?
+            .status(),
+        200
+    );
+    let options = json!({"generationConfig":{"thinkingConfig":{"thinkingBudget":0}}});
+    assert_eq!(
+        send("fixed", "generateContent", options).await?.status(),
+        200
+    );
+    let options = json!({"generationConfig":{"thinkingConfig":{"thinkingLevel":"LOW"}}});
+    assert_eq!(
+        send("unknown", "generateContent", options.clone())
+            .await?
+            .status(),
+        200
+    );
+    let calls = calls.lock().unwrap().clone();
+    assert_eq!(calls.len(), 6);
+    assert_eq!(calls[0].0, "gemini-4-neon");
+    assert_eq!(calls[1].0, "gemini-2.5-flash");
+    assert_eq!(calls[2].0, "gemini-3.1-pro-preview");
+    assert_eq!(
+        calls[0].1["generationConfig"],
+        json!({"temperature":0.7,"thinkingConfig":{"includeThoughts":true,"thinkingLevel":"XHIGH"}})
+    );
+    assert_eq!(
+        calls[1].1["generationConfig"],
+        json!({"temperature":0.7,"thinkingConfig":{"includeThoughts":true,"thinkingBudget":24576}})
+    );
+    assert_eq!(
+        calls[2].1["generation_config"]["thinking_config"],
+        json!({"include_thoughts":false,"thinking_level":"MEDIUM"})
+    );
+    for (_, body) in &calls[3..5] {
+        assert_eq!(
+            body["generationConfig"]["thinkingConfig"],
+            json!({"thinkingBudget":0})
+        );
+    }
+    assert_eq!(calls[5].0, "custom");
+    assert_eq!(calls[5].1["generationConfig"], options["generationConfig"]);
+    service.stop().await;
+    upstream.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn route_rule_effort_fits_each_model_and_preserves_native_options() -> Result<()> {
     use std::sync::{Arc, Mutex};
 

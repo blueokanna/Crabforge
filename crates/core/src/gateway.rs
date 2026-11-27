@@ -955,7 +955,8 @@ async fn forward(
                 effort::rewrite(
                     format,
                     &bytes,
-                    (range.is_some() && &asked != model).then_some(model.as_str()),
+                    model,
+                    range.is_some() && &asked != model,
                     effort,
                     gw.config.model_levels(p, model),
                 )

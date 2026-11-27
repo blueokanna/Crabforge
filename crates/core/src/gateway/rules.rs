@@ -478,25 +478,28 @@ fn field<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
 }
 
 fn reasoning(format: Format, body: &Value) -> (bool, Option<usize>) {
+    let (gemini_level, gemini_budget) = if format == Format::Gemini {
+        super::effort::gemini_thinking(body)
+    } else {
+        (None, None)
+    };
     let level = match format {
         Format::Chat => field(body, "reasoning_effort"),
         Format::Responses => body.pointer("/reasoning/effort").and_then(Value::as_str),
         Format::Messages => body
             .pointer("/output_config/effort")
             .and_then(Value::as_str),
-        Format::Gemini => body
-            .pointer("/generationConfig/thinkingConfig/thinkingLevel")
-            .and_then(Value::as_str),
+        Format::Gemini => gemini_level,
     }
     .map(str::to_ascii_lowercase);
     let level = level.as_deref().unwrap_or_default();
     let thinking = body.pointer("/thinking/type").and_then(Value::as_str);
-    let budget = body
-        .pointer(match format {
-            Format::Gemini => "/generationConfig/thinkingConfig/thinkingBudget",
-            _ => "/thinking/budget_tokens",
-        })
-        .and_then(Value::as_i64);
+    let budget = if format == Format::Gemini {
+        gemini_budget.filter(|&n| n >= -1)
+    } else {
+        body.pointer("/thinking/budget_tokens")
+            .and_then(Value::as_i64)
+    };
     if matches!(level, "none" | "off") || thinking == Some("disabled") || budget == Some(0) {
         return (false, None);
     }

@@ -463,7 +463,6 @@ impl Gateway {
             .and_then(|(facts, settings)| {
                 let intents = super::rules::intents(rules, facts);
                 let automatic = settings.automatic_effort()
-                    && !matches!(request.api, Api::Gemini(_))
                     && facts.requests_reasoning()
                     && limits.automatic_effort.is_none()
                     && limits.member_effort.is_none()
