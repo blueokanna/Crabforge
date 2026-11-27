@@ -34,6 +34,19 @@ pub(crate) fn path(file: &Path) -> Result<PathBuf> {
     ))
 }
 
+pub(crate) fn conventional_path(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    if let Some(path) = path.to_str() {
+        if let Some(path) = path.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{path}"));
+        }
+        if let Some(path) = path.strip_prefix(r"\\?\") {
+            return PathBuf::from(path);
+        }
+    }
+    path.to_path_buf()
+}
+
 pub(crate) fn read(path: &Path) -> Result<Option<String>> {
     let parent = path.parent().context("missing native settings folder")?;
     ensure!(

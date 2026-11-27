@@ -126,6 +126,12 @@ CLI 用 `carbforge-cli plugin-bundles preview <来源>` 获取内容哈希，再
 
 要将已保存的快照带到另一个 Crabforge 配置，可选择 **导出插件归档**，或执行 `plugin-bundles export <名称> <文件.tar> --revision <修订>`。在目标配置的导入窗口打开 TAR，或用 `plugin-bundles preview` 和 `save` 导入。归档包含原插件文件和附件，分配和资源库中的修改由目标配置管理。
 
+在共享插件库中打开 **Pi 项目包**，选择项目文件夹，再分配已保存的 Pi 包。Pi 通过 `.pi/settings.json` 读取快照，在受信任的项目中可以加载其中的技能、提示模板、扩展和主题。保存新版快照后，用 **同步分配** 将该项目切换到新版。撤销会移除 Crabforge 写入且仍未修改的条目。项目的信任状态由 Pi 管理。
+
+CLI 命令 `carbforge-cli plugin-bundles pi-project <文件夹> list` 返回项目 `revision` 和各包的 `bundle_revision`。在 `plugin-bundles` 下执行 `pi-project <文件夹> assign <名称> --project-revision <修订> --bundle-revision <包修订>` 分配或同步，执行 `pi-project <文件夹> withdraw <名称> --project-revision <修订>` 撤销分配。
+
+跨项目携带时，选择 **导出分配**，再在该项目的已分配包上选择 **导出插件归档**，保存项目当前使用的版本。在目标库导入快照后打开目标项目，选择 **应用分配**。JSON 保存包名及内容哈希。目标库核对哈希，再建立本机包路径及所有权记录。CLI 对应 `plugin-bundles pi-project <文件夹>` 下的 `export --project-revision <修订>`、`archive <名称> <文件.tar> --project-revision <修订>` 和 `apply <分配.json> --project-revision <修订>`。
+
 `carbforge-cli subagents` 和 `carbforge-cli commands` 均支持 `list`、`save`、`remove` 和 `sync`。用 `subagents --project <文件夹>` 选择项目库。`save` 从标准输入读取 UTF-8 JSON，字段包括 `name`、`prompt` 和 `agents`。子代理还要求 `description`，可选字段为 `model`、`effort`、`skills` 和 `mcp`。将以下内容保存为 `check.json`，在 Windows 执行 `cmd.exe /d /c "carbforge-cli commands save < check.json"` 即可发布。
 
 ```json

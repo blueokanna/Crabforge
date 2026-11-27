@@ -571,6 +571,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pluginBundles => '共享插件库';
 
   @override
+  String get piProjectPackages => 'Pi 项目包';
+
+  @override
+  String get piPackageConfirm => '打开受信任的项目时，Pi 可以运行包中的扩展。';
+
+  @override
+  String get piExportAssignments => '导出分配';
+
+  @override
+  String get piApplyAssignments => '应用分配';
+
+  @override
+  String get piAssignmentsTooLarge => '分配文件超过 1 MiB。';
+
+  @override
+  String piPackageStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'available': '可分配',
+      'applied': '已分配',
+      'pending': '可同步',
+      'detached': '包已从库中移除',
+      'conflict': '已保留现有条目',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get importPluginBundle => '导入插件包';
 
   @override

@@ -588,6 +588,36 @@ class AppLocalizationsFr extends AppLocalizations {
   String get pluginBundles => 'Bibliothèque d’extensions partagée';
 
   @override
+  String get piProjectPackages => 'Paquets de projet Pi';
+
+  @override
+  String get piPackageConfirm =>
+      'Pi peut exécuter les extensions des paquets à l’ouverture d’un projet de confiance.';
+
+  @override
+  String get piExportAssignments => 'Exporter les attributions';
+
+  @override
+  String get piApplyAssignments => 'Appliquer les attributions';
+
+  @override
+  String get piAssignmentsTooLarge =>
+      'Le fichier d’attributions dépasse 1 Mio.';
+
+  @override
+  String piPackageStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'available': 'Disponible pour attribution',
+      'applied': 'Attribué',
+      'pending': 'Prêt à synchroniser',
+      'detached': 'Paquet retiré de la bibliothèque',
+      'conflict': 'Entrée existante conservée',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get importPluginBundle => 'Importer un paquet d’extension';
 
   @override

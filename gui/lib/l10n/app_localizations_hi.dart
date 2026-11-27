@@ -584,6 +584,35 @@ class AppLocalizationsHi extends AppLocalizations {
   String get pluginBundles => 'साझा प्लगइन लाइब्रेरी';
 
   @override
+  String get piProjectPackages => 'Pi प्रोजेक्ट पैकेज';
+
+  @override
+  String get piPackageConfirm =>
+      'किसी विश्वसनीय प्रोजेक्ट को खोलने पर Pi पैकेजों के एक्सटेंशन चला सकता है।';
+
+  @override
+  String get piExportAssignments => 'असाइनमेंट निर्यात करें';
+
+  @override
+  String get piApplyAssignments => 'असाइनमेंट लागू करें';
+
+  @override
+  String get piAssignmentsTooLarge => 'असाइनमेंट फ़ाइल 1 MiB से बड़ी है।';
+
+  @override
+  String piPackageStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'available': 'असाइन करने के लिए उपलब्ध',
+      'applied': 'असाइन किया गया',
+      'pending': 'सिंक के लिए तैयार',
+      'detached': 'पैकेज लाइब्रेरी से हटाया गया',
+      'conflict': 'पूर्व प्रविष्टि रखी गई',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get importPluginBundle => 'प्लगइन बंडल आयात करें';
 
   @override

@@ -164,6 +164,88 @@ void main() {
     await tap(find.widgetWithText(FilledButton, 'Save'));
     await waitFor(below(bundle, find.text('2.0.0 · Plugin fixture')));
     expect(library.readAsStringSync(), original);
+
+    final project = Directory('${root.path}/pi-project')..createSync();
+    final settings = File('${project.path}/.pi/settings.json');
+    final pi = Directory('${root.path}/pi-package')..createSync();
+    File('${pi.path}/package.json').writeAsStringSync(
+      jsonEncode({
+        'name': 'desktop-pi',
+        'version': '1.0.0',
+        'pi': {
+          'extensions': ['probe.ts'],
+        },
+      }),
+    );
+    File('${pi.path}/probe.ts').writeAsStringSync('export default () => {};');
+    final preview = jsonDecode(await api.previewPluginBundle(source: pi.path));
+    await api.savePluginBundle(
+      source: pi.path,
+      content: preview['content'] as String,
+    );
+    tester.view.physicalSize = const Size(560, 800);
+    await settle();
+    await tap(below(page, find.text('Pi project packages')));
+    final toList = below(dialog, find.byTooltip('List view'));
+    if (toList.evaluate().isNotEmpty) await tap(toList);
+    await tester.enterText(
+      below(dialog, find.widgetWithText(TextField, 'Project folder')),
+      project.path,
+    );
+    await tap(below(dialog, find.text('Open project')));
+    expect(below(dialog, find.byType(SliverList)), findsOneWidget);
+    expect(below(dialog, find.text('Export assignments')), findsOneWidget);
+    expect(below(dialog, find.text('Apply assignments')), findsOneWidget);
+    final row = below(dialog, find.byKey(const ValueKey('desktop-pi')));
+    await tap(below(row, find.byTooltip('Assign to this project')));
+    await waitFor(
+      find.text(
+        'Pi can run package extensions when you open a trusted project.',
+      ),
+    );
+    await tap(find.widgetWithText(FilledButton, 'Save'));
+    await waitFor(below(row, find.text('1.0.0 · Assigned')));
+    expect(jsonDecode(settings.readAsStringSync())['packages'], hasLength(1));
+    expect(below(row, find.byTooltip('Export plugin archive')), findsOneWidget);
+    final assigned = jsonDecode(
+      await api.piProjectPluginBundles(project: project.path),
+    );
+    final projectRevision = assigned['revision'] as String;
+    final assignments = await api.transferPiProjectPluginBundles(
+      project: project.path,
+      projectRevision: projectRevision,
+    );
+    final piArchive = File('${root.path}/pi-package.tar');
+    await api.archivePiProjectPluginBundle(
+      project: project.path,
+      name: 'desktop-pi',
+      projectRevision: projectRevision,
+      output: piArchive.path,
+    );
+    final archived = jsonDecode(
+      await api.previewPluginBundle(source: piArchive.path),
+    );
+    expect(archived['content'], preview['content']);
+    final destination = Directory('${root.path}/pi-destination')..createSync();
+    final destinationView = jsonDecode(
+      await api.piProjectPluginBundles(project: destination.path),
+    );
+    final transferred = jsonDecode(
+      await api.transferPiProjectPluginBundles(
+        project: destination.path,
+        projectRevision: destinationView['revision'] as String,
+        assignments: assignments,
+      ),
+    );
+    expect(transferred['packages'][0]['status'], 'applied');
+    tester.view.physicalSize = const Size(1280, 900);
+    await settle();
+    final toGrid = below(dialog, find.byTooltip('Grid view'));
+    if (toGrid.evaluate().isNotEmpty) await tap(toGrid);
+    expect(below(dialog, find.byType(SliverGrid)), findsOneWidget);
+    await tap(below(row, find.byTooltip('Unassign from this project')));
+    await waitFor(below(row, find.text('1.0.0 · Available to assign')));
+    expect(jsonDecode(settings.readAsStringSync())['packages'], isEmpty);
     expect(tester.takeException(), isNull);
   });
 }

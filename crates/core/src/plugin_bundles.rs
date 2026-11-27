@@ -26,7 +26,10 @@ const MAX_MANIFEST: usize = 256 * 1024;
 
 mod marketplace;
 mod pi;
+mod pi_project;
 mod resources;
+
+pub use pi_project::Edit as PiProjectEdit;
 
 pub enum Edit<'a> {
     Read,
@@ -56,6 +59,10 @@ pub enum Edit<'a> {
         kind: &'a str,
         path: &'a str,
         copy: Option<&'a str>,
+    },
+    PiProject {
+        project: &'a Path,
+        edit: PiProjectEdit<'a>,
     },
 }
 
@@ -345,16 +352,20 @@ fn snapshot(root: &Path, content: &str, tree: &Tree) -> Result<()> {
 }
 
 fn export(bundle: &Bundle, folder: &Path, output: &Path) -> Result<String> {
+    let tree = Tree::read(folder)?;
+    ensure!(
+        tree.hash() == bundle.content,
+        "saved plugin snapshot was modified"
+    );
+    export_tree(&tree, &bundle.content, output)
+}
+
+fn export_tree(tree: &Tree, content: &str, output: &Path) -> Result<String> {
     ensure!(
         output
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("tar")),
         "use a .tar filename for the plugin archive"
-    );
-    let tree = Tree::read(folder)?;
-    ensure!(
-        tree.hash() == bundle.content,
-        "saved plugin snapshot was modified"
     );
     let parent = output
         .parent()
@@ -365,7 +376,7 @@ fn export(bundle: &Bundle, folder: &Path, output: &Path) -> Result<String> {
     temp.as_file().sync_all()?;
     temp.persist_noclobber(output)
         .with_context(|| format!("save plugin archive to {}", output.display()))?;
-    encode(&bundle.content)
+    encode(&content)
 }
 
 pub fn edit(dir: &Path, operation: Edit<'_>) -> Result<String> {
@@ -451,6 +462,9 @@ pub fn edit(dir: &Path, operation: Edit<'_>) -> Result<String> {
                 path,
                 copy,
             );
+        }
+        Edit::PiProject { project, edit } => {
+            return pi_project::edit(dir, &library, &snapshots, &bundles, project, edit);
         }
     }
     if !matches!(operation, Edit::Read) {

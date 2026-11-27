@@ -167,8 +167,8 @@ fn run(profile: &Path, home: &Path, args: &[&str], timeout: Duration) -> Result<
     }
     let mut child = command
         .args(args)
-        .current_dir(loader_path(profile))
-        .env("DSH_HOME", loader_path(home))
+        .current_dir(native_settings::conventional_path(profile))
+        .env("DSH_HOME", native_settings::conventional_path(home))
         .stdin(Stdio::null())
         .stdout(output.try_clone()?)
         .stderr(diagnostic.try_clone()?)
@@ -203,19 +203,6 @@ fn run(profile: &Path, home: &Path, args: &[&str], timeout: Duration) -> Result<
         let _ = child.wait();
     }
     result
-}
-
-fn loader_path(path: &Path) -> PathBuf {
-    #[cfg(windows)]
-    if let Some(path) = path.to_str() {
-        if let Some(path) = path.strip_prefix(r"\\?\UNC\") {
-            return PathBuf::from(format!(r"\\{path}"));
-        }
-        if let Some(path) = path.strip_prefix(r"\\?\") {
-            return PathBuf::from(path);
-        }
-    }
-    path.to_path_buf()
 }
 
 fn ensure_plugin(profile: &Path) -> Result<()> {
@@ -300,7 +287,7 @@ pub(super) fn plan(target: &Target, active: bool, install: bool) -> Result<Optio
         native_settings::read(&path)?.context("DeepSeek Harness profile patch is unavailable")?;
     // Cordis resolves the configured file against the launch directory. A Windows
     // canonical path may use the Win32 verbatim prefix, which Node normalizes differently.
-    let config = loader_path(Path::new(&target.path));
+    let config = native_settings::conventional_path(Path::new(&target.path));
     let config = config
         .to_str()
         .context("invalid DeepSeek Harness config path")?;

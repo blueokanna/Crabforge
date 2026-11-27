@@ -7,6 +7,8 @@ import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
 
+part 'plugin_bundles_pi.dart';
+
 typedef _Json = Map<String, dynamic>;
 
 const _archiveType = XTypeGroup(label: 'TAR', extensions: ['tar']);
@@ -387,6 +389,16 @@ class _PluginBundlesState extends State<PluginBundles> {
                     onPressed: _busy ? null : () => _import(),
                     icon: const Icon(Icons.download_outlined),
                     label: Text(strings.importPluginBundle),
+                  ),
+                  TextButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () => showDialog<void>(
+                            context: context,
+                            builder: (_) => const _PiProjectPackages(),
+                          ),
+                    icon: const Icon(Icons.folder_outlined),
+                    label: Text(strings.piProjectPackages),
                   ),
                   IconButton(
                     onPressed: _busy ? null : () => _refresh(api.pluginBundles),

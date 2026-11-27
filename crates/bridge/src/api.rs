@@ -405,6 +405,79 @@ pub fn plugin_bundles() -> Result<String> {
     plugin_bundles::edit(&config::data_dir()?, Edit::Read)
 }
 
+pub fn pi_project_plugin_bundles(project: String) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit, PiProjectEdit};
+    plugin_bundles::edit(
+        &config::data_dir()?,
+        Edit::PiProject {
+            project: std::path::Path::new(&project),
+            edit: PiProjectEdit::Read,
+        },
+    )
+}
+
+pub fn set_pi_project_plugin_bundle(
+    project: String,
+    name: String,
+    project_revision: String,
+    bundle_revision: Option<String>,
+) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit, PiProjectEdit};
+    plugin_bundles::edit(
+        &config::data_dir()?,
+        Edit::PiProject {
+            project: std::path::Path::new(&project),
+            edit: PiProjectEdit::Set {
+                name: &name,
+                project_revision: &project_revision,
+                bundle_revision: bundle_revision.as_deref(),
+            },
+        },
+    )
+}
+
+pub fn transfer_pi_project_plugin_bundles(
+    project: String,
+    project_revision: String,
+    assignments: Option<String>,
+) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit, PiProjectEdit};
+    let project_revision = &project_revision;
+    plugin_bundles::edit(
+        &config::data_dir()?,
+        Edit::PiProject {
+            project: std::path::Path::new(&project),
+            edit: match assignments.as_deref() {
+                Some(assignments) => PiProjectEdit::Apply {
+                    project_revision,
+                    assignments,
+                },
+                None => PiProjectEdit::Export { project_revision },
+            },
+        },
+    )
+}
+
+pub fn archive_pi_project_plugin_bundle(
+    project: String,
+    name: String,
+    project_revision: String,
+    output: String,
+) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit, PiProjectEdit};
+    plugin_bundles::edit(
+        &config::data_dir()?,
+        Edit::PiProject {
+            project: std::path::Path::new(&project),
+            edit: PiProjectEdit::Archive {
+                name: &name,
+                project_revision: &project_revision,
+                output: std::path::Path::new(&output),
+            },
+        },
+    )
+}
+
 pub fn preview_plugin_bundle(source: String) -> Result<String> {
     use crabforge_core::plugin_bundles::{self, Edit};
     plugin_bundles::edit(&config::data_dir()?, Edit::Preview { source: &source })

@@ -587,6 +587,36 @@ class AppLocalizationsDe extends AppLocalizations {
   String get pluginBundles => 'Gemeinsame Plug-in-Bibliothek';
 
   @override
+  String get piProjectPackages => 'Pi-Projektpakete';
+
+  @override
+  String get piPackageConfirm =>
+      'Pi kann beim Öffnen eines vertrauenswürdigen Projekts Paketerweiterungen ausführen.';
+
+  @override
+  String get piExportAssignments => 'Zuweisungen exportieren';
+
+  @override
+  String get piApplyAssignments => 'Zuweisungen anwenden';
+
+  @override
+  String get piAssignmentsTooLarge =>
+      'Die Zuweisungsdatei ist größer als 1 MiB.';
+
+  @override
+  String piPackageStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'available': 'Zur Zuweisung verfügbar',
+      'applied': 'Zugewiesen',
+      'pending': 'Bereit zur Synchronisierung',
+      'detached': 'Paket aus der Bibliothek entfernt',
+      'conflict': 'Vorhandenen Eintrag beibehalten',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get importPluginBundle => 'Plug-in-Paket importieren';
 
   @override

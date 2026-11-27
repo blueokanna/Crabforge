@@ -126,6 +126,12 @@ Use `carbforge-cli plugin-bundles preview <source>` to obtain a content hash and
 
 To move a saved snapshot to another Crabforge profile, choose **Export plugin archive** or run `plugin-bundles export <name> <file.tar> --revision <revision>`. Open the TAR in the destination's import dialog or pass it to `plugin-bundles preview` and `save`. The archive includes the original bundle files and attachments. Assignments and changes in the destination resource libraries are managed there.
 
+Open **Pi project packages** in the shared plugin library, choose a project folder, and assign a saved Pi package. Pi reads the package from the saved snapshot through `.pi/settings.json` and can load its skills, prompt templates, extensions and themes in a trusted project. After saving a new snapshot, use **Sync assignments** to switch that project to it. Withdrawal removes the entry Crabforge wrote if it is still unchanged. Pi continues to manage project trust.
+
+In the CLI, `carbforge-cli plugin-bundles pi-project <folder> list` returns the project `revision` and each package's `bundle_revision`. Use `pi-project <folder> assign <name> --project-revision <revision> --bundle-revision <bundle_revision>` under `plugin-bundles` to assign or sync. Use `pi-project <folder> withdraw <name> --project-revision <revision>` to withdraw it.
+
+To carry the assignments to another project, select **Export assignments** and use **Export plugin archive** on each assigned package in that project. The TAR contains the snapshot that project uses. Import those snapshots into the destination library, open the destination project, and select **Apply assignments**. The JSON contains package names and content hashes. The destination checks the hashes and creates its own package paths and ownership records. The CLI equivalents under `plugin-bundles pi-project <folder>` are `export --project-revision <revision>`, `archive <name> <file.tar> --project-revision <revision>` and `apply <assignments.json> --project-revision <revision>`.
+
 `carbforge-cli subagents` and `carbforge-cli commands` support `list`, `save`, `remove`, and `sync`. `subagents --project <folder>` selects a project library. `save` reads UTF-8 JSON from standard input with `name`, `prompt`, and `agents`. Supply `description` for subagents. Optional subagent fields are `model`, `effort`, `skills` and `mcp`. Save this example as `check.json` and run `cmd.exe /d /c "carbforge-cli commands save < check.json"` to publish it from Windows.
 
 ```json

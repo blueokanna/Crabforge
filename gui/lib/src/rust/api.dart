@@ -259,6 +259,43 @@ Future<String> importClaudePluginSettings({required String source}) =>
 
 Future<String> pluginBundles() => RustLib.instance.api.crateApiPluginBundles();
 
+Future<String> piProjectPluginBundles({required String project}) =>
+    RustLib.instance.api.crateApiPiProjectPluginBundles(project: project);
+
+Future<String> setPiProjectPluginBundle({
+  required String project,
+  required String name,
+  required String projectRevision,
+  String? bundleRevision,
+}) => RustLib.instance.api.crateApiSetPiProjectPluginBundle(
+  project: project,
+  name: name,
+  projectRevision: projectRevision,
+  bundleRevision: bundleRevision,
+);
+
+Future<String> transferPiProjectPluginBundles({
+  required String project,
+  required String projectRevision,
+  String? assignments,
+}) => RustLib.instance.api.crateApiTransferPiProjectPluginBundles(
+  project: project,
+  projectRevision: projectRevision,
+  assignments: assignments,
+);
+
+Future<String> archivePiProjectPluginBundle({
+  required String project,
+  required String name,
+  required String projectRevision,
+  required String output,
+}) => RustLib.instance.api.crateApiArchivePiProjectPluginBundle(
+  project: project,
+  name: name,
+  projectRevision: projectRevision,
+  output: output,
+);
+
 Future<String> previewPluginBundle({required String source}) =>
     RustLib.instance.api.crateApiPreviewPluginBundle(source: source);
 

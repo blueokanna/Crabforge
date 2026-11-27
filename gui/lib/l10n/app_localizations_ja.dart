@@ -576,6 +576,34 @@ class AppLocalizationsJa extends AppLocalizations {
   String get pluginBundles => '共有プラグインライブラリ';
 
   @override
+  String get piProjectPackages => 'Pi のプロジェクトパッケージ';
+
+  @override
+  String get piPackageConfirm => '信頼済みのプロジェクトを開くと、Pi がパッケージの拡張機能を実行できます。';
+
+  @override
+  String get piExportAssignments => '割り当てをエクスポート';
+
+  @override
+  String get piApplyAssignments => '割り当てを適用';
+
+  @override
+  String get piAssignmentsTooLarge => '割り当てファイルが 1 MiB を超えています。';
+
+  @override
+  String piPackageStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'available': '割り当て可能',
+      'applied': '割り当て済み',
+      'pending': '同期可能',
+      'detached': 'ライブラリから削除済み',
+      'conflict': '既存の項目を保持',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get importPluginBundle => 'プラグインバンドルをインポート';
 
   @override

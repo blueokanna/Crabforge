@@ -1150,6 +1150,42 @@ abstract class AppLocalizations {
   /// **'Shared plugin library'**
   String get pluginBundles;
 
+  /// No description provided for @piProjectPackages.
+  ///
+  /// In en, this message translates to:
+  /// **'Pi project packages'**
+  String get piProjectPackages;
+
+  /// No description provided for @piPackageConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Pi can run package extensions when you open a trusted project.'**
+  String get piPackageConfirm;
+
+  /// No description provided for @piExportAssignments.
+  ///
+  /// In en, this message translates to:
+  /// **'Export assignments'**
+  String get piExportAssignments;
+
+  /// No description provided for @piApplyAssignments.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply assignments'**
+  String get piApplyAssignments;
+
+  /// No description provided for @piAssignmentsTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'The assignment file exceeds 1 MiB.'**
+  String get piAssignmentsTooLarge;
+
+  /// No description provided for @piPackageStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'{status, select, available{Available to assign} applied{Assigned} pending{Ready to sync} detached{Bundle removed from library} conflict{Existing entry kept} other{}}'**
+  String piPackageStatus(String status);
+
   /// No description provided for @importPluginBundle.
   ///
   /// In en, this message translates to:

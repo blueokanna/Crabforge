@@ -576,6 +576,34 @@ class AppLocalizationsKo extends AppLocalizations {
   String get pluginBundles => '공유 플러그인 라이브러리';
 
   @override
+  String get piProjectPackages => 'Pi 프로젝트 패키지';
+
+  @override
+  String get piPackageConfirm => '신뢰하는 프로젝트를 열면 Pi가 패키지의 확장을 실행할 수 있습니다.';
+
+  @override
+  String get piExportAssignments => '할당 내보내기';
+
+  @override
+  String get piApplyAssignments => '할당 적용';
+
+  @override
+  String get piAssignmentsTooLarge => '할당 파일이 1 MiB를 초과합니다.';
+
+  @override
+  String piPackageStatus(String status) {
+    String _temp0 = intl.Intl.selectLogic(status, {
+      'available': '할당 가능',
+      'applied': '할당됨',
+      'pending': '동기화 가능',
+      'detached': '라이브러리에서 제거된 패키지',
+      'conflict': '기존 항목 유지',
+      'other': '',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get importPluginBundle => '플러그인 번들 가져오기';
 
   @override
