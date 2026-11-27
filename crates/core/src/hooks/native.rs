@@ -6,7 +6,7 @@ use nextjson::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{Agent, Hook};
+use super::{Agent, Hook, antigravity};
 use crate::project_mcp::jsonc;
 
 const PORTABLE: [&str; 5] = [
@@ -133,6 +133,46 @@ fn events(agent: Agent) -> Events {
             shell: "Shell",
             edit: "Write",
         },
+        Agent::Antigravity => Events {
+            mapped: ["Stop", "PostToolUse", "PreToolUse", "", "SessionStart"],
+            additional: &["PreInvocation", "PostInvocation"],
+            shell: "run_command",
+            edit: "write_to_file|replace_file_content|multi_replace_file_content",
+        },
+        Agent::Grok => Events {
+            mapped: [
+                "Stop",
+                "PostToolUse",
+                "PreToolUse",
+                "UserPromptSubmit",
+                "SessionStart",
+            ],
+            additional: &[
+                "SessionEnd",
+                "PostToolUseFailure",
+                "PermissionDenied",
+                "StopFailure",
+                "Notification",
+                "SubagentStart",
+                "SubagentStop",
+                "PreCompact",
+                "PostCompact",
+            ],
+            shell: "Bash",
+            edit: "Edit|Write",
+        },
+        Agent::Dsh => Events {
+            mapped: [
+                "Stop",
+                "PostToolUse",
+                "PreToolUse",
+                "UserPromptSubmit",
+                "SessionStart",
+            ],
+            additional: &["SubagentStart", "SubagentStop"],
+            shell: "bash|pwsh",
+            edit: "write|edit|str_replace_editor",
+        },
     }
 }
 
@@ -142,6 +182,7 @@ pub(super) fn native_events(agent: Agent) -> Vec<&'static str> {
         .mapped
         .into_iter()
         .chain(spec.additional.iter().copied())
+        .filter(|event| !event.is_empty())
         .collect::<Vec<_>>();
     names.sort_unstable();
     names
@@ -151,7 +192,7 @@ pub(super) fn validate_event(key: &str, matcher: &str) -> Result<()> {
     if let Some((agent, event)) = key.split_once(':') {
         let spec = events(Agent::parse(agent)?);
         ensure!(
-            spec.mapped.contains(&event) || spec.additional.contains(&event),
+            !event.is_empty() && (spec.mapped.contains(&event) || spec.additional.contains(&event)),
             "unsupported native hook event"
         );
         return Ok(());
@@ -217,6 +258,14 @@ pub(super) fn encode(agent: Agent, hook: &Hook) -> Result<(String, Value)> {
         };
         (spec.mapped[index], matcher)
     };
+    ensure!(
+        !event.is_empty(),
+        "this client has no equivalent hook event"
+    );
+    ensure!(
+        agent != Agent::Antigravity || matcher.is_empty() || antigravity::tool_event(event),
+        "Antigravity only supports hook matchers on tool events"
+    );
     let mut command = Map::from_iter([("command", Value::from(hook.command.as_str()))]);
     if hook.timeout != 0 {
         let timeout = if agent == Agent::Gemini {
@@ -230,7 +279,11 @@ pub(super) fn encode(agent: Agent, hook: &Hook) -> Result<(String, Value)> {
         command
     } else {
         command.insert("type".into(), json!("command"));
-        Map::from_iter([("hooks", Value::Array(vec![Value::Object(command)]))])
+        if agent == Agent::Antigravity && !antigravity::tool_event(event) {
+            command
+        } else {
+            Map::from_iter([("hooks", Value::Array(vec![Value::Object(command)]))])
+        }
     };
     if !matcher.is_empty() {
         entry.insert("matcher".into(), json!(matcher));
@@ -240,7 +293,18 @@ pub(super) fn encode(agent: Agent, hook: &Hook) -> Result<(String, Value)> {
 
 pub(super) fn decode(agent: Agent, event: &str, entry: &Value) -> Option<Hook> {
     let object = entry.as_object()?;
-    let (command, timeout) = if agent == Agent::Cursor {
+    let (command, timeout) = if agent == Agent::Antigravity && !antigravity::tool_event(event) {
+        if object
+            .keys()
+            .any(|key| !["type", "command", "timeout"].contains(&key))
+            || object
+                .get("type")
+                .is_some_and(|ty| ty.as_str() != Some("command"))
+        {
+            return None;
+        }
+        (object.get("command")?, object.get("timeout"))
+    } else if agent == Agent::Cursor {
         if object
             .keys()
             .any(|key| !["command", "matcher", "timeout"].contains(&key))
@@ -259,7 +323,12 @@ pub(super) fn decode(agent: Agent, event: &str, entry: &Value) -> Option<Hook> {
             return None;
         };
         let handler = handler.as_object()?;
-        if handler.get("type")?.as_str()? != "command"
+        let command_type = handler
+            .get("type")
+            .map_or(agent == Agent::Antigravity, |ty| {
+                ty.as_str() == Some("command")
+            });
+        if !command_type
             || handler
                 .keys()
                 .any(|key| !["type", "command", "timeout"].contains(&key))
@@ -310,9 +379,21 @@ pub(super) fn canonical(value: &Value) -> Value {
 }
 
 pub(super) fn read(source: &str) -> Result<BTreeMap<String, Vec<Value>>> {
-    let mut events = BTreeMap::new();
-    if let Some(object) = jsonc::parse(source, &["hooks"])? {
-        for event in object.keys() {
+    jsonc::parse(source, &["hooks"])?.map_or_else(
+        || Ok(BTreeMap::new()),
+        |object| read_events(source, &object, |_| true),
+    )
+}
+
+pub(super) fn read_events(
+    source: &str,
+    object: &jsonc::Object,
+    include: impl Fn(&str) -> bool,
+) -> Result<BTreeMap<String, Vec<Value>>> {
+    object
+        .keys()
+        .filter(|key| include(key))
+        .map(|event| {
             let array = object
                 .array(source, event)?
                 .context("missing native hooks event")?;
@@ -325,10 +406,35 @@ pub(super) fn read(source: &str) -> Result<BTreeMap<String, Vec<Value>>> {
                     Ok(canonical(&entry))
                 })
                 .collect::<Result<Vec<_>>>()?;
-            events.insert(event.to_owned(), entries);
-        }
+            Ok((event.to_owned(), entries))
+        })
+        .collect()
+}
+
+pub(super) struct Location {
+    pub(super) enabled: bool,
+    pub(super) entries: Vec<Value>,
+}
+
+pub(super) type Locations = BTreeMap<(Option<String>, String), Location>;
+
+pub(super) fn read_locations(agent: Agent, source: &str) -> Result<Locations> {
+    if agent == Agent::Antigravity {
+        antigravity::read(source)
+    } else {
+        Ok(read(source)?
+            .into_iter()
+            .map(|(event, entries)| {
+                (
+                    (None, event),
+                    Location {
+                        enabled: true,
+                        entries,
+                    },
+                )
+            })
+            .collect())
     }
-    Ok(events)
 }
 
 pub(super) fn add(source: &str, event: &str, entry: Value) -> Result<String> {
@@ -354,8 +460,14 @@ pub(super) fn cursor_version(source: &str) -> Result<String> {
         .edit(source, "version", Some(&json!(1)))
 }
 
-pub(super) fn remove(agent: Agent, source: &str, event: &str, index: usize) -> Result<String> {
-    let entries = jsonc::parse(source, &["hooks"])?
+pub(super) fn remove(
+    agent: Agent,
+    source: &str,
+    group: Option<&str>,
+    event: &str,
+    index: usize,
+) -> Result<String> {
+    let entries = jsonc::parse(source, &[group.unwrap_or("hooks")])?
         .context("missing native hooks object")?
         .array(source, event)?
         .context("hook event was removed")?;

@@ -11,7 +11,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod antigravity;
 mod backup;
+mod dsh;
+mod grok;
 mod native;
 mod project;
 pub use project::Assignment as ProjectAssignment;
@@ -21,7 +24,7 @@ pub const MAX_ENTRY: usize = 64 * 1024;
 
 string_enum! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-    pub enum Agent { Claude => "claude", Codex => "codex", Gemini => "gemini", Cursor => "cursor" }
+    pub enum Agent { Claude => "claude", Codex => "codex", Gemini => "gemini", Cursor => "cursor", Antigravity => "agy", Grok => "grok", Dsh => "dsh" }
 }
 
 impl Agent {
@@ -35,6 +38,9 @@ impl Agent {
             Self::Codex => "codex",
             Self::Gemini => "gemini",
             Self::Cursor => "cursor",
+            Self::Antigravity => "agy",
+            Self::Grok => "grok",
+            Self::Dsh => "dsh",
         }
     }
 }
@@ -101,6 +107,8 @@ struct Target {
 #[derive(Clone, NsonDeserialize, NsonSerialize)]
 struct Entry {
     event: String,
+    #[njson(default, skip_serializing_if = "Option::is_none")]
+    group: Option<String>,
     value: Value,
     #[njson(default, skip_serializing_if = "Option::is_none")]
     equivalent: Option<Value>,
@@ -142,6 +150,8 @@ struct Found<'a> {
     key: String,
     target: &'a Target,
     event: String,
+    #[njson(skip_serializing_if = "Option::is_none")]
+    group: Option<String>,
     entry: Value,
     hook: Option<Hook>,
     removable: bool,
@@ -217,9 +227,16 @@ fn targets(dir: &Path) -> Result<BTreeMap<Target, &'static str>> {
         .context("Codex profile is unavailable")?;
     let gemini = profile("GEMINI_CLI_HOME", home.clone());
     let cursor = profile("CURSOR_HOME", home.join(".cursor"));
-    [
+    let grok = profile("GROK_HOME", home.join(".grok"));
+    let mut targets = [
         (Agent::Claude, claude.join("settings.json"), "{}\n"),
         (Agent::Codex, codex.join("hooks.json"), "{}\n"),
+        (
+            Agent::Antigravity,
+            home.join(".gemini/config/hooks.json"),
+            "{}\n",
+        ),
+        (Agent::Grok, grok.join("hooks").join(grok::FILE), "{}\n"),
         (
             Agent::Cursor,
             cursor.join("hooks.json"),
@@ -241,7 +258,10 @@ fn targets(dir: &Path) -> Result<BTreeMap<Target, &'static str>> {
             .context("native hook path is not UTF-8")?;
         Ok((Target { agent, path }, default))
     })
-    .collect()
+    .collect::<Result<BTreeMap<_, _>>>()?;
+    grok::discover_targets(&mut targets)?;
+    dsh::discover(&profile("DSH_HOME", home.join(".dsh")), &mut targets)?;
+    Ok(targets)
 }
 
 impl Store {
@@ -328,11 +348,11 @@ impl Store {
     }
 }
 
-fn indexes(entries: &BTreeMap<String, Vec<Value>>, entry: &Entry) -> Vec<usize> {
+fn indexes(entries: &native::Locations, entry: &Entry) -> Vec<usize> {
     entries
-        .get(&entry.event)
+        .get(&(entry.group.clone(), entry.event.clone()))
         .into_iter()
-        .flatten()
+        .flat_map(|location| &location.entries)
         .enumerate()
         .filter_map(|(index, value)| (*value == entry.value).then_some(index))
         .collect()
@@ -345,27 +365,35 @@ fn discover<'a>(
 ) -> Result<Vec<Found<'a>>> {
     let mut output = Vec::new();
     let revision = hash(source);
-    let events = native::read(source)?;
-    for (event, entries) in &events {
+    let events = native::read_locations(target.agent, source)?;
+    for ((group, event), location) in &events {
+        let entries = &location.entries;
         for (index, entry) in entries.iter().enumerate() {
             if target.agent == Agent::Codex && *entry == nextjson::json!({"hooks": []}) {
                 continue;
             }
             let managed = claimed.is_some_and(|claimed| {
-                claimed
-                    .values()
-                    .any(|owned| owned.event == *event && owned.value == *entry)
+                claimed.values().any(|owned| {
+                    owned.group == *group && owned.event == *event && owned.value == *entry
+                })
             });
             if managed && entries.iter().filter(|value| *value == entry).count() == 1 {
                 continue;
             }
-            let hook =
-                native::decode(target.agent, event, entry).filter(|hook| hook.validate().is_ok());
-            let key = hash(&encode(&(target, &revision, event, index))?);
+            let hook = if location.enabled {
+                native::decode(target.agent, event, entry).filter(|hook| hook.validate().is_ok())
+            } else {
+                None
+            };
+            let key = hash(&match group {
+                Some(group) => encode(&(target, &revision, group, event, index))?,
+                None => encode(&(target, &revision, event, index))?,
+            });
             output.push(Found {
                 key,
                 target,
                 event: event.clone(),
+                group: group.clone(),
                 entry: entry.clone(),
                 hook,
                 removable: !managed,
@@ -385,16 +413,23 @@ fn reconcile<'a>(
     wanted: BTreeMap<String, Hook>,
 ) -> Result<Vec<Status<'a>>> {
     let previous = store.entries(target).cloned().unwrap_or_default();
-    if wanted.is_empty() && previous.is_empty() {
+    let selected = !wanted.is_empty();
+    let dsh = target.agent == Agent::Dsh;
+    let empty = !selected && previous.is_empty();
+    if empty && !(dsh && sync) {
         return Ok(Vec::new());
     }
     let before = native_settings::read(Path::new(&target.path))?;
+    if empty && before.is_none() {
+        return Ok(Vec::new());
+    }
     let original = before.as_deref().unwrap_or(default);
     let mut source = original.to_owned();
-    let mut events = native::read(&source)?;
+    let mut events = native::read_locations(target.agent, &source)?;
     let mut placements = Vec::new();
     let mut managed = BTreeMap::new();
     let mut wanted = wanted;
+    let mut groups = BTreeMap::new();
     for (id, mut owned) in previous {
         let selected = wanted.remove(&id);
         let name = if let Some(hook) = &selected {
@@ -407,6 +442,19 @@ fn reconcile<'a>(
             [index] => {
                 if let Some(hook) = &selected {
                     let (event, value) = native::encode(target.agent, hook)?;
+                    if let Some(group) = owned.group.as_deref() {
+                        if !events[&(owned.group.clone(), owned.event.clone())].enabled {
+                            placements.push(Status {
+                                name,
+                                target,
+                                status: "conflict",
+                                detail: None,
+                            });
+                            managed.insert(id, owned);
+                            continue;
+                        }
+                        groups.insert(id.clone(), group.to_owned());
+                    }
                     if event == owned.event
                         && &native::canonical(&value)
                             == owned.equivalent.as_ref().unwrap_or(&owned.value)
@@ -429,8 +477,14 @@ fn reconcile<'a>(
                         detail: None,
                     });
                 }
-                source = native::remove(target.agent, &source, &owned.event, *index)?;
-                events = native::read(&source)?;
+                source = native::remove(
+                    target.agent,
+                    &source,
+                    owned.group.as_deref(),
+                    &owned.event,
+                    *index,
+                )?;
+                events = native::read_locations(target.agent, &source)?;
             }
             _ => {
                 placements.push(Status {
@@ -450,16 +504,27 @@ fn reconcile<'a>(
         let (event, value) = native::encode(target.agent, &hook)?;
         let entry = Entry {
             event,
+            group: (target.agent == Agent::Antigravity).then(|| {
+                groups
+                    .remove(&id)
+                    .unwrap_or_else(|| antigravity::GROUP.into())
+            }),
             value: native::canonical(&value),
             equivalent: None,
             name: (name != id).then(|| name.clone()),
         };
-        let status = if indexes(&events, &entry).is_empty() {
+        let equivalent = events.iter().any(|((_, event), location)| {
+            *event == entry.event && location.enabled && location.entries.contains(&entry.value)
+        });
+        let status = if !equivalent {
             if target.agent == Agent::Cursor {
                 source = native::cursor_version(&source)?;
             }
-            source = native::add(&source, &entry.event, value)?;
-            events = native::read(&source)?;
+            source = match &entry.group {
+                Some(group) => antigravity::add(&source, group, &entry.event, value)?,
+                None => native::add(&source, &entry.event, value)?,
+            };
+            events = native::read_locations(target.agent, &source)?;
             managed.insert(id, entry);
             if sync { "applied" } else { "pending" }
         } else {
@@ -472,7 +537,24 @@ fn reconcile<'a>(
             detail: None,
         });
     }
-    if sync {
+    let patch = if dsh {
+        let active = events.values().any(|location| !location.entries.is_empty());
+        if sync && (!empty || !active) {
+            dsh::plan(target, active, selected)?
+        } else {
+            if !sync && selected && dsh::plan(target, true, false)?.is_some() {
+                for row in &mut placements {
+                    if row.status == "applied" {
+                        row.status = "pending";
+                    }
+                }
+            }
+            None
+        }
+    } else {
+        None
+    };
+    if sync && !empty {
         let publication = Publication {
             target: target.clone(),
             entries: managed,
@@ -483,6 +565,9 @@ fn reconcile<'a>(
             store.record(publication);
             store.save(path)?;
         }
+    }
+    if let Some(patch) = patch {
+        patch.apply()?;
     }
     Ok(placements)
 }
@@ -509,6 +594,11 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
             let hook: Hook =
                 nextjson::from_str(&source).map_err(|_| anyhow::anyhow!("invalid hook entry"))?;
             hook.validate()?;
+            ensure!(
+                !hook.agents.contains(&Agent::Dsh)
+                    || targets.keys().any(|target| target.agent == Agent::Dsh),
+                "initialize a DeepSeek Harness profile before assigning hooks to it"
+            );
             if let Some((name, revision)) = previous {
                 store.check(&name, &revision)?;
                 ensure!(
@@ -554,12 +644,13 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
             let encoded = native::canonical(&encoded);
             let entry = Entry {
                 event: found.event,
+                group: found.group,
                 equivalent: (encoded != found.entry).then_some(encoded),
                 value: found.entry,
                 name: None,
             };
             ensure!(
-                indexes(&native::read(&before)?, &entry).len() == 1,
+                indexes(&native::read_locations(target.agent, &before)?, &entry).len() == 1,
                 "identical native hooks cannot be adopted individually"
             );
             ensure!(
@@ -592,6 +683,30 @@ fn wanted(hooks: &BTreeMap<String, Hook>, agent: Agent) -> BTreeMap<String, Hook
         .collect()
 }
 
+fn target_wanted(
+    hooks: &BTreeMap<String, Hook>,
+    store: &Store,
+    target: &Target,
+) -> BTreeMap<String, Hook> {
+    let mut wanted = wanted(hooks, target.agent);
+    if target.agent == Agent::Grok {
+        if grok::is_managed(target) {
+            for publication in &store.publications {
+                let sibling = &publication.target;
+                if grok::is_external(sibling)
+                    && Path::new(&sibling.path).parent() == Path::new(&target.path).parent()
+                {
+                    wanted.retain(|name, _| !publication.entries.contains_key(name));
+                }
+            }
+        } else {
+            let adopted = store.entries(target);
+            wanted.retain(|name, _| adopted.is_some_and(|entries| entries.contains_key(name)));
+        }
+    }
+    wanted
+}
+
 fn render(
     library: &Path,
     targets: &BTreeMap<Target, &str>,
@@ -605,11 +720,12 @@ fn render(
     let mut installed = Vec::new();
     let mut errors = Vec::new();
     for (target, default) in targets {
-        let wanted = wanted(
+        let wanted = target_wanted(
             project
                 .as_ref()
                 .map_or(&store.hooks, |project| &project.wanted),
-            target.agent,
+            store,
+            target,
         );
         match reconcile(store, &path, target, default, sync, wanted) {
             Ok(rows) => placements.extend(rows),
@@ -676,8 +792,17 @@ fn remove_installed(
         found.removable,
         "cannot distinguish this hook from a managed copy"
     );
-    let after = native::remove(found.target.agent, &before, &found.event, found.index)?;
-    backup::save(backups, found.target, found.event, &before, &after)?;
+    let after = native::remove(
+        found.target.agent,
+        &before,
+        found.group.as_deref(),
+        &found.event,
+        found.index,
+    )?;
+    let event = found.group.map_or(found.event.clone(), |group| {
+        format!("{group} · {}", found.event)
+    });
+    backup::save(backups, found.target, event, &before, &after)?;
     native_settings::write(Path::new(&found.target.path), Some(&before), Some(&after))
 }
 
@@ -712,6 +837,102 @@ pub fn edit_project(dir: &Path, root: &Path, change: Edit) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn grok_adoption_uses_the_discovered_file_without_publishing_a_copy() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let folder = root.path().canonicalize()?.join("hooks");
+        fs::create_dir(&folder)?;
+        let managed = folder.join(grok::FILE);
+        let existing = folder.join("personal.json");
+        let source =
+            r#"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo personal"}]}]}}"#;
+        fs::write(&existing, source)?;
+        let mut targets = BTreeMap::from([(
+            Target {
+                agent: Agent::Grok,
+                path: managed.to_string_lossy().into_owned(),
+            },
+            "{}\n",
+        )]);
+        grok::discover_targets(&mut targets)?;
+        let view = |change| -> Result<Value> {
+            nextjson::from_str(&edit_in(&root.path().join("data"), &targets, change)?)
+                .map_err(anyhow::Error::msg)
+        };
+        let key = view(Edit::Read)?["installed"][0]["key"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let adopted = view(Edit::Adopt {
+            key,
+            name: "personal".into(),
+        })?;
+        assert_eq!(adopted["placements"].as_array().unwrap().len(), 1);
+        assert_eq!(fs::read_to_string(&existing)?, source);
+        assert!(!managed.exists());
+
+        fs::remove_file(&existing)?;
+        let synced = view(Edit::Sync)?;
+        assert_eq!(synced["placements"][0]["status"].as_str(), Some("conflict"));
+        assert!(!managed.exists());
+        assert!(!existing.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn antigravity_preserves_named_hooks_and_restores_native_bytes() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let path = native_settings::path(&root.path().join("hooks.json"))?;
+        let source = concat!(
+            "\u{feff}{\r\n",
+            "  // Existing hook\r\n",
+            "  \"audit\": {\"enabled\": false, \"SessionStart\": [{\"command\": \"echo audit\"}]},\r\n",
+            "  \"linter\": {\"PostToolUse\": [{\"matcher\": \"run_command\", \"hooks\": [{\"command\": \"echo lint\"}]}]}\r\n",
+            "}\r\n",
+        );
+        fs::write(&path, source)?;
+        let targets = BTreeMap::from([(
+            Target {
+                agent: Agent::Antigravity,
+                path: path.to_string_lossy().into_owned(),
+            },
+            "{}\n",
+        )]);
+        let parse = |text: String| nextjson::from_str::<Value>(&text).map_err(anyhow::Error::msg);
+        let read = parse(edit_in(root.path(), &targets, Edit::Read)?)?;
+        let existing = read["installed"].as_array().unwrap();
+        assert_eq!(existing[0]["group"].as_str(), Some("audit"));
+        assert!(existing[0]["hook"].is_null());
+        assert_eq!(existing[1]["hook"]["command"].as_str(), Some("echo lint"));
+        let key = existing[1]["key"].as_str().unwrap().to_owned();
+        let removed = parse(edit_in(
+            root.path(),
+            &targets,
+            Edit::RemoveInstalled { key },
+        )?)?;
+        let id = removed["backups"][0]["id"].as_str().unwrap().to_owned();
+        assert!(!fs::read_to_string(&path)?.contains("echo lint"));
+        edit_in(root.path(), &targets, Edit::Restore { id })?;
+        assert_eq!(fs::read_to_string(&path)?, source);
+
+        let hook = nextjson::json!({"name":"marker","event":"session-start","command":"echo start","agents":["agy"],"timeout":5});
+        edit_in(
+            root.path(),
+            &targets,
+            Edit::Save {
+                source: hook.to_string(),
+                previous: None,
+            },
+        )?;
+        let published = fs::read_to_string(&path)?;
+        assert!(published.starts_with(source.trim_end().strip_suffix('}').unwrap().trim_end()));
+        let events = native::read_locations(Agent::Antigravity, &published)?;
+        let entries = &events[&(Some("crabforge".into()), "SessionStart".into())].entries;
+        assert_eq!(entries[0]["command"].as_str(), Some("echo start"));
+        assert_eq!(entries[0]["timeout"].as_u64(), Some(5));
+        Ok(())
+    }
     use nextjson::json;
 
     fn fixture(dir: &Path, agent: Agent) -> (Target, BTreeMap<Target, &'static str>) {

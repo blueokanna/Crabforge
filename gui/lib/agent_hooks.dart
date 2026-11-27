@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -14,6 +15,9 @@ const _agents = {
   'codex': 'Codex',
   'gemini': 'Gemini CLI',
   'cursor': 'Cursor',
+  'agy': 'Antigravity',
+  'grok': 'Grok Build',
+  'dsh': 'DeepSeek Harness',
 };
 
 String _eventName(BuildContext context, String event) => switch (event) {
@@ -135,10 +139,7 @@ class _AgentHooksState extends State<AgentHooks> {
     final hook = choice['hook'] as _Json;
     final name = hook['name'] as String;
     final event = hook['event'] as String;
-    final client = event.contains(':') ? event.split(':').first : null;
-    final agents = (_view['events'] as _Json).keys.where(
-      (agent) => client == null || client == agent,
-    );
+    final agents = (choice['compatible'] as List).cast<String>();
     final selected = (choice['agents'] as List).cast<String>().toSet();
     final result = await showDialog<bool>(
       context: context,
@@ -214,7 +215,7 @@ class _AgentHooksState extends State<AgentHooks> {
         title: Text(label),
         scrollable: true,
         content: SelectableText(
-          '${_agents[target['agent']]} · ${row['event']}\n${target['path']}$entry',
+          '${[_agents[target['agent']], ?row['group'], row['event']].join(' · ')}\n${target['path']}$entry',
         ),
         actions: [
           TextButton(
@@ -245,7 +246,7 @@ class _AgentHooksState extends State<AgentHooks> {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(row['event'] as String),
+        title: Text([?row['group'], row['event']].join(' · ')),
         scrollable: true,
         content: SelectableText(
           const JsonEncoder.withIndent('  ').convert(row['entry']),
@@ -347,7 +348,12 @@ class _AgentHooksState extends State<AgentHooks> {
                       SliverToBoxAdapter(child: Text(strings.noHooks)),
                     CollectionSliver.builder(
                       grid: grid,
-                      height: 210,
+                      height: placements.values.fold<double>(
+                        210,
+                        (height, rows) => rows.length > 4
+                            ? math.max(height, 118.0 + rows.length * 23)
+                            : height,
+                      ),
                       itemCount: names.length,
                       itemBuilder: (context, index) {
                         final name = names[index];
@@ -373,13 +379,19 @@ class _AgentHooksState extends State<AgentHooks> {
                                 _placement(context, row),
                             ],
                           ),
-                          onTap: _busy || entry == null
+                          onTap:
+                              _busy ||
+                                  entry == null ||
+                                  (project != null &&
+                                      (entry['compatible'] as List).isEmpty)
                               ? null
                               : () => project == null
                                     ? _edit(saved: entry)
                                     : _assign(entry),
                           actions: [
-                            if (entry != null && project != null)
+                            if (entry != null &&
+                                project != null &&
+                                (entry['compatible'] as List).isNotEmpty)
                               IconButton(
                                 onPressed: _busy ? null : () => _assign(entry),
                                 icon: const Icon(Icons.group_add_outlined),
@@ -431,7 +443,11 @@ class _AgentHooksState extends State<AgentHooks> {
                             grid: grid,
                             leading: const Icon(Icons.article_outlined),
                             title: _line(
-                              '${_agents[target['agent']]} · ${row['event']}',
+                              [
+                                _agents[target['agent']],
+                                ?row['group'],
+                                row['event'],
+                              ].join(' · '),
                             ),
                             detail: Tooltip(
                               message: target['path'] as String,
@@ -597,6 +613,15 @@ class _HookEditorState extends State<_HookEditor> {
   String? get _nativeAgent =>
       _event.contains(':') ? _event.split(':').first : null;
   bool get _matchTools => _event == 'before-tool' || _event == 'after-tool';
+  bool get _matcherVisible =>
+      _event == 'session-start' ||
+      (_nativeAgent != null &&
+          (_nativeAgent != 'agy' ||
+              _event == 'agy:PreToolUse' ||
+              _event == 'agy:PostToolUse'));
+  bool get _antigravitySupported =>
+      _event != 'prompt' &&
+      (_event != 'session-start' || _matcher.text.trim().isEmpty);
 
   @override
   void dispose() {
@@ -718,6 +743,7 @@ class _HookEditorState extends State<_HookEditor> {
                           if (_nativeAgent case final String agent) {
                             _agentsSelected.retainAll({agent});
                           }
+                          if (_event == 'prompt') _agentsSelected.remove('agy');
                         })
                       : null,
                 ),
@@ -744,10 +770,13 @@ class _HookEditorState extends State<_HookEditor> {
                       ? (matcher) => _matcher.text = matcher!
                       : null,
                 )
-              else if (_nativeAgent != null || _event == 'session-start')
+              else if (_matcherVisible)
                 TextField(
                   controller: _matcher,
                   enabled: editable,
+                  onChanged: (_) => setState(() {
+                    if (!_antigravitySupported) _agentsSelected.remove('agy');
+                  }),
                   decoration: InputDecoration(
                     labelText: strings.hookMatcher,
                     hintText: _event == 'session-start'
@@ -775,7 +804,8 @@ class _HookEditorState extends State<_HookEditor> {
                 runSpacing: 6,
                 children: [
                   for (final agent in _agents.entries)
-                    if (_nativeAgent == null || _nativeAgent == agent.key)
+                    if ((_nativeAgent == null || _nativeAgent == agent.key) &&
+                        (agent.key != 'agy' || _antigravitySupported))
                       FilterChip(
                         label: Text(agent.value),
                         selected: _agentsSelected.contains(agent.key),

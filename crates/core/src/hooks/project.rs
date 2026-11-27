@@ -1,4 +1,6 @@
-use super::{Agent, Edit, Hook, Store, Target, backup, encode, hash, native, reconcile, render};
+use super::{
+    Agent, Edit, Hook, Store, Target, backup, encode, grok, hash, native, reconcile, render,
+};
 use crate::native_settings;
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize};
@@ -11,6 +13,8 @@ use std::{
 const FILES: &[(Agent, &str)] = &[
     (Agent::Claude, ".claude/settings.local.json"),
     (Agent::Codex, ".codex/hooks.json"),
+    (Agent::Antigravity, ".agents/hooks.json"),
+    (Agent::Grok, ".grok/hooks/crabforge.json"),
 ];
 
 #[derive(NsonDeserialize, NsonSerialize)]
@@ -36,6 +40,7 @@ pub struct Assignment {
 pub(super) struct Choice<'a> {
     hook: &'a Hook,
     agents: &'a BTreeSet<Agent>,
+    compatible: Vec<Agent>,
     revision: String,
 }
 
@@ -62,7 +67,7 @@ fn canonical(root: &Path) -> Result<PathBuf> {
 }
 
 fn targets(root: &Path, user: &BTreeMap<Target, &str>) -> Result<BTreeMap<Target, &'static str>> {
-    FILES
+    let mut targets = FILES
         .iter()
         .map(|&(agent, file)| {
             let expected = root.join(file);
@@ -75,10 +80,6 @@ fn targets(root: &Path, user: &BTreeMap<Target, &str>) -> Result<BTreeMap<Target
                 same_path(path, expected),
                 "project hook settings folder was redirected: {expected}"
             );
-            ensure!(
-                user.keys().all(|target| !same_path(&target.path, path)),
-                "project hook settings overlap a user profile: {path}"
-            );
             Ok((
                 Target {
                     agent,
@@ -87,7 +88,16 @@ fn targets(root: &Path, user: &BTreeMap<Target, &str>) -> Result<BTreeMap<Target
                 "{}\n",
             ))
         })
-        .collect()
+        .collect::<Result<BTreeMap<_, _>>>()?;
+    grok::discover_targets(&mut targets)?;
+    for target in targets.keys() {
+        ensure!(
+            user.keys().all(|user| !same_path(&user.path, &target.path)),
+            "project hook settings overlap a user profile: {}",
+            target.path
+        );
+    }
+    Ok(targets)
 }
 
 fn same_path(left: &str, right: &str) -> bool {
@@ -229,6 +239,10 @@ pub(super) fn edit(
             Ok(Choice {
                 hook,
                 agents: assigned.map_or(&empty, |assigned| &assigned.agents),
+                compatible: FILES
+                    .iter()
+                    .filter_map(|&(agent, _)| native::encode(agent, hook).ok().map(|_| agent))
+                    .collect(),
                 revision: revision(&key, hook, assigned)?,
             })
         })
@@ -265,7 +279,7 @@ pub(super) fn sync(
             let entries = entries(user, key);
             let mut issues = Vec::new();
             for (target, default) in &targets {
-                let wanted = super::wanted(&entries, target.agent);
+                let wanted = super::target_wanted(&entries, &store, target);
                 match reconcile(&mut store, &path, target, default, true, wanted) {
                     Ok(placements) => issues.extend(
                         placements
