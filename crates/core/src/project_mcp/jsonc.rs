@@ -254,6 +254,13 @@ impl Object {
             .map(|member| (member.key, &source[member.value]))
     }
 
+    pub(crate) fn value<'a>(&self, source: &'a str, key: &str) -> Option<&'a str> {
+        self.members
+            .iter()
+            .find(|member| member.key == key)
+            .map(|member| &source[member.value.clone()])
+    }
+
     fn encode(value: &Value) -> Result<String> {
         nextjson::to_string(value).map_err(anyhow::Error::msg)
     }

@@ -24,6 +24,7 @@ void main() {
       ('CODEX_HOME', 'codex'),
       ('GEMINI_CLI_HOME', 'gemini'),
       ('CURSOR_HOME', 'cursor'),
+      ('GROK_HOME', 'grok'),
     ]) {
       if (Directory(Platform.environment[variable] ?? '').uri !=
           Directory('$root/$profile').uri) {
@@ -31,6 +32,14 @@ void main() {
       }
     }
     final settings = File('$root/claude/settings.json');
+    final dshHome = Platform.environment['DSH_HOME'];
+    final dshProfile = Directory('$root/dsh/profiles/headless');
+    final dshPatch = File('${dshProfile.path}/cordis.patch.yml');
+    final checkDsh =
+        dshHome != null &&
+        Directory(dshHome).uri == Directory('$root/dsh').uri &&
+        dshPatch.existsSync();
+    final originalDshPatch = checkDsh ? dshPatch.readAsBytesSync() : null;
     settings.parent.createSync(recursive: true);
     const original =
         '{"env":{"PREEXISTING":"kept"},"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"echo existing"}]}]}}';
@@ -96,6 +105,9 @@ void main() {
     );
     await tap(find.widgetWithText(FilterChip, 'Claude Code'));
     await tap(find.widgetWithText(FilterChip, 'Gemini CLI'));
+    if (checkDsh) {
+      await tap(find.widgetWithText(FilterChip, 'DeepSeek Harness'));
+    }
     await tap(find.widgetWithText(FilledButton, 'Save'));
     final managed = find.byKey(const ValueKey('managed'));
     await waitFor(managed);
@@ -104,6 +116,14 @@ void main() {
       File('$root/agents/gemini/.gemini/settings.json').readAsStringSync(),
       contains('AfterAgent'),
     );
+    if (checkDsh) {
+      await waitFor(below(managed, find.text('DeepSeek Harness · Applied')));
+      expect(dshPatch.readAsStringSync(), contains('id: crabforge-hooks'));
+      expect(
+        File('${dshProfile.path}/crabforge-hooks.json').readAsStringSync(),
+        contains('echo managed'),
+      );
+    }
 
     settings.writeAsStringSync(
       settings.readAsStringSync().replaceFirst('echo managed', 'echo external'),
@@ -120,6 +140,13 @@ void main() {
       File('$root/gemini/.gemini/settings.json').readAsStringSync(),
       isNot(contains('echo managed')),
     );
+    if (checkDsh) {
+      expect(dshPatch.readAsBytesSync(), originalDshPatch);
+      expect(
+        File('${dshProfile.path}/crabforge-hooks.json').readAsStringSync(),
+        isNot(contains('echo managed')),
+      );
+    }
 
     final beforeRemoval = settings.readAsBytesSync();
     await tap(below(page, find.byTooltip('Remove installed hook')));
@@ -139,6 +166,8 @@ void main() {
 
     final project = Directory('$root/project')..createSync();
     final projectSettings = File('${project.path}/.claude/settings.local.json');
+    final grokHooks = File('${project.path}/.grok/hooks/crabforge.json');
+    final antigravityHooks = File('${project.path}/.agents/hooks.json');
     await tap(below(page, find.text('Open project')));
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Project folder'),
@@ -168,5 +197,59 @@ void main() {
       isNot(contains('echo existing')),
     );
     expect(settings.readAsBytesSync(), beforeRemoval);
+
+    await tap(below(page, find.text('User profiles')));
+    await tap(find.text('Add hook'));
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Hook name'),
+      'startup',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Command run by the client'),
+      'echo project startup',
+    );
+    await tap(below(find.byType(AlertDialog), find.text('End of turn')));
+    await tap(find.text('Session start').last);
+    await tap(find.widgetWithText(FilledButton, 'Save'));
+    await tap(below(page, find.text('Open project')));
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Project folder'),
+      project.path,
+    );
+    await tap(find.widgetWithText(FilledButton, 'Open project'));
+    final startup = find.byKey(const ValueKey('startup'));
+    await tap(below(startup, find.byTooltip('Edit project hook assignment')));
+    await tap(find.widgetWithText(FilterChip, 'Grok Build'));
+    await tap(find.widgetWithText(FilterChip, 'Antigravity'));
+    await tap(find.widgetWithText(FilledButton, 'Save'));
+    await waitFor(below(startup, find.text('Antigravity · Applied')));
+    await waitFor(below(startup, find.text('Grok Build · Applied')));
+    final agy = jsonDecode(antigravityHooks.readAsStringSync());
+    final grok = jsonDecode(grokHooks.readAsStringSync());
+    expect(
+      agy['crabforge']['SessionStart'][0]['command'],
+      'echo project startup',
+    );
+    expect(
+      grok['hooks']['SessionStart'][0]['hooks'][0]['command'],
+      'echo project startup',
+    );
+    tester.view.physicalSize = const Size(560, 800);
+    await tester.pumpAndSettle();
+    await tap(below(page, find.byTooltip('List view')));
+    await tap(below(startup, find.byTooltip('Edit project hook assignment')));
+    await tap(find.widgetWithText(FilterChip, 'Grok Build'));
+    await tap(find.widgetWithText(FilterChip, 'Antigravity'));
+    await tap(find.widgetWithText(FilledButton, 'Save'));
+    await waitFor(below(startup, find.text('Antigravity · Removed')));
+    await waitFor(below(startup, find.text('Grok Build · Removed')));
+    expect(
+      antigravityHooks.readAsStringSync(),
+      isNot(contains('echo project startup')),
+    );
+    expect(
+      grokHooks.readAsStringSync(),
+      isNot(contains('echo project startup')),
+    );
   });
 }
