@@ -226,6 +226,30 @@ Windows Actions built `30ce06a61a9a7d8f36332e754e7757180abbf911` and passed 128 
 
 Both unpacked CLIs also passed the combined import preview in Windows ConPTY. The Chinese passphrase was entered without echo and the preview preserved the settings bytes.
 
+Pi 1.6.0 在同一解压包上启动 12 个独立进程，交替使用两个 CLI，每轮沿用同一原生会话文件和 ID。第七轮前用另一 CLI 重启网关。回环 Chat Completions 夹具每轮仅收到一次请求，并核对全部历史用户提示和助手回复。原生会话文件保留了每轮内容。Claude Code 和 Codex 的记忆候选、审核发布和撤回也在该下载包上复测通过。
+
+Pi 1.6.0 started 12 separate processes on the same unpacked build, alternating CLI entry points and resuming the same native session file and ID. The gateway restarted before turn seven using the other CLI. The loopback Chat Completions fixture received one request per turn and verified all user prompts and prior assistant replies. The native session file kept the full exchange. Claude Code and Codex also repeated the memory proposal, reviewed publication and withdrawal checks on this download. [Pi session samples](30ce06a-pi-session-resume.csv)
+
+Gemini CLI 0.71.1 在同一 Windows 下载包上使用 `--resume latest` 完成 12 轮原生会话。每轮由新进程启动，交替使用两个 CLI，第七轮前重启网关。Gemini JSON 输出的会话 ID 始终一致。回环 Gemini `streamGenerateContent` 上游每轮收到一次请求，包含全部用户提示及此前的助手回复。
+
+Gemini CLI 0.71.1 used `--resume latest` to complete 12 turns through the same unpacked build. Each turn started a new process, alternating the two CLIs, and the gateway restarted before turn seven. Gemini's JSON output kept the original session ID. The loopback Gemini `streamGenerateContent` fixture received one request per turn, containing every user prompt and prior assistant reply. [Gemini session samples](30ce06a-gemini-session-resume.csv)
+
+该包的 Windows Graphics Capture 采集了 24 次导航切换和 262 次内容变化。从投递点击到首个采集变化的最小值、中位数和最大值分别为 47.109、64.186 和 94.920 ms。
+
+Windows Graphics Capture observed 262 content changes across 24 navigation transitions on this build. The first captured change after the click was posted arrived at 47.109 ms minimum, 64.186 ms median and 94.920 ms maximum. [Navigation samples](30ce06a-navigation.csv)
+
+同一包在 Windows 10 x64 build 19045 上每个场景采样三轮。空闲桌面、空目录网关和回环 Chat 网关的工作集／私有字节中位数分别为 153.42／228.10、8.18／1.62 和 9.54／2.07 MiB。同机 Magpie 0.1.4936 的空目录和回环 Chat 网关为 62.43／96.63 和 69.59／98.77 MiB。回环 Chat 中 Crabforge 与 Magpie 分别列出两个和一个模型 ID。独立的三轮 SSE 请求，首事件为 3.370–3.813 ms，末事件为 703.790–704.350 ms。每轮只请求一次回环上游，代理请求为零。
+
+The same package sampled each workload three times on Windows 10 x64 build 19045. Median working set and private bytes for the idle desktop, empty catalog gateway and loopback Chat gateway were 153.42 / 228.10, 8.18 / 1.62 and 9.54 / 2.07 MiB. Magpie 0.1.4936 on the same host used 62.43 / 96.63 MiB for the empty catalog and 69.59 / 98.77 MiB for loopback Chat. The Chat catalogs listed two model IDs in Crabforge and one in Magpie. Three separate SSE trials received the first event in 3.370–3.813 ms and the final event in 703.790–704.350 ms. Each trial made one loopback upstream request and no proxy request. [Memory samples](30ce06a-memory.csv) · [Streaming samples](30ce06a-forward-h1.csv)
+
+接入 Pi 会话读取后，本地 Windows Debug 双 CLI 使用 Pi 1.6.0 在 Crabforge 管理的配置中再跑 12 轮。两个入口都找到同一原生会话。记忆预览逐条核对 12 条用户提示，模型只收到这 12 条。测试拒绝过期修订和引用助手回复的候选，重复提炼未新增候选。显式审核后可写入项目 `AGENTS.md`，撤回逐字节恢复 BOM 和 CRLF。整个流程保留原会话文件。分支回归覆盖被放弃的提示、上下文编辑和旧版线性日志。
+
+After Pi session discovery was added, both local Windows Debug CLIs exercised another 12 turns with Pi 1.6.0 in the Crabforge-managed profile. Both entry points found the same native session. The memory preview matched all 12 user prompts and the loopback model received those exact messages. The check rejected a stale revision and a proposal citing an assistant reply. A repeated request created no duplicate. Explicit approval enabled publication to the project's `AGENTS.md`, and withdrawal restored the BOM and CRLF bytes. The session file stayed byte for byte intact. Regression coverage includes abandoned branches, context edits and legacy linear logs. [Session reader](../../../crates/core/src/sessions/pi.rs)
+
+Windows Debug 桌面集成测试在 560 逻辑像素宽度显示 Claude Code、Codex 和 Pi 的本地会话。用例切换网格，按 Pi 筛选，打开会话详情和只读的记忆预览，再切回 Codex 完成候选审核和用户指令撤回。
+
+The Windows Debug desktop integration test showed local Claude Code, Codex and Pi sessions at 560 logical pixels. It switched to the grid, filtered for Pi and opened the session details and read-only memory preview. It then switched to Codex to review a candidate and withdraw the publication from user instructions. [Desktop integration test](../../../gui/integration_test/agent_resources_test.dart)
+
 ## 网关设置迁移 / Gateway settings migration
 
 Magpie 0.1.4936 写出的加密备份包含网关端口、浏览器来源及等价模型映射。本地 Windows Debug 双 CLI 通过 `--settings-only` 和 `--settings` 的预览与应用。预览保留原设置字节，旧来源被替换，已有等价模型映射保留。网关在导入的回环端口启动。导入的来源无密钥返回 401，移除的来源即使带密钥也返回 401。导入来源使用有效密钥时，上游先返回 429，再经新映射回退一次并返回 200。测试还检查了非法端口、通配来源和冲突映射均被拒绝且保留原设置。

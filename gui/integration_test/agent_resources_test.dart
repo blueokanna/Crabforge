@@ -82,6 +82,16 @@ void main() {
         'payload': {'type': 'user_message', 'message': 'Codex session fixture'},
       })}\n',
     );
+    final piLog = File('${home.path}/agents/pi/sessions/--fixture--/pi.jsonl');
+    piLog.parent.createSync(recursive: true);
+    piLog.writeAsStringSync(
+      '${jsonEncode({'type': 'session', 'version': 3, 'id': 'pi-fixture-id', 'cwd': home.path})}\n${jsonEncode({
+        'type': 'message',
+        'id': 'user-entry',
+        'parentId': null,
+        'message': {'role': 'user', 'content': 'Pi session fixture'},
+      })}\n',
+    );
     File('${home.path}/settings.json').writeAsStringSync(
       jsonEncode({
         'listen': '127.0.0.1:0',
@@ -133,8 +143,10 @@ void main() {
     await tester.tap(sessions);
     final claudeTitle = find.text('Claude session fixture');
     final codexTitle = find.text('Codex session fixture');
+    final piTitle = find.text('Pi session fixture');
     await waitFor(codexTitle);
     expect(claudeTitle, findsOneWidget);
+    expect(piTitle, findsOneWidget);
     final library = find.byType(Dialog);
     await tester.tap(
       find.descendant(of: library, matching: find.byTooltip('Grid view')),
@@ -145,6 +157,30 @@ void main() {
       findsOneWidget,
     );
     final filter = find.byType(DropdownButton<String>);
+    await tester.tap(filter);
+    await tester.pumpAndSettle();
+    final piFilter = find.descendant(
+      of: find.byType(DropdownMenuItem<String>),
+      matching: find.text('Pi'),
+    );
+    await tester.tap(piFilter.hitTestable());
+    await waitFor(piTitle);
+    expect(tester.widget<DropdownButton<String>>(filter).value, 'pi');
+    expect(codexTitle, findsNothing);
+    await tester.tap(piTitle);
+    await waitFor(find.text('pi-fixture-id'));
+    await tester.tap(find.text(strings.distillTitle));
+    await waitFor(find.text(strings.distillPreview));
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Pi session fixture'),
+      ),
+      findsOneWidget,
+    );
+    expect(requests, isEmpty);
+    await tester.tap(find.text(strings.cancel));
+    await tester.pumpAndSettle();
     await tester.tap(filter);
     await tester.pumpAndSettle();
     final codexFilter = find.descendant(

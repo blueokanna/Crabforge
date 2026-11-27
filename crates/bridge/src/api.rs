@@ -865,13 +865,18 @@ pub fn agent_sessions(agent: Option<String>) -> Result<String> {
     let agent = agent
         .map(|id| NativeAgent::by_id(&id).context("unsupported session agent"))
         .transpose()?;
-    encode(&crabforge_core::sessions::list(agent, 50)?)
+    encode(&crabforge_core::sessions::list(
+        &config::data_dir()?,
+        agent,
+        50,
+    )?)
 }
 
 pub fn preview_session_memory(agent: String, profile: String, session: String) -> Result<String> {
     let agent =
         crabforge_core::agents::NativeAgent::by_id(&agent).context("unsupported session agent")?;
     encode(&crabforge_core::memory::distill::preview(
+        &config::data_dir()?,
         agent,
         Some(profile.as_ref()),
         &session,

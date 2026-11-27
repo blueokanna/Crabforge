@@ -33,11 +33,12 @@ struct Proposal {
 }
 
 fn snapshot(
+    dir: &Path,
     agent: NativeAgent,
     profile: Option<&Path>,
     id: &str,
 ) -> Result<(sessions::Session, Preview)> {
-    let sessions::Excerpt { session, messages } = sessions::excerpt(agent, profile, id)?;
+    let sessions::Excerpt { session, messages } = sessions::excerpt(dir, agent, profile, id)?;
     let cwd = Path::new(&session.cwd);
     let project = cwd.is_absolute().then(|| project_key(cwd).ok()).flatten();
     let revision = hex::encode(Sha256::digest(
@@ -61,8 +62,13 @@ fn snapshot(
     ))
 }
 
-pub fn preview(agent: NativeAgent, profile: Option<&Path>, id: &str) -> Result<Preview> {
-    Ok(snapshot(agent, profile, id)?.1)
+pub fn preview(
+    dir: &Path,
+    agent: NativeAgent,
+    profile: Option<&Path>,
+    id: &str,
+) -> Result<Preview> {
+    Ok(snapshot(dir, agent, profile, id)?.1)
 }
 
 pub async fn propose(
@@ -73,7 +79,7 @@ pub async fn propose(
     model: &str,
     revision: &str,
 ) -> Result<Vec<Entry>> {
-    let (session, preview) = snapshot(agent, profile, id)?;
+    let (session, preview) = snapshot(dir, agent, profile, id)?;
     ensure!(
         preview.revision == revision,
         "session changed; preview it again"

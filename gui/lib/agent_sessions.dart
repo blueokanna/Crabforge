@@ -9,7 +9,7 @@ import 'language.dart';
 import 'memory.dart';
 import 'src/rust/api.dart' as api;
 
-const _agentNames = {'claude': 'Claude Code', 'codex': 'Codex'};
+const _agentNames = {'claude': 'Claude Code', 'codex': 'Codex', 'pi': 'Pi'};
 
 class AgentSessions extends StatefulWidget {
   const AgentSessions({super.key, required this.models});

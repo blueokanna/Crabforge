@@ -195,6 +195,7 @@ pub(super) async fn run(dir: &Path, command: Command) -> Result<()> {
                 )
             } else {
                 print(&memory::distill::preview(
+                    dir,
                     agent,
                     profile.as_deref(),
                     &session,

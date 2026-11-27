@@ -12,6 +12,8 @@ use std::{
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+mod pi;
+
 const MAX_HEADER: u64 = 512 * 1024;
 const MAX_CODEX_WINDOW: u64 = 16 * 1024 * 1024;
 const MAX_EXCERPT_SCAN: u64 = 16 * 1024 * 1024;
@@ -47,18 +49,36 @@ struct Log<'a> {
     archived: bool,
 }
 
-pub fn list(agent: Option<Agent>, limit: usize) -> Result<Listing> {
-    let user = env::home_dir();
-    let roots = [Agent::Claude, Agent::Codex]
+pub fn list(dir: &Path, agent: Option<Agent>, limit: usize) -> Result<Listing> {
+    let roots = [Agent::Claude, Agent::Codex, Agent::Pi]
         .into_iter()
         .filter(|item| agent.is_none_or(|agent| agent == *item))
-        .filter_map(|agent| agent.home().map(|home| (agent, home)))
-        .flat_map(|(agent, home)| {
-            profiles(agent, home, user.as_deref())
+        .flat_map(|agent| {
+            session_profiles(dir, agent)
                 .into_iter()
                 .map(move |path| (agent, path))
         });
     list_in(roots, limit)
+}
+
+fn session_profiles(dir: &Path, agent: Agent) -> Vec<PathBuf> {
+    if agent == Agent::Pi {
+        let configured = env::var_os("PI_CODING_AGENT_SESSION_DIR")
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from);
+        let native = agent.home().map(|home| home.join("sessions"));
+        let managed = dir.join("agents/pi/sessions");
+        let mut seen = HashSet::new();
+        return configured
+            .into_iter()
+            .chain(native)
+            .chain([managed])
+            .filter(|path| seen.insert(path.canonicalize().unwrap_or_else(|_| path.clone())))
+            .collect();
+    }
+    agent.home().map_or_else(Vec::new, |home| {
+        profiles(agent, home, env::home_dir().as_deref())
+    })
 }
 
 fn profiles(agent: Agent, primary: PathBuf, user: Option<&Path>) -> Vec<PathBuf> {
@@ -75,6 +95,7 @@ fn profiles(agent: Agent, primary: PathBuf, user: Option<&Path>) -> Vec<PathBuf>
     let has_sessions = |path: &Path| match agent {
         Agent::Claude => path.join("projects").is_dir(),
         Agent::Codex => path.join("sessions").is_dir() || path.join("archived_sessions").is_dir(),
+        Agent::Pi => false,
     };
     let mut seen: HashSet<_> = primary.canonicalize().into_iter().collect();
     let mut additional = Vec::new();
@@ -136,21 +157,28 @@ fn list_in(roots: impl IntoIterator<Item = (Agent, PathBuf)>, limit: usize) -> R
     Ok(result)
 }
 
-pub(crate) fn excerpt(agent: Agent, profile: Option<&Path>, id: &str) -> Result<Excerpt> {
-    let home = agent.home().context("client profile is unavailable")?;
-    let profile = match profile {
+pub(crate) fn excerpt(
+    dir: &Path,
+    agent: Agent,
+    profile: Option<&Path>,
+    id: &str,
+) -> Result<Excerpt> {
+    let profiles = match profile {
         Some(profile) => {
             let resolved = profile
                 .canonicalize()
                 .context("cannot open client profile")?;
-            profiles(agent, home, env::home_dir().as_deref())
+            let known = session_profiles(dir, agent)
                 .into_iter()
                 .find(|path| path.canonicalize().is_ok_and(|path| path == resolved))
-                .context("profile was not found among the client's local profiles")?
+                .context("profile was not found among the client's local profiles")?;
+            vec![known]
         }
-        None => home,
+        None if agent == Agent::Pi => session_profiles(dir, agent),
+        None => vec![agent.home().context("client profile is unavailable")?],
     };
-    for log in ordered_logs(&[(agent, profile)])? {
+    let roots: Vec<_> = profiles.into_iter().map(|path| (agent, path)).collect();
+    for log in ordered_logs(&roots)? {
         let Ok(mut file) = fs::File::open(&log.path) else {
             continue;
         };
@@ -183,6 +211,7 @@ fn ordered_logs(roots: &[(Agent, PathBuf)]) -> Result<Vec<Log<'_>>> {
                     &mut logs,
                 )?;
             }
+            Agent::Pi => visit(home, 1, *agent, home, false, &mut logs)?,
         }
     }
     logs.sort_unstable_by(|a, b| {
@@ -217,6 +246,7 @@ fn visit<'a>(
                     name.starts_with("rollout-")
                         && (name.ends_with(".jsonl") || name.ends_with(".jsonl.zst"))
                 }
+                Agent::Pi => name.ends_with(".jsonl"),
             }
         {
             match entry.metadata().and_then(|metadata| metadata.modified()) {
@@ -299,6 +329,20 @@ impl Log<'_> {
                         title = message_title(message_parts(row.pointer("/payload/content")));
                     }
                 }
+                Agent::Pi => {
+                    if id.is_empty() {
+                        if pi::version(&row).is_none() {
+                            return Ok(None);
+                        }
+                        id = string(&row, "/id").to_owned();
+                        cwd = string(&row, "/cwd").to_owned();
+                        if id.is_empty() || cwd.is_empty() {
+                            return Ok(None);
+                        }
+                    } else if pi::user_message(&row) {
+                        title = message_title(message_parts(row.pointer("/message/content")));
+                    }
+                }
             }
             if !id.is_empty() && !cwd.is_empty() && !title.is_empty() {
                 break;
@@ -319,6 +363,9 @@ impl Log<'_> {
     }
 
     fn read_excerpt(&self, source: impl Read) -> Result<Vec<String>> {
+        if self.agent == Agent::Pi {
+            return pi::read_excerpt(source);
+        }
         let mut reader = BufReader::new(source.take(MAX_EXCERPT_SCAN));
         let mut bytes = Vec::new();
         let mut native = Messages::default();

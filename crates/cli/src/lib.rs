@@ -137,7 +137,7 @@ enum Command {
         #[command(subcommand)]
         command: plugin_bundles::Command,
     },
-    /// Discover recent local Claude Code and Codex sessions.
+    /// Discover recent local Claude Code, Codex and Pi sessions.
     Sessions {
         #[arg(long, value_enum)]
         agent: Option<SessionAgent>,
@@ -250,6 +250,7 @@ enum Command {
 enum SessionAgent {
     Claude,
     Codex,
+    Pi,
 }
 
 impl From<SessionAgent> for crabforge_core::agents::NativeAgent {
@@ -257,6 +258,7 @@ impl From<SessionAgent> for crabforge_core::agents::NativeAgent {
         match agent {
             SessionAgent::Claude => Self::Claude,
             SessionAgent::Codex => Self::Codex,
+            SessionAgent::Pi => Self::Pi,
         }
     }
 }
@@ -1057,6 +1059,7 @@ async fn dispatch(args: Args) -> Result<()> {
         Command::Sessions { agent, limit } => println!(
             "{}",
             nextjson::to_string_pretty(&crabforge_core::sessions::list(
+                &dir,
                 agent.map(Into::into),
                 usize::from(limit),
             )?)

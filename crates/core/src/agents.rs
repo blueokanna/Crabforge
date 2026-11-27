@@ -112,6 +112,7 @@ pub mod omp_profiles;
 pub enum NativeAgent {
     Claude,
     Codex,
+    Pi,
 }
 
 impl NativeAgent {
@@ -119,6 +120,7 @@ impl NativeAgent {
         match id {
             "claude" => Some(Self::Claude),
             "codex" => Some(Self::Codex),
+            "pi" => Some(Self::Pi),
             _ => None,
         }
     }
@@ -127,6 +129,7 @@ impl NativeAgent {
         match self {
             Self::Claude => "claude",
             Self::Codex => "codex",
+            Self::Pi => "pi",
         }
     }
 
@@ -136,6 +139,7 @@ impl NativeAgent {
         let (key, folder) = match self {
             Self::Claude => ("CLAUDE_CONFIG_DIR", ".claude"),
             Self::Codex => ("CODEX_HOME", ".codex"),
+            Self::Pi => ("PI_CODING_AGENT_DIR", ".pi/agent"),
         };
         env::var_os(key)
             .filter(|path| !path.is_empty())
