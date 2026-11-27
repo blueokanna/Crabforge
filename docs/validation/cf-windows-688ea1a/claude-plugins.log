@@ -1,0 +1,7 @@
+00:00 +0: loading D:/RustProject/Crabforge/dist/cf-windows-688ea1a/source/gui/integration_test/claude_plugins_test.dart
+Building Windows application...                                    44.2s
+Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: Manage Claude plugins in both layouts
+00:24 +1: (tearDownAll)
+00:24 +1: All tests passed!

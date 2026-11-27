@@ -36,7 +36,7 @@ Windows Release 的 Rust 运行器在 `688ea1a` 注册了 Flutter 文件选择�
 
 公开的 `anthropics/claude-plugins-official` 市场返回 317 个候选，其中 316 个有来源。CLI 选中并保存了含五个文件的 `frontend-design` 1.1.1。隔离的 Pi 1.6.0 进程在本地 Pi 包复制出的命令中展开位置参数和全部参数，并收到本机模型夹具响应。同一定义也生成了 Claude Code 命令文件。[公开市场](validation/shared-plugin-library/plugin-bundles-public.csv) · [Pi 进程](validation/shared-plugin-library/plugin-bundles-pi.csv)
 
-共享插件合并提交 `340d95dc49f086dfea0451658897b4cddba5cea6` 通过 156 项 Rust 回归，包含默认忽略的真实客户端进程测试。[完整 Rust 回归](validation/cf-windows-340d95d/regression.log)
+共享插件合并提交 `340d95dc49f086dfea0451658897b4cddba5cea6` 通过 156 项 Rust 回归，包含默认忽略的真实客户端进程测试。该版的 Windows 本机会话用例切换到 Codex 过滤后超时。同一用例在 `688ea1a` 源码上通过。[完整 Rust 回归](validation/cf-windows-340d95d/regression.log) · [较早的会话尝试](validation/cf-windows-340d95d/agent-resources-attempt-1.log) · [冻结版会话结果](validation/cf-windows-688ea1a/agent-resources.log)
 
 Rust 依赖审计覆盖 Windows x64 与 Cargo 全目标的常规、构建及测试依赖。`Cargo.lock` 中还有可选的 `hyper`、`hyper-util`、`serde`、`serde_core` 和 `serde_derive` 记录，当前启用的依赖树均未使用这些包。
 
@@ -47,6 +47,10 @@ Rust 依赖审计覆盖 Windows x64 与 Cargo 全目标的常规、构建及测�
 从 `688ea1aa11811602d6e950fbc40291970d3ad6b1` 离线构建的 `crabforge-0.1.0-windows-x64.zip` 为 64,910,131 字节，SHA-256 为 `9D98775C7EB00B4585FF8920034B45F18F2451A915FFB5C007C2687A47349A61`。核对 360 项构建输入、671 项包内及解压文件哈希、126 项资产和两个 CLI 各 97 项相同预设。三个入口的 Authenticode 状态均为 `NotSigned`。[发布信息](validation/cf-windows-688ea1a/snapshot.csv) · [构建输入](validation/cf-windows-688ea1a/build-inputs.sha256) · [文件哈希](validation/cf-windows-688ea1a/SHA256SUMS) · [签名检查](validation/cf-windows-688ea1a/authenticode.csv)
 
 打包源码 `688ea1a` 通过 157 项 Rust 全量回归，0 失败、0 忽略，包含真实客户端、Pi 包资源和同机 DCUtR 升级。全目标 Clippy、Flutter 分析、两项组件测试及 28 棵依赖树审计也已通过。[Rust 回归](validation/cf-windows-688ea1a/regression.log) · [Clippy](validation/cf-windows-688ea1a/clippy.log) · [Flutter 分析](validation/cf-windows-688ea1a/analyze.log) · [组件测试](validation/cf-windows-688ea1a/widget.log) · [依赖审计](validation/cf-windows-688ea1a/dependency-audit.csv)
+
+冻结源码的 14 轮 Windows Debug 全部通过，覆盖控制台和 Oh My Pi 重启、控制台六页布局，以及客户端资源、规则、技能、项目 MCP、环境变量、Hooks、子代理和命令、Claude Code 插件、共享插件库。控制台在 560 与 1,200 像素、明暗主题及列表和网格组合下生成 48 张截图。Hooks 用例运行期间测试窗口最小化，手动恢复后继续并通过。控制台测试记录了一次点击未命中控件，随后用例通过。[Debug 日志](validation/cf-windows-688ea1a/) · [Hooks](validation/cf-windows-688ea1a/agent-hooks.log) · [浅色 560 像素](validation/cf-windows-688ea1a/light-560.jpg) · [深色 560 像素](validation/cf-windows-688ea1a/dark-560.jpg) · [浅色 1,200 像素](validation/cf-windows-688ea1a/light-1200.jpg) · [深色 1,200 像素](validation/cf-windows-688ea1a/dark-1200.jpg)
+
+Flutter Profile 在布局用例中记录 1,343 个帧回调。UI 构建 P90/P99 为 1.421/7.443 ms，帧总跨度 P90/P99 为 2.988/8.264 ms，三帧超过 16.67 ms，最大值为 26.985 ms。解压后的 Release 用 Windows Graphics Capture 对窗口局部取样，四轮各点击六个页面导航项。24 次切换中，点击到首个局部画面变化为 18.911–45.903 ms，中位数为 27.734 ms，共记录 404 张局部画面变化样本。GPU 执行及物理显示时序待验。[Profile 日志](validation/cf-windows-688ea1a/profile.log) · [逐帧数据](validation/cf-windows-688ea1a/profile-frames.json) · [Windows Graphics Capture](validation/cf-windows-688ea1a/window-capture-frames.csv)
 
 工作区复扫 69,280 个目录，发现 0 个 `vendor` 目录和 0 个遍历错误。冻结版的九个 ARB 文件各有 325 个消息键，键集合完全一致。锁文件核对通过，Courierust 为 1.1.3、NextJSON 为 0.1.5、recurse-x 为 0.2.6、RustBinary 为 0.1.10、libp2p 为 0.57.1。[依赖树](validation/cf-windows-688ea1a/dependency-audit.csv) · [构建输入](validation/cf-windows-688ea1a/build-inputs.sha256)
 
