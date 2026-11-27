@@ -168,6 +168,8 @@ Select **Open project** to enable an installed plugin for one folder through `.c
 
 The plugin menu exports and imports JSON settings. In the CLI, save the output of `claude-plugins export-settings` and load it with `claude-plugins import-settings <file>`. The JSON carries GitHub or plain HTTPS marketplace declarations and their enabled plugin IDs, including enabled plugins from the official market. Local locations and sources with credentials, request headers or URL query parameters stay in the original profile. Import adds missing declarations and flags, keeps existing local choices, and leaves installation to Claude Code.
 
+`carbforge-cli claude-plugins import-magpie <backup>` previews the portable marketplaces and enabled plugin declarations in a Magpie encrypted backup. Pass `--apply` to add them to the user profile. Existing local choices are kept, and the preview identifies conflicting marketplace names and affected plugins. Claude Code handles installation from those declarations.
+
 Open **Client connections → Shared plugin library** to preview a Claude Code, Codex, Antigravity or Pi plugin from its folder, manifest or Git URL. Saving records the full source snapshot, including attachments, and checks that the source still matches the preview. The update action opens a fresh preview and saves against the current library revision.
 
 For a Claude-compatible marketplace, enter its directory, `.claude-plugin/marketplace.json` or Git URL and select **Browse plugins**. The CLI equivalent is `plugin-bundles marketplace <source>`. Choose a listed source to preview its manifest and files before saving.
@@ -177,6 +179,8 @@ Open a saved bundle, then select a component to review and copy an individual sk
 Use `carbforge-cli plugin-bundles preview <source>` to obtain a content hash and `plugin-bundles save <source> --content <hash>` to store it. Add `--revision <revision>` from `plugin-bundles list` when updating. Use `plugin-bundles resources <name> <kind> <path> --revision <revision>` to inspect one component. Repeat with `--copy <key>` to add the reviewed resource to its library.
 
 To move a saved snapshot to another Crabforge profile, choose **Export plugin archive** or run `plugin-bundles export <name> <file.tar> --revision <revision>`. Open the TAR in the destination's import dialog or pass it to `plugin-bundles preview` and `save`. The archive includes the original bundle files and attachments. Assignments and changes in the destination resource libraries are managed there.
+
+`carbforge-cli plugin-bundles import-magpie <backup>` previews complete embedded plugin bundles. Use `--name <name>` to select specific entries and `--apply` to save their snapshots. The preview shows source client assignments and enabled status. Use the project assignment commands to activate a saved bundle. A bundle needs its complete file tree and all components present in its manifest.
 
 In the shared plugin library, open the project packages or project plugins view for Pi, Claude Code, Codex or Antigravity. Choose a project folder and assign the reviewed snapshot. Saving a newer snapshot leaves the project pinned. Use **Sync assignments** to switch versions. Withdrawal preserves edits made outside Crabforge. Each client manages its own project trust.
 

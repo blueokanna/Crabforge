@@ -25,6 +25,7 @@ const MAX_INDEX: usize = 8 * 1024 * 1024;
 const MAX_MANIFEST: usize = 256 * 1024;
 
 mod claude_project;
+mod magpie;
 mod marketplace;
 mod pi;
 mod pi_project;
@@ -32,6 +33,7 @@ mod project;
 mod resources;
 mod workspace_project;
 
+pub use magpie::import_magpie;
 pub use project::Edit as ProjectEdit;
 pub use project::Edit as PiProjectEdit;
 pub use workspace_project::Agent as WorkspaceAgent;
@@ -401,28 +403,10 @@ pub fn edit(dir: &Path, operation: Edit<'_>) -> Result<String> {
         _ => None,
     };
     let library = dir.join("plugin-bundles");
-    fs::create_dir_all(&library)?;
-    let lock = File::options()
-        .create(true)
-        .truncate(false)
-        .read(true)
-        .write(true)
-        .open(library.join("library.lock"))?;
-    lock.lock()?;
+    let _lock = lock_library(&library)?;
     let index = library.join("index.json");
     let snapshots = library.join("objects");
-    let mut bundles: BTreeMap<String, Bundle> = match read_limited(&index, MAX_INDEX) {
-        Ok(bytes) => nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?,
-        Err(error) if error.kind() == ErrorKind::NotFound => BTreeMap::new(),
-        Err(error) => return Err(error.into()),
-    };
-    for bundle in bundles.values() {
-        ensure!(
-            bundle.content.len() == 64
-                && bundle.content.bytes().all(|byte| byte.is_ascii_hexdigit()),
-            "invalid saved plugin snapshot hash"
-        );
-    }
+    let mut bundles = read_index(&index)?;
     match operation {
         Edit::Read => {}
         Edit::Preview { .. } | Edit::Marketplace { .. } => unreachable!(),
@@ -494,12 +478,7 @@ pub fn edit(dir: &Path, operation: Edit<'_>) -> Result<String> {
         }
     }
     if !matches!(operation, Edit::Read) {
-        let data = encode(&bundles)?;
-        ensure!(
-            data.len() <= MAX_INDEX,
-            "plugin bundle catalog exceeds 8 MiB"
-        );
-        replace(&index, &data)?;
+        replace(&index, &encode_index(&bundles)?)?;
     }
     let entries = bundles
         .values()
@@ -517,6 +496,43 @@ pub fn edit(dir: &Path, operation: Edit<'_>) -> Result<String> {
         })
         .collect::<Result<Vec<_>>>()?;
     encode(&entries)
+}
+
+fn lock_library(library: &Path) -> Result<File> {
+    fs::create_dir_all(library)?;
+    let lock = File::options()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(library.join("library.lock"))?;
+    lock.lock()?;
+    Ok(lock)
+}
+
+fn read_index(index: &Path) -> Result<BTreeMap<String, Bundle>> {
+    let bundles: BTreeMap<String, Bundle> = match read_limited(index, MAX_INDEX) {
+        Ok(bytes) => nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?,
+        Err(error) if error.kind() == ErrorKind::NotFound => BTreeMap::new(),
+        Err(error) => return Err(error.into()),
+    };
+    for bundle in bundles.values() {
+        ensure!(
+            bundle.content.len() == 64
+                && bundle.content.bytes().all(|byte| byte.is_ascii_hexdigit()),
+            "invalid saved plugin snapshot hash"
+        );
+    }
+    Ok(bundles)
+}
+
+fn encode_index(bundles: &BTreeMap<String, Bundle>) -> Result<String> {
+    let data = encode(bundles)?;
+    ensure!(
+        data.len() <= MAX_INDEX,
+        "plugin bundle catalog exceeds 8 MiB"
+    );
+    Ok(data)
 }
 
 #[cfg(test)]

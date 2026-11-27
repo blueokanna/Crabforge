@@ -37,6 +37,13 @@ pub(super) enum Command {
     ExportSettings,
     /// Add portable settings from a JSON file to the Claude Code user profile.
     ImportSettings { file: PathBuf },
+    /// Preview or add portable Claude Code plugin settings from an encrypted Magpie backup.
+    ImportMagpie {
+        file: PathBuf,
+        /// Add the declarations to the user profile.
+        #[arg(long)]
+        apply: bool,
+    },
 }
 
 pub(super) fn run(dir: &Path, project: Option<&Path>, command: Command) -> Result<()> {
@@ -84,6 +91,15 @@ pub(super) fn run(dir: &Path, project: Option<&Path>, command: Command) -> Resul
             );
             claude_plugins::import_settings_file(dir, file)?;
             claude_plugins::edit(dir, None, Edit::Read)
+        }
+        Command::ImportMagpie { file, apply } => {
+            ensure!(
+                project.is_none(),
+                "import plugin settings into the user profile"
+            );
+            let passphrase = super::backup_passphrase()?;
+            let report = claude_plugins::import_magpie(dir, file, &passphrase, *apply)?;
+            nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)
         }
     };
     println!("{}", result?);

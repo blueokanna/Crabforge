@@ -69,7 +69,7 @@ pub(crate) fn windows_filename(name: &str) -> bool {
 }
 
 impl Tree {
-    pub(super) fn from_backup(
+    pub(crate) fn from_backup(
         files: BTreeMap<String, String>,
         executable: &BTreeSet<String>,
     ) -> Result<Self> {

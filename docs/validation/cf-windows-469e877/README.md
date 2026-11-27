@@ -328,6 +328,20 @@ Both CLIs tested environment variables from Magpie 0.1.4936 backups with and wit
 
 Both Windows Debug CLIs imported stdio, HTTP and SSE definitions from a Magpie 0.1.4936 encrypted backup. Reports omit command arguments, URLs, environment values and headers. Four competing processes wrote the library once. Conflicting definitions and active tool restrictions blocked the import. Explicit assignments generated native Codex, Gemini and Claude Code configuration in a project path containing Chinese characters and a space. [MCP importer](../../../crates/core/src/project_mcp/library/magpie.rs)
 
+Windows Actions `45992223719` 从 `7fd0552e6b2a069381627241e16e0f30f964cba6` 构建，通过依赖门禁、Clippy、141 项 Rust 测试和 Flutter 检查。ZIP `15195319324` 为 65,532,592 字节，SHA-256 为 `6a1501d8826f2ffda797457fcd07e670fe4168222ffc8d01e371520764255412`。670 项逐文件清单的 SHA-256 为 `1c858d42390a6b9f0ccfbd1f3b51b79c4dc13061737c75de33d0c00a5b319d4d`。桌面通过启动和退出测试，六个 PE 均返回 `NotSigned`。双 CLI 通过供应商、路由、设置、口令无回显、记忆及命令、子代理、规则、环境、MCP 回归。Pi 和 Gemini 分别恢复 12 轮原生会话。验收结束时远端 `main` 匹配上述完整 SHA。
+
+Windows Actions run `45992223719` built `7fd0552e6b2a069381627241e16e0f30f964cba6`. The dependency gate, Clippy, 141 Rust tests and Flutter checks passed. Artifact `15195319324` was 65,532,592 bytes with SHA-256 `6a1501d8826f2ffda797457fcd07e670fe4168222ffc8d01e371520764255412`. The 670-file manifest has SHA-256 `1c858d42390a6b9f0ccfbd1f3b51b79c4dc13061737c75de33d0c00a5b319d4d`. The desktop opened and exited cleanly, and all six PE files reported `NotSigned`. Both CLIs passed provider, routing, settings, hidden passphrase entry, memory, commands, subagents, rules, environment and MCP regressions. Pi and Gemini each resumed 12 native turns. Remote `main` matched the full build SHA at the end of verification. [Actions run](https://github.com/blueokanna/Crabforge/actions/runs/45992223719) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/45992223719/artifacts/15195319324)
+
+下载包的回环 SSE 首事件为 `20.984`、`14.220` 和 `6.363 ms`。每轮返回 HTTP 200、向上游请求一次且未使用代理。
+
+The unpacked CLI's three loopback SSE first events arrived at `20.984`, `14.220` and `6.363 ms`. Each trial returned HTTP 200, made one upstream request and sent zero proxy requests. [Raw timings](7fd0552-forward-h1.csv)
+
+## 插件备份迁移 / Plugin backup migration
+
+两个 Windows Debug CLI 读取了便携版 Magpie 0.1.4936 生成的加密备份。Claude Code 配置保留已有停用项和同名本地市场，报告受影响的插件，重复应用保持文件字节一致。共享插件的四个并发应用仅创建一次快照，导出的 TAR 逐文件匹配原件，包括 CRLF 和中文路径的二进制附件。测试覆盖同名不同内容的冲突、仅有远程来源的条目，以及 Codex 项目的显式分配和撤回。
+
+Both Windows Debug CLIs read an encrypted backup produced by portable Magpie 0.1.4936. The Claude Code import preserved a disabled plugin and a colliding local marketplace, reported affected plugins, and left the file byte-identical on reapply. Four competing shared bundle imports created one snapshot. The exported TAR matched every original file, including CRLF and a binary attachment with a Chinese filename. The fixture covered same-name content conflicts, a source-only entry, and explicit Codex project assignment and withdrawal. [Claude Code settings](../../../crates/core/src/claude_plugins/transfer.rs) · [Shared bundles](../../../crates/core/src/plugin_bundles/magpie.rs)
+
 ## 技能与钩子备份迁移 / Skill and hook backup migration
 
 用 Magpie 0.1.4936 的便携配置生成加密备份。双 Windows Debug CLI 只读预览技能，保留 `SKILL.md` 的 CRLF、含中文路径的二进制附件及客户端分配。四进程并发仅写入一次。显式同步发布到 Claude Code、Codex 和 Pi，撤销保留了外部编辑。钩子用例覆盖命令遮蔽、密码错误、选名、并发、批次冲突及不兼容会话匹配条件。同步后核对 Claude Code 的 `Bash`、Codex 的 `resume` 和 Gemini 的 `run_shell_command` 及毫秒超时，并验证撤销。

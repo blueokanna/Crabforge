@@ -1,5 +1,10 @@
 use super::{EMPTY, ENABLED, MARKETPLACES, enabled, encode, patch_setting, read_object, valid_id};
-use crate::{agents::NativeAgent, config::read_limited, native_settings, project_mcp::jsonc};
+use crate::{
+    agents::NativeAgent,
+    config::{open_magpie_backup, read_limited},
+    native_settings,
+    project_mcp::jsonc,
+};
 use anyhow::{Context, Result, ensure};
 use nextjson::{Map, NsonDeserialize, NsonSerialize, Value};
 use std::{
@@ -17,6 +22,13 @@ struct Settings {
     marketplaces: BTreeMap<String, Value>,
     #[nextjson(default)]
     enabled: BTreeSet<String>,
+}
+
+#[derive(Default, NsonSerialize)]
+pub struct ImportReport {
+    marketplaces: BTreeMap<String, &'static str>,
+    plugins: BTreeMap<String, &'static str>,
+    applied: bool,
 }
 
 fn text(value: &Value, key: &str) -> Option<String> {
@@ -152,10 +164,11 @@ fn export(known: &Value, source: &str) -> Result<Settings> {
     })
 }
 
-fn merge(known: &Value, source: &str, incoming: Settings) -> Result<String> {
+fn merge(known: &Value, source: &str, incoming: Settings) -> Result<(String, ImportReport)> {
     let existing = marketplaces(known, source)?;
     let flags = enabled(source)?;
     let mut output = source.to_owned();
+    let mut report = ImportReport::default();
     let mut eligible = BTreeSet::from([OFFICIAL.to_owned()]);
     for (name, entry) in incoming.marketplaces {
         ensure!(
@@ -164,30 +177,42 @@ fn merge(known: &Value, source: &str, incoming: Settings) -> Result<String> {
         );
         let entry = portable(&entry)
             .context("shared marketplace needs a portable GitHub or HTTPS source")?;
-        if let Some(current) = existing.get(&name) {
+        let action = if let Some(current) = existing.get(&name) {
             if current.as_ref().and_then(|value| value.get("source")) == entry.get("source") {
-                eligible.insert(name);
+                eligible.insert(name.clone());
+                "existing"
+            } else {
+                "conflict"
             }
         } else {
             output = patch_setting(&output, MARKETPLACES, &name, Some(entry))?;
-            eligible.insert(name);
-        }
+            eligible.insert(name.clone());
+            "add"
+        };
+        report.marketplaces.insert(name, action);
     }
     for id in incoming.enabled {
         ensure!(valid_id(&id), "invalid shared Claude Code plugin ID");
         let (_, market) = id.split_once('@').expect("validated plugin ID");
-        if eligible.contains(market) && !flags.contains_key(&id) {
+        let action = if flags.contains_key(&id) {
+            "existing"
+        } else if eligible.contains(market) {
             output = patch_setting(&output, ENABLED, &id, Some(Value::from(true)))?;
-        }
+            "add"
+        } else {
+            "marketplace_unavailable"
+        };
+        report.plugins.insert(id, action);
     }
-    Ok(output)
+    Ok((output, report))
 }
 
 fn with_profile<T>(
     dir: &Path,
+    lock: bool,
     action: impl FnOnce(&Path, Option<&str>, Value) -> Result<T>,
 ) -> Result<T> {
-    let _guard = native_settings::lock(dir)?;
+    let _guard = lock.then(|| native_settings::lock(dir)).transpose()?;
     let home = NativeAgent::Claude
         .home()
         .context("Claude Code profile is unavailable")?;
@@ -198,7 +223,7 @@ fn with_profile<T>(
 }
 
 pub fn export_settings(dir: &Path) -> Result<String> {
-    with_profile(dir, |_, source, known| {
+    with_profile(dir, true, |_, source, known| {
         encode(&export(&known, source.unwrap_or(EMPTY))?)
     })
 }
@@ -215,13 +240,41 @@ pub fn import_settings(dir: &Path, text: &str) -> Result<()> {
     );
     let incoming =
         nextjson::from_str(text.trim_start_matches('\u{feff}')).map_err(anyhow::Error::msg)?;
-    with_profile(dir, |path, source, known| {
+    merge_profile(dir, incoming, true)?;
+    Ok(())
+}
+
+/// Restore portable marketplace sources and enabled plugin declarations from a Magpie backup.
+pub fn import_magpie(
+    dir: &Path,
+    file: &Path,
+    passphrase: &str,
+    apply: bool,
+) -> Result<ImportReport> {
+    let backup = open_magpie_backup(file, passphrase)?;
+    let declarations = backup
+        .get("library")
+        .and_then(|library| library.get("claudePlugins"))
+        .filter(|value| !value.is_null())
+        .context("Magpie backup has no Claude Code plugin settings")?;
+    let incoming = nextjson::from_value(declarations.clone())
+        .map_err(|_| anyhow::anyhow!("invalid Magpie Claude Code plugin settings"))?;
+    ensure!(
+        encode(&incoming)?.len() <= LIMIT,
+        "shared Claude Code settings exceed 1 MiB"
+    );
+    merge_profile(dir, incoming, apply)
+}
+
+fn merge_profile(dir: &Path, incoming: Settings, apply: bool) -> Result<ImportReport> {
+    with_profile(dir, apply, |path, source, known| {
         let before = source.unwrap_or(EMPTY);
-        let after = merge(&known, before, incoming)?;
-        if after != before {
+        let (after, mut report) = merge(&known, before, incoming)?;
+        if apply && after != before {
             native_settings::write(path, source, Some(&after))?;
         }
-        Ok(())
+        report.applied = apply;
+        Ok(report)
     })
 }
 
@@ -253,16 +306,22 @@ mod tests {
         );
         let target =
             "\u{feff}{\r\n  // keep\r\n  \"enabledPlugins\": {\"a@alpha\":false},\r\n}\r\n";
-        let after = merge(&known, target, outgoing)?;
+        let (after, report) = merge(&known, target, outgoing)?;
         assert!(after.contains("// keep\r\n") && after.starts_with('\u{feff}'));
         let flags = enabled(&after)?;
         assert_eq!(flags.get("a@alpha"), Some(&"false"));
         assert_eq!(flags.get("b@alpha"), Some(&"true"));
         assert_eq!(flags.get("e@claude-plugins-official"), Some(&"true"));
+        assert_eq!(report.plugins.get("a@alpha"), Some(&"existing"));
         let target = r#"{"extraKnownMarketplaces":{"alpha":{"source":{"source":"directory","path":"C:/local"}}}}"#;
-        let after = merge(&known, target, export(&known, source)?)?;
+        let (after, report) = merge(&known, target, export(&known, source)?)?;
         assert!(!enabled(&after)?.contains_key("a@alpha"));
         assert!(after.contains("C:/local"));
+        assert_eq!(report.marketplaces.get("alpha"), Some(&"conflict"));
+        assert_eq!(
+            report.plugins.get("a@alpha"),
+            Some(&"marketplace_unavailable")
+        );
         Ok(())
     }
 }

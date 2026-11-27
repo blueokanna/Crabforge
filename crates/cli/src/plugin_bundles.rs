@@ -23,6 +23,16 @@ pub(super) enum Command {
         #[arg(long)]
         revision: Option<String>,
     },
+    /// Preview or restore complete plugin snapshots from an encrypted Magpie backup.
+    ImportMagpie {
+        file: PathBuf,
+        /// Select one or more names. Defaults to all plugin snapshots in the backup.
+        #[arg(long = "name")]
+        names: Vec<String>,
+        /// Save snapshots to the shared catalog for project assignment.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Remove a bundle from the shared catalog.
     Remove {
         name: String,
@@ -125,6 +135,15 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
             content,
             revision: revision.as_deref(),
         },
+        Command::ImportMagpie { file, names, apply } => {
+            let passphrase = super::backup_passphrase()?;
+            let report = plugin_bundles::import_magpie(dir, file, &passphrase, names, *apply)?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+            );
+            return Ok(());
+        }
         Command::Remove { name, revision } => Edit::Remove { name, revision },
         Command::Export {
             name,
