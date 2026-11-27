@@ -20,6 +20,7 @@ use subtle::ConstantTimeEq;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use url::Url;
 
+mod classifier;
 mod cors;
 mod first_content;
 mod native;
@@ -716,6 +717,7 @@ async fn serve_http(
         headers: &parts.headers,
         bytes,
         ollama: None,
+        classifier: false,
     };
     forward(gw, caller, input, permit).await
 }
@@ -726,6 +728,7 @@ struct Inbound<'a> {
     headers: &'a HeaderMap,
     bytes: Bytes,
     ollama: Option<ollama::Output>,
+    classifier: bool,
 }
 
 async fn forward(
@@ -740,6 +743,7 @@ async fn forward(
         headers,
         bytes,
         ollama,
+        classifier,
     } = input;
     let content_type = headers
         .get(header::CONTENT_TYPE)
@@ -797,14 +801,25 @@ async fn forward(
     let facts = api
         .format()
         .filter(|_| {
-            !gw.rules.is_empty()
+            !classifier
+                && !gw.rules.is_empty()
                 && (matches!(route, Route::Group { .. }) || !route.fallbacks(&gw.config).is_empty())
         })
         .and_then(|format| rules::Facts::read(format, &bytes, caller, headers));
     let paused = std::sync::atomic::AtomicBool::new(false);
-    let mut candidates =
-        patience::Attempts::new(gw.candidates(*route, api, &picks, facts.as_ref(), &paused));
-    if !candidates.has_more() {
+    let routing = routing::RequestRoute {
+        api,
+        picks: &picks,
+        facts: facts.as_ref(),
+        paused: &paused,
+        classifier,
+    };
+    let mut candidates = patience::Attempts::new(gw.candidates(
+        *route,
+        routing,
+        classifier::Classification::new(&permit),
+    ));
+    if !candidates.has_more().await {
         if paused.load(std::sync::atomic::Ordering::Relaxed) {
             return failure(
                 StatusCode::SERVICE_UNAVAILABLE,
@@ -817,11 +832,12 @@ async fn forward(
         );
     }
     let mut requested_stream = None;
-    while let Some(candidate) = candidates.next() {
+    while let Some(candidate) = candidates.next().await {
         let p = &gw.config.providers[candidate.target.provider];
         let model = &p.models[candidate.target.model];
         let record = |status| gw.record(caller, &asked, &p.id, &candidate.via, status);
-        let retry_candidate = (api.format().is_some()
+        let retry_candidate = (!classifier
+            && api.format().is_some()
             && !candidate.patience.is_zero()
             && matches!(candidate.destination, Destination::Upstream(..)))
         .then(|| candidate.clone());
@@ -1042,7 +1058,7 @@ async fn forward(
             if patience::retryable(status) {
                 upstream = candidates.observe(retry_candidate, upstream).await;
             }
-            if candidates.has_more() {
+            if candidates.has_more().await {
                 record(status.as_u16());
                 continue;
             }

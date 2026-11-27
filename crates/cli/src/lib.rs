@@ -461,6 +461,11 @@ enum GroupCommand {
         #[arg(allow_negative_numbers = true)]
         seconds: i32,
     },
+    /// Set the shared classifier timeout in seconds. Use 0 for 15 seconds.
+    ClassifyTimeout {
+        #[arg(value_parser = clap::value_parser!(i32).range(0..=60))]
+        seconds: i32,
+    },
     /// Show routing rules as JSON, or replace them from a file. Use - for standard input.
     Rules {
         id: String,
@@ -695,8 +700,20 @@ async fn dispatch(args: Args) -> Result<()> {
                     );
                     if let Some(file) = file {
                         let text = groups::read_definition(Some(file))?;
-                        let rules: Vec<config::RoutingRule> =
+                        let definition: nextjson::Value =
                             nextjson::from_str(&text).map_err(anyhow::Error::msg)?;
+                        let rules = if definition.is_array() {
+                            nextjson::from_value(definition).map_err(anyhow::Error::msg)?
+                        } else {
+                            let definition: config::RuleSet =
+                                nextjson::from_value(definition).map_err(anyhow::Error::msg)?;
+                            cfg.group_classifiers.remove(&id);
+                            if !definition.classifiers.is_empty() {
+                                cfg.group_classifiers
+                                    .insert(id.clone(), definition.classifiers);
+                            }
+                            definition.rules
+                        };
                         if rules.is_empty() {
                             cfg.group_rules.remove(&id);
                         } else {
@@ -705,10 +722,16 @@ async fn dispatch(args: Args) -> Result<()> {
                         config::save(&dir, &previous, &cfg.to_json()?)?;
                     } else {
                         let rules = cfg.group_rules.get(&id).map_or(&[][..], Vec::as_slice);
-                        println!(
-                            "{}",
-                            nextjson::to_string_pretty(&rules).map_err(anyhow::Error::msg)?
-                        );
+                        let text = if let Some(classifiers) = cfg.group_classifiers.get(&id) {
+                            nextjson::to_string_pretty(&config::RuleSet {
+                                rules: rules.to_vec(),
+                                classifiers: classifiers.clone(),
+                            })
+                        } else {
+                            nextjson::to_string_pretty(&rules)
+                        }
+                        .map_err(anyhow::Error::msg)?;
+                        println!("{text}");
                     }
                 }
                 GroupCommand::ByName(args) => {
@@ -866,6 +889,10 @@ async fn dispatch(args: Args) -> Result<()> {
                     cfg.default_group_patience = seconds;
                     config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
+                GroupCommand::ClassifyTimeout { seconds } => {
+                    cfg.classify_timeout = seconds;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
+                }
                 GroupCommand::Set {
                     id,
                     members,
@@ -968,6 +995,7 @@ async fn dispatch(args: Args) -> Result<()> {
                     cfg.group_first_content.remove(&id);
                     cfg.group_patience.remove(&id);
                     cfg.group_rules.remove(&id);
+                    cfg.group_classifiers.remove(&id);
                     cfg.group_off.remove(&id);
                     cfg.group_unlists.remove(&id);
                     cfg.group_display_order.retain(|name| name != &id);

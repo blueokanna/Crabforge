@@ -13,7 +13,7 @@ use nextjson::{NsonDeserialize, NsonSerialize};
 use tempfile::NamedTempFile;
 use url::Url;
 pub(crate) mod groups;
-pub use groups::rules::RoutingRule;
+pub use groups::rules::{Classifiers, RoutingRule, RuleSet};
 mod magpie;
 mod origins;
 mod rename;
@@ -113,6 +113,10 @@ pub struct Config {
     #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_rules: BTreeMap<String, Vec<RoutingRule>>,
     #[njson(skip_serializing_if = "BTreeMap::is_empty")]
+    pub group_classifiers: BTreeMap<String, Classifiers>,
+    #[njson(skip_serializing_if = "is_zero")]
+    pub classify_timeout: i32,
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_off: BTreeMap<String, BTreeSet<String>>,
     /// Groups whose direct model members are omitted from client catalogs.
     #[njson(skip_serializing_if = "BTreeSet::is_empty")]
@@ -167,6 +171,8 @@ impl Default for Config {
             group_patience: BTreeMap::new(),
             default_group_patience: disabled_patience(),
             group_rules: BTreeMap::new(),
+            group_classifiers: BTreeMap::new(),
+            classify_timeout: 0,
             group_off: BTreeMap::new(),
             group_unlists: BTreeSet::new(),
             disabled_groups: BTreeSet::new(),
@@ -433,16 +439,16 @@ impl Config {
                 p.id
             );
             ensure!(
+                (-1..=240).contains(&p.patience),
+                "{}: retry patience must be between -1 and 240 seconds",
+                p.id
+            );
+            ensure!(
                 p.key_env.is_empty()
                     || (p
                         .key_env
                         .bytes()
                         .all(|b| b.is_ascii_alphanumeric() || b == b'_')
-            ensure!(
-                (-1..=240).contains(&p.patience),
-                "{}: retry patience must be between -1 and 240 seconds",
-                p.id
-            );
                         && !p.key_env.as_bytes()[0].is_ascii_digit()),
                 "invalid key environment variable"
             );
@@ -627,6 +633,15 @@ impl Config {
             for (index, rule) in rules.iter().enumerate() {
                 rule.validate()
                     .with_context(|| format!("group {group}, rule {}", index + 1))?;
+                ensure!(
+                    rule.intent.is_empty()
+                        || self
+                            .group_classifiers
+                            .get(group)
+                            .is_some_and(|settings| !settings.classifier.is_empty()),
+                    "group {group}, rule {}: intent requires a classifier",
+                    index + 1
+                );
                 for target in rule.targets() {
                     ensure!(
                         members.contains(target),
@@ -634,6 +649,48 @@ impl Config {
                         index + 1
                     );
                 }
+            }
+        }
+        ensure!(
+            (0..=60).contains(&self.classify_timeout),
+            "classifier timeout must be between 0 and 60 seconds"
+        );
+        let classifier_models: HashSet<_> = self
+            .providers
+            .iter()
+            .filter(|provider| provider.web_site.is_none())
+            .flat_map(|provider| {
+                provider
+                    .models
+                    .iter()
+                    .map(|model| format!("{}/{model}", provider.id))
+            })
+            .collect();
+        for (group, classifiers) in &self.group_classifiers {
+            ensure!(
+                self.groups.contains_key(group),
+                "classifier references an unknown group {group}"
+            );
+            ensure!(
+                classifiers.classify_prompt.chars().count() <= 4000,
+                "group {group}: classifier prompt exceeds 4000 characters"
+            );
+            ensure!(
+                !classifiers.classifier.is_empty() || classifiers.classifier_more.is_empty(),
+                "group {group}: backup classifiers require a primary classifier"
+            );
+            let mut seen = HashSet::new();
+            for target in classifiers.targets() {
+                let model = self.renamed_model(target);
+                let group_ref = resolved.group_reference(self, target);
+                let canonical = model.as_deref().or(group_ref.as_deref()).unwrap_or(target);
+                ensure!(
+                    (classifier_models.contains(canonical)
+                        || group_ref.as_deref() == Some(canonical)
+                            && canonical.strip_prefix("group/") != Some(group))
+                        && seen.insert(canonical.to_owned()),
+                    "group {group}: invalid or duplicate classifier {target:?}"
+                );
             }
         }
         ensure!(

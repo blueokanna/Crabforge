@@ -772,7 +772,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupRoutingRules => 'Routing rules (JSON)';
 
   @override
-  String get invalidGroupRoutingRules => 'Enter a JSON array of rule objects.';
+  String get invalidGroupRoutingRules =>
+      'Enter a JSON array of rules or a JSON object with a rules array.';
+
+  @override
+  String get classifyTimeoutSeconds => 'Classifier timeout (seconds)';
+
+  @override
+  String get classifyTimeoutHelp =>
+      'Use 1 to 60 seconds, or 0 for the 15-second default.';
 
   @override
   String get defaultGroupPatienceHelp =>

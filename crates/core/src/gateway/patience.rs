@@ -1,9 +1,9 @@
 use super::routing::Candidate;
 use axum_core::{body::Body, response::Response};
 use bytes::BytesMut;
-use futures_util::{StreamExt, stream};
+use futures_util::{Stream, StreamExt, stream};
 use http::{HeaderMap, StatusCode, header};
-use std::{collections::VecDeque, iter::Peekable, time::Duration};
+use std::{collections::VecDeque, pin::Pin, time::Duration};
 use time::{OffsetDateTime, format_description::well_known::Rfc2822};
 use tokio::time::Instant;
 
@@ -84,18 +84,20 @@ struct Waiting<'a> {
     ready: Instant,
 }
 
-pub(super) struct Attempts<'a, I: Iterator<Item = Candidate<'a>>> {
-    initial: Peekable<I>,
+pub(super) struct Attempts<'a, S: Stream<Item = Candidate<'a>>> {
+    initial: Pin<Box<S>>,
+    next: Option<Candidate<'a>>,
     current: VecDeque<Candidate<'a>>,
     waiting: Vec<Waiting<'a>>,
     started: Option<Instant>,
     rounds: u32,
 }
 
-impl<'a, I: Iterator<Item = Candidate<'a>>> Attempts<'a, I> {
-    pub(super) fn new(candidates: I) -> Self {
+impl<'a, S: Stream<Item = Candidate<'a>>> Attempts<'a, S> {
+    pub(super) fn new(candidates: S) -> Self {
         Self {
-            initial: candidates.peekable(),
+            initial: Box::pin(candidates),
+            next: None,
             current: VecDeque::new(),
             waiting: Vec::new(),
             started: None,
@@ -103,16 +105,22 @@ impl<'a, I: Iterator<Item = Candidate<'a>>> Attempts<'a, I> {
         }
     }
 
-    pub(super) fn has_more(&mut self) -> bool {
-        !self.current.is_empty() || self.initial.peek().is_some()
+    pub(super) async fn has_more(&mut self) -> bool {
+        if self.current.is_empty() && self.next.is_none() {
+            self.next = self.initial.next().await;
+        }
+        !self.current.is_empty() || self.next.is_some()
     }
 
-    pub(super) fn next(&mut self) -> Option<Candidate<'a>> {
-        self.current.pop_front().or_else(|| self.initial.next())
+    pub(super) async fn next(&mut self) -> Option<Candidate<'a>> {
+        match self.current.pop_front().or_else(|| self.next.take()) {
+            Some(candidate) => Some(candidate),
+            None => self.initial.next().await,
+        }
     }
 
     pub(super) async fn advance(&mut self) -> bool {
-        if self.has_more() {
+        if self.has_more().await {
             return true;
         }
         let Some(retry_at) = self.replan() else {

@@ -261,26 +261,39 @@ void main() {
       final seconds = width == 1200 ? 2 : -1;
       final patience = width == 1200 ? 10 : -1;
       final tokens = width == 1200 ? 100 : 200;
+      final intent = 'Review $width';
       await saveLimits(
         seconds,
         patience,
         (cfg) =>
             cfg['group_first_content']?['review'] == seconds &&
             cfg['group_patience']?['review'] == patience &&
-            cfg['group_rules']?['review']?[0]['tokens'] == tokens,
-        routingRules: '[{"use":"openai/gpt-4.1","tokens":$tokens}]',
+            cfg['group_rules']?['review']?[0]['tokens'] == tokens &&
+            cfg['group_rules']?['review']?[0]['intent'] == intent &&
+            cfg['group_classifiers']?['review']?['classifier'] ==
+                'openai/gpt-4.1',
+        routingRules:
+            '{"classifier":"openai/gpt-4.1","rules":[{"use":"openai/gpt-4.1","tokens":$tokens,"intent":"$intent"}]}',
       );
       await openPage(nav, strings.gateway);
       await tester.tap(find.text(strings.networkSettings));
       await tester.pumpAndSettle();
       final defaultSeconds = width == 1200 ? 3 : 4;
       final defaultPatience = width == 1200 ? 12 : 0;
+      final classifySeconds = width == 1200 ? 8 : 60;
+      final classifyField = find.widgetWithText(
+        TextFormField,
+        strings.classifyTimeoutSeconds,
+      );
+      await tester.ensureVisible(classifyField);
+      await tester.enterText(classifyField, '$classifySeconds');
       await saveLimits(
         defaultSeconds,
         defaultPatience,
         (cfg) =>
             cfg['default_group_first_content'] == defaultSeconds &&
-            cfg['default_group_patience'] == defaultPatience,
+            cfg['default_group_patience'] == defaultPatience &&
+            cfg['classify_timeout'] == classifySeconds,
       );
       expect(tester.takeException(), isNull);
     }

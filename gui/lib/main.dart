@@ -571,7 +571,10 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         note: settings['group_notes']?[id],
         firstContent: settings['group_first_content']?[id] ?? 0,
         patience: settings['group_patience']?[id] ?? 0,
-        routingRules: List<JsonMap>.from(settings['group_rules']?[id] ?? []),
+        routingRules: {
+          ...?settings['group_classifiers']?[id] as JsonMap?,
+          'rules': settings['group_rules']?[id] ?? [],
+        },
         listMembers: settings['group_unlists']?.contains(id) != true,
         off: List<String>.from(settings['group_off']?[id] ?? []),
         pick: groupPicks[id] ?? settings['group_last_picks']?[id],
@@ -612,6 +615,8 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       }
       if (!mounted) return;
     }
+    final routingRules = value.routingRules['rules'] as List;
+    final classifiers = {...value.routingRules}..remove('rules');
     await save({
       ...base,
       'groups': {...base['groups'] as JsonMap, name: value.members},
@@ -637,7 +642,12 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       'group_rules': {
         for (final e in (base['group_rules'] as JsonMap? ?? {}).entries)
           if (e.key != name) e.key: e.value,
-        if (value.routingRules.isNotEmpty) name: value.routingRules,
+        if (routingRules.isNotEmpty) name: routingRules,
+      },
+      'group_classifiers': {
+        for (final e in (base['group_classifiers'] as JsonMap? ?? {}).entries)
+          if (e.key != name) e.key: e.value,
+        if (classifiers.isNotEmpty) name: classifiers,
       },
       'group_off': {...?base['group_off'] as JsonMap?, name: value.off},
       'group_unlists': [
@@ -1274,6 +1284,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                           }..remove(e.key),
                           'group_rules': {
                             ...?settings['group_rules'] as JsonMap?,
+                          }..remove(e.key),
+                          'group_classifiers': {
+                            ...?settings['group_classifiers'] as JsonMap?,
                           }..remove(e.key),
                           'group_labels': {
                             ...?settings['group_labels'] as JsonMap?,

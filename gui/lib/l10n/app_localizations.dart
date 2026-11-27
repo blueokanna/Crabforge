@@ -1495,8 +1495,20 @@ abstract class AppLocalizations {
   /// No description provided for @invalidGroupRoutingRules.
   ///
   /// In en, this message translates to:
-  /// **'Enter a JSON array of rule objects.'**
+  /// **'Enter a JSON array of rules or a JSON object with a rules array.'**
   String get invalidGroupRoutingRules;
+
+  /// No description provided for @classifyTimeoutSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Classifier timeout (seconds)'**
+  String get classifyTimeoutSeconds;
+
+  /// No description provided for @classifyTimeoutHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Use 1 to 60 seconds, or 0 for the 15-second default.'**
+  String get classifyTimeoutHelp;
 
   /// No description provided for @defaultGroupPatienceHelp.
   ///

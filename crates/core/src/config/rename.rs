@@ -99,6 +99,9 @@ impl Config {
         for rule in self.group_rules.values_mut().flatten() {
             rule.remap(|id| Some(rename(id).unwrap_or_else(|| id.to_owned())));
         }
+        for classifiers in self.group_classifiers.values_mut() {
+            classifiers.rename_targets(rename);
+        }
         for pick in self
             .group_picks
             .values_mut()

@@ -157,6 +157,7 @@ impl Endpoint {
             headers: &parts.headers,
             bytes: Bytes::from(chat),
             ollama: Some(output),
+            classifier: false,
         };
         let response = forward(gw, caller, input, permit).await;
         if response.status().is_success() {

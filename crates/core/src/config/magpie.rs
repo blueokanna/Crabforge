@@ -329,6 +329,8 @@ struct BackupSettings {
     group_first_content: Option<i32>,
     #[njson(default, skip_serializing_if = "Option::is_none")]
     group_patience: Option<i32>,
+    #[njson(default, skip_serializing_if = "Option::is_none")]
+    classify_timeout: Option<i32>,
     #[njson(flatten, skip_serializing)]
     other: BTreeMap<String, Value>,
 }
@@ -441,15 +443,15 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
     let Some(raw @ Value::Object(_)) = raw else {
         anyhow::bail!("Magpie backup has no settings object");
     };
-    let mut imported: BackupSettings = nextjson::from_value(raw).map_err(|_| {
-        anyhow::anyhow!("invalid Magpie port, corsOrigins, modelSameAs, groupFirstToken or groupPatience setting")
-    })?;
+    let mut imported: BackupSettings =
+        nextjson::from_value(raw).map_err(|_| anyhow::anyhow!("invalid Magpie gateway setting"))?;
     ensure!(
         imported.port.is_some()
             || imported.cors_origins.is_some()
             || imported.model_same_as.is_some()
             || imported.group_first_content.is_some()
-            || imported.group_patience.is_some(),
+            || imported.group_patience.is_some()
+            || imported.classify_timeout.is_some(),
         "Magpie backup has no supported settings to import"
     );
     if let Some(port) = &mut imported.port {
@@ -486,6 +488,9 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
     }
     if let Some(seconds) = imported.group_patience {
         cfg.default_group_patience = seconds;
+    }
+    if let Some(seconds) = imported.classify_timeout {
+        cfg.classify_timeout = seconds;
     }
     let skipped_fields = std::mem::take(&mut imported.other).into_keys().collect();
     Ok(MagpieSettingsImport {

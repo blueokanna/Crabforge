@@ -1,4 +1,7 @@
-use super::{Api, Config, Destination, Gateway, NativeProtocols, Round, Target};
+use super::{
+    Api, Config, Destination, Gateway, NativeProtocols, Round, Target, classifier::Classification,
+};
+use futures_util::{Stream, StreamExt, stream};
 use std::{
     collections::{BTreeMap, HashSet},
     sync::atomic::{AtomicBool, Ordering},
@@ -54,18 +57,36 @@ enum Plan<'a> {
         round: Option<&'a Round>,
         branches: Vec<(usize, Plan<'a>)>,
         preferred: usize,
+        classify: Option<Box<Decision<'a>>>,
     },
 }
 
 impl Plan<'_> {
-    fn has_unrestricted_model(&self, config: &Config) -> bool {
+    fn has_model(
+        &self,
+        config: &Config,
+        emitted: &HashSet<(usize, usize)>,
+        require_unrestricted: bool,
+    ) -> bool {
         match self {
-            Self::Model(candidate) => !config.providers[candidate.target.provider].no_stand_in,
+            Self::Model(candidate) => {
+                let target = candidate.target;
+                !emitted.contains(&(target.provider, target.model))
+                    && (!require_unrestricted || !config.providers[target.provider].no_stand_in)
+            }
             Self::Group { branches, .. } => branches
                 .iter()
-                .any(|(_, plan)| plan.has_unrestricted_model(config)),
+                .any(|(_, plan)| plan.has_model(config, emitted, require_unrestricted)),
         }
     }
+}
+
+struct Decision<'a> {
+    route: Route,
+    settings: &'a crate::config::Classifiers,
+    intents: Vec<&'a str>,
+    via: Vec<&'a str>,
+    outer_limits: Limits,
 }
 
 #[derive(Default)]
@@ -74,11 +95,13 @@ struct Visited {
     groups: HashSet<usize>,
 }
 
-struct RequestRoute<'a> {
-    api: Api<'a>,
-    picks: &'a BTreeMap<String, usize>,
-    facts: Option<&'a super::rules::Facts>,
-    paused: &'a AtomicBool,
+#[derive(Clone, Copy)]
+pub(super) struct RequestRoute<'a> {
+    pub api: Api<'a>,
+    pub picks: &'a BTreeMap<String, usize>,
+    pub facts: Option<&'a super::rules::Facts>,
+    pub paused: &'a AtomicBool,
+    pub classifier: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -147,12 +170,9 @@ impl Gateway {
     pub(super) fn candidates<'a>(
         &'a self,
         route: Route,
-        api: Api<'a>,
-        picks: &'a BTreeMap<String, usize>,
-        facts: Option<&'a super::rules::Facts>,
-        paused: &'a AtomicBool,
-    ) -> impl Iterator<Item = Candidate<'a>> + 'a {
-        let mut seen = Visited::default();
+        request: RequestRoute<'a>,
+        classification: Classification<'a>,
+    ) -> impl Stream<Item = Candidate<'a>> + Send + 'a {
         let backups = route.fallbacks(&self.config).iter().filter_map(|id| {
             let (_, backup) = self.resolve(id)?;
             Some((
@@ -160,8 +180,7 @@ impl Gateway {
                 matches!(backup, Route::Group { .. }).then_some(id.as_str()),
             ))
         });
-        let mut roots = std::iter::once((route, None)).chain(backups);
-        let mut pending = Vec::new();
+        let roots = std::iter::once((route, None)).chain(backups);
         let requested_group = matches!(route, Route::Group { .. });
         let limits = Limits {
             first_content: requested_group.then_some(self.config.default_group_first_content),
@@ -171,64 +190,131 @@ impl Gateway {
             },
         };
         // A direct request keeps its origin even when the primary lacks this protocol.
-        let mut unrestricted =
+        let unrestricted =
             matches!(route, Route::Model(t) if !self.config.providers[t.provider].no_stand_in);
-        let request = RequestRoute {
-            api,
-            picks,
-            facts,
-            paused,
-        };
-        std::iter::from_fn(move || {
-            loop {
-                let plan = pending.pop().or_else(|| {
-                    roots.find_map(|(root, group)| {
-                        let mut via = group.into_iter().collect();
-                        self.expand(root, &request, &mut via, &mut seen, limits)
-                    })
-                })?;
-                match plan {
-                    Plan::Model(mut candidate) => {
-                        let restricted =
-                            self.config.providers[candidate.target.provider].no_stand_in;
-                        if restricted && unrestricted {
-                            continue;
+        let state = (
+            roots,
+            Vec::new(),
+            Visited::default(),
+            HashSet::new(),
+            unrestricted,
+            classification,
+            BTreeMap::new(),
+        );
+        stream::unfold(
+            state,
+            move |(
+                mut roots,
+                mut pending,
+                mut seen,
+                mut emitted,
+                mut unrestricted,
+                mut classification,
+                mut judged,
+            )| async move {
+                loop {
+                    let plan = pending.pop().or_else(|| {
+                        roots.find_map(|(root, group)| {
+                            let mut via = group.into_iter().collect();
+                            self.expand(root, &request, &mut via, &mut seen, limits, None)
+                        })
+                    })?;
+                    match plan {
+                        Plan::Model(mut candidate) => {
+                            let restricted =
+                                self.config.providers[candidate.target.provider].no_stand_in;
+                            if restricted && unrestricted {
+                                continue;
+                            }
+                            if !emitted.insert((candidate.target.provider, candidate.target.model))
+                            {
+                                continue;
+                            }
+                            unrestricted |= !restricted;
+                            // Check for a viable fallback without spending a nested group's turn.
+                            if candidate.first_content.is_some()
+                                && !pending
+                                    .iter()
+                                    .any(|p| p.has_model(&self.config, &emitted, unrestricted))
+                            {
+                                candidate.first_content = None;
+                            }
+                            return Some((
+                                candidate,
+                                (
+                                    roots,
+                                    pending,
+                                    seen,
+                                    emitted,
+                                    unrestricted,
+                                    classification,
+                                    judged,
+                                ),
+                            ));
                         }
-                        unrestricted |= !restricted;
-                        // Check for a viable fallback without spending a nested group's turn.
-                        if candidate.first_content.is_some()
-                            && (pending.is_empty()
-                                || unrestricted
-                                    && !pending
-                                        .iter()
-                                        .any(|p| p.has_unrestricted_model(&self.config)))
-                        {
-                            candidate.first_content = None;
+                        Plan::Group {
+                            round,
+                            mut branches,
+                            preferred,
+                            classify,
+                        } => {
+                            if let Some(mut decision) = classify {
+                                if !branches.iter().any(|(_, plan)| {
+                                    plan.has_model(&self.config, &emitted, unrestricted)
+                                }) {
+                                    continue;
+                                }
+                                let Route::Group { index, .. } = decision.route else {
+                                    unreachable!("classifier route group")
+                                };
+                                let intent = if let Some(&intent) = judged.get(&index) {
+                                    intent
+                                } else {
+                                    let facts = request.facts.expect("classifier request facts");
+                                    let intent = classification
+                                        .choose(self, decision.settings, facts, &decision.intents)
+                                        .await;
+                                    judged.insert(index, intent);
+                                    intent
+                                };
+                                if intent.is_some() {
+                                    // Assign shared descendants in the chosen rule order. A model already
+                                    // attempted through another branch still runs only once per round.
+                                    let mut available = Visited {
+                                        models: emitted.clone(),
+                                        groups: HashSet::new(),
+                                    };
+                                    pending.extend(self.expand(
+                                        decision.route,
+                                        &request,
+                                        &mut decision.via,
+                                        &mut available,
+                                        decision.outer_limits,
+                                        intent,
+                                    ));
+                                    continue;
+                                }
+                            }
+                            if preferred != 0 && preferred < branches.len() {
+                                pending.push(Plan::Group {
+                                    round,
+                                    branches: branches.split_off(preferred),
+                                    preferred: 0,
+                                    classify: None,
+                                });
+                            } else if preferred == 0
+                                && let Some(round) = round
+                            {
+                                // A subgroup spends its turn only when forwarding reaches it.
+                                round.order(&mut branches);
+                            }
+                            pending.extend(branches.into_iter().rev().map(|(_, plan)| plan));
                         }
-                        return Some(candidate);
-                    }
-                    Plan::Group {
-                        round,
-                        mut branches,
-                        preferred,
-                    } => {
-                        if preferred != 0 && preferred < branches.len() {
-                            pending.push(Plan::Group {
-                                round,
-                                branches: branches.split_off(preferred),
-                                preferred: 0,
-                            });
-                        } else if preferred == 0
-                            && let Some(round) = round
-                        {
-                            // A subgroup spends its turn only when forwarding reaches it.
-                            round.order(&mut branches);
-                        }
-                        pending.extend(branches.into_iter().rev().map(|(_, plan)| plan));
                     }
                 }
-            }
-        })
+            },
+        )
+        .fuse()
     }
 
     fn expand<'a>(
@@ -238,6 +324,7 @@ impl Gateway {
         via: &mut Vec<&'a str>,
         seen: &mut Visited,
         limits: Limits,
+        intent: Option<&str>,
     ) -> Option<Plan<'a>> {
         let index = match route {
             Route::Disabled => return None,
@@ -250,6 +337,9 @@ impl Gateway {
                 return request
                     .api
                     .destination(p, &p.models[target.model])
+                    .filter(|destination| {
+                        !request.classifier || matches!(destination, Destination::Upstream(..))
+                    })
                     .map(|destination| Candidate {
                         target,
                         destination,
@@ -272,18 +362,34 @@ impl Gateway {
         let id = &self.group_ids[index];
         let name = &id["group/".len()..];
         let members = self.live_members(name, request.picks);
-        let limits = limits.within(&self.config, name);
-        let mut ordered = request
+        let outer_limits = limits;
+        let limits = outer_limits.within(&self.config, name);
+        let rules = request
             .facts
             .filter(|_| !request.picks.contains_key(name))
-            .zip(self.rules.get(name))
-            .map(|(facts, rules)| {
-                let ordered = super::rules::ordered(members, rules, facts);
-                if ordered.len() < members.len() {
-                    request.paused.store(true, Ordering::Relaxed);
-                }
-                ordered.into_iter()
+            .zip(self.rules.get(name));
+        let classify = rules
+            .filter(|_| intent.is_none())
+            .zip(self.config.group_classifiers.get(name))
+            .and_then(|((facts, rules), settings)| {
+                let intents = super::rules::intents(rules, facts);
+                (!intents.is_empty()).then(|| {
+                    Box::new(Decision {
+                        route,
+                        settings,
+                        intents,
+                        via: via.clone(),
+                        outer_limits,
+                    })
+                })
             });
+        let mut ordered = rules.map(|(facts, rules)| {
+            let ordered = super::rules::ordered(members, rules, facts, intent);
+            if ordered.len() < members.len() {
+                request.paused.store(true, Ordering::Relaxed);
+            }
+            ordered.into_iter()
+        });
         let mut original = members.iter().enumerate();
         let mut preferred_count = 0;
         let mut branches = Vec::new();
@@ -297,7 +403,7 @@ impl Gateway {
             if nested {
                 via.push(member);
             }
-            let choices = self.expand(child, request, via, seen, limits);
+            let choices = self.expand(child, request, via, seen, limits, None);
             if nested {
                 via.pop();
             }
@@ -310,6 +416,7 @@ impl Gateway {
             round: self.rounds.get(id),
             branches,
             preferred: preferred_count,
+            classify,
         })
     }
 }

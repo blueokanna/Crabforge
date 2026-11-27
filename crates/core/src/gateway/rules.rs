@@ -59,10 +59,15 @@ pub(super) fn ordered<'a>(
     members: &'a [String],
     rules: &[Rule],
     facts: &Facts,
+    intent: Option<&str>,
 ) -> Vec<(bool, usize, &'a str)> {
     let mut paused = HashSet::new();
     let mut ranked = HashMap::new();
-    for rule in rules.iter().filter(|rule| rule.matches(facts)) {
+    let key = intent.map(str::to_lowercase);
+    for rule in rules.iter().filter(|rule| {
+        (rule.intent.is_empty() || key.as_deref() == Some(rule.intent_key.as_str()))
+            && rule.matches(facts)
+    }) {
         if rule.pause {
             paused.extend(rule.targets.iter().map(String::as_str));
         } else {
@@ -85,12 +90,25 @@ pub(super) fn ordered<'a>(
         .collect()
 }
 
+pub(super) fn intents<'a>(rules: &'a [Rule], facts: &Facts) -> Vec<&'a str> {
+    let mut seen = HashSet::new();
+    rules
+        .iter()
+        .filter(|rule| {
+            !rule.intent.is_empty() && rule.matches(facts) && seen.insert(&rule.intent_key)
+        })
+        .map(|rule| rule.intent.as_str())
+        .collect()
+}
+
 pub(super) struct Rule {
     pub targets: Vec<String>,
     pub pause: bool,
     min_tokens: usize,
     images: bool,
     effort: String,
+    intent: String,
+    intent_key: String,
     compact: bool,
     agents: Vec<String>,
     folders: Vec<String>,
@@ -101,12 +119,15 @@ pub(super) struct Rule {
 
 impl Rule {
     pub fn compile(rule: &RoutingRule, targets: Vec<String>) -> Result<Self> {
+        let intent = rule.intent.split_whitespace().collect::<Vec<_>>().join(" ");
         Ok(Self {
             targets,
             pause: rule.pause,
             min_tokens: rule.tokens as usize,
             images: rule.images,
             effort: rule.effort.clone(),
+            intent_key: intent.to_lowercase(),
+            intent,
             compact: rule.compact,
             agents: rule.agents.iter().map(|a| agent_key(a)).collect(),
             folders: rule.folders.iter().filter_map(|p| folder_key(p)).collect(),
@@ -161,6 +182,8 @@ pub(super) struct Facts {
     subagent: bool,
     folder: Option<String>,
     message: String,
+    previous_message: String,
+    previous_reply: String,
     system: Vec<String>,
     last: Vec<String>,
 }
@@ -198,6 +221,8 @@ impl Facts {
             }),
             folder: None,
             message: String::new(),
+            previous_message: String::new(),
+            previous_reply: String::new(),
             system: Vec::new(),
             last: Vec::new(),
         };
@@ -225,6 +250,7 @@ impl Facts {
                 facts.message = prompt.to_owned();
                 facts.last.push(prompt.to_owned());
             } else if let Some(turns) = input.as_array() {
+                let mut reply = String::new();
                 for turn in turns {
                     let role = field(turn, "role").unwrap_or("user");
                     let mut text = Vec::new();
@@ -252,9 +278,13 @@ impl Facts {
                             .filter(|text| !is_context(text))
                             .collect::<Vec<_>>();
                         if !said.is_empty() {
-                            facts.message = said.join("\n");
+                            facts.previous_message =
+                                std::mem::replace(&mut facts.message, said.join("\n"));
+                            facts.previous_reply = std::mem::take(&mut reply);
                         }
                         facts.last = text.into_iter().map(str::to_owned).collect();
+                    } else if matches!(role, "assistant" | "model") && !text.is_empty() {
+                        reply = text.join("\n");
                     }
                 }
             }
@@ -268,6 +298,10 @@ impl Facts {
         facts.tokens = length / 4;
         facts.compact = compacting(&facts.system, &facts.last);
         Some(facts)
+    }
+
+    pub fn conversation(&self) -> (&str, &str, &str) {
+        (&self.message, &self.previous_message, &self.previous_reply)
     }
 
     fn extend_system(&mut self, text: Vec<&str>) {

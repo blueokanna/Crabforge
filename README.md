@@ -33,6 +33,18 @@ For requests addressed directly to a provider, set **Retry patience** in that pr
 
 To route generation requests conditionally, edit **Routing rules (JSON)** in the route group or run `carbforge-cli group rules work rules.json`. Run `carbforge-cli group rules work` to print the saved rules, or save `[]` to clear them. The `use` and optional `more` entries name members of the group. Matching rules put their members first in rule order, then the group's strategy orders the other members. A matching `pause` removes its member for the request. Manual selection takes precedence. Rules travel with Magpie shares and encrypted group backups. Restart the gateway after saving.
 
+For `intent` rules, supply an object in the same editor or CLI command. `classifier` and `classifierMore` accept configured model and group IDs. `classifyPrompt` is optional.
+
+```json
+{
+  "classifier": "openai/gpt-4.1-mini",
+  "classifierMore": ["group/decision-backup"],
+  "rules": [{"intent": "Review a change", "use": "openai/gpt-4.1"}]
+}
+```
+
+When forwarding reaches a group with a matching intent condition, the classifier receives excerpts of the latest user message and the preceding exchange. The gateway sends the same classification prompt to backup classifiers in order after an error, refusal, invalid reply or timeout. A reply of `0` continues with the ordinary routing rules. Nested groups share one deadline, set in **Gateway → Network settings** or with `carbforge-cli group classify-timeout SECONDS`. `0` uses 15 seconds. Explicit values range from 1 to 60 seconds.
+
 ```json
 [
   {

@@ -762,7 +762,14 @@ class AppLocalizationsKo extends AppLocalizations {
   String get groupRoutingRules => '라우팅 규칙(JSON)';
 
   @override
-  String get invalidGroupRoutingRules => '규칙 객체의 JSON 배열을 입력하세요.';
+  String get invalidGroupRoutingRules =>
+      '규칙의 JSON 배열 또는 rules 배열이 있는 JSON 객체를 입력하세요.';
+
+  @override
+  String get classifyTimeoutSeconds => '분류기 제한 시간(초)';
+
+  @override
+  String get classifyTimeoutHelp => '1~60초를 입력하세요. 0은 기본값인 15초를 적용합니다.';
 
   @override
   String get defaultGroupPatienceHelp => '0은 60초를 적용하고, -1은 재시도를 끕니다.';

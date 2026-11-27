@@ -33,6 +33,18 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 
 要按条件转发生成请求，可在路由组编辑器修改「路由规则（JSON）」，也可执行 `carbforge-cli group rules work rules.json`。执行 `carbforge-cli group rules work` 可查看当前规则，保存 `[]` 可清空。`use` 和可选的 `more` 填写组内成员。命中的规则按顺序将成员提到前面，其余成员沿用组的路由策略。命中 `pause` 时跳过指定成员，手动选定优先。规则可随 Magpie 分享及加密路由组备份迁移。保存后重启网关。
 
+配置 `intent` 规则时，在同一编辑器或 CLI 命令中传入 JSON 对象。`classifier` 和 `classifierMore` 接受已配置的模型和路由组 ID，`classifyPrompt` 可选。
+
+```json
+{
+  "classifier": "openai/gpt-4.1-mini",
+  "classifierMore": ["group/decision-backup"],
+  "rules": [{"intent": "审查改动", "use": "openai/gpt-4.1"}]
+}
+```
+
+请求进入需要判断意图的路由组时，分类器会收到最近一条用户消息和上一轮对话的节选。遇到错误、拒绝、无效答案或超时，网关按顺序用同一分类提示询问候补。分类器回答 `0` 时继续使用普通路由规则。嵌套组共享同一截止时间，可在「网关 → 网络设置」或用 `carbforge-cli group classify-timeout SECONDS` 修改。`0` 表示默认的 15 秒，可显式设置 1 至 60 秒。
+
 ```json
 [
   {

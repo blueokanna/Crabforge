@@ -776,7 +776,15 @@ class AppLocalizationsHi extends AppLocalizations {
   String get groupRoutingRules => 'रूटिंग नियम (JSON)';
 
   @override
-  String get invalidGroupRoutingRules => 'नियम ऑब्जेक्ट की JSON सूची डालें।';
+  String get invalidGroupRoutingRules =>
+      'नियमों की JSON सूची या rules सूची वाला JSON ऑब्जेक्ट डालें।';
+
+  @override
+  String get classifyTimeoutSeconds => 'वर्गीकरण की समय-सीमा (सेकंड)';
+
+  @override
+  String get classifyTimeoutHelp =>
+      '1 से 60 सेकंड डालें, या डिफ़ॉल्ट 15 सेकंड के लिए 0 डालें।';
 
   @override
   String get defaultGroupPatienceHelp =>

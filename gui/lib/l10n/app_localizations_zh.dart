@@ -755,7 +755,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groupRoutingRules => '路由规则（JSON）';
 
   @override
-  String get invalidGroupRoutingRules => '请输入由规则对象组成的 JSON 数组。';
+  String get invalidGroupRoutingRules => '请输入规则 JSON 数组，或包含 rules 数组的 JSON 对象。';
+
+  @override
+  String get classifyTimeoutSeconds => '分类器超时（秒）';
+
+  @override
+  String get classifyTimeoutHelp => '请输入 1 至 60 秒，0 表示默认的 15 秒。';
 
   @override
   String get defaultGroupPatienceHelp => '0 表示 60 秒，-1 表示关闭重试。';

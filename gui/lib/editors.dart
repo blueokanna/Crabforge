@@ -549,7 +549,7 @@ typedef GroupSelection = ({
   String note,
   int firstContent,
   int patience,
-  List<JsonMap> routingRules,
+  JsonMap routingRules,
   bool listMembers,
   List<String> off,
   List<String> members,
@@ -583,7 +583,7 @@ class GroupEditor extends StatefulWidget {
   final bool listMembers;
   final int firstContent;
   final int patience;
-  final List<JsonMap> routingRules;
+  final JsonMap routingRules;
   final GroupStrategy strategy;
   final Map<String, int> weights;
   final String? pick;
@@ -752,8 +752,11 @@ class _GroupEditorState extends State<GroupEditor> {
                 padding: const EdgeInsets.only(top: 14),
                 child: TextFormField(
                   key: routingRules,
-                  initialValue: const JsonEncoder.withIndent('  ')
-                      .convert(widget.routingRules),
+                  initialValue: const JsonEncoder.withIndent('  ').convert(
+                    widget.routingRules.length == 1
+                        ? widget.routingRules['rules']
+                        : widget.routingRules,
+                  ),
                   minLines: 1,
                   maxLines: 8,
                   autocorrect: false,
@@ -949,13 +952,19 @@ class _GroupEditorState extends State<GroupEditor> {
     return value != null && value > 0 && value <= 1000;
   }
 
-  List<JsonMap>? readRoutingRules(String? text) {
+  JsonMap? readRoutingRules(String? text) {
     final source = text?.trim() ?? '';
-    if (source.isEmpty) return [];
+    if (source.isEmpty) return {...widget.routingRules, 'rules': []};
     try {
       final value = jsonDecode(source);
-      return value is List && value.every((rule) => rule is JsonMap)
-          ? List<JsonMap>.from(value)
+      final definition = value is List
+          ? {...widget.routingRules, 'rules': value}
+          : value is JsonMap
+          ? value
+          : null;
+      final rules = definition?['rules'];
+      return rules is List && rules.every((rule) => rule is JsonMap)
+          ? definition
           : null;
     } on FormatException {
       return null;
@@ -971,10 +980,11 @@ class _SecondsField extends StatelessWidget {
     required this.invalid,
     required this.maximum,
     required this.hint,
+    this.minimum = -1,
   });
 
   final GlobalKey<FormFieldState<String>> fieldKey;
-  final int seconds, maximum;
+  final int seconds, minimum, maximum;
   final String label, invalid, hint;
 
   @override
@@ -993,7 +1003,9 @@ class _SecondsField extends StatelessWidget {
       ),
       validator: (text) {
         final value = int.tryParse(text?.trim() ?? '', radix: 10);
-        return value == null || value < -1 || value > maximum ? invalid : null;
+        return value == null || value < minimum || value > maximum
+            ? invalid
+            : null;
       },
     ),
   );
@@ -1064,6 +1076,7 @@ class _TunnelEditorState extends State<TunnelEditor> {
 class _NetworkEditorState extends State<NetworkEditor> {
   final firstContent = GlobalKey<FormFieldState<String>>();
   final patience = GlobalKey<FormFieldState<String>>();
+  final classifyTimeout = GlobalKey<FormFieldState<String>>();
   late final origins = TextEditingController(
     text: (widget.config['cors_origins'] as List? ?? []).join('\n'),
   );
@@ -1121,6 +1134,15 @@ class _NetworkEditorState extends State<NetworkEditor> {
               maximum: 240,
               hint: context.strings.defaultGroupPatienceHelp,
             ),
+            _SecondsField(
+              fieldKey: classifyTimeout,
+              seconds: widget.config['classify_timeout'] ?? 0,
+              label: context.strings.classifyTimeoutSeconds,
+              invalid: context.strings.classifyTimeoutHelp,
+              minimum: 0,
+              maximum: 60,
+              hint: context.strings.classifyTimeoutHelp,
+            ),
           ],
         ),
       ),
@@ -1134,7 +1156,10 @@ class _NetworkEditorState extends State<NetworkEditor> {
         onPressed: () {
           final field = firstContent.currentState!;
           final wait = patience.currentState!;
-          if (!field.validate() || !wait.validate()) return;
+          final classify = classifyTimeout.currentState!;
+          if (!field.validate() || !wait.validate() || !classify.validate()) {
+            return;
+          }
           Navigator.pop(context, <String, dynamic>{
             'listen': listen.text.trim(),
             'peer_listen': peer.text.trim(),
@@ -1142,6 +1167,7 @@ class _NetworkEditorState extends State<NetworkEditor> {
             'cors_origins': linesOf(origins.text),
             'default_group_first_content': int.parse(field.value!.trim()),
             'default_group_patience': int.parse(wait.value!.trim()),
+            'classify_timeout': int.parse(classify.value!.trim()),
           });
         },
         child: Text(context.strings.save),

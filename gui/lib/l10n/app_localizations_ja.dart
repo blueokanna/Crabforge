@@ -762,7 +762,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get groupRoutingRules => 'ルーティングルール（JSON）';
 
   @override
-  String get invalidGroupRoutingRules => 'ルールオブジェクトの JSON 配列を入力してください。';
+  String get invalidGroupRoutingRules =>
+      'ルールの JSON 配列、または rules 配列を持つ JSON オブジェクトを入力してください。';
+
+  @override
+  String get classifyTimeoutSeconds => '分類器のタイムアウト（秒）';
+
+  @override
+  String get classifyTimeoutHelp => '1〜60 秒を指定します。0 では既定の 15 秒が適用されます。';
 
   @override
   String get defaultGroupPatienceHelp => '0 は 60 秒、-1 は再試行を無効にします。';

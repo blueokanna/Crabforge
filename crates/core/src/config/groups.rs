@@ -270,6 +270,10 @@ impl Config {
         if let Some(rules) = self.group_rules.get(&from) {
             cfg.group_rules.insert(id.clone(), rules.clone());
         }
+        if let Some(classifiers) = self.group_classifiers.get(&from) {
+            cfg.group_classifiers
+                .insert(id.clone(), classifiers.clone());
+        }
         if let Some(weights) = self.group_weights.get(&from) {
             cfg.group_weights.insert(id.clone(), weights.clone());
         }
@@ -418,6 +422,12 @@ impl Config {
         }
         if let Some(rules) = cfg.group_rules.remove(&from) {
             cfg.group_rules.insert(to.into(), rules);
+        }
+        if let Some(classifiers) = cfg.group_classifiers.remove(&from) {
+            cfg.group_classifiers.insert(to.into(), classifiers);
+        }
+        for classifiers in cfg.group_classifiers.values_mut() {
+            classifiers.rename_targets(|id| references_group(id).then(|| new.clone()));
         }
         for rule in cfg.group_rules.values_mut().flatten() {
             rule.remap(|id| {

@@ -699,6 +699,138 @@ async fn group_rules_order_compatible_members_and_respect_pauses_and_manual_pick
 }
 
 #[tokio::test]
+async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -> Result<()> {
+    let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let seen = calls.clone();
+    let mock = Router::new().route(
+        "/v1/chat/completions",
+        post(move |request: Incoming| {
+            let seen = seen.clone();
+            async move {
+                let body: Value = nextjson::from_slice(&request.body).unwrap();
+                let model = body["model"].as_str().unwrap();
+                seen.lock().unwrap().push(model.to_owned());
+                match model {
+                    "slow" => {
+                        tokio::time::sleep(Duration::from_secs(3)).await;
+                        (StatusCode::SERVICE_UNAVAILABLE, String::new())
+                    }
+                    "decide" => {
+                        assert_eq!(body["stream"].as_bool(), Some(false));
+                        let messages = body["messages"].as_array().unwrap();
+                        assert_eq!(messages.len(), 2);
+                        let system = messages[0]["content"].as_str().unwrap();
+                        assert!(system.starts_with("Judge which task was requested."));
+                        let prompt: Value =
+                            nextjson::from_str(messages[1]["content"].as_str().unwrap()).unwrap();
+                        assert_eq!(
+                            prompt["previous_user_message"].as_str(),
+                            Some("Open the report")
+                        );
+                        assert_eq!(
+                            prompt["previous_assistant_reply"].as_str(),
+                            Some("It is open")
+                        );
+                        assert_eq!(
+                            prompt["kinds"],
+                            json!([{"number":1,"intent":"Review report"}])
+                        );
+                        let label = if prompt["message"].as_str() == Some("Review it") {
+                            "1"
+                        } else {
+                            "0"
+                        };
+                        (
+                            StatusCode::OK,
+                            json!({"choices":[{"message":{"content":label}}]}).to_string(),
+                        )
+                    }
+                    _ => (StatusCode::OK, model.to_owned()),
+                }
+            }
+        }),
+    );
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let upstream = tokio::spawn(crabforge_test_support::server::serve(listener, mock));
+    let dir = tempdir()?;
+    let cfg = json!({
+        "listen":"127.0.0.1:0",
+        "classify_timeout":2,
+        "providers":[{"id":"fixture","models":["slow","decide","usual","review"],
+            "endpoints":{"chat":format!("http://{addr}/v1")}}],
+        "groups":{
+            "outer":["fixture/usual","group/intent"],
+            "intent":["fixture/usual","fixture/review"],
+            "classifier":["fixture/decide"],
+            "manual":["fixture/usual","fixture/review"]
+        },
+        "group_picks":{"manual":"fixture/usual"},
+        "group_rules":{
+            "intent":[{"use":"fixture/review","intent":"Review report"}],
+            "manual":[{"use":"fixture/review","intent":"Review report"}]
+        },
+        "group_classifiers":{
+            "intent":{"classifier":"fixture/slow","classifierMore":["group/classifier"],"classifyPrompt":"Judge which task was requested."},
+            "manual":{"classifier":"fixture/decide"}
+        }
+    });
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let service = Service::start(dir.path()).await?;
+    let url = format!("http://{}/v1/chat/completions", service.addr);
+    let token = config::token(dir.path())?;
+    let client = crabforge_test_support::Client::with_timeout(Duration::from_secs(5));
+    let send = |group: &str, message: &str| {
+        client
+            .post(&url)
+            .bearer_auth(&token)
+            .body(
+                json!({
+                    "model":group,"messages":[
+                        {"role":"system","content":"Internal system instructions"},
+                        {"role":"user","content":"Open the report"},
+                        {"role":"assistant","content":"It is open"},
+                        {"role":"user","content":message}
+                    ]
+                })
+                .to_string(),
+            )
+            .send()
+    };
+    assert_eq!(
+        send("group/outer", "Review it").await?.text().await?,
+        "usual"
+    );
+    assert_eq!(
+        send("group/manual", "Review it").await?.text().await?,
+        "usual"
+    );
+    assert_eq!(
+        send("group/intent", "Review it").await?.text().await?,
+        "review"
+    );
+    assert_eq!(send("group/intent", "Thanks").await?.text().await?, "usual");
+    assert_eq!(
+        *calls.lock().unwrap(),
+        [
+            "usual", "usual", "slow", "decide", "review", "slow", "decide", "usual"
+        ]
+    );
+
+    let config = config::load(dir.path())?;
+    let shared = config.share_group("intent")?;
+    let (restored, report) = config.import_group(&shared, false)?;
+    assert_eq!(
+        restored.group_classifiers[&report.id].classifier_more,
+        ["group/classifier"]
+    );
+    assert_eq!(restored.group_rules[&report.id][0].intent, "Review report");
+    service.stop().await;
+    upstream.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn quic_peer_identity_and_gateway_key_are_both_required() -> Result<()> {
     let server_dir = tempdir()?;
     let client_dir = tempdir()?;

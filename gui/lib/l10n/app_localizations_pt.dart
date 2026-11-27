@@ -780,7 +780,15 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get invalidGroupRoutingRules =>
-      'Digite uma matriz JSON de objetos de regra.';
+      'Digite uma lista JSON de regras ou um objeto JSON com uma lista rules.';
+
+  @override
+  String get classifyTimeoutSeconds =>
+      'Tempo limite do classificador (segundos)';
+
+  @override
+  String get classifyTimeoutHelp =>
+      'Use de 1 a 60 segundos ou 0 para o padrão de 15 segundos.';
 
   @override
   String get defaultGroupPatienceHelp =>

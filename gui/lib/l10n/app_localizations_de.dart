@@ -783,7 +783,15 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get invalidGroupRoutingRules =>
-      'Geben Sie ein JSON-Array mit Regelobjekten ein.';
+      'Geben Sie ein JSON-Regelarray oder ein JSON-Objekt mit einem rules-Array ein.';
+
+  @override
+  String get classifyTimeoutSeconds =>
+      'Zeitlimit für Klassifizierung (Sekunden)';
+
+  @override
+  String get classifyTimeoutHelp =>
+      'Geben Sie 1 bis 60 Sekunden ein oder 0 für den Standardwert von 15 Sekunden.';
 
   @override
   String get defaultGroupPatienceHelp =>

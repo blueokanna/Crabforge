@@ -14,6 +14,8 @@ pub struct RoutingRule {
     pub images: bool,
     #[njson(skip_serializing_if = "String::is_empty")]
     pub effort: String,
+    #[njson(skip_serializing_if = "String::is_empty")]
+    pub intent: String,
     #[njson(skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<String>,
     #[njson(skip_serializing_if = "std::ops::Not::not")]
@@ -51,6 +53,11 @@ impl RoutingRule {
         ensure!(!self.target.is_empty(), "a routing rule needs a target");
         ensure!(self.tokens >= 0, "token threshold must be nonnegative");
         ensure!(
+            self.intent.is_empty()
+                || (!self.intent.trim().is_empty() && self.intent.chars().count() <= 200),
+            "an intent must contain 1 to 200 characters"
+        );
+        ensure!(
             self.effort.is_empty() || self.effort == "on" || effort_rank(&self.effort).is_some(),
             "invalid reasoning effort {:?}",
             self.effort
@@ -63,6 +70,7 @@ impl RoutingRule {
             self.tokens > 0
                 || self.images
                 || !self.effort.is_empty()
+                || !self.intent.is_empty()
                 || self.compact
                 || self.time.is_some()
                 || !self.agents.is_empty()
@@ -77,6 +85,7 @@ impl RoutingRule {
                     && self.tokens == 0
                     && !self.images
                     && self.effort.is_empty()
+                    && self.intent.is_empty()
                     && !self.compact
                     && self.conditions.iter().all(|c| c.field == "agent"),
                 "a pause names one member and can use hours, agents or folders"
@@ -96,6 +105,47 @@ impl RoutingRule {
         }
         Ok(())
     }
+}
+
+#[derive(Clone, Debug, Default, NsonDeserialize, NsonSerialize)]
+#[njson(default, rename_all = "camelCase", deny_unknown_fields)]
+pub struct Classifiers {
+    #[njson(skip_serializing_if = "String::is_empty")]
+    pub classifier: String,
+    #[njson(skip_serializing_if = "Vec::is_empty")]
+    pub classifier_more: Vec<String>,
+    #[njson(skip_serializing_if = "String::is_empty")]
+    pub classify_prompt: String,
+}
+
+impl Classifiers {
+    pub fn is_empty(&self) -> bool {
+        self.classifier.is_empty()
+            && self.classifier_more.is_empty()
+            && self.classify_prompt.is_empty()
+    }
+
+    pub(crate) fn targets(&self) -> impl Iterator<Item = &str> {
+        std::iter::once(self.classifier.as_str())
+            .chain(self.classifier_more.iter().map(String::as_str))
+            .skip(usize::from(self.classifier.is_empty()))
+    }
+
+    pub(crate) fn rename_targets(&mut self, rename: impl Fn(&str) -> Option<String>) {
+        for id in std::iter::once(&mut self.classifier).chain(&mut self.classifier_more) {
+            if let Some(next) = rename(id) {
+                *id = next;
+            }
+        }
+    }
+}
+
+#[derive(Default, NsonDeserialize, NsonSerialize)]
+#[njson(default)]
+pub struct RuleSet {
+    pub rules: Vec<RoutingRule>,
+    #[njson(flatten)]
+    pub classifiers: Classifiers,
 }
 
 #[derive(Clone, Debug, NsonDeserialize, NsonSerialize)]

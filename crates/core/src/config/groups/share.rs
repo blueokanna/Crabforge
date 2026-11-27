@@ -1,5 +1,5 @@
 use super::{Config, merge_name};
-use crate::config::{valid_group_name, valid_id};
+use crate::config::{Classifiers, valid_group_name, valid_id};
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value, json};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -23,6 +23,12 @@ struct SharedGroup {
     patience: i32,
     #[njson(skip_serializing_if = "Vec::is_empty")]
     rules: Vec<super::rules::RoutingRule>,
+    #[njson(skip_serializing_if = "String::is_empty")]
+    classifier: String,
+    #[njson(rename = "classifierMore", skip_serializing_if = "Vec::is_empty")]
+    classifier_more: Vec<String>,
+    #[njson(rename = "classifyPrompt", skip_serializing_if = "String::is_empty")]
+    classify_prompt: String,
     #[njson(skip_serializing_if = "String::is_empty")]
     note: String,
     #[njson(skip_serializing_if = "String::is_empty")]
@@ -102,6 +108,14 @@ fn shared_text(text: &str) -> Result<SharedGroup> {
 }
 
 impl SharedGroup {
+    fn take_classifiers(&mut self) -> Classifiers {
+        Classifiers {
+            classifier: std::mem::take(&mut self.classifier),
+            classifier_more: std::mem::take(&mut self.classifier_more),
+            classify_prompt: std::mem::take(&mut self.classify_prompt),
+        }
+    }
+
     fn validate_routing(&self) -> Result<()> {
         ensure!(
             matches!(
@@ -222,6 +236,7 @@ impl Config {
         }
         ensure!(group.matched.is_empty(), "backup contains derived members");
         group.validate_routing()?;
+        let classifiers = group.take_classifiers();
         let members = group.members.unwrap_or_default();
         self.set_member_patterns(id, group.patterns)?;
         ensure!(
@@ -282,6 +297,9 @@ impl Config {
         if !group.rules.is_empty() {
             self.group_rules.insert(id.into(), group.rules);
         }
+        if !classifiers.is_empty() {
+            self.group_classifiers.insert(id.into(), classifiers);
+        }
         if disabled {
             self.disabled_groups.insert(id.to_owned());
         }
@@ -321,6 +339,7 @@ impl Config {
         } else {
             "order"
         };
+        let classifiers = self.group_classifiers.get(&id).cloned().unwrap_or_default();
         let mut group = SharedGroup {
             name: self.group_labels.get(&id).unwrap_or(&id).clone(),
             members: Some(members.clone()),
@@ -355,6 +374,9 @@ impl Config {
                 .unwrap_or_default(),
             patience: self.group_patience.get(&id).copied().unwrap_or_default(),
             rules: self.group_rules.get(&id).cloned().unwrap_or_default(),
+            classifier: classifiers.classifier,
+            classifier_more: classifiers.classifier_more,
+            classify_prompt: classifiers.classify_prompt,
             unlists: self.group_unlists.contains(&id),
             id: id.clone(),
             ..Default::default()
@@ -383,6 +405,8 @@ impl Config {
                 .chain(std::iter::once(&group.pick))
                 .map(String::as_str)
                 .chain(group.rules.iter().flat_map(|rule| rule.targets()))
+                .chain(std::iter::once(group.classifier.as_str()))
+                .chain(group.classifier_more.iter().map(String::as_str))
                 .all(|m| without_account(m) == m),
             "a member's literal # suffix cannot be represented in a Magpie share"
         );
@@ -392,6 +416,7 @@ impl Config {
 
     pub fn import_group(&self, text: &str, replace: bool) -> Result<(Self, ImportedGroup)> {
         let mut group = shared_text(text)?;
+        let mut classifiers = group.take_classifiers();
         let resolved = self.resolved_groups();
         let shared_id = group.id.trim().to_ascii_lowercase();
         let replacing =
@@ -426,18 +451,7 @@ impl Config {
         let mut members = Vec::new();
         let mut added = HashSet::new();
         let mut mapped = BTreeMap::new();
-        for member in group.members.iter().flatten() {
-            if group.matched.contains(member) {
-                continue;
-            }
-            if super::MemberPattern::is_pattern(member) {
-                group.patterns.push(member.clone());
-                continue;
-            }
-            let raw = without_account(member.trim());
-            if mapped.contains_key(raw) {
-                continue;
-            }
+        let resolve = |raw: &str| {
             let candidate = if local.contains(raw) {
                 raw
             } else {
@@ -461,15 +475,30 @@ impl Config {
                         .cloned()
                 })
             };
+            (candidate.to_owned(), target)
+        };
+        for member in group.members.iter().flatten() {
+            if group.matched.contains(member) {
+                continue;
+            }
+            if super::MemberPattern::is_pattern(member) {
+                group.patterns.push(member.clone());
+                continue;
+            }
+            let raw = without_account(member.trim());
+            if mapped.contains_key(raw) {
+                continue;
+            }
+            let (candidate, target) = resolve(raw);
             if let Some(target) = &target {
-                if target != candidate {
+                if *target != candidate {
                     report.instead.push(format!("{candidate} → {target}"));
                 }
                 if added.insert(target.clone()) {
                     members.push(target.clone());
                 }
             } else {
-                report.missing.push(candidate.to_owned());
+                report.missing.push(candidate);
             }
             mapped.insert(raw.to_owned(), target);
         }
@@ -506,6 +535,17 @@ impl Config {
         cfg.group_notes.insert(id.clone(), group.note);
         cfg.set_group_first_content(&id, group.first_content);
         cfg.set_group_patience(&id, group.patience);
+        cfg.group_classifiers.remove(&id);
+        if !classifiers.is_empty() {
+            for target in classifiers.targets() {
+                ensure!(
+                    resolve(without_account(target.trim())).1.is_some(),
+                    "shared classifier {target:?} is unavailable"
+                );
+            }
+            classifiers.rename_targets(|target| resolve(without_account(target.trim())).1);
+            cfg.group_classifiers.insert(id.clone(), classifiers);
+        }
         cfg.group_rules.remove(&id);
         if !group.rules.is_empty() {
             for rule in &mut group.rules {

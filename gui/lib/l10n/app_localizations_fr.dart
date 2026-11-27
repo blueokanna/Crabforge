@@ -784,7 +784,14 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get invalidGroupRoutingRules =>
-      'Saisissez un tableau JSON d’objets de règle.';
+      'Saisissez un tableau JSON de règles ou un objet JSON avec un tableau rules.';
+
+  @override
+  String get classifyTimeoutSeconds => 'Délai de classification (secondes)';
+
+  @override
+  String get classifyTimeoutHelp =>
+      'Saisissez de 1 à 60 secondes, ou 0 pour le délai par défaut de 15 secondes.';
 
   @override
   String get defaultGroupPatienceHelp =>
