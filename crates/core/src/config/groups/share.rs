@@ -24,6 +24,8 @@ struct SharedGroup {
     #[njson(skip_serializing_if = "Vec::is_empty")]
     rules: Vec<super::rules::RoutingRule>,
     #[njson(skip_serializing_if = "String::is_empty")]
+    effort: String,
+    #[njson(skip_serializing_if = "String::is_empty")]
     classifier: String,
     #[njson(rename = "classifierMore", skip_serializing_if = "Vec::is_empty")]
     classifier_more: Vec<String>,
@@ -110,6 +112,7 @@ fn shared_text(text: &str) -> Result<SharedGroup> {
 impl SharedGroup {
     fn take_classifiers(&mut self) -> Classifiers {
         Classifiers {
+            effort: std::mem::take(&mut self.effort),
             classifier: std::mem::take(&mut self.classifier),
             classifier_more: std::mem::take(&mut self.classifier_more),
             classify_prompt: std::mem::take(&mut self.classify_prompt),
@@ -374,6 +377,7 @@ impl Config {
                 .unwrap_or_default(),
             patience: self.group_patience.get(&id).copied().unwrap_or_default(),
             rules: self.group_rules.get(&id).cloned().unwrap_or_default(),
+            effort: classifiers.effort,
             classifier: classifiers.classifier,
             classifier_more: classifiers.classifier_more,
             classify_prompt: classifiers.classify_prompt,

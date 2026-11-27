@@ -844,7 +844,7 @@ async fn forward(
         .format()
         .filter(|_| {
             !classifier
-                && !gw.rules.is_empty()
+                && (!gw.rules.is_empty() || !gw.config.group_classifiers.is_empty())
                 && (matches!(route, Route::Group { .. }) || !route.fallbacks(&gw.config).is_empty())
         })
         .and_then(|format| rules::Facts::read(format, &bytes, caller, headers));

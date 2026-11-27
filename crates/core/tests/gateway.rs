@@ -1170,6 +1170,113 @@ async fn route_rule_effort_fits_each_model_and_preserves_native_options() -> Res
 }
 
 #[tokio::test]
+async fn automatic_effort_shares_the_intent_verdict_and_flows_into_subgroups() -> Result<()> {
+    use std::sync::{Arc, Mutex};
+
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let seen = calls.clone();
+    let mock = Router::new().route(
+        "/v1/chat/completions",
+        post(move |request: Incoming| {
+            let seen = seen.clone();
+            async move {
+                let body: Value = nextjson::from_slice(&request.body).unwrap();
+                let model = body["model"].as_str().unwrap();
+                let effort = body
+                    .get("reasoning_effort")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned);
+                let reply = match model {
+                    "primary" => "invalid JSON",
+                    "backup" => {
+                        let question: Value =
+                            nextjson::from_str(body["messages"][1]["content"].as_str().unwrap())
+                                .unwrap();
+                        if question["kinds"].as_array().unwrap().is_empty() {
+                            "{\"effort\":\"high\"}"
+                        } else {
+                            "{\"intent\":1,\"effort\":\"high\"}"
+                        }
+                    }
+                    _ => "done",
+                };
+                seen.lock().unwrap().push((model.to_owned(), effort));
+                json!({"choices":[{"message":{"role":"assistant","content":reply}}]}).to_string()
+            }
+        }),
+    );
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let upstream = tokio::spawn(crabforge_test_support::server::serve(listener, mock));
+    let dir = tempdir()?;
+    let cfg = json!({
+        "listen":"127.0.0.1:0",
+        "providers":[{"id":"fixture", "models":["ordinary","reasoner","primary","backup"],
+            "endpoints":{"chat":format!("http://{addr}/v1")}}],
+        "model_efforts":{"fixture/reasoner":["low","xhigh"]},
+        "groups":{"outer":["fixture/ordinary","group/nested"],"nested":["fixture/reasoner"]},
+        "group_rules":{"outer":[{"use":"group/nested","intent":"Review","effort":"on"}]},
+        "group_classifiers":{
+            "outer":{"effort":"auto","classifier":"fixture/primary","classifierMore":["fixture/backup"]},
+            "nested":{"effort":"auto","classifier":"fixture/backup"}
+        }
+    });
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let config = config::load(dir.path())?;
+    let share = config.share_group("outer")?;
+    let (copied, report) = config.import_group(&share, false)?;
+    assert_eq!(copied.group_classifiers[&report.id].effort, "auto");
+    let service = Service::start(dir.path()).await?;
+    let token = config::token(dir.path())?;
+    let client = crabforge_test_support::Client::with_timeout(Duration::from_secs(5));
+    let send = |group: &str, effort: &str, continuation: bool| {
+        let mut messages = vec![json!({"role":"user","content":"Review the report"})];
+        if continuation {
+            messages.extend([
+                json!({"role":"assistant","tool_calls":[{"id":"lookup","type":"function",
+                    "function":{"name":"read_report","arguments":"{}"}}]}),
+                json!({"role":"tool","tool_call_id":"lookup","content":"The report is ready"}),
+            ]);
+        }
+        let body =
+            json!({"model":format!("group/{group}"),"reasoning_effort":effort,"messages":messages});
+        client
+            .post(format!("http://{}/v1/chat/completions", service.addr))
+            .bearer_auth(&token)
+            .header("X-Session-ID", "auto-effort")
+            .body(body.to_string())
+            .send()
+    };
+    for (group, effort, continuation) in [
+        ("outer", "low", false),
+        ("outer", "medium", true),
+        ("outer", "none", false),
+        ("nested", "low", false),
+    ] {
+        assert_eq!(send(group, effort, continuation).await?.status(), 200);
+    }
+    let calls = calls.lock().unwrap().clone();
+    assert_eq!(
+        calls
+            .iter()
+            .map(|(model, effort)| (model.as_str(), effort.as_deref()))
+            .collect::<Vec<_>>(),
+        [
+            ("primary", None),
+            ("backup", None),
+            ("reasoner", Some("xhigh")),
+            ("reasoner", Some("xhigh")),
+            ("ordinary", Some("none")),
+            ("backup", None),
+            ("reasoner", Some("xhigh")),
+        ]
+    );
+    service.stop().await;
+    upstream.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn quic_peer_identity_and_gateway_key_are_both_required() -> Result<()> {
     let server_dir = tempdir()?;
     let client_dir = tempdir()?;

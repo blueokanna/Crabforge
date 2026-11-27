@@ -210,6 +210,10 @@ pub(super) struct Facts {
 }
 
 impl Facts {
+    pub(super) fn requests_reasoning(&self) -> bool {
+        self.reasoning
+    }
+
     pub fn read(
         format: Format,
         bytes: &[u8],

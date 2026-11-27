@@ -386,6 +386,16 @@ Windows Debug 桌面通过 `flutter_rust_bridge` 在 1,200 和 560 逻辑像素�
 
 The Windows Debug desktop saved `medium` and `high` at 1,200 and 560 logical pixels respectively through `flutter_rust_bridge`. Editing the provider at either width preserved its saved catalog levels. [Desktop regression](../../../gui/integration_test/console_layout_test.dart)
 
+### 自动推理等级 / Automatic reasoning effort
+
+Rust 全工作区通过 155 项测试，忽略 33 项，全目标 Clippy 通过。网关回归覆盖无规则组、无效分类输出后的备选分类器、意图与等级合并判定、工具结果续轮和嵌套继承。双 Debug CLI 从 Magpie 0.1.4936 原版加密备份恢复 `effort: auto`，经分享往返后实测同轮复用、目录等级拟合及显式关闭推理。 [网关回归](../../../crates/core/tests/gateway.rs)
+
+Rust passed 155 workspace tests with 33 ignored. All-target Clippy passed. The gateway regression covered a group without rules, fallback after malformed classifier output, combined intent and effort classification, tool-result continuation, and nested inheritance. Both Debug CLIs restored `effort: auto` from a native encrypted Magpie 0.1.4936 backup, round-tripped it through sharing, and checked same-turn reuse, fitting to catalog levels, and explicitly disabled reasoning. [Gateway regression](../../../crates/core/tests/gateway.rs)
+
+Windows Debug 桌面通过完整控制台集成测试，经 `flutter_rust_bridge` 在 1,200 和 560 逻辑像素下保存 `effort: auto`、分类器、规则和重试时限。测试窗口被最小化时未继续渲染，恢复窗口后测试完成。 [桌面回归](../../../gui/integration_test/console_layout_test.dart)
+
+The Windows Debug desktop passed the full console integration test. At 1,200 and 560 logical pixels it saved `effort: auto`, the classifier, rules, and retry limits through `flutter_rust_bridge`. Rendering stalled while the test window was minimized. The test completed after the window was restored. [Desktop regression](../../../gui/integration_test/console_layout_test.dart)
+
 ## Grok Build 会话 / Grok Build sessions
 
 Grok Build 1.0.92 通过回环夹具启动原生会话，并用同一个会话 ID 继续到第 12 轮。每轮上游收到之前的用户提示。两个 Windows Debug CLI 均列出原生会话 ID、项目和配置路径，从日志恢复完全相同的 12 条用户原话和预览修订，并拒绝未经发现的配置目录。Rust 回归覆盖分段提示、客户端内部操作和子代理日志。
@@ -409,6 +419,10 @@ On Windows 10, Oh My Pi `19.2.1` with Bun `1.4.5` resumed a native session in a 
 双 CLI 在共用会话目录中分别识别 Pi 与 Oh My Pi，并跳过下层子代理日志。Pi `1.6.0` 另通过 12 轮原生续接、记忆提炼、审核、发布和逐字节撤回回归。
 
 Both CLIs distinguished Pi and Oh My Pi in a shared session directory and skipped a nested subagent log. A separate Pi `1.6.0` regression verified 12 native turns, memory extraction, review, publication and byte-identical withdrawal.
+
+提交 `260c00a22a2a2a1f22b6a47b65e2817e745da12f` 的 Windows 包通过桌面启动，以及 Pi、Gemini、Grok 和 Oh My Pi 各 12 轮。解压版双 CLI 从 Oh My Pi 会话读取原话，共有七次模型探测，读取前后会话文件字节一致。Run `46014541751` 通过 146 项 Rust 测试，忽略 33 项。ZIP 为 65,831,256 字节，SHA-256 为 `400cb6cee24df3dd481e86484354c2ff707f43cf30e854155a2ffbe56b34b821`。670 项逐文件清单的 SHA-256 为 `ece044b3d9f2ab86c87f0d7a302a58f118698ad92aab8f71e0abd9bed40bfa89`，六个 PE 均为 `NotSigned`。夹具完成后通过代理复核远端 `main` 为 `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9`，并验证构建 SHA 是它的祖先。 [Job 140558184135](https://github.com/blueokanna/Crabforge/actions/runs/46014541751/job/140558184135) · [Artifact 15207111741](https://github.com/blueokanna/Crabforge/actions/runs/46014541751/artifacts/15207111741)
+
+The Windows package built from `260c00a22a2a2a1f22b6a47b65e2817e745da12f` passed desktop startup and 12 native turns each with Pi, Gemini, Grok and Oh My Pi. Both extracted CLIs recovered the original Oh My Pi prompts. The upstream answered seven model probes, and reading left the session file byte-identical. Run `46014541751` passed 146 Rust tests with 33 ignored. The 65,831,256-byte ZIP has SHA-256 `400cb6cee24df3dd481e86484354c2ff707f43cf30e854155a2ffbe56b34b821`. The 670-file manifest has SHA-256 `ece044b3d9f2ab86c87f0d7a302a58f118698ad92aab8f71e0abd9bed40bfa89`, and all six PE files reported `NotSigned`. After the fixtures finished, a proxied ref check found remote `main` at `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9` and confirmed that the build SHA was its ancestor. [Job 140558184135](https://github.com/blueokanna/Crabforge/actions/runs/46014541751/job/140558184135) · [Artifact 15207111741](https://github.com/blueokanna/Crabforge/actions/runs/46014541751/artifacts/15207111741)
 
 ## 技能与钩子备份迁移 / Skill and hook backup migration
 
@@ -461,6 +475,10 @@ The same host alternated 30 loopback trials each from the `2ec7e74` and `7fd0552
 
 Windows 本机两个 Debug CLI 读取了 Magpie `0.1.4936` 生成的原版加密备份，验证 `patience` 和 `groupPatience` 的预览、应用、编辑、复制、改名和删除。回环夹具在首个 HTTP 503 后返回完整 SSE，关闭重试的对照组保留 HTTP 503、原始错误正文和 `Retry-After`。Rust 网关回归覆盖候选顺序、嵌套组禁用、配额耗尽、超过预算的 HTTP 日期及每次尝试的状态记录。Windows 桌面集成测试通过 Rust 桥接在 1,200 和 560 逻辑像素下保存组级和网关默认值。
 
+组重试对应的历史构建 SHA 为 `e39b2c2537d4edaf355ff4a99c6f8f64def4990a`，通过临时分支触发 Run `46017272731`。Windows CI 通过 147 项 Rust 测试，忽略 33 项。ZIP 为 65,897,733 字节，SHA-256 为 `d3da144257da9c39690e9a4cc71eb707a03a9b04b001bad604e32f3c9f9e50df`。670 项清单的 SHA-256 为 `79d45f5b73a16c3f0b5e7bf116cbde6d9afd2aa612158908630f27437dbbab7d`。Release 桌面与双 CLI 通过，六个 PE 均为 `NotSigned`。首次 Grok 试跑缺少第二轮的 `load` 钩子记录，同包复跑通过钩子和 12 轮续接，随后通过组重试及 Oh My Pi 夹具。验后远端 `main` 为 `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9`，包含该构建 SHA。 [Job 140567500726](https://github.com/blueokanna/Crabforge/actions/runs/46017272731/job/140567500726) · [Artifact 15207448487](https://github.com/blueokanna/Crabforge/actions/runs/46017272731/artifacts/15207448487)
+
+Run `46017272731` built the historical group retry revision `e39b2c2537d4edaf355ff4a99c6f8f64def4990a` from a temporary branch. Windows CI passed 147 Rust tests with 33 ignored. The 65,897,733-byte ZIP has SHA-256 `d3da144257da9c39690e9a4cc71eb707a03a9b04b001bad604e32f3c9f9e50df`. The 670-entry manifest has SHA-256 `79d45f5b73a16c3f0b5e7bf116cbde6d9afd2aa612158908630f27437dbbab7d`. The Release desktop and both CLIs passed, and all six PE files reported `NotSigned`. The first Grok run lacked a record of the second turn's `load` hook. A rerun of the same package passed the hook checks and all 12 turns, followed by the group retry and Oh My Pi fixtures. Remote `main` was checked after acceptance at `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9` and included the build SHA. [Job 140567500726](https://github.com/blueokanna/Crabforge/actions/runs/46017272731/job/140567500726) · [Artifact 15207448487](https://github.com/blueokanna/Crabforge/actions/runs/46017272731/artifacts/15207448487)
+
 Both local Windows Debug CLIs read an encrypted backup produced by Magpie `0.1.4936` and verified preview, apply, edit, copy, rename and removal for `patience` and `groupPatience`. The loopback fixture returned a complete SSE stream after an initial HTTP 503. The group with retries disabled returned HTTP 503 with its original error body and `Retry-After`. The Rust gateway regression covers member order, a nested opt-out, exhausted quota, an HTTP date beyond the retry budget and the status recorded for each attempt. The Windows desktop integration test saved the group and gateway defaults through the Rust bridge at widths of 1,200 and 560 logical pixels. [Gateway test](../../../crates/core/tests/gateway.rs) · [Desktop test](../../../gui/integration_test/console_layout_test.dart)
 
 ## 首段内容超时 / First-content timeout
@@ -474,6 +492,10 @@ Local Windows testing used an encrypted backup produced by Magpie `0.1.4936`. Bo
 The downloaded Windows Actions package for `4968112838e68326b601f2d413ae42a4b0cac49e` passed acceptance. Run `46009593581`, job `140541409874` and artifact `15203569739` identify the 65,809,862-byte ZIP with SHA-256 `3e57920eda348d3cb63f3e2896aa4d0d96f5112f123fb66727632dd3c3e14227`. All 670 files matched the archive contents. The extracted manifest had SHA-256 `52c422ff59df1a3d750121295083250ece80060bc8ce5b61ffbfcfdf25fa38e6`, and all six PE files reported `NotSigned`. CI reported 145 Rust tests passed and 33 ignored. The downloaded desktop launched and closed cleanly, and both CLIs passed native backup, timeout fallback and editing checks. Pi, Gemini and Grok passed 12 turns each. The proxied remote `main` check at the end of acceptance matched the full build SHA. [Windows job](https://github.com/blueokanna/Crabforge/actions/runs/46009593581/job/140541409874) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/46009593581/artifacts/15203569739)
 
 ## 分类缓存候选变化与恢复 / Classifier cache scope and recovery
+
+提交 `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9` 的解压版双 CLI 通过分类候选变化、显式 `0` 复用、临时 503 后恢复和 SSE 等待夹具。Release 桌面正常启动和退出，Pi、Gemini、Grok 和 Oh My Pi 各通过 12 轮。Run `46015492103` 通过 153 项 Rust 测试，忽略 33 项。ZIP 为 66,957,507 字节，SHA-256 为 `8f469035f59901bb6ddf8624e9cdd71be8a126ee7547e0907fcd587dd4884dcc`。676 项清单的 SHA-256 为 `baafc1b2ad686285d187c635c24394a29a874faabfe2c21327182883ee9733aa`。六个 PE 均为 `NotSigned`。验收结束后经代理复核，远端 `main` 匹配该完整构建 SHA。 [Job 140561423475](https://github.com/blueokanna/Crabforge/actions/runs/46015492103/job/140561423475) · [Artifact 15206494701](https://github.com/blueokanna/Crabforge/actions/runs/46015492103/artifacts/15206494701)
+
+Both CLIs extracted from `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9` passed fixtures for changed classifier candidates, reuse of an explicit `0`, recovery from temporary HTTP 503 responses, and SSE keepalive. The Release desktop opened and closed cleanly. Pi, Gemini, Grok, and Oh My Pi each passed 12 turns. Run `46015492103` passed 153 Rust tests with 33 ignored. The 66,957,507-byte ZIP has SHA-256 `8f469035f59901bb6ddf8624e9cdd71be8a126ee7547e0907fcd587dd4884dcc`. The 676-entry manifest has SHA-256 `baafc1b2ad686285d187c635c24394a29a874faabfe2c21327182883ee9733aa`. All six PE files reported `NotSigned`. A proxied check at the end of acceptance matched remote `main` to the full build SHA. [Job 140561423475](https://github.com/blueokanna/Crabforge/actions/runs/46015492103/job/140561423475) · [Artifact 15206494701](https://github.com/blueokanna/Crabforge/actions/runs/46015492103/artifacts/15206494701)
 
 同一会话、同一用户轮的候选意图列表变化时会重新分类。列表恢复后可复用此前明确的 `0`，新列表的正向结果也可独立复用。分类器全部返回 HTTP 503 时先按普通路由处理，随后同轮请求再次分类，恢复后的判断可复用。Windows 网关回归和全量 153 项 Rust 测试通过，忽略 33 项，全目标 Clippy 通过。 [网关回归](../../../crates/core/tests/gateway.rs)
 

@@ -123,6 +123,8 @@ impl RoutingRule {
 #[njson(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct Classifiers {
     #[njson(skip_serializing_if = "String::is_empty")]
+    pub effort: String,
+    #[njson(skip_serializing_if = "String::is_empty")]
     pub classifier: String,
     #[njson(skip_serializing_if = "Vec::is_empty")]
     pub classifier_more: Vec<String>,
@@ -132,9 +134,14 @@ pub struct Classifiers {
 
 impl Classifiers {
     pub fn is_empty(&self) -> bool {
-        self.classifier.is_empty()
+        self.effort.is_empty()
+            && self.classifier.is_empty()
             && self.classifier_more.is_empty()
             && self.classify_prompt.is_empty()
+    }
+
+    pub(crate) fn automatic_effort(&self) -> bool {
+        self.effort == "auto"
     }
 
     pub(crate) fn targets(&self) -> impl Iterator<Item = &str> {

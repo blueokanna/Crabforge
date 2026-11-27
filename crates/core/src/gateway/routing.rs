@@ -1,5 +1,6 @@
 use super::{
-    Api, Config, Destination, Gateway, NativeProtocols, Round, Target, classifier::Classification,
+    Api, Config, Destination, Gateway, NativeProtocols, Round, Target,
+    classifier::{Choice, Classification, Question},
 };
 use futures_util::{Stream, StreamExt, stream};
 use std::{
@@ -86,6 +87,7 @@ struct Decision<'a> {
     route: Route,
     settings: &'a crate::config::Classifiers,
     intents: Vec<&'a str>,
+    automatic: bool,
     via: Vec<&'a str>,
     outer_limits: Limits<'a>,
 }
@@ -111,6 +113,7 @@ struct Limits<'a> {
     patience: i32,
     group_effort: Option<&'a str>,
     member_effort: Option<&'a str>,
+    automatic_effort: Option<&'static str>,
 }
 
 impl<'a> Limits<'a> {
@@ -204,6 +207,7 @@ impl Gateway {
             },
             group_effort: None,
             member_effort: None,
+            automatic_effort: None,
         };
         // A direct request keeps its origin even when the primary lacks this protocol.
         let unrestricted =
@@ -283,23 +287,29 @@ impl Gateway {
                                 let Route::Group { index, .. } = decision.route else {
                                     unreachable!("classifier route group")
                                 };
-                                let intent = if let Some(&intent) = judged.get(&index) {
-                                    intent
+                                let key = (index, decision.automatic);
+                                let choice = if let Some(&choice) = judged.get(&key) {
+                                    choice
                                 } else {
                                     let facts = request.facts.expect("classifier request facts");
-                                    let intent = classification
+                                    let choice = classification
                                         .choose(
                                             self,
                                             index,
-                                            decision.settings,
                                             facts,
-                                            &decision.intents,
+                                            Question {
+                                                settings: decision.settings,
+                                                intents: &decision.intents,
+                                                automatic: decision.automatic,
+                                            },
                                         )
                                         .await;
-                                    judged.insert(index, intent);
-                                    intent
+                                    judged.insert(key, choice);
+                                    choice
                                 };
-                                if intent.is_some() {
+                                if let Some(choice) = choice
+                                    && (choice.intent.is_some() || choice.effort.is_some())
+                                {
                                     // Assign shared descendants in the chosen rule order. A model already
                                     // attempted through another branch still runs only once per round.
                                     let mut available = Visited {
@@ -312,7 +322,7 @@ impl Gateway {
                                         &mut decision.via,
                                         &mut available,
                                         decision.outer_limits,
-                                        intent,
+                                        Some(choice),
                                     ));
                                     continue;
                                 }
@@ -346,7 +356,7 @@ impl Gateway {
         via: &mut Vec<&'a str>,
         seen: &mut Visited,
         limits: Limits<'a>,
-        intent: Option<&str>,
+        choice: Option<Choice<'a>>,
     ) -> Option<Plan<'a>> {
         let index = match route {
             Route::Disabled => return None,
@@ -374,7 +384,10 @@ impl Gateway {
                             0 => Duration::from_secs(60),
                             seconds => Duration::from_secs(seconds.max(0) as u64),
                         },
-                        effort: limits.member_effort.or(limits.group_effort),
+                        effort: limits
+                            .member_effort
+                            .or(limits.group_effort)
+                            .or(limits.automatic_effort),
                     })
                     .map(Plan::Model);
             }
@@ -386,27 +399,36 @@ impl Gateway {
         let name = &id["group/".len()..];
         let members = self.live_members(name, request.picks);
         let outer_limits = limits;
-        let limits = outer_limits.within(&self.config, name);
-        let rules = request
-            .facts
-            .filter(|_| !request.picks.contains_key(name))
-            .zip(self.rules.get(name));
-        let classify = rules
-            .filter(|_| intent.is_none())
+        let mut limits = outer_limits.within(&self.config, name);
+        limits.automatic_effort = limits
+            .automatic_effort
+            .or(choice.and_then(|choice| choice.effort));
+        let facts = request.facts.filter(|_| !request.picks.contains_key(name));
+        let rules = self.rules.get(name).map_or(&[][..], Vec::as_slice);
+        let classify = facts
+            .filter(|_| choice.is_none())
             .zip(self.config.group_classifiers.get(name))
-            .and_then(|((facts, rules), settings)| {
+            .and_then(|(facts, settings)| {
                 let intents = super::rules::intents(rules, facts);
-                (!intents.is_empty()).then(|| {
+                let automatic = settings.automatic_effort()
+                    && !matches!(request.api, Api::Gemini(_))
+                    && facts.requests_reasoning()
+                    && limits.automatic_effort.is_none()
+                    && limits.member_effort.is_none()
+                    && limits.group_effort.is_none();
+                (automatic || !intents.is_empty()).then(|| {
                     Box::new(Decision {
                         route,
                         settings,
                         intents,
+                        automatic,
                         via: via.clone(),
                         outer_limits,
                     })
                 })
             });
-        let ordered = rules.map(|(facts, rules)| {
+        let ordered = facts.filter(|_| !rules.is_empty()).map(|facts| {
+            let intent = choice.and_then(|choice| choice.intent);
             let ordered = super::rules::ordered(members, rules, facts, intent);
             if ordered.members.len() < members.len() {
                 request.paused.store(true, Ordering::Relaxed);

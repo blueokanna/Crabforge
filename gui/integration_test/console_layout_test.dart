@@ -210,7 +210,17 @@ void main() {
       TextFormField,
       strings.groupPatienceSeconds,
     );
+    Future<void> fillField(Finder field, String text) async {
+      await tester.ensureVisible(field);
+      await tester.pump();
+      await tester.enterText(field, text);
+      await tester.pump();
+      expect(tester.state<FormFieldState<String>>(field).value, text);
+    }
+
     Future<void> saveAndRead(bool Function(Map) persisted) async {
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
       await tester.tap(saveRouteLimits);
       final deadline = DateTime.now().add(const Duration(seconds: 10));
       var saved = false;
@@ -218,8 +228,20 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
         saved = persisted(jsonDecode(settings.readAsStringSync()) as Map);
       }
-      expect(saved, isTrue);
-      await tester.pumpAndSettle();
+      expect(
+        saved,
+        isTrue,
+        reason: tester
+            .widgetList<Text>(
+              find.descendant(
+                of: find.byType(SnackBar),
+                matching: find.byType(Text),
+              ),
+            )
+            .map((text) => text.data)
+            .join('\n'),
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 16));
     }
 
     Future<void> saveLimits(
@@ -228,17 +250,14 @@ void main() {
       bool Function(Map) persisted, {
       String? routingRules,
     }) async {
-      await tester.ensureVisible(timeoutField);
-      await tester.enterText(timeoutField, '$firstContent');
-      await tester.ensureVisible(patienceField);
-      await tester.enterText(patienceField, '$patience');
+      await fillField(timeoutField, '$firstContent');
+      await fillField(patienceField, '$patience');
       if (routingRules != null) {
         final field = find.widgetWithText(
           TextFormField,
           strings.groupRoutingRules,
         );
-        await tester.ensureVisible(field);
-        await tester.enterText(field, routingRules);
+        await fillField(field, routingRules);
       }
       await saveAndRead(persisted);
     }
@@ -251,8 +270,7 @@ void main() {
       await tester.tap(find.text('openai'));
       await tester.pumpAndSettle();
       final providerPatience = width == 1200 ? 7 : 0;
-      await tester.ensureVisible(patienceField);
-      await tester.enterText(patienceField, '$providerPatience');
+      await fillField(patienceField, '$providerPatience');
       await saveAndRead(
         (cfg) => (cfg['providers'] as List).any(
           (item) =>
@@ -281,10 +299,11 @@ void main() {
             cfg['group_rules']?['review']?[0]['tokens'] == tokens &&
             cfg['group_rules']?['review']?[0]['intent'] == intent &&
             cfg['group_rules']?['review']?[0]['useEffort'] == effort &&
+            cfg['group_classifiers']?['review']?['effort'] == 'auto' &&
             cfg['group_classifiers']?['review']?['classifier'] ==
                 'openai/gpt-4.1',
         routingRules:
-            '{"classifier":"openai/gpt-4.1","rules":[{"use":"openai/gpt-4.1","tokens":$tokens,"intent":"$intent","useEffort":"$effort"}]}',
+            '{"classifier":"openai/gpt-4.1","effort":"auto","rules":[{"use":"openai/gpt-4.1","tokens":$tokens,"intent":"$intent","useEffort":"$effort"}]}',
       );
       await openPage(nav, strings.gateway);
       await tester.tap(find.text(strings.networkSettings));
@@ -296,8 +315,7 @@ void main() {
         TextFormField,
         strings.classifyTimeoutSeconds,
       );
-      await tester.ensureVisible(classifyField);
-      await tester.enterText(classifyField, '$classifySeconds');
+      await fillField(classifyField, '$classifySeconds');
       await saveLimits(
         defaultSeconds,
         defaultPatience,

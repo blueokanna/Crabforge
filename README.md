@@ -37,6 +37,8 @@ To route generation requests conditionally, edit **Routing rules (JSON)** in the
 
 A rule can set `useEffort` to `low`, `medium`, `high`, `xhigh` or `max` for requests that already ask for reasoning. When forwarding native OpenAI Chat Completions, Responses or Anthropic Messages requests, the gateway fits the rule's level to each attempted model's known levels, including on fallback. The client's setting passes through when levels are unknown. Use **Discover models** in the provider editor or `carbforge-cli models primary --sync` to load advertised levels. For a model without advertised levels, set `carbforge-cli model spec primary/model --reasoning low,medium,high`. Use `--reasoning auto` to clear the custom list. Magpie imports preserve `useEffort` in groups and `modelEfforts` with `--settings` or `--settings-only`.
 
+Add `"effort":"auto"` beside `classifier` in a group's routing JSON to let the classifier estimate reasoning effort for requests that ask for it. The gateway can ask for intent and effort in one call, reuse the answer on tool continuations in the same named session and carry it into nested groups. A matched rule's `useEffort` takes precedence. Shares and encrypted group backups preserve the setting.
+
 For `intent` rules, supply an object in the same editor or CLI command. `classifier` and `classifierMore` accept configured model and group IDs. `classifyPrompt` is optional.
 
 ```json

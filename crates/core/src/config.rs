@@ -697,6 +697,14 @@ impl Config {
                 "group {group}: classifier prompt exceeds 4000 characters"
             );
             ensure!(
+                classifiers.effort.is_empty() || classifiers.automatic_effort(),
+                "group {group}: effort must be auto or left to the client"
+            );
+            ensure!(
+                !classifiers.automatic_effort() || !classifiers.classifier.is_empty(),
+                "group {group}: automatic effort requires a classifier"
+            );
+            ensure!(
                 !classifiers.classifier.is_empty() || classifiers.classifier_more.is_empty(),
                 "group {group}: backup classifiers require a primary classifier"
             );

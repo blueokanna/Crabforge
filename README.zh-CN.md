@@ -37,6 +37,8 @@ OpenAI Chat Completions、Responses 和 Anthropic Messages 的 SSE 响应开启�
 
 规则可用 `useEffort` 将已请求推理的请求调整为 `low`、`medium`、`high`、`xhigh` 或 `max`。网关在原生转发 OpenAI Chat Completions、Responses 或 Anthropic Messages 请求时，为每次尝试按目标模型的已知等级选取最接近的值，回退时也会重新适配。模型等级未知时沿用客户端值。在供应商编辑器使用「发现模型」，或执行 `carbforge-cli models primary --sync` 读取上游声明的等级。上游未声明时，可执行 `carbforge-cli model spec primary/model --reasoning low,medium,high`，用 `--reasoning auto` 清除自定义列表。Magpie 导入保留组内的 `useEffort`，并通过 `--settings` 或 `--settings-only` 保留 `modelEfforts`。
 
+在路由组 JSON 的 `classifier` 同级加入 `"effort":"auto"`，由分类器为已请求推理的请求评估等级。网关可在一次调用中判定意图与等级，并在同一命名会话的工具续轮中复用结果、传给嵌套组。命中规则的 `useEffort` 优先。路由组分享和加密备份均保留该设置。
+
 配置 `intent` 规则时，在同一编辑器或 CLI 命令中传入 JSON 对象。`classifier` 和 `classifierMore` 接受已配置的模型和路由组 ID，`classifyPrompt` 可选。
 
 ```json
