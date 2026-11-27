@@ -73,6 +73,8 @@ carbforge-cli project-instructions D:\Projects\app codex --restore
 
 打开「客户端连接 → 记忆」可以添加、编辑、置顶和归档 Markdown 记忆。桌面支持文本搜索，CLI 还可按范围、类型和标签筛选。每条记忆以带 YAML 元数据的 Markdown 文件保存在 Crabforge 数据目录的 `memory/` 下。迁移 Magpie 的 Markdown 记忆时，将各条 `.md` 文件复制到该目录。
 
+可用 `carbforge-cli memory import-magpie .\magpie.magpie-backup` 预览 Magpie 加密备份中的记忆。口令可在提示时输入，也可由重定向输入的首行提供。预览列出 ID、范围、状态，以及每条记忆将新建、文件相同还是 ID 冲突。加上 `--apply` 会创建 Markdown 文件，应用前须解决冲突。每个文件以原子方式写入，重复导入会跳过相同文件。导入保留记忆证据，发布仍通过现有审核及发布命令执行。预览按名称列出未支持的记忆元数据字段。
+
 ```powershell
 carbforge-cli memory add preference.md --kind preference --tag workflows
 carbforge-cli memory search --kind preference --status active

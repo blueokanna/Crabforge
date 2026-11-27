@@ -13,10 +13,12 @@ use yaml_edit::{Mapping, Sequence, YamlFile};
 
 mod digest;
 pub mod distill;
+mod magpie;
 pub mod mcp;
 mod project;
 
 pub use digest::{agent_digest, project_digest};
+pub use magpie::import_magpie;
 pub use project::key as project_key;
 
 const MAX_FILE: usize = 256 * 1024;

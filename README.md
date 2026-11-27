@@ -73,6 +73,8 @@ carbforge-cli project-instructions D:\Projects\app codex --restore
 
 Open **Client connections → Memory** to add, edit, pin or archive Markdown memories. Search by text in the desktop console or filter by scope, kind and tags from the CLI. Each memory is a Markdown file with YAML front matter under `memory/` in the Crabforge data directory. To bring over Magpie Markdown memories, copy the individual `.md` files into that directory.
 
+Use `carbforge-cli memory import-magpie .\magpie.magpie-backup` to preview memories from an encrypted Magpie backup. Enter the backup passphrase at the prompt or on the first line of redirected stdin. The preview lists IDs, scopes, states and whether each file would be created, is identical or conflicts. Add `--apply` to create the Markdown files. Resolve any ID conflict before applying. Each new file is written atomically, and rerunning the same import skips identical files. Import preserves memory evidence and leaves publication to the existing review and publish commands. The preview reports unsupported memory metadata by field name.
+
 ```powershell
 carbforge-cli memory add preference.md --kind preference --tag workflows
 carbforge-cli memory search --kind preference --status active

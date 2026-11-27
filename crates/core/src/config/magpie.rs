@@ -167,7 +167,7 @@ pub struct MagpieProviderImport {
     applied: bool,
 }
 
-fn open_backup(file: &Path, passphrase: &str) -> Result<BTreeMap<String, Value>> {
+pub(crate) fn open_backup(file: &Path, passphrase: &str) -> Result<BTreeMap<String, Value>> {
     ensure!(
         !passphrase.is_empty(),
         "a Magpie backup requires its passphrase"
@@ -857,6 +857,74 @@ mod tests {
             cfg.auto_stand_in("auto/canonical").as_deref(),
             Some("lab/wire-name")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn memory_backup_keeps_states_and_evidence_and_refuses_file_conflicts() -> Result<()> {
+        use crate::memory;
+
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("memory.magpie-backup");
+        let store = dir.path().join("crabforge");
+        let stamp = "2026-11-26T04:09:42.123456789Z";
+        let sample = |id, status| {
+            json!({
+                "id":id,"text":"记住这个项目的发行流程。\n\n保留证据。","kind":"procedure",
+                "scope":"project:example/app","origin":"inferred","status":status,
+                "created":stamp,"updated":stamp,"tags":["Windows","release"], "pinned":true,
+                "sources":[{"agent":"pi","session":"original","quote":"保留证据。","at":stamp}]
+            })
+        };
+        let backup = |items: Vec<Value>| {
+            json!({"version":2,"memory":{
+                "memories":items,"removed":{"m_gone":stamp},
+                "projects":{"example/app":{"key":"example/app","name":"app"}},
+                "dismissed":["other fixture memory"],"declined":["fixture suggestion"]
+            }})
+        };
+        let original = vec![
+            sample("m_claimed", "candidate"),
+            sample("m_gone", "archived"),
+        ];
+        seal(&file, backup(original.clone()));
+        let report = |apply| -> Result<Value> {
+            let report = memory::import_magpie(&store, &file, PASSPHRASE, apply)?;
+            nextjson::to_value(&report).map_err(anyhow::Error::msg)
+        };
+        assert!(memory::import_magpie(&store, &file, "wrong passphrase", true).is_err());
+        assert_eq!(
+            report(false)?,
+            json!({
+                "memories":[{"id":"m_claimed","status":"candidate","scope":"project:example/app","action":"create"}],
+                "removed":["m_gone"],"skipped_fields":["declined","dismissed","projects"],"applied":false
+            })
+        );
+        assert!(!store.exists());
+        assert_eq!(report(true)?["applied"], json!(true));
+        let saved = memory::read(&store, "m_claimed")?;
+        assert_eq!(saved.status, "candidate");
+        assert_eq!(saved.updated, stamp);
+        assert_eq!(saved.source_quote.as_deref(), Some("保留证据。"));
+        assert_eq!(saved.tags, ["release", "windows"]);
+        assert!(saved.pinned);
+        assert_eq!(report(true)?["memories"][0]["action"], json!("identical"));
+        assert!(memory::read(&store, "m_gone").is_err());
+
+        let mut items = vec![
+            sample("m_second", "active"),
+            sample("m_claimed", "archived"),
+        ];
+        seal(&file, backup(items.clone()));
+        assert_eq!(report(false)?["memories"][1]["action"], json!("conflict"));
+        assert!(report(true).is_err());
+        assert_eq!(memory::read(&store, "m_claimed")?.revision, saved.revision);
+        assert!(memory::read(&store, "m_second").is_err());
+
+        items[1] = sample("../outside", "active");
+        seal(&file, backup(items));
+        assert!(report(true).is_err());
+        assert!(memory::read(&store, "m_second").is_err());
         Ok(())
     }
 }

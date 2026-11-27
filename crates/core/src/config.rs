@@ -18,6 +18,7 @@ mod origins;
 mod rename;
 pub use crate::anthropic_auth::AuthHeader;
 pub use groups::{ImportedGroup, MemberPattern, ResolvedGroups};
+pub(crate) use magpie::open_backup as open_magpie_backup;
 pub use magpie::{
     MagpieImportOptions, MagpieSettingsMode, import_magpie_backup, import_magpie_groups,
     import_magpie_providers, import_magpie_routing,
