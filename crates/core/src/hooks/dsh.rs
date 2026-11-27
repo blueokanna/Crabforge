@@ -145,6 +145,7 @@ fn run(profile: &Path, home: &Path, args: &[&str], timeout: Duration) -> Result<
     }
     let executable = executable.context("DeepSeek Harness (dsh) must be on PATH")?;
     let mut output = tempfile::tempfile()?;
+    let mut diagnostic = tempfile::tempfile()?;
     let mut command = Command::new(executable);
     #[cfg(windows)]
     {
@@ -153,17 +154,29 @@ fn run(profile: &Path, home: &Path, args: &[&str], timeout: Duration) -> Result<
     }
     let mut child = command
         .args(args)
-        .current_dir(profile)
-        .env("DSH_HOME", home)
+        .current_dir(loader_path(profile))
+        .env("DSH_HOME", loader_path(home))
         .stdin(Stdio::null())
         .stdout(output.try_clone()?)
-        .stderr(Stdio::null())
+        .stderr(diagnostic.try_clone()?)
         .spawn()
         .context("run dsh from PATH for DeepSeek Harness hooks")?;
     let deadline = Instant::now() + timeout;
     let result = (|| loop {
         if let Some(status) = child.try_wait()? {
-            ensure!(status.success(), "dsh {} failed ({status})", args[0]);
+            if !status.success() {
+                let length = diagnostic.metadata()?.len();
+                diagnostic.seek(std::io::SeekFrom::Start(length.saturating_sub(2048)))?;
+                let mut bytes = Vec::new();
+                diagnostic.by_ref().take(2048).read_to_end(&mut bytes)?;
+                let text = String::from_utf8_lossy(&bytes);
+                let detail = text
+                    .lines()
+                    .rev()
+                    .find(|line| !line.trim().is_empty())
+                    .unwrap_or("");
+                anyhow::bail!("dsh {} failed ({status}) {detail}", args[0]);
+            }
             output.rewind()?;
             let mut text = String::new();
             output.by_ref().take(4096).read_to_string(&mut text)?;
@@ -177,6 +190,19 @@ fn run(profile: &Path, home: &Path, args: &[&str], timeout: Duration) -> Result<
         let _ = child.wait();
     }
     result
+}
+
+fn loader_path(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    if let Some(path) = path.to_str() {
+        if let Some(path) = path.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{path}"));
+        }
+        if let Some(path) = path.strip_prefix(r"\\?\") {
+            return PathBuf::from(path);
+        }
+    }
+    path.to_path_buf()
 }
 
 fn ensure_plugin(profile: &Path) -> Result<()> {
@@ -261,12 +287,11 @@ pub(super) fn plan(target: &Target, active: bool, install: bool) -> Result<Optio
         native_settings::read(&path)?.context("DeepSeek Harness profile patch is unavailable")?;
     // Cordis resolves the configured file against the launch directory. A Windows
     // canonical path may use the Win32 verbatim prefix, which Node normalizes differently.
-    let config = target
-        .path
-        .strip_prefix(r"\\?\UNC\")
-        .map(|path| format!("//{}", path.replace('\\', "/")))
-        .unwrap_or_else(|| target.path.trim_start_matches(r"\\?\").replace('\\', "/"));
-    let after = update(&before, &config, active)?;
+    let config = loader_path(Path::new(&target.path));
+    let config = config
+        .to_str()
+        .context("invalid DeepSeek Harness config path")?;
+    let after = update(&before, config, active)?;
     if active && install {
         ensure_plugin(profile)?;
     }
