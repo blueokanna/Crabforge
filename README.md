@@ -116,6 +116,16 @@ Select **Open project** to enable an installed plugin for one folder through `.c
 
 The plugin menu exports and imports JSON settings. In the CLI, save the output of `claude-plugins export-settings` and load it with `claude-plugins import-settings <file>`. The JSON carries GitHub or plain HTTPS marketplace declarations and their enabled plugin IDs, including enabled plugins from the official market. Local locations and sources with credentials, request headers or URL query parameters stay in the original profile. Import adds missing declarations and flags, keeps existing local choices, and leaves installation to Claude Code.
 
+Open **Client connections → Shared plugin library** to preview a Claude Code, Codex, Antigravity or Pi plugin from its folder, manifest or Git URL. Saving records the full source snapshot, including attachments, and checks that the source still matches the preview. The update action opens a fresh preview and saves against the current library revision.
+
+For a Claude-compatible marketplace, enter its directory, `.claude-plugin/marketplace.json` or Git URL and select **Browse plugins**. The CLI equivalent is `plugin-bundles marketplace <source>`. Choose a listed source to preview its manifest and files before saving.
+
+Open a saved bundle, then select a component to review and copy an individual skill, subagent, command, MCP server or command hook. The destination resource library manages client and project assignments, updates and removal. Copies have their own lifecycle after creation. Definitions that reference the native plugin environment show that dependency during review. For Pi packages, the library lists declared `SKILL.md` files and Markdown prompt templates for copying. The snapshot also carries the declared extensions and themes for use with Pi.
+
+Use `carbforge-cli plugin-bundles preview <source>` to obtain a content hash and `plugin-bundles save <source> --content <hash>` to store it. Add `--revision <revision>` from `plugin-bundles list` when updating. Use `plugin-bundles resources <name> <kind> <path> --revision <revision>` to inspect one component. Repeat with `--copy <key>` to add the reviewed resource to its library.
+
+To move a saved snapshot to another Crabforge profile, choose **Export plugin archive** or run `plugin-bundles export <name> <file.tar> --revision <revision>`. Open the TAR in the destination's import dialog or pass it to `plugin-bundles preview` and `save`. The archive includes the original bundle files and attachments. Assignments and changes in the destination resource libraries are managed there.
+
 `carbforge-cli subagents` and `carbforge-cli commands` support `list`, `save`, `remove`, and `sync`. `subagents --project <folder>` selects a project library. `save` reads UTF-8 JSON from standard input with `name`, `prompt`, and `agents`. Supply `description` for subagents. Optional subagent fields are `model`, `effort`, `skills` and `mcp`. Save this example as `check.json` and run `cmd.exe /d /c "carbforge-cli commands save < check.json"` to publish it from Windows.
 
 ```json

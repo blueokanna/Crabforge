@@ -573,6 +573,42 @@ class AppLocalizationsKo extends AppLocalizations {
   String get memberPatterns => '모델 패턴 (한 줄에 하나씩)';
 
   @override
+  String get pluginBundles => '공유 플러그인 라이브러리';
+
+  @override
+  String get importPluginBundle => '플러그인 번들 가져오기';
+
+  @override
+  String get previewPluginBundle => '번들 미리 보기';
+
+  @override
+  String get pluginBundleSource => '플러그인 폴더, 매니페스트 또는 Git URL';
+
+  @override
+  String get noPluginBundles => '저장된 플러그인 번들이 없습니다.';
+
+  @override
+  String get otherPluginEntries => '기타 매니페스트 항목';
+
+  @override
+  String get noBundleResources => '이 파일에 리소스가 없습니다.';
+
+  @override
+  String get copyBundleResource => '라이브러리에 복사';
+
+  @override
+  String get bundleResourceCopied => '라이브러리에 복사됨';
+
+  @override
+  String get openPluginArchive => 'TAR 아카이브 열기';
+
+  @override
+  String get exportPluginArchive => '플러그인 아카이브 내보내기';
+
+  @override
+  String get pluginArchiveSaved => '플러그인 아카이브 저장됨';
+
+  @override
   String get pluginCatalog => '플러그인 찾아보기';
 
   @override

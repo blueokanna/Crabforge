@@ -10,6 +10,7 @@ mod environment;
 mod groups;
 mod hooks;
 mod memory;
+mod plugin_bundles;
 mod project_mcp;
 mod rules;
 mod skills;
@@ -108,6 +109,11 @@ enum Command {
         project: Option<PathBuf>,
         #[command(subcommand)]
         command: claude_plugins::Command,
+    },
+    /// Preview and save plugin bundles in the shared library.
+    PluginBundles {
+        #[command(subcommand)]
+        command: plugin_bundles::Command,
     },
     /// Discover recent local Claude Code and Codex sessions.
     Sessions {
@@ -866,6 +872,7 @@ pub async fn run() -> Result<()> {
         Command::ClaudePlugins { project, command } => {
             claude_plugins::run(&dir, project.as_deref(), command)?
         }
+        Command::PluginBundles { command } => plugin_bundles::run(&dir, command)?,
         Command::Subagents { project, command } => agent_files::run(
             &dir,
             crabforge_core::agent_files::Kind::Subagent,

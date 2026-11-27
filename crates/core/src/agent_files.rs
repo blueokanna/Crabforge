@@ -3,6 +3,7 @@ mod import;
 mod native;
 mod shared;
 pub use import::Request as ImportRequest;
+pub(crate) use import::bundle_entry;
 pub use shared::Assignment as ProjectAssignment;
 
 use crate::{config::read_limited, native_settings, project_instructions::replace};

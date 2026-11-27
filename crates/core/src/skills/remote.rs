@@ -5,7 +5,7 @@ use percent_encoding::{NON_ALPHANUMERIC, percent_decode_str, utf8_percent_encode
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs::{self, File},
-    io::{self, Read, Seek},
+    io::{self, Cursor, Read, Seek},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -333,19 +333,27 @@ fn find_folder(
     );
 }
 
-fn extract(archive: &mut File, folder: &str, root: &Path) -> Result<Tree> {
+fn extract(
+    archive: &mut (impl Read + Seek),
+    folder: &str,
+    root: &Path,
+    archive_root: Option<&str>,
+) -> Result<Tree> {
     let prefix = format!("{folder}/");
     let mut entries = BTreeSet::new();
     let mut names = BTreeMap::new();
     let mut remaining = MAX_BYTES as u64;
     archive.rewind()?;
     for (index, entry) in Archive::new(archive).entries()?.enumerate() {
-        ensure!(
-            index < MAX_HEADERS,
-            "too many entries in the GitHub skill archive"
-        );
+        ensure!(index < MAX_HEADERS, "too many entries in the archive");
         let mut entry = entry?;
         let raw = entry.path_bytes();
+        if let Some(archive_root) = archive_root {
+            ensure!(
+                raw.starts_with(archive_root.as_bytes()),
+                "invalid Crabforge plugin archive path"
+            );
+        }
         let path = relative(&raw)?;
         let path = if folder.is_empty() {
             path
@@ -413,6 +421,70 @@ fn extract(archive: &mut File, folder: &str, root: &Path) -> Result<Tree> {
     Tree::read(root)
 }
 
+pub(crate) fn read_plugin_archive(path: &Path) -> Result<Tree> {
+    const MAX_ARCHIVE: usize = 24 * 1024 * 1024;
+    let bytes = crate::config::read_limited(path, MAX_ARCHIVE)?;
+    let staging = tempfile::tempdir()?;
+    extract(
+        &mut Cursor::new(bytes),
+        "",
+        staging.path(),
+        Some("crabforge-plugin/"),
+    )
+}
+
+fn selected_folder<'a>(selected: &'a str, manifests: &[&str]) -> &'a str {
+    manifests
+        .iter()
+        .find_map(|manifest| {
+            if selected == *manifest {
+                Some("")
+            } else {
+                selected
+                    .strip_suffix(manifest)
+                    .and_then(|prefix| prefix.strip_suffix('/'))
+            }
+        })
+        .unwrap_or(selected)
+}
+
+pub(crate) fn load_repository_document(
+    input: &str,
+    document: &str,
+    limit: usize,
+) -> Result<(String, String)> {
+    let repo = Repository::open_with_document(input, None)?;
+    let folder = selected_folder(repo.folder().unwrap_or_default(), &[document]);
+    let expected = if folder.is_empty() {
+        document.to_owned()
+    } else {
+        format!("{folder}/{document}")
+    };
+    let mut archive = repo.archive()?;
+    for (index, entry) in Archive::new(&mut archive).entries()?.enumerate() {
+        ensure!(index < MAX_HEADERS, "too many entries in the Git archive");
+        let mut entry = entry?;
+        if entry.header().entry_type().is_file() && relative(&entry.path_bytes())? == expected {
+            ensure!(
+                entry.size() <= limit as u64,
+                "repository manifest exceeds its size limit"
+            );
+            let mut text = String::new();
+            entry.read_to_string(&mut text)?;
+            return Ok((repo.canonical(folder), text));
+        }
+    }
+    anyhow::bail!("no {document} in the selected repository folder")
+}
+
+pub(crate) fn load_repository_tree(input: &str, manifests: &[&str]) -> Result<(String, Tree)> {
+    let repo = Repository::open_with_document(input, None)?;
+    let folder = selected_folder(repo.folder().unwrap_or_default(), manifests);
+    let staging = tempfile::tempdir()?;
+    let tree = extract(&mut repo.archive()?, folder, staging.path(), None)?;
+    Ok((repo.canonical(folder), tree))
+}
+
 pub(super) fn load(input: &str) -> Result<(String, Tree)> {
     read(input)?.context("the selected Git source has no SKILL.md")
 }
@@ -460,7 +532,7 @@ fn bundle(
         return Ok(None);
     };
     let staging = tempfile::tempdir()?;
-    let tree = extract(&mut archive, &folder, staging.path())?;
+    let tree = extract(&mut archive, &folder, staging.path(), None)?;
     Ok(Some((canonical(&folder), tree)))
 }
 
@@ -511,7 +583,7 @@ mod tests {
             Some(folder.as_str())
         );
         let temp = tempfile::tempdir()?;
-        let tree = extract(&mut archive, &folder, temp.path())?;
+        let tree = extract(&mut archive, &folder, temp.path(), None)?;
         assert_eq!(tree.document()?.as_bytes(), doc);
         assert_eq!(fs::read(temp.path().join("ref/units.bin"))?, [0, 100, 255]);
         assert!(!temp.path().join("sibling.txt").exists());
@@ -549,7 +621,7 @@ mod tests {
         ] {
             let mut archive = fixture(&[(first, b"", EntryType::Regular), (second, b"", kind)])?;
             let temp = tempfile::tempdir()?;
-            assert!(extract(&mut archive, "one", temp.path()).is_err());
+            assert!(extract(&mut archive, "one", temp.path(), None).is_err());
         }
         assert!(Source::parse("https://github.com/user/repo#one/%2E%2E", Some(DOCUMENT)).is_err());
         assert!(

@@ -13,13 +13,14 @@ pub(super) const MAX_ENTRIES: usize = 1024;
 pub(super) const MAX_DEPTH: usize = 16;
 pub(super) const DOCUMENT: &str = "SKILL.md";
 
+#[derive(Clone)]
 enum Entry {
     Directory,
     File { bytes: Vec<u8>, executable: bool },
 }
 
 #[derive(Default)]
-pub(super) struct Tree(BTreeMap<PathBuf, Entry>);
+pub(crate) struct Tree(BTreeMap<PathBuf, Entry>);
 
 pub(crate) fn is_link(metadata: &Metadata) -> bool {
     #[cfg(windows)]
@@ -46,7 +47,7 @@ fn executable(_metadata: &Metadata) -> bool {
     }
 }
 
-pub(super) fn windows_filename(name: &str) -> bool {
+pub(crate) fn windows_filename(name: &str) -> bool {
     let base = name.split('.').next().unwrap_or_default().trim_end();
     let upper = base.to_ascii_uppercase();
     !name.is_empty()
@@ -67,7 +68,7 @@ pub(super) fn windows_filename(name: &str) -> bool {
 }
 
 impl Tree {
-    pub(super) fn read(root: &Path) -> Result<Self> {
+    pub(crate) fn read(root: &Path) -> Result<Self> {
         let mut budget = MAX_BYTES;
         Self::read_shared(root, &mut budget)
     }
@@ -81,9 +82,21 @@ impl Tree {
         let mut tree = Self::default();
         let limit = (*budget).min(MAX_BYTES);
         let mut remaining = limit;
-        let result = tree.scan(root, Path::new(""), 0, &mut remaining);
+        let result = tree.scan(root, Path::new(""), 0, &mut remaining, false);
         *budget -= limit - remaining;
         result?;
+        Ok(tree)
+    }
+
+    pub(crate) fn read_repository(root: &Path) -> Result<Self> {
+        let metadata = fs::symlink_metadata(root)?;
+        ensure!(
+            metadata.is_dir() && !is_link(&metadata),
+            "expected a regular plugin directory"
+        );
+        let mut tree = Self::default();
+        let mut remaining = MAX_BYTES;
+        tree.scan(root, Path::new(""), 0, &mut remaining, true)?;
         Ok(tree)
     }
 
@@ -93,17 +106,21 @@ impl Tree {
         relative: &Path,
         depth: usize,
         remaining: &mut usize,
+        omit_git_metadata: bool,
     ) -> Result<()> {
         ensure!(depth <= MAX_DEPTH, "skill path depth exceeds {MAX_DEPTH}");
         let mut names = std::collections::BTreeSet::new();
         for entry in fs::read_dir(root.join(relative))? {
             let entry = entry?;
-            ensure!(
-                self.0.len() < MAX_ENTRIES,
-                "skill exceeds {MAX_ENTRIES} files and folders"
-            );
             let name = entry.file_name();
             let name = name.to_str().context("skill filenames must be UTF-8")?;
+            if omit_git_metadata && name.eq_ignore_ascii_case(".git") {
+                continue;
+            }
+            ensure!(
+                self.0.len() < MAX_ENTRIES,
+                "source exceeds {MAX_ENTRIES} files and folders"
+            );
             ensure!(
                 windows_filename(name) && names.insert(name.to_uppercase()),
                 "skill filename {name:?} is ambiguous or unsupported on Windows"
@@ -113,7 +130,7 @@ impl Tree {
             ensure!(!is_link(&metadata), "linked skill entry {}", path.display());
             if metadata.is_dir() {
                 self.0.insert(path.clone(), Entry::Directory);
-                self.scan(root, &path, depth + 1, remaining)?;
+                self.scan(root, &path, depth + 1, remaining, omit_git_metadata)?;
             } else {
                 ensure!(
                     metadata.is_file(),
@@ -143,7 +160,33 @@ impl Tree {
         }
     }
 
-    pub(super) fn hash(&self) -> String {
+    pub(crate) fn files(&self) -> impl Iterator<Item = &Path> {
+        self.0.iter().filter_map(|(path, entry)| {
+            matches!(entry, Entry::File { .. }).then_some(path.as_path())
+        })
+    }
+
+    pub(crate) fn subtree(&self, path: &Path) -> Self {
+        Self(
+            self.0
+                .iter()
+                .filter_map(|(file, entry)| {
+                    let relative = file.strip_prefix(path).ok()?;
+                    (!relative.as_os_str().is_empty())
+                        .then(|| (relative.to_path_buf(), entry.clone()))
+                })
+                .collect(),
+        )
+    }
+
+    pub(crate) fn text(&self, path: &Path) -> Result<Option<&str>> {
+        match self.0.get(path) {
+            Some(Entry::File { bytes, .. }) => Ok(Some(std::str::from_utf8(bytes)?)),
+            _ => Ok(None),
+        }
+    }
+
+    pub(crate) fn hash(&self) -> String {
         let mut hash = Sha256::new();
         for (path, entry) in &self.0 {
             for component in path.components() {
@@ -164,7 +207,7 @@ impl Tree {
         hex::encode(hash.finalize())
     }
 
-    pub(super) fn write(&self, root: &Path) -> Result<()> {
+    pub(crate) fn write(&self, root: &Path) -> Result<()> {
         fs::create_dir(root)?;
         for (path, entry) in &self.0 {
             let path = root.join(path);
@@ -186,6 +229,30 @@ impl Tree {
                 }
             }
         }
+        Ok(())
+    }
+
+    pub(crate) fn write_plugin_archive(&self, output: impl Write) -> Result<()> {
+        let mut archive = tar::Builder::new(output);
+        let root = Path::new("crabforge-plugin");
+        for (path, entry) in &self.0 {
+            let mut header = tar::Header::new_gnu();
+            let bytes = match entry {
+                Entry::Directory => {
+                    header.set_entry_type(tar::EntryType::Directory);
+                    header.set_mode(0o755);
+                    &[][..]
+                }
+                Entry::File { bytes, executable } => {
+                    header.set_entry_type(tar::EntryType::Regular);
+                    header.set_mode(if *executable { 0o755 } else { 0o644 });
+                    bytes.as_slice()
+                }
+            };
+            header.set_size(bytes.len() as u64);
+            archive.append_data(&mut header, root.join(path), bytes)?;
+        }
+        archive.finish()?;
         Ok(())
     }
 }

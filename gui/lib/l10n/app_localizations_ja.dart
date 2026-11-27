@@ -573,6 +573,42 @@ class AppLocalizationsJa extends AppLocalizations {
   String get memberPatterns => 'モデルのパターン（1 行に 1 つ）';
 
   @override
+  String get pluginBundles => '共有プラグインライブラリ';
+
+  @override
+  String get importPluginBundle => 'プラグインバンドルをインポート';
+
+  @override
+  String get previewPluginBundle => 'バンドルのプレビュー';
+
+  @override
+  String get pluginBundleSource => 'フォルダー、マニフェスト、または Git URL';
+
+  @override
+  String get noPluginBundles => '保存されたプラグインバンドルはありません。';
+
+  @override
+  String get otherPluginEntries => 'その他のマニフェスト項目';
+
+  @override
+  String get noBundleResources => 'このファイルにリソースはありません。';
+
+  @override
+  String get copyBundleResource => 'ライブラリにコピー';
+
+  @override
+  String get bundleResourceCopied => 'ライブラリにコピー済み';
+
+  @override
+  String get openPluginArchive => 'TAR アーカイブを開く';
+
+  @override
+  String get exportPluginArchive => 'プラグインアーカイブをエクスポート';
+
+  @override
+  String get pluginArchiveSaved => 'プラグインアーカイブを保存しました';
+
+  @override
   String get pluginCatalog => 'プラグインを探す';
 
   @override

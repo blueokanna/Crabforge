@@ -832,6 +832,20 @@ pub fn edit(dir: &Path, change: Edit) -> Result<String> {
     edit_in(dir, &targets(dir)?, change)
 }
 
+pub(crate) fn bundle_hook(
+    client: &str,
+    name: String,
+    event: &str,
+    entry: &Value,
+) -> Result<String> {
+    let mut hook = native::decode(Agent::parse(client)?, event, entry)
+        .context("the native hook uses an unsupported handler")?;
+    hook.name = name;
+    hook.agents.clear();
+    hook.validate()?;
+    encode(&hook)
+}
+
 pub fn edit_project(dir: &Path, root: &Path, change: Edit) -> Result<String> {
     let _lock = native_settings::lock(dir)?;
     project::edit(&dir.join("hooks"), root, &targets(dir)?, change)

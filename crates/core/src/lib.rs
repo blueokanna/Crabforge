@@ -33,11 +33,11 @@ macro_rules! string_enum {
 }
 
 pub mod agent_files;
-pub mod claude_plugins;
 pub mod agents;
 mod anthropic_auth;
 mod bedrock;
 pub mod catalog;
+pub mod claude_plugins;
 pub mod config;
 pub mod environment;
 pub mod gateway;
@@ -49,6 +49,7 @@ mod model_name;
 mod native_settings;
 mod opencode;
 pub mod peer;
+pub mod plugin_bundles;
 pub mod project_instructions;
 pub mod project_mcp;
 pub mod rules;

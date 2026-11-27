@@ -1144,6 +1144,78 @@ abstract class AppLocalizations {
   /// **'Model patterns, one per line'**
   String get memberPatterns;
 
+  /// No description provided for @pluginBundles.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared plugin library'**
+  String get pluginBundles;
+
+  /// No description provided for @importPluginBundle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import plugin bundle'**
+  String get importPluginBundle;
+
+  /// No description provided for @previewPluginBundle.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview bundle'**
+  String get previewPluginBundle;
+
+  /// No description provided for @pluginBundleSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin folder, manifest, or Git URL'**
+  String get pluginBundleSource;
+
+  /// No description provided for @noPluginBundles.
+  ///
+  /// In en, this message translates to:
+  /// **'No plugin bundles saved.'**
+  String get noPluginBundles;
+
+  /// No description provided for @otherPluginEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Other manifest entries'**
+  String get otherPluginEntries;
+
+  /// No description provided for @noBundleResources.
+  ///
+  /// In en, this message translates to:
+  /// **'No resources in this file.'**
+  String get noBundleResources;
+
+  /// No description provided for @copyBundleResource.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy to library'**
+  String get copyBundleResource;
+
+  /// No description provided for @bundleResourceCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to library'**
+  String get bundleResourceCopied;
+
+  /// No description provided for @openPluginArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Open TAR archive'**
+  String get openPluginArchive;
+
+  /// No description provided for @exportPluginArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Export plugin archive'**
+  String get exportPluginArchive;
+
+  /// No description provided for @pluginArchiveSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Plugin archive saved'**
+  String get pluginArchiveSaved;
+
   /// No description provided for @pluginCatalog.
   ///
   /// In en, this message translates to:
