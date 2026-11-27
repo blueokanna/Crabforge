@@ -1,0 +1,10 @@
+Field,Value
+Release revision,688ea1aa11811602d6e950fbc40291970d3ad6b1
+Regression revision,340d95dc49f086dfea0451658897b4cddba5cea6
+Archive,crabforge-0.1.0-windows-x64.zip
+Bytes,64910131
+SHA-256,9D98775C7EB00B4585FF8920034B45F18F2451A915FFB5C007C2687A47349A61
+Build inputs,360
+Hashed package files,671
+Rust regressions,156
+Dependency trees,28

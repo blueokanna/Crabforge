@@ -42,6 +42,14 @@ Rust 依赖审计覆盖 Windows x64 与 Cargo 全目标的常规、构建及测�
 
 项目分配由各资源库管理。整包项目分配、同步、撤销及分配携带仍待实现，Pi 扩展和主题发布以及原生插件运行时集成也待补齐。
 
+### Windows x64 共享插件库（`688ea1a`）
+
+从 `688ea1aa11811602d6e950fbc40291970d3ad6b1` 离线构建的 `crabforge-0.1.0-windows-x64.zip` 为 64,910,131 字节，SHA-256 为 `9D98775C7EB00B4585FF8920034B45F18F2451A915FFB5C007C2687A47349A61`。核对 360 项构建输入、671 项包内及解压文件哈希、126 项资产和两个 CLI 各 97 项相同预设。三个入口的 Authenticode 状态均为 `NotSigned`。[发布信息](validation/cf-windows-688ea1a/snapshot.csv) · [构建输入](validation/cf-windows-688ea1a/build-inputs.sha256) · [文件哈希](validation/cf-windows-688ea1a/SHA256SUMS) · [签名检查](validation/cf-windows-688ea1a/authenticode.csv)
+
+全目标 Clippy、Flutter 分析、两项组件测试及 28 棵依赖树审计通过。156 项 Rust 全量回归使用 `340d95d`，该版与打包版的构建输入只有两份 Rust Windows 运行器文件不同。[Clippy](validation/cf-windows-688ea1a/clippy.log) · [Flutter 分析](validation/cf-windows-688ea1a/analyze.log) · [组件测试](validation/cf-windows-688ea1a/widget.log) · [依赖审计](validation/cf-windows-688ea1a/dependency-audit.csv) · [Rust 回归](validation/cf-windows-340d95d/regression.log)
+
+解压后的桌面通过原生保存和打开对话框完成 TAR 往返。解压 CLI 通过本机智能 HTTPS Git 夹具和 Pi 1.6.0 的本机模型回合。再次浏览公开 Claude 插件市场获得 317 个候选并保存 `frontend-design` 1.1.1。[原生文件对话框](validation/cf-windows-688ea1a/plugin-bundle-dialogs.csv) · [HTTPS Git](validation/cf-windows-688ea1a/plugin-bundles-https.csv) · [Pi](validation/cf-windows-688ea1a/plugin-bundles-pi.csv) · [公开市场](validation/cf-windows-688ea1a/plugin-bundles-public.csv)
+
 ### Windows x64 Claude Code 插件（`ad2088c`）
 
 从 `ad2088c9daefc5548683f629f8d53a3a412c88ed` 离线构建的 ZIP 为 64,547,641 字节，SHA-256 为 `D3DD84828CB96B773C6E669FB28488C43940C78FCE4A4877D5331B90FE90ADC1`。核验 353 项构建输入、671 项包内文件、126 项资产及两个 CLI 各 97 项相同预设。三个入口的 Authenticode 状态均为 `NotSigned`。冻结版通过 154 项 Rust 测试、全目标 Clippy、Flutter 分析和两项组件测试。审计的 28 棵依赖树均未启用 Serde、Hyper 或 Reqwest。[构建输入](validation/cf-windows-ad2088c/build-inputs.sha256) · [解压清单](validation/cf-windows-ad2088c/SHA256SUMS) · [回归日志](validation/cf-windows-ad2088c/regression.log) · [依赖审计](validation/cf-windows-ad2088c/dependency-audit.csv)
