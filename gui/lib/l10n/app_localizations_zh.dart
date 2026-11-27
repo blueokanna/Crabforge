@@ -568,6 +568,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get memberPatterns => '模型匹配规则，每行一条';
 
   @override
+  String get pluginCatalog => '浏览插件';
+
+  @override
+  String get noAvailablePlugins => '这些市场中没有可安装的插件。';
+
+  @override
+  String get exportPluginSettings => '导出插件设置';
+
+  @override
+  String get importPluginSettings => '导入插件设置';
+
+  @override
+  String get claudePlugins => 'Claude Code 插件';
+
+  @override
+  String get pluginMarketplaces => '插件市场';
+
+  @override
+  String get addPluginMarketplace => '添加插件市场';
+
+  @override
+  String get pluginSource => '插件市场路径或网址';
+
+  @override
+  String get installPlugin => '安装插件';
+
+  @override
+  String get updatePlugin => '更新插件';
+
+  @override
+  String get enablePlugin => '启用插件';
+
+  @override
+  String get disablePlugin => '禁用插件';
+
+  @override
+  String get pluginEnabled => '已启用';
+
+  @override
+  String get noClaudePlugins => '当前作用域没有已安装的 Claude Code 插件。';
+
+  @override
   String get shareGroup => '复制路由组以分享';
 
   @override

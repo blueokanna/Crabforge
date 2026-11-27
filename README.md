@@ -110,6 +110,12 @@ Open a project and select **Shared subagents** to assign entries from your user 
 
 Select **Import slash commands** to preview external Markdown or TOML commands from a file, local folder or Git URL. Imports copy the prompt and description into the library and retain the source for update checks. Claude, Pi, Gemini and Qwen placeholders are converted when the file layout identifies their format. The CLI uses `commands probe-source <source>` and `commands import-source` with the same JSON request format as subagents.
 
+Open **Client connections → Claude Code plugins** to manage installed plugins and the markets in your Claude Code profile. With Claude Code on `PATH`, add a local folder or remote marketplace, browse its catalog, install or update plugins, and uninstall while retaining plugin data. The CLI exposes `claude-plugins list`, `available`, `add-marketplace`, `update-marketplace`, `remove-marketplace`, `install`, `update` and `uninstall`. Use `enable` or `disable` with the `--revision` from `list` to change a user flag.
+
+Select **Open project** to enable an installed plugin for one folder through `.claude/settings.local.json`. The CLI accepts `claude-plugins --project <folder> list` and `enable <name@marketplace> --revision <revision>` under the same project option. Withdrawing an assignment removes the key when Crabforge wrote it and the value is still `true`. The settings editor preserves other keys and existing project choices.
+
+The plugin menu exports and imports JSON settings. In the CLI, save the output of `claude-plugins export-settings` and load it with `claude-plugins import-settings <file>`. The JSON carries GitHub or plain HTTPS marketplace declarations and their enabled plugin IDs, including enabled plugins from the official market. Local locations and sources with credentials, request headers or URL query parameters stay in the original profile. Import adds missing declarations and flags, keeps existing local choices, and leaves installation to Claude Code.
+
 `carbforge-cli subagents` and `carbforge-cli commands` support `list`, `save`, `remove`, and `sync`. `subagents --project <folder>` selects a project library. `save` reads UTF-8 JSON from standard input with `name`, `prompt`, and `agents`. Supply `description` for subagents. Optional subagent fields are `model`, `effort`, `skills` and `mcp`. Save this example as `check.json` and run `cmd.exe /d /c "carbforge-cli commands save < check.json"` to publish it from Windows.
 
 ```json

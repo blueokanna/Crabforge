@@ -33,6 +33,7 @@ macro_rules! string_enum {
 }
 
 pub mod agent_files;
+pub mod claude_plugins;
 pub mod agents;
 mod anthropic_auth;
 mod bedrock;

@@ -582,6 +582,50 @@ class AppLocalizationsEs extends AppLocalizations {
   String get memberPatterns => 'Patrones de modelos, uno por línea';
 
   @override
+  String get pluginCatalog => 'Explorar complementos';
+
+  @override
+  String get noAvailablePlugins =>
+      'No hay complementos disponibles en estos mercados.';
+
+  @override
+  String get exportPluginSettings => 'Exportar ajustes de complementos';
+
+  @override
+  String get importPluginSettings => 'Importar ajustes de complementos';
+
+  @override
+  String get claudePlugins => 'Complementos de Claude Code';
+
+  @override
+  String get pluginMarketplaces => 'Mercados de complementos';
+
+  @override
+  String get addPluginMarketplace => 'Añadir mercado';
+
+  @override
+  String get pluginSource => 'Ruta o URL del mercado';
+
+  @override
+  String get installPlugin => 'Instalar complemento';
+
+  @override
+  String get updatePlugin => 'Actualizar complemento';
+
+  @override
+  String get enablePlugin => 'Activar complemento';
+
+  @override
+  String get disablePlugin => 'Desactivar complemento';
+
+  @override
+  String get pluginEnabled => 'Activado';
+
+  @override
+  String get noClaudePlugins =>
+      'No hay complementos de Claude Code instalados en este ámbito.';
+
+  @override
   String get shareGroup => 'Copiar grupo para compartir';
 
   @override
