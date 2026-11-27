@@ -1,7 +1,9 @@
 mod discovery;
 mod import;
 mod native;
+mod shared;
 pub use import::Request as ImportRequest;
+pub use shared::Assignment as ProjectAssignment;
 
 use crate::{config::read_limited, native_settings, project_instructions::replace};
 use anyhow::{Context, Result, ensure};
@@ -62,6 +64,7 @@ pub enum Edit {
     ImportSource {
         request: ImportRequest,
     },
+    Assign(ProjectAssignment),
     Adopt {
         agent: String,
         path: String,
@@ -112,6 +115,8 @@ struct Store {
     adopted: BTreeMap<String, Adopted>,
     #[nextjson(default)]
     imported: BTreeMap<String, import::Origin>,
+    #[nextjson(default)]
+    projects: BTreeMap<String, shared::Project>,
 }
 
 #[derive(NsonSerialize)]
@@ -135,6 +140,8 @@ struct View<'a> {
     entries: Vec<Saved<'a>>,
     placements: Vec<Placement>,
     agents: &'a [&'static str],
+    shared: Vec<shared::Choice<'a>>,
+    projects: Vec<shared::Report<'a>>,
 }
 
 fn encode(value: &impl NsonSerialize) -> Result<String> {
@@ -385,16 +392,14 @@ pub fn library(dir: &Path, kind: Kind, project: Option<&Path>, edit: Edit) -> Re
     }
     let profiles = native::Profiles::load(dir, kind, project.as_deref())?;
     let folder = dir.join(kind.folder());
-    let store = match project {
+    let store = match project.as_deref() {
         Some(project) => {
             let name = project.to_str().context("project path must be UTF-8")?;
-            folder
-                .join("projects")
-                .join(format!("{}.json", hash(&path_key(name))))
+            shared::store_path(dir, &path_key(name))
         }
         None => folder.join("library.json"),
     };
-    library_in(dir, kind, &store, &profiles, edit)
+    library_in(dir, kind, &store, &profiles, project.as_deref(), edit)
 }
 
 fn library_in(
@@ -402,6 +407,7 @@ fn library_in(
     kind: Kind,
     path: &Path,
     profiles: &native::Profiles,
+    project: Option<&Path>,
     edit: Edit,
 ) -> Result<String> {
     let source = match &edit {
@@ -420,8 +426,23 @@ fn library_in(
         .transpose()?;
     let _guard = native_settings::lock(dir)?;
     let mut store = Store::load(path)?;
+    let key = project
+        .map(|path| {
+            path.to_str()
+                .map(path_key)
+                .context("project path must be UTF-8")
+        })
+        .transpose()?;
+    let user_path = dir.join("subagents/library.json");
+    let mut user = key
+        .as_ref()
+        .map(|key| Ok::<_, anyhow::Error>((key, Store::load(&user_path)?)))
+        .transpose()?;
+    let mut assigned = user
+        .as_ref()
+        .map_or_else(BTreeMap::new, |(key, user)| shared::entries(user, key));
     if matches!(edit, Edit::Discover) {
-        return discovery::list(profiles, &store);
+        return discovery::list(profiles, &store, &assigned);
     }
     if matches!(edit, Edit::ProbeSource { .. }) {
         return import::preview(&scan.expect("source scan"), &store, profiles.agents);
@@ -433,6 +454,15 @@ fn library_in(
     match edit {
         Edit::Read | Edit::Sync => {}
         Edit::Discover | Edit::ProbeSource { .. } => unreachable!(),
+        Edit::Assign(assignment) => {
+            let ((key, user), project) = user
+                .as_mut()
+                .zip(project)
+                .context("select a project to assign a shared subagent")?;
+            shared::assign(user, key, project, &store, profiles, assignment)?;
+            user.persist(&user_path)?;
+            assigned = shared::entries(user, key);
+        }
         Edit::ImportSource { request } => {
             import::apply(
                 scan.expect("source scan"),
@@ -447,7 +477,7 @@ fn library_in(
             path: file,
             revision,
         } => {
-            discovery::adopt(profiles, &mut store, &agent, &file, &revision)?;
+            discovery::adopt(profiles, &mut store, &assigned, &agent, &file, &revision)?;
             store.persist(path)?;
         }
         Edit::Save {
@@ -459,11 +489,13 @@ fn library_in(
                 store.check(old, revision)?;
             }
             ensure!(
-                previous.as_ref().is_some_and(|(old, _)| old == &entry.name)
-                    || !store.entries.contains_key(&entry.name),
+                !assigned.contains_key(&entry.name)
+                    && (previous.as_ref().is_some_and(|(old, _)| old == &entry.name)
+                        || !store.entries.contains_key(&entry.name)),
                 "a resource with that name already exists"
             );
             if let Some((old, _)) = previous {
+                shared::rename(&mut store, dir, &old, &entry.name)?;
                 store.entries.remove(&old);
                 if let Some(origin) = store.imported.remove(&old) {
                     store.imported.insert(entry.name.clone(), origin);
@@ -476,10 +508,21 @@ fn library_in(
             store.check(&name, &revision)?;
             store.entries.remove(&name);
             store.imported.remove(&name);
+            shared::withdraw(&mut store, &name);
             store.persist(path)?;
         }
     }
-    let placements = placements(&mut store, path, profiles, sync)?;
+    let placements = placements(&mut store, path, profiles, &assigned, sync, true)?;
+    let shared = user
+        .as_ref()
+        .map(|(key, user)| shared::choices(user, key, &store))
+        .transpose()?
+        .unwrap_or_default();
+    let projects = if sync && kind == Kind::Subagent && project.is_none() {
+        shared::sync(dir, &store)
+    } else {
+        Vec::new()
+    };
     let entries = store
         .entries
         .values()
@@ -498,6 +541,8 @@ fn library_in(
         entries,
         placements,
         agents: profiles.agents,
+        shared,
+        projects,
     })
 }
 
@@ -505,21 +550,27 @@ fn placements(
     store: &mut Store,
     path: &Path,
     profiles: &native::Profiles,
+    assigned: &BTreeMap<String, Entry>,
     sync: bool,
+    include_local: bool,
 ) -> Result<Vec<Placement>> {
     let mut jobs = BTreeMap::new();
-    for applied in store
-        .applied
-        .values()
-        .filter(|record| profiles.includes(&record.target))
-    {
+    for applied in store.applied.values().filter(|record| {
+        profiles.includes(&record.target)
+            && (include_local || !store.entries.contains_key(&record.target.name))
+    }) {
         jobs.insert(
             path_key(&applied.target.path),
             (applied.target.clone(), None),
         );
     }
     let mut rows = Vec::new();
-    for entry in store.entries.values() {
+    for entry in store
+        .entries
+        .values()
+        .filter(|_| include_local)
+        .chain(assigned.values())
+    {
         let definition = definition(entry)?;
         for agent in &entry.agents {
             for mut targets in profiles.destinations(agent, &entry.name) {
@@ -763,6 +814,7 @@ mod tests {
             Kind::Command,
             &path,
             &profiles,
+            None,
             Edit::Save {
                 previous: None,
                 entry: entry.clone(),
@@ -796,6 +848,7 @@ mod tests {
             Kind::Command,
             &path,
             &profiles,
+            None,
             Edit::Save {
                 previous: Some((
                     entry.name.clone(),
@@ -850,6 +903,7 @@ mod tests {
             Kind::Command,
             &path,
             &profiles,
+            None,
             Edit::Remove {
                 name: "check".into(),
                 revision: saved,
@@ -876,8 +930,15 @@ mod tests {
         };
         let path = dir.join("commands/library.json");
         let call = |edit| -> Result<Value> {
-            nextjson::from_str(&library_in(dir, Kind::Command, &path, &profiles, edit)?)
-                .map_err(anyhow::Error::msg)
+            nextjson::from_str(&library_in(
+                dir,
+                Kind::Command,
+                &path,
+                &profiles,
+                None,
+                edit,
+            )?)
+            .map_err(anyhow::Error::msg)
         };
         let legacy = opencode.join("command/check.md");
         fs::create_dir_all(legacy.parent().unwrap())?;
@@ -977,8 +1038,15 @@ mod tests {
         };
         let path = root.join("data/subagents/library.json");
         let call = |edit| -> Result<Value> {
-            nextjson::from_str(&library_in(root, Kind::Subagent, &path, &profiles, edit)?)
-                .map_err(anyhow::Error::msg)
+            nextjson::from_str(&library_in(
+                root,
+                Kind::Subagent,
+                &path,
+                &profiles,
+                None,
+                edit,
+            )?)
+            .map_err(anyhow::Error::msg)
         };
         let source = source.to_str().unwrap();
         let scan = || {
@@ -1033,6 +1101,101 @@ mod tests {
         let kept = import(&preview)?;
         assert_eq!(kept["entries"].as_array().unwrap().len(), 1);
         assert!(fs::read_to_string(target)?.contains("Local instructions."));
+        Ok(())
+    }
+
+    #[test]
+    fn shared_subagent_assignments_follow_library_updates_and_keep_project_edits() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let dir = temp.path().join("data");
+        let a = temp.path().join("a");
+        let b = temp.path().join("b");
+        fs::create_dir_all(&a)?;
+        fs::create_dir_all(&b)?;
+        let call = |project, edit| -> Result<Value> {
+            nextjson::from_str(&library(&dir, Kind::Subagent, project, edit)?)
+                .map_err(anyhow::Error::msg)
+        };
+        let mut entry = parse(
+            r#"{"name":"review","description":"Reviews changes","prompt":"First version.","agents":[]}"#,
+        );
+        let added = call(
+            None,
+            Edit::Save {
+                previous: None,
+                entry: entry.clone(),
+            },
+        )?;
+        let choice = |project| -> Result<String> {
+            Ok(call(Some(project), Edit::Read)?["shared"][0]["revision"]
+                .as_str()
+                .unwrap()
+                .into())
+        };
+        let assign = |expected, clients: &[&str]| {
+            Edit::Assign(ProjectAssignment {
+                name: "review".into(),
+                revision: expected,
+                agents: clients.iter().map(|id| (*id).into()).collect(),
+            })
+        };
+        let old = choice(a.as_path())?;
+        call(Some(&a), assign(old.clone(), &["claude"]))?;
+        assert!(
+            call(Some(&a), assign(old, &["codex"]))
+                .unwrap_err()
+                .to_string()
+                .contains("changed")
+        );
+        call(Some(&b), assign(choice(b.as_path())?, &["codex"]))?;
+        let claude = |name| a.join(format!(".claude/agents/{name}.md"));
+        let codex = |name| b.join(format!(".codex/agents/{name}.toml"));
+        assert!(fs::read_to_string(claude("review"))?.contains("First version."));
+        assert!(fs::read_to_string(codex("review"))?.contains("First version."));
+
+        entry.prompt = "Second version.".into();
+        let updated = call(
+            None,
+            Edit::Save {
+                previous: Some((
+                    "review".into(),
+                    added["entries"][0]["revision"].as_str().unwrap().into(),
+                )),
+                entry: entry.clone(),
+            },
+        )?;
+        assert!(fs::read_to_string(claude("review"))?.contains("Second version."));
+        assert!(fs::read_to_string(codex("review"))?.contains("Second version."));
+        fs::write(claude("review"), "Project owner's edits")?;
+        entry.name = "reviewer".into();
+        let renamed = call(
+            None,
+            Edit::Save {
+                previous: Some((
+                    "review".into(),
+                    updated["entries"][0]["revision"].as_str().unwrap().into(),
+                )),
+                entry,
+            },
+        )?;
+        assert_eq!(
+            fs::read_to_string(claude("review"))?,
+            "Project owner's edits"
+        );
+        assert!(!codex("review").exists());
+        assert!(claude("reviewer").is_file() && codex("reviewer").is_file());
+        call(
+            None,
+            Edit::Remove {
+                name: "reviewer".into(),
+                revision: renamed["entries"][0]["revision"].as_str().unwrap().into(),
+            },
+        )?;
+        assert!(!claude("reviewer").exists() && !codex("reviewer").exists());
+        assert_eq!(
+            fs::read_to_string(claude("review"))?,
+            "Project owner's edits"
+        );
         Ok(())
     }
 }

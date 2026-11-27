@@ -10,6 +10,9 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get sharedSubagents => '공유 하위 에이전트';
+
+  @override
   String get importSubagents => '하위 에이전트 가져오기';
 
   @override

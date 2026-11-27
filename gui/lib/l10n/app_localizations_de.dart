@@ -10,6 +10,9 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get sharedSubagents => 'Freigegebene Subagenten';
+
+  @override
   String get importSubagents => 'Subagenten importieren';
 
   @override

@@ -132,8 +132,109 @@ class _AgentFilesState extends State<AgentFiles> {
   }
 
   Future<void> _chooseProject() async {
-    final project = await getDirectoryPath(initialDirectory: _project);
+    final strings = context.strings;
+    var folder = _project ?? '';
+    final project = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        void open() {
+          if (folder.trim().isNotEmpty) {
+            Navigator.pop(dialogContext, folder.trim());
+          }
+        }
+
+        return AlertDialog(
+          title: Text(strings.openProject),
+          content: TextFormField(
+            initialValue: folder,
+            onChanged: (value) => folder = value,
+            onFieldSubmitted: (_) => open(),
+            decoration: InputDecoration(
+              labelText: strings.projectFolder,
+              suffixIcon: IconButton(
+                tooltip: strings.projectFolder,
+                icon: const Icon(Icons.folder_open_outlined),
+                onPressed: () async {
+                  final path = await getDirectoryPath(
+                    initialDirectory: _project,
+                  );
+                  if (dialogContext.mounted && path != null) {
+                    Navigator.pop(dialogContext, path);
+                  }
+                },
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(strings.cancel),
+            ),
+            FilledButton(onPressed: open, child: Text(strings.openProject)),
+          ],
+        );
+      },
+    );
     if (mounted && project != null) _scope(project);
+  }
+
+  Future<void> _assignShared(List<_Json> choices) async {
+    final choice = await showDialog<_Json>(
+      context: context,
+      builder: (_) => _SharedSubagents(choices: choices),
+    );
+    if (!mounted || choice == null) return;
+    final strings = context.strings;
+    final agents = (_view['agents'] as List).cast<String>();
+    final selected = (choice['agents'] as List).cast<String>().toSet();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(choice['name'] as String),
+          scrollable: true,
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final agent in agents)
+                  FilterChip(
+                    label: Text(_agents[agent] ?? agent),
+                    selected: selected.contains(agent),
+                    onSelected: (value) => setState(() {
+                      if (value) {
+                        selected.add(agent);
+                      } else {
+                        selected.remove(agent);
+                      }
+                    }),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(strings.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(strings.save),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted && confirmed == true) {
+      await _load(
+        'assign',
+        name: choice['name'] as String,
+        revision: choice['revision'] as String,
+        source: jsonEncode(selected.toList()),
+      );
+    }
   }
 
   Future<void> _import([String? source]) async {
@@ -260,6 +361,9 @@ class _AgentFilesState extends State<AgentFiles> {
       (placements[row['name'] as String] ??= []).add(row);
     }
     final names = {...saved.keys, ...placements.keys}.toList()..sort();
+    final shared = (_view['shared'] as List? ?? const []).cast<_Json>();
+    final projectReports = (_view['projects'] as List? ?? const [])
+        .cast<_Json>();
     final available = !_busy && _view.containsKey('agents');
     return Dialog(
       key: ValueKey(subagents ? 'agent-subagents' : 'agent-commands'),
@@ -315,6 +419,12 @@ class _AgentFilesState extends State<AgentFiles> {
                       icon: const Icon(Icons.file_download_outlined),
                       label: Text(strings.importSubagents),
                     ),
+                  if (_project != null)
+                    TextButton.icon(
+                      onPressed: available ? () => _assignShared(shared) : null,
+                      icon: const Icon(Icons.group_add_outlined),
+                      label: Text(strings.sharedSubagents),
+                    ),
                   TextButton.icon(
                     onPressed: available ? () => _load('sync') : null,
                     icon: const Icon(Icons.sync),
@@ -333,6 +443,21 @@ class _AgentFilesState extends State<AgentFiles> {
                   slivers: [
                     if (_error != null)
                       SliverToBoxAdapter(child: SelectableText('$_error')),
+                    for (final report in projectReports)
+                      if (report['error'] case final String error)
+                        SliverToBoxAdapter(
+                          child: SelectableText('${report['project']}\n$error'),
+                        )
+                      else
+                        for (final row
+                            in (report['placements'] as List).cast<_Json>())
+                          if (row['status'] == 'error' ||
+                              row['status'] == 'conflict')
+                            SliverToBoxAdapter(
+                              child: SelectableText(
+                                '${row['path'] ?? report['project']}\n${row['error'] ?? _status(context, row)}',
+                              ),
+                            ),
                     if (available && names.isEmpty)
                       SliverToBoxAdapter(child: Text(strings.noAgentResources)),
                     CollectionSliver.builder(
@@ -410,6 +535,86 @@ class _AgentFilesState extends State<AgentFiles> {
                                 tooltip: strings.remove,
                               ),
                           ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    MaterialLocalizations.of(context).closeButtonLabel,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SharedSubagents extends StatelessWidget {
+  const _SharedSubagents({required this.choices});
+
+  final List<_Json> choices;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    final grid = CollectionLayout.of(context).grid;
+    return Dialog(
+      key: const ValueKey('shared-subagents'),
+      child: SizedBox(
+        width: 800,
+        height: 580,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DefaultTextStyle(
+                style: Theme.of(context).textTheme.titleLarge!,
+                child: EditorHeading(strings.sharedSubagents),
+              ),
+              Expanded(
+                child: CustomScrollView(
+                  slivers: [
+                    if (choices.isEmpty)
+                      SliverToBoxAdapter(child: Text(strings.noAgentResources)),
+                    CollectionSliver.builder(
+                      grid: grid,
+                      height: 125,
+                      itemCount: choices.length,
+                      itemBuilder: (context, index) {
+                        final choice = choices[index];
+                        final conflict = choice['conflict'] == true;
+                        final clients = (choice['agents'] as List)
+                            .cast<String>();
+                        return CollectionTile(
+                          grid: grid,
+                          title: _line(choice['name'] as String),
+                          detail: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _line(choice['description'] as String),
+                              if (conflict)
+                                _line(strings.ruleStatus('conflict'))
+                              else if (clients.isNotEmpty)
+                                _line(
+                                  clients
+                                      .map((agent) => _agents[agent] ?? agent)
+                                      .join(' · '),
+                                ),
+                            ],
+                          ),
+                          onTap: conflict
+                              ? null
+                              : () => Navigator.pop(context, choice),
                         );
                       },
                     ),

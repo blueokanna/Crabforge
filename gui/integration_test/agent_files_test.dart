@@ -217,5 +217,47 @@ void main() {
       isNull,
     );
     await tap(below(importer, find.text('Cancel')));
+
+    final project = Directory('$root/project')..createSync();
+    await tap(below(subagents, find.text('Open project')));
+    await enter('Project folder', project.path);
+    await tap(find.widgetWithText(FilledButton, 'Open project'));
+    final shared = find.byKey(const ValueKey('shared-subagents'));
+    Future<void> selectShared({required bool grid}) async {
+      await tap(below(subagents, find.text('Shared subagents')));
+      await verifyLayout(shared, grid);
+      await tap(below(shared, find.text('imported-review')));
+    }
+
+    await selectShared(grid: true);
+    await tap(find.widgetWithText(FilterChip, 'Codex'));
+    await tap(find.widgetWithText(FilledButton, 'Save'));
+    await waitFor(imported);
+    final projectFile = File(
+      '${project.path}/.codex/agents/imported-review.toml',
+    );
+    expect(projectFile.readAsStringSync(), contains('Revised prompt.'));
+
+    tester.view.physicalSize = const Size(560, 800);
+    await tester.pumpAndSettle();
+    await selectShared(grid: false);
+    final codexChip = find.widgetWithText(FilterChip, 'Codex');
+    expect(tester.widget<FilterChip>(codexChip).selected, isTrue);
+    await tap(codexChip);
+    await tap(find.widgetWithText(FilledButton, 'Save'));
+    await tap(below(imported, find.byTooltip('Publication details')));
+    final details = find.byType(AlertDialog);
+    expect(
+      below(
+        details,
+        find.textContaining('Codex · Removed', findRichText: true),
+      ),
+      findsOneWidget,
+    );
+    await tap(below(details, find.widgetWithText(TextButton, 'Close')));
+    await tap(below(subagents, find.byTooltip('Reload')));
+    await waitFor(below(subagents, find.text('No entries saved')));
+    expect(projectFile.existsSync(), isFalse);
+    expect(nativeImport.readAsStringSync(), contains('Revised prompt.'));
   });
 }

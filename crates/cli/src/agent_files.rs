@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Subcommand;
-use crabforge_core::agent_files::{self, Edit, Entry, ImportRequest, Kind};
+use crabforge_core::agent_files::{self, Edit, Entry, ImportRequest, Kind, ProjectAssignment};
 use std::{
     io::{self, Read},
     path::Path,
@@ -16,6 +16,14 @@ pub(super) enum Command {
     ProbeSource { source: String },
     /// Import selected subagent files from a preview request read as UTF-8 JSON.
     ImportSource,
+    /// Set a shared subagent's clients in a project. Omit --agent to withdraw it.
+    Assign {
+        name: String,
+        #[arg(long)]
+        revision: String,
+        #[arg(long = "agent")]
+        agents: Vec<String>,
+    },
     /// Manage an unchanged native resource at its existing path.
     Adopt {
         agent: String,
@@ -49,6 +57,15 @@ pub(super) fn run(dir: &Path, kind: Kind, project: Option<&Path>, command: Comma
         Command::ImportSource => Edit::ImportSource {
             request: ImportRequest::from_json(&document()?)?,
         },
+        Command::Assign {
+            name,
+            revision,
+            agents,
+        } => Edit::Assign(ProjectAssignment {
+            name,
+            revision,
+            agents,
+        }),
         Command::Adopt {
             agent,
             path,

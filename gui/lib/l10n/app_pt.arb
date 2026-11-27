@@ -5,6 +5,7 @@
   "hookBackupRestored": "Restaurado",
   "hookBackupChanged": "As configurações do cliente mudaram",
   "hookBackupUnavailable": "Perfil ou arquivo original indisponível",
+  "sharedSubagents": "Subagentes compartilhados",
   "importSubagents": "Importar subagentes",
   "subagentImportSource": "Arquivo Markdown, pasta local ou URL do Git",
   "subagentChooseFile": "Escolher arquivo Markdown",

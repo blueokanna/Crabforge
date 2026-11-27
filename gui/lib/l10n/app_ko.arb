@@ -5,6 +5,7 @@
   "hookBackupRestored": "복원됨",
   "hookBackupChanged": "클라이언트 설정이 변경됨",
   "hookBackupUnavailable": "원래 프로필 또는 파일을 사용할 수 없음",
+  "sharedSubagents": "공유 하위 에이전트",
   "importSubagents": "하위 에이전트 가져오기",
   "subagentImportSource": "Markdown 파일, 로컬 폴더 또는 Git URL",
   "subagentChooseFile": "Markdown 파일 선택",

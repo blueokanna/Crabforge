@@ -10,6 +10,9 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get sharedSubagents => 'साझा सबएजेंट';
+
+  @override
   String get importSubagents => 'सबएजेंट आयात करें';
 
   @override
