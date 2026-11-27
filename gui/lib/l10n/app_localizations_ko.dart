@@ -10,6 +10,9 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get projectHookAssignment => '프로젝트 훅 할당 편집';
+
+  @override
   String get sharedSubagents => '공유 하위 에이전트';
 
   @override

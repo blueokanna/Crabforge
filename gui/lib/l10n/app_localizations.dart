@@ -112,6 +112,12 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @projectHookAssignment.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit project hook assignment'**
+  String get projectHookAssignment;
+
   /// No description provided for @sharedSubagents.
   ///
   /// In en, this message translates to:

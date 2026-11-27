@@ -10,6 +10,9 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get projectHookAssignment => 'プロジェクトへのフックの割り当てを編集';
+
+  @override
   String get sharedSubagents => '共有サブエージェント';
 
   @override

@@ -1,4 +1,5 @@
 {
+  "projectHookAssignment": "プロジェクトへのフックの割り当てを編集",
   "removeInstalledHook": "インストール済みフックを削除",
   "hookBackups": "フックのバックアップ",
   "restoreHookBackup": "フックのバックアップを復元",

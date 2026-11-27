@@ -1,4 +1,5 @@
 {
+  "projectHookAssignment": "Editar atribuição do hook ao projeto",
   "removeInstalledHook": "Remover hook instalado",
   "hookBackups": "Backups de hooks",
   "restoreHookBackup": "Restaurar backup do hook",

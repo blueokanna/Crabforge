@@ -214,6 +214,20 @@ Future<String> recoverAgentHook({required String key, required bool restore}) =>
 Future<String> syncAgentHooks() =>
     RustLib.instance.api.crateApiSyncAgentHooks();
 
+Future<String> projectAgentHooks({
+  required String project,
+  required String action,
+  String? key,
+  String? revision,
+  required List<String> agents,
+}) => RustLib.instance.api.crateApiProjectAgentHooks(
+  project: project,
+  action: action,
+  key: key,
+  revision: revision,
+  agents: agents,
+);
+
 Future<String> agentFiles({
   required bool subagents,
   String? project,

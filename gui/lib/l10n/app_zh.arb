@@ -1,4 +1,5 @@
 {
+  "projectHookAssignment": "编辑项目钩子分配",
   "removeInstalledHook": "移除已安装的钩子",
   "hookBackups": "钩子备份",
   "restoreHookBackup": "恢复钩子备份",

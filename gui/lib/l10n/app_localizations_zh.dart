@@ -10,6 +10,9 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get projectHookAssignment => '编辑项目钩子分配';
+
+  @override
   String get sharedSubagents => '共享子代理';
 
   @override

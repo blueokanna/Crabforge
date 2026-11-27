@@ -10,6 +10,10 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get projectHookAssignment =>
+      'Modifier l’affectation du hook au projet';
+
+  @override
   String get sharedSubagents => 'Sous-agents partagés';
 
   @override

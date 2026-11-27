@@ -1,4 +1,5 @@
 {
+  "projectHookAssignment": "프로젝트 훅 할당 편집",
   "removeInstalledHook": "설치된 훅 제거",
   "hookBackups": "훅 백업",
   "restoreHookBackup": "훅 백업 복원",

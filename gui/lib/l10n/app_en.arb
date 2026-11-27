@@ -1,4 +1,5 @@
 {
+  "projectHookAssignment": "Edit project hook assignment",
   "sharedSubagents": "Shared subagents",
   "importSubagents": "Import subagents",
   "subagentImportSource": "Markdown file, local folder, or Git URL",
