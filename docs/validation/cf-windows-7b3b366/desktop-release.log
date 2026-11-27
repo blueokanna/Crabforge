@@ -1,0 +1,513 @@
+[  +71 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[        ] executing: [D:\flutter/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[ +103 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[   +1 ms] 2026-10-29 10:10:20 -0400
+[  +12 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +2 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +67 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +81 ms] windows/runner/flutter_window.cpp file not found, skipping show window migration.
+
+           This indicates non-trivial changes have been made to the Windows runner in the
+           "windows" folder. If needed, you can reset the Windows runner by deleting the
+           "windows" folder and then using the "flutter create --platforms=windows ." command.
+
+[  +33 ms] executing: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[ +172 ms] Exit code 0 from: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[        ] [
+             {
+               "instanceId": "4b3a4850",
+               "installDate": "2026-11-06T17:47:57Z",
+               "installationName": "VisualStudio/17.14.44+37827.9",
+               "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community",
+               "installationVersion": "17.14.37827.9",
+               "productId": "Microsoft.VisualStudio.Product.Community",
+               "productPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe",
+               "state": 4294967295,
+               "isComplete": true,
+               "isLaunchable": true,
+               "isPrerelease": false,
+               "isRebootRequired": false,
+               "displayName": "Visual Studio Community 2022",
+               "description": "鍔熻兘寮哄ぇ鐨?IDE锛屼緵瀛︾敓銆佸紑鏀炬簮浠ｇ爜鍙備笌鑰呭拰涓汉鍏嶈垂浣跨敤",
+               "channelId": "VisualStudio.17.Release",
+               "channelUri": "https://aka.ms/vs/17/release/channel",
+               "enginePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\resources\\app\\ServiceHub\\Services\\Microsoft.VisualStudio.Setup.Service",
+               "installedChannelId": "VisualStudio.17.Release",
+               "installedChannelUri": "https://aka.ms/vs/17/release/channel",
+               "releaseNotes": "https://docs.microsoft.com/en-us/visualstudio/releases/2022/release-notes-v17.14#17.14.44",
+               "resolvedInstallationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community",
+               "thirdPartyNotices": "https://go.microsoft.com/fwlink/?LinkId=661288",
+               "updateDate": "2026-11-06T17:47:57.5672764Z",
+               "catalog": {
+                 "buildBranch": "d17.14",
+                 "buildVersion": "17.14.37827.9",
+                 "id": "VisualStudio/17.14.44+37827.9",
+                 "localBuild": "build-lab",
+                 "manifestName": "VisualStudio",
+                 "manifestType": "installer",
+                 "productDisplayVersion": "17.14.44",
+                 "productLine": "Dev17",
+                 "productLineVersion": "2022",
+                 "productMilestone": "RTW",
+                 "productMilestoneIsPreRelease": "False",
+                 "productName": "Visual Studio",
+                 "productPatchVersion": "44",
+                 "productPreReleaseMilestoneSuffix": "1.0",
+                 "productSemanticVersion": "17.14.44+37827.9",
+                 "requiredEngineVersion": "3.14.2094.42856"
+               },
+               "properties": {
+                 "campaignId": "",
+                 "channelManifestId": "VisualStudio.17.Release/17.14.44+37827.9",
+                 "includeRecommended": "0",
+                 "nickname": "",
+                 "setupEngineFilePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\setup.exe"
+               }
+             }
+           ]
+[   +8 ms] Building Windows application...
+[   +5 ms] executing: C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe -S D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows -B D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64 -G Visual Studio 17 2022 -A x64 -DFLUTTER_TARGET_PLATFORM=windows-x64
+[ +163 ms] -- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.19045.
+[ +278 ms] -- Configuring done (0.3s)
+[ +933 ms] -- Generating done (0.9s)
+[  +34 ms] -- Build files have been written to: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64
+[  +10 ms] executing: C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe --build D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64 --config Release --target INSTALL --verbose
+[ +117 ms] Change Dir: 'D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64'
+[        ] Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe" INSTALL.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VisualStudioVersion=17.0 /v:n
+[ +102 ms] 閫傜敤浜?.NET Framework MSBuild 鐗堟湰 17.14.60+43b635718
+[  +58 ms] 鐢熸垚鍚姩鏃堕棿涓?2026/11/27 12:51:46銆?[ +303 ms] 鑺傜偣 1 涓婄殑椤圭洰鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\INSTALL.vcxproj鈥?榛樿鐩爣)銆?[        ] 椤圭洰鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\INSTALL.vcxproj鈥?1)姝ｅ湪鑺傜偣 1 涓婄敓鎴愨€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\ZERO_CHECK.vcxproj鈥?2) (榛樿鐩爣)銆?[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +9 ms] InitializeBuildStatus:
+[        ]   姝ｅ湪鍒涘缓鈥渪64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?[        ]   姝ｅ湪瀵光€渪64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?[  +41 ms] CustomBuild:
+[        ]   鎵€鏈夎緭鍑哄潎涓烘渶鏂般€?[  +94 ms]   1>Checking Build System
+[  +83 ms] FinalizeBuildStatus:
+[        ]   姝ｅ湪鍒犻櫎鏂囦欢鈥渪64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild鈥濄€?[        ]   姝ｅ湪瀵光€渪64\Release\ZERO_CHECK\ZERO_CHECK.tlog\ZERO_CHECK.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?[        ] 宸插畬鎴愮敓鎴愰」鐩€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\ZERO_CHECK.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?[  +67 ms] 椤圭洰鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\INSTALL.vcxproj鈥?1)姝ｅ湪鑺傜偣 1 涓婄敓鎴愨€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\ALL_BUILD.vcxproj鈥?3) (榛樿鐩爣)銆?[        ] 椤圭洰鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\ALL_BUILD.vcxproj鈥?3)姝ｅ湪鑺傜偣 1 涓婄敓鎴愨€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\crabforge_native.vcxproj鈥?4) (榛樿鐩爣)銆?[        ] PrepareForBuild:
+[        ]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[   +1 ms] InitializeBuildStatus:
+[        ]   姝ｅ湪瀵光€渪64\Release\crabforge_native\crabforge_native.tlog\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?[+16951 ms] CustomBuild:
+[        ]      Compiling crabforge-core v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\crates\core)
+[+212574 ms]      Compiling crabforge-bridge v0.1.0 (D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\crates\bridge)
+[+93521 ms]       Finished `release` profile [optimized] target(s) in 5m 22s
+[  +78 ms]   Building Custom Rule D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/CMakeLists.txt
+[ +107 ms] FinalizeBuildStatus:
+[        ]   姝ｅ湪鍒犻櫎鏂囦欢鈥渪64\Release\crabforge_native\crabforge_native.tlog\unsuccessfulbuild鈥濄€?[        ]   姝ｅ湪瀵光€渪64\Release\crabforge_native\crabforge_native.tlog\crabforge_native.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?[        ] 宸插畬鎴愮敓鎴愰」鐩€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\crabforge_native.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?[  +84 ms] 椤圭洰鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\ALL_BUILD.vcxproj鈥?3)姝ｅ湪鑺傜偣 1 涓婄敓鎴愨€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\runner\crabforge.vcxproj鈥?5) (榛樿鐩爣)銆?[        ] 椤圭洰鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\runner\crabforge.vcxproj鈥?5)姝ｅ湪鑺傜偣 1 涓婄敓鎴愨€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\flutter_assemble.vcxproj鈥?6) (榛樿鐩爣)銆?[        ] PrepareForBuild:
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渪64\Release\flutter_assemble\鈥濄€?[   +5 ms]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渪64\Release\flutter_assemble\flutter_assemble.tlog\鈥濄€?[   +2 ms] InitializeBuildStatus:
+[        ]   姝ｅ湪鍒涘缓鈥渪64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?[        ]   姝ｅ湪瀵光€渪64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?[        ] ComputeCustomBuildOutput:
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\鈥濄€?[   +6 ms] CustomBuild:
+[        ]   "The build of 'D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\CMakeFiles\fad6a25d8d0c144a7cc90d5abc8db2d6\flutter_assemble.rule' depends on 'D:\RUSTPROJECT\CRABFORGE\DIST\CF-WINDOWS-7B3B366\SOURCE\GUI\WINDOWS\FLUTTER\EPHEMERAL\FLUTTER_WINDOWS.DLL' which is produced by the build of 'D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\CMakeFiles\b69bf87a324a6c4e1e97d9f2e0b0b515\flutter_windows.dll.rule'. The items cannot be built in parallel."
+[  +87 ms]   Generating D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/flutter_windows.dll, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/flutter_export.h, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/flutter_windows.h, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/flutter_messenger.h, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/flutter_plugin_registrar.h, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/flutter_texture_registrar.h, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/cpp_client_wrapper/core_implementations.cc, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/cpp_client_wrapper/standard_codec.cc, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/cpp_client_wrapper/plugin_registrar.cc, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/cpp_client_wrapper/flutter_engine.cc, D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/cpp_client_wrapper/flutter_view_controller.cc, _phony_
+[+1573 ms]   [  +52 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [   +1 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [   +3 ms] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[   +3 ms]   [  +11 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +2 ms]   [   +3 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +55 ms]   [  +55 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ]   [   +1 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +11 ms]   [  +11 ms] Initializing file store
+[  +31 ms]   [  +31 ms] build_hooks: Starting due to {}
+[   +2 ms]   [   +2 ms] gen_localizations: Starting due to {}
+[ +325 ms]   [ +319 ms] gen_dart_plugin_registrant: Starting due to {InvalidatedReasonKind.outputSetAddition: The following outputs were added to the output set: D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\dart_plugin_registrant.dart, InvalidatedReasonKind.inputChanged: The following inputs have updated contents: D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\package_config.json}
+[        ]   [   +6 ms] unpack_windows: Starting due to {}
+[ +288 ms]   [ +289 ms] unpack_windows: Complete
+[+3716 ms]   [+3717 ms] Found plugin integration_test at D:\flutter\packages\integration_test\
+[  +28 ms]   [  +27 ms] No packages with native assets. Skipping native assets compilation.
+[   +5 ms]   [   +6 ms] build_hooks: Complete
+[  +85 ms]   [  +85 ms] Found plugin file_selector at C:\Users\blueo\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector-1.1.0\
+[   +5 ms]   [   +5 ms] Found plugin file_selector_windows at C:\Users\blueo\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_windows-0.9.3+6\
+[   +8 ms]   [   +8 ms] Found plugin file_selector_web at C:\Users\blueo\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_web-0.9.5\
+[   +4 ms]   [   +4 ms] Found plugin file_selector_macos at C:\Users\blueo\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_macos-0.9.5+2\
+[   +3 ms]   [   +4 ms] Found plugin file_selector_linux at C:\Users\blueo\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_linux-0.9.4+1\
+[   +3 ms]   [   +3 ms] Found plugin file_selector_ios at C:\Users\blueo\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_ios-0.5.3+7\
+[   +1 ms]   [   +1 ms] Found plugin file_selector_android at C:\Users\blueo\AppData\Local\Pub\Cache\hosted\pub.dev\file_selector_android-0.5.2+11\
+[  +43 ms]   [  +42 ms] Skipping generating dart_plugin_registrant.dart because it is up-to-date.
+[        ]   [        ] gen_dart_plugin_registrant: Complete
+[  +17 ms]   [  +18 ms] gen_localizations: Complete
+[  +19 ms]   [  +19 ms] kernel_snapshot_program: Starting due to {}
+[  +13 ms]   [  +12 ms] D:\flutter\bin\cache\dart-sdk\bin\dartaotruntime.exe D:\flutter\bin\cache\dart-sdk\bin\snapshots\frontend_server_aot.dart.snapshot --sdk-root D:\flutter\bin\cache\artifacts\engine\common\flutter_patched_sdk_product/ --target=flutter --no-print-incremental-dependencies -DFLUTTER_BUILD_NAME=0.1.0 -DFLUTTER_BUILD_NUMBER=1 -DFLUTTER_VERSION=3.47.9 -DFLUTTER_CHANNEL=stable -DFLUTTER_GIT_URL=https://github.com/flutter/flutter.git -DFLUTTER_FRAMEWORK_REVISION=c197ca5199 -DFLUTTER_ENGINE_REVISION=89c39edfdf -DFLUTTER_DART_VERSION=3.13.7 -Ddart.vm.profile=false -Ddart.vm.product=true --delete-tostring-package-uri=dart:ui --delete-tostring-package-uri=package:flutter --aot --tfa --target-os windows --packages D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\package_config.json --output-dill D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\app.dill --depfile D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\kernel_snapshot_program.d --source file:///D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/.dart_tool/flutter_build/dart_plugin_registrant.dart --source package:flutter/src/dart_plugin_registrant.dart -Dflutter.dart_plugin_registrant=file:///D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/.dart_tool/flutter_build/dart_plugin_registrant.dart --verbosity=error --recorded-uses=D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\recorded_uses.json package:crabforge/main.dart
+[+29355 ms]   [+29355 ms] kernel_snapshot_program: Complete
+[ +885 ms]   [ +885 ms] link_hooks: Starting due to {}
+[   +2 ms]   [   +2 ms] aot_elf_release: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: D:\flutter\packages\flutter_tools\lib\src\build_system\targets\common.dart,D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\app.dill,D:\flutter\bin\cache\engine.stamp,D:\flutter\bin\cache\engine.stamp,D:\flutter\bin\cache\engine.stamp, InvalidatedReasonKind.outputSetAddition: The following outputs were added to the output set: D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\app.so}
+[   +3 ms]   [   +3 ms] targetingApplePlatform = false
+[        ]   [        ] extractAppleDebugSymbols = true
+[        ]   [        ] targetingAndroidPlatform = false
+[        ]   [        ] Will strip AOT snapshot during build.
+[   +1 ms]   [   +1 ms] executing: D:\flutter\bin\cache\artifacts\engine\windows-x64-release\gen_snapshot --deterministic --snapshot_kind=app-aot-elf --elf=D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\app.so --strip D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\app.dill
+[   +7 ms]   [   +7 ms] link_hooks: Complete
+[  +10 ms]   [  +10 ms] install_code_assets: Starting due to {}
+[  +17 ms]   [  +17 ms] Writing native assets json to file:///D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/.dart_tool/flutter_build/6cd420dad3199330b27ae37c6a83c4a6/native_assets.json.
+[   +3 ms]   [   +3 ms] Writing D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\native_assets.json done.
+[        ]   [        ] install_code_assets: Complete
+[+17769 ms]   [+17768 ms] aot_elf_release: Complete
+[  +58 ms]   [  +58 ms] windows_aot_bundle: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\app.so, InvalidatedReasonKind.outputSetAddition: The following outputs were added to the output set: D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\app.so}
+[   +8 ms]   [   +8 ms] windows_aot_bundle: Complete
+[  +75 ms]   [  +75 ms] release_bundle_windows-x64_assets: Starting due to {}
+[ +484 ms]   [ +484 ms] impellerc command: [D:\flutter\bin\cache\artifacts\engine\windows-x64\impellerc.exe, --sksl, --runtime-stage-gles, --runtime-stage-gles3, --runtime-stage-vulkan, --iplr, --sl=D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\flutter_assets\shaders/ink_sparkle.frag, --spirv=D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\flutter_assets\shaders/ink_sparkle.frag.spirv, --input=D:\flutter\packages\flutter\lib\src\material\shaders\ink_sparkle.frag, --input-type=frag, --include=D:\flutter\packages\flutter\lib\src\material\shaders, --include=D:\flutter\bin\cache\artifacts\engine\windows-x64\shader_lib]
+[   +1 ms]   [   +1 ms] impellerc command: [D:\flutter\bin\cache\artifacts\engine\windows-x64\impellerc.exe, --sksl, --runtime-stage-gles, --runtime-stage-gles3, --runtime-stage-vulkan, --iplr, --sl=D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\flutter_assets\shaders/stretch_effect.frag, --spirv=D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\flutter_assets\shaders/stretch_effect.frag.spirv, --input=D:\flutter\packages\flutter\lib\src\widgets\shaders\stretch_effect.frag, --input-type=frag, --include=D:\flutter\packages\flutter\lib\src\widgets\shaders, --include=D:\flutter\bin\cache\artifacts\engine\windows-x64\shader_lib]
+[ +143 ms]   [ +138 ms] Running command: D:\flutter\bin\cache\dart-sdk\bin\dart.exe D:\flutter\bin\cache\artifacts\engine\windows-x64\const_finder.dart.snapshot --kernel-file D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\.dart_tool\flutter_build\6cd420dad3199330b27ae37c6a83c4a6\app.dill --class-library-uri package:flutter/src/widgets/icon_data.dart --class-name IconData --annotation-class-name _StaticIconProvider --annotation-class-library-uri package:flutter/src/widgets/icon_data.dart
+[+1608 ms]   [+1611 ms] Expected to find fontFamily for constant IconData with codepoint: 128842, but found fontFamily: null. This usually means you are relying on the system font. Alternatively, font families in an IconData class can be provided in the assets section of your pubspec.yaml, or you are missing "uses-material-design: true".
+[   +8 ms]   [   +2 ms] Running font-subset: D:\flutter\bin\cache\artifacts\engine\windows-x64\font-subset.exe D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\flutter_assets\fonts/MaterialIcons-Regular.otf D:\flutter\bin\cache\artifacts\material_fonts\MaterialIcons-Regular.otf, using codepoints 57415 58927 58644 61453 57787 984701 62624 62625 984575 61531 61656 61658 62337 62582 58173 61584 61741 60995 61358 61149 61152 61075 62232 62308 62251 61311 61324 61503 62134 984598 984457 58331 61889 61426 62447 57424 58648 62616 61655 58628 58627 62542 58988 57504 62634 59079 61041 57472 60982 57412 61396 57829 59061 61371 57803 58289 58214 58240 57867 57495 62328 58977 58727 57690 57912 58886 58571 984363 59011 57744 57695 61157 61748 58519 61698 58758 61078 62318 62162 62282 62167 57694 57686 61585 61752 58241 57699 61267 57490 62832 57706 58332 57502 57501 57657 57496 57498 57704 58372 58370 57846
+[  +88 ms]   [  +94 ms] Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 13704 bytes (99.2% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+[   +3 ms]   [   +4 ms] release_bundle_windows-x64_assets: Complete
+[+2174 ms]   [+2175 ms] Persisting file store
+[  +19 ms]   [  +18 ms] Done persisting file store
+[  +41 ms]   [  +42 ms] build succeeded.
+[        ]   [        ] "flutter assemble" took 57,468ms.
+[   +2 ms]   [   +1 ms] Running 1 shutdown hook
+[        ]   [        ] Shutdown hooks complete
+[        ]   [        ] exiting with code 0
+[  +90 ms]   Building Custom Rule D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/CMakeLists.txt
+[  +68 ms] FinalizeBuildStatus:
+[        ]   姝ｅ湪鍒犻櫎鏂囦欢鈥渪64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild鈥濄€?[        ]   姝ｅ湪瀵光€渪64\Release\flutter_assemble\flutter_assemble.tlog\flutter_assemble.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?[        ] 宸插畬鎴愮敓鎴愰」鐩€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\flutter_assemble.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?[  +98 ms] 椤圭洰鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\runner\crabforge.vcxproj鈥?5)姝ｅ湪鑺傜偣 1 涓婄敓鎴愨€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\plugins\file_selector_windows\file_selector_windows_plugin.vcxproj鈥?7) (榛樿鐩爣)銆?[        ] 椤圭洰鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\plugins\file_selector_windows\file_selector_windows_plugin.vcxproj鈥?7)姝ｅ湪鑺傜偣 1 涓婄敓鎴愨€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\flutter_wrapper_plugin.vcxproj鈥?8) (榛樿鐩爣)銆?[        ] PrepareForBuild:
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渇lutter_wrapper_plugin.dir\Release\鈥濄€?[   +7 ms]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\Release\鈥濄€?[        ]   姝ｅ湪鍒涘缓鐩綍鈥渇lutter_wrapper_plugin.dir\Release\flutter_.5545AA77.tlog\鈥濄€?[   +1 ms] InitializeBuildStatus:
+[        ]   姝ｅ湪鍒涘缓鈥渇lutter_wrapper_plugin.dir\Release\flutter_.5545AA77.tlog\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?[        ]   姝ｅ湪瀵光€渇lutter_wrapper_plugin.dir\Release\flutter_.5545AA77.tlog\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?[  +69 ms] CustomBuild:
+[        ]   Building Custom Rule D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/CMakeLists.txt
+[ +138 ms] ClCompile:
+[        ]   C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\include" /I"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral" /nologo /W4 /WX /diagnostics:column /O2 /Ob2 /D _UNICODE /D UNICODE /D WIN32 /D _WINDOWS /D NDEBUG /D _HAS_EXCEPTIONS=0 /D UNICODE /D _UNICODE /D "CMAKE_INTDIR=\"Release\"" /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /std:c++17 /Fo"flutter_wrapper_plugin.dir\Release\\" /Fd"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\Release\flutter_wrapper_plugin.pdb" /external:W4 /Gd /TP /wd4100 /errorReport:queue "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\core_implementations.cc" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\standard_codec.cc" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\plugin_registrar.cc"
+[  +97 ms]   core_implementations.cc
+[+1128 ms]   standard_codec.cc
+[+1207 ms]   plugin_registrar.cc
+[ +624 ms]   Generating Code...
+[+1253 ms] Lib:
+[        ]   C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\Lib.exe /OUT:"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\Release\flutter_wrapper_plugin.lib" /NOLOGO /MACHINE:X64  /machine:x64 flutter_wrapper_plugin.dir\Release\core_implementations.obj
+[        ]   flutter_wrapper_plugin.dir\Release\standard_codec.obj
+[        ]   flutter_wrapper_plugin.dir\Release\plugin_registrar.obj
+[  +84 ms]   flutter_wrapper_plugin.vcxproj -> D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\Release\flutter_wrapper_plugin.lib
+[  +15 ms] FinalizeBuildStatus:
+[        ]   姝ｅ湪鍒犻櫎鏂囦欢鈥渇lutter_wrapper_plugin.dir\Release\flutter_.5545AA77.tlog\unsuccessfulbuild鈥濄€?[        ]   姝ｅ湪瀵光€渇lutter_wrapper_plugin.dir\Release\flutter_.5545AA77.tlog\flutter_wrapper_plugin.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?[        ] 宸插畬鎴愮敓鎴愰」鐩€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\flutter_wrapper_plugin.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?[   +4 ms] PrepareForBuild:
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渇ile_selector_windows_plugin.dir\Release\鈥濄€?[   +6 ms]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\plugins\file_selector_windows\Release\鈥濄€?[        ]   姝ｅ湪鍒涘缓鐩綍鈥渇ile_selector_windows_plugin.dir\Release\file_sel.28036556.tlog\鈥濄€?[   +5 ms] InitializeBuildStatus:
+[        ]   姝ｅ湪鍒涘缓鈥渇ile_selector_windows_plugin.dir\Release\file_sel.28036556.tlog\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?[        ]   姝ｅ湪瀵光€渇ile_selector_windows_plugin.dir\Release\file_sel.28036556.tlog\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?[  +53 ms] CustomBuild:
+[        ]   Building Custom Rule D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/ephemeral/.plugin_symlinks/file_selector_windows/windows/CMakeLists.txt
+[  +46 ms] ClCompile:
+[        ]   C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral" /I"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\include" /nologo /W4 /WX /diagnostics:column /O2 /Ob2 /D _WINDLL /D _UNICODE /D UNICODE /D WIN32 /D _WINDOWS /D NDEBUG /D _HAS_EXCEPTIONS=0 /D FLUTTER_PLUGIN_IMPL /D _HAS_EXCEPTIONS=1 /D UNICODE /D _UNICODE /D "CMAKE_INTDIR=\"Release\"" /D file_selector_windows_plugin_EXPORTS /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /std:c++17 /Fo"file_selector_windows_plugin.dir\Release\\" /Fd"file_selector_windows_plugin.dir\Release\vc143.pdb" /external:W4 /Gd /TP /wd4100 /errorReport:queue "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_selector_windows.cpp" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_dialog_controller.cpp" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\file_selector_plugin.cpp" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\messages.g.cpp" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\string_utils.cpp"
+[  +63 ms]   file_selector_windows.cpp
+[+1650 ms]   file_dialog_controller.cpp
+[ +742 ms]   file_selector_plugin.cpp
+[+1856 ms]   messages.g.cpp
+[+1485 ms]   string_utils.cpp
+[ +987 ms]   Generating Code...
+[+1693 ms] Link:
+[        ]   C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\link.exe /ERRORREPORT:QUEUE /OUT:"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\plugins\file_selector_windows\Release\file_selector_windows_plugin.dll" /INCREMENTAL:NO /NOLOGO ..\..\flutter\Release\flutter_wrapper_plugin.lib "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\flutter_windows.dll.lib" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:"D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/plugins/file_selector_windows/Release/file_selector_windows_plugin.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/plugins/file_selector_windows/Release/file_selector_windows_plugin.lib" /MACHINE:X64  /machine:x64 /DLL file_selector_windows_plugin.dir\Release\file_selector_windows.obj
+[        ]   file_selector_windows_plugin.dir\Release\file_dialog_controller.obj
+[        ]   file_selector_windows_plugin.dir\Release\file_selector_plugin.obj
+[        ]   file_selector_windows_plugin.dir\Release\messages.g.obj
+[        ]   file_selector_windows_plugin.dir\Release\string_utils.obj
+[  +75 ms]      Creating library D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/plugins/file_selector_windows/Release/file_selector_windows_plugin.lib and object D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/plugins/file_selector_windows/Release/file_selector_windows_plugin.exp
+[ +110 ms]   file_selector_windows_plugin.vcxproj -> D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\plugins\file_selector_windows\Release\file_selector_windows_plugin.dll
+[  +11 ms] FinalizeBuildStatus:
+[        ]   姝ｅ湪鍒犻櫎鏂囦欢鈥渇ile_selector_windows_plugin.dir\Release\file_sel.28036556.tlog\unsuccessfulbuild鈥濄€?[        ]   姝ｅ湪瀵光€渇ile_selector_windows_plugin.dir\Release\file_sel.28036556.tlog\file_selector_windows_plugin.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?[        ] 宸插畬鎴愮敓鎴愰」鐩€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\plugins\file_selector_windows\file_selector_windows_plugin.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?[   +4 ms] PrepareForBuild:
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渃rabforge.dir\Release\鈥濄€?[   +5 ms]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\runner\Release\鈥濄€?[        ]   姝ｅ湪鍒涘缓鐩綍鈥渃rabforge.dir\Release\crabforge.tlog\鈥濄€?[   +2 ms] InitializeBuildStatus:
+[        ]   姝ｅ湪鍒涘缓鈥渃rabforge.dir\Release\crabforge.tlog\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?[        ]   姝ｅ湪瀵光€渃rabforge.dir\Release\crabforge.tlog\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?[  +51 ms] CustomBuild:
+[        ]   Building Custom Rule D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/runner/CMakeLists.txt
+[  +53 ms] ResourceCompile:
+[        ]   C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\rc.exe /D _UNICODE /D UNICODE /D WIN32 /D _WINDOWS /D NDEBUG /D _HAS_EXCEPTIONS=0 /D "FLUTTER_VERSION=\\\"0.1.0+1\\\"" /D FLUTTER_VERSION_MAJOR=0 /D FLUTTER_VERSION_MINOR=1 /D FLUTTER_VERSION_PATCH=0 /D FLUTTER_VERSION_BUILD=1 /D NOMINMAX /D UNICODE /D _UNICODE /D "CMAKE_INTDIR=\\\"Release\\\"" /l"0x0409" /I"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows" /I"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral" /I"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\.plugin_symlinks\file_selector_windows\windows\include" /nologo /fo"crabforge.dir\Release\Runner.res" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\runner\Runner.rc"
+[  +79 ms] Link:
+[        ]   C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\link.exe /ERRORREPORT:QUEUE /OUT:"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\runner\Release\crabforge.exe" /INCREMENTAL:NO /NOLOGO "..\cargo\x86_64-pc-windows-msvc\release\crabforge_runner.lib" msvcrt.lib userenv.lib ws2_32.lib ntdll.lib bcrypt.lib advapi32.lib ole32.lib shell32.lib user32.lib dwmapi.lib ..\plugins\file_selector_windows\Release\file_selector_windows_plugin.lib "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\flutter_windows.dll.lib" kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /manifestinput:"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\runner\runner.exe.manifest" /PDB:"D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/crabforge.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /ENTRY:"wWinMainCRTStartup" /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/crabforge.lib" /MACHINE:X64  /machine:x64 crabforge.dir\Release\Runner.res
+[ +192 ms]   crabforge.vcxproj -> D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\runner\Release\crabforge.exe
+[  +11 ms] FinalizeBuildStatus:
+[        ]   姝ｅ湪鍒犻櫎鏂囦欢鈥渃rabforge.dir\Release\crabforge.tlog\unsuccessfulbuild鈥濄€?[        ]   姝ｅ湪瀵光€渃rabforge.dir\Release\crabforge.tlog\crabforge.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?[        ] 宸插畬鎴愮敓鎴愰」鐩€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\runner\crabforge.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?[  +29 ms] 椤圭洰鈥淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\ALL_BUILD.vcxproj鈥?3)姝ｅ湪鑺傜偣 1 涓婄敓鎴愨€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\flutter_wrapper_app.vcxproj鈥?9) (榛樿鐩爣)銆?[        ] PrepareForBuild:
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渇lutter_wrapper_app.dir\Release\鈥濄€?[   +5 ms]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渇lutter_wrapper_app.dir\Release\flutter_.F754775F.tlog\鈥濄€?[   +2 ms] InitializeBuildStatus:
+[        ]   姝ｅ湪鍒涘缓鈥渇lutter_wrapper_app.dir\Release\flutter_.F754775F.tlog\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?[        ]   姝ｅ湪瀵光€渇lutter_wrapper_app.dir\Release\flutter_.F754775F.tlog\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?[  +55 ms] CustomBuild:
+[        ]   Building Custom Rule D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/flutter/CMakeLists.txt
+[  +42 ms] ClCompile:
+[        ]   C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\CL.exe /c /I"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\include" /I"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral" /nologo /W4 /WX /diagnostics:column /O2 /Ob2 /D _UNICODE /D UNICODE /D WIN32 /D _WINDOWS /D NDEBUG /D _HAS_EXCEPTIONS=0 /D UNICODE /D _UNICODE /D "CMAKE_INTDIR=\"Release\"" /EHsc /MD /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /std:c++17 /Fo"flutter_wrapper_app.dir\Release\\" /Fd"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\Release\flutter_wrapper_app.pdb" /external:W4 /Gd /TP /wd4100 /errorReport:queue "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\core_implementations.cc" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\standard_codec.cc" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\flutter_engine.cc" "D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\windows\flutter\ephemeral\cpp_client_wrapper\flutter_view_controller.cc"
+[  +55 ms]   core_implementations.cc
+[ +898 ms]   standard_codec.cc
+[+1065 ms]   flutter_engine.cc
+[+1035 ms]   flutter_view_controller.cc
+[+1289 ms]   Generating Code...
+[+1231 ms] Lib:
+[        ]   C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\Lib.exe /OUT:"D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\Release\flutter_wrapper_app.lib" /NOLOGO /MACHINE:X64  /machine:x64 flutter_wrapper_app.dir\Release\core_implementations.obj
+[        ]   flutter_wrapper_app.dir\Release\standard_codec.obj
+[        ]   flutter_wrapper_app.dir\Release\flutter_engine.obj
+[        ]   flutter_wrapper_app.dir\Release\flutter_view_controller.obj
+[  +81 ms]   flutter_wrapper_app.vcxproj -> D:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\Release\flutter_wrapper_app.lib
+[  +16 ms] FinalizeBuildStatus:
+[        ]   姝ｅ湪鍒犻櫎鏂囦欢鈥渇lutter_wrapper_app.dir\Release\flutter_.F754775F.tlog\unsuccessfulbuild鈥濄€?[        ]   姝ｅ湪瀵光€渇lutter_wrapper_app.dir\Release\flutter_.F754775F.tlog\flutter_wrapper_app.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?[        ] 宸插畬鎴愮敓鎴愰」鐩€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\flutter\flutter_wrapper_app.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?[   +5 ms] PrepareForBuild:
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渪64\Release\ALL_BUILD\鈥濄€?[   +4 ms]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渪64\Release\ALL_BUILD\ALL_BUILD.tlog\鈥濄€?[   +1 ms] InitializeBuildStatus:
+[        ]   姝ｅ湪鍒涘缓鈥渪64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?[        ]   姝ｅ湪瀵光€渪64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?[  +60 ms] CustomBuild:
+[        ]   Building Custom Rule D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/windows/CMakeLists.txt
+[  +59 ms] FinalizeBuildStatus:
+[        ]   姝ｅ湪鍒犻櫎鏂囦欢鈥渪64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild鈥濄€?[        ]   姝ｅ湪瀵光€渪64\Release\ALL_BUILD\ALL_BUILD.tlog\ALL_BUILD.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?[        ] 宸插畬鎴愮敓鎴愰」鐩€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\ALL_BUILD.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?[   +5 ms] PrepareForBuild:
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渪64\Release\INSTALL\鈥濄€?[   +5 ms]   Structured output is enabled. The formatting of compiler diagnostics will reflect the error hierarchy. See https://aka.ms/cpp/structured-output for more details.
+[        ]   姝ｅ湪鍒涘缓鐩綍鈥渪64\Release\INSTALL\INSTALL.tlog\鈥濄€?[   +1 ms] InitializeBuildStatus:
+[        ]   姝ｅ湪鍒涘缓鈥渪64\Release\INSTALL\INSTALL.tlog\unsuccessfulbuild鈥濓紝鍥犱负宸叉寚瀹氣€淎lwaysCreate鈥濄€?[        ]   姝ｅ湪瀵光€渪64\Release\INSTALL\INSTALL.tlog\unsuccessfulbuild鈥濇墽琛?Touch 浠诲姟銆?[  +57 ms] CustomBuild:
+[        ]   1>
+[  +22 ms] PostBuildEvent:
+[        ]   setlocal
+[        ]   "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -DBUILD_TYPE=Release -P cmake_install.cmake
+[        ]   if %errorlevel% neq 0 goto :cmEnd
+[        ]   :cmEnd
+[        ]   endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+[        ]   :cmErrorLevel
+[        ]   exit /b %1
+[        ]   :cmDone
+[        ]   if %errorlevel% neq 0 goto :VCEnd
+[        ]   :VCEnd
+[  +67 ms]   -- Install configuration: "Release"
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/crabforge_bridge.dll
+[ +124 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/icudtl.dat
+[   +3 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/flutter_windows.dll
+[  +62 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/file_selector_windows_plugin.dll
+[   +1 ms]   -- Up-to-date: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/AssetManifest.bin
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/FontManifest.json
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/fonts
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/fonts/MaterialIcons-Regular.otf
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/NativeAssetsManifest.json
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/NOTICES.Z
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/ai302-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/aigocode.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/aihubmix-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/aionui.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/air.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/alma.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/antigravity-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/aside.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/astrbot.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/atomcode.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/avibe.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/azure-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/baiducloud-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/bailian-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/bedrock-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/cherryin-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/cherrystudio-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/cindy.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/claude-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/claudecode-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/cline.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/codebuddy-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/codex-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/commandcode.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/craft-agents-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/crush.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/cursor.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/deepseek-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/deveco-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/devin.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/dim-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/doubao-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/empryo-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/factory.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/fireworks-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/fx.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/gemini-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/geminicli-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/gemma-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/githubcopilot.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/gmicloud.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/goose.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/gpustack.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/grok.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/groq.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/hanako.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/hermes.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/huaweicloud-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/hunyuan-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/jcode.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/kigi.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/kilo.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/kimi.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/kun.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/liveagent-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/lmstudio.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/lody.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/longcat.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/magpie.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/meta-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/mimocode.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/minimax-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/miniq-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/mistermorph-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/mistral-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/mlx-serve.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/modelscope-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/mothx.png
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/mu.svg
+[   +2 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/nanobot-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/nousresearch.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/nowledge-mem.png
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/nvidia-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/obsidian.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/ollama.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/omlx.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/omo.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/omp.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/open-code-review.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/openai.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/openbot.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/openchamber.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/openclaw.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/opencode.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/openmausbot-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/openrouter.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/paimon.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/penguin-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/pi.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/pipellm-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/prime-agent.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/qoder.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/qwen-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/qwenpaw.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/raycast.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/reasonix-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/shelley-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/siliconcloud-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/snow.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/stepfun-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/stepfun.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/t3code.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/tencentcloud-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/together-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/tuanjie-cowork-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/vercel.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/vertexai-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/volcengine-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/voyage-color.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/vscode.svg
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/workbuddy-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/xai.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/xiaomimimo.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/yylx.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/zai.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/zcode.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/zed.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/zhipu-color.svg
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/brands/zoo-code.png
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/crabforge.png
+[   +2 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/fonts
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/fonts/GoogleSans-OFL.txt
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/fonts/GoogleSans-Variable.ttf
+[   +9 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/fonts/HarmonyOS-Sans-LICENSE.txt
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/fonts/HarmonyOS_SansSC-Variable.ttf
+[  +34 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/fonts/NotoSansKR-OFL.txt
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/packages/crabforge_assets/fonts/NotoSansKR-Variable.ttf
+[  +18 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/shaders
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/shaders/ink_sparkle.frag
+[        ]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/flutter_assets/shaders/stretch_effect.frag
+[   +1 ms]   -- Installing: D:/RustProject/Crabforge/dist/cf-windows-7b3b366/source/gui/build/windows/x64/runner/Release/data/app.so
+[  +28 ms] FinalizeBuildStatus:
+[        ]   姝ｅ湪鍒犻櫎鏂囦欢鈥渪64\Release\INSTALL\INSTALL.tlog\unsuccessfulbuild鈥濄€?[        ]   姝ｅ湪瀵光€渪64\Release\INSTALL\INSTALL.tlog\INSTALL.lastbuildstate鈥濇墽琛?Touch 浠诲姟銆?[        ] 宸插畬鎴愮敓鎴愰」鐩€淒:\RustProject\Crabforge\dist\cf-windows-7b3b366\source\gui\build\windows\x64\INSTALL.vcxproj鈥?榛樿鐩爣)鐨勬搷浣溿€?[   +2 ms] 宸叉垚鍔熺敓鎴愩€?[        ]     0 涓鍛?[        ]     0 涓敊璇?[        ] 宸茬敤鏃堕棿 00:06:43.68
+[  +27 ms] Building Windows application... (completed in 405.4s)
+[   +4 ms] 鈭?Built build\windows\x64\runner\Release\crabforge.exe
+[        ] "flutter windows" took 405,796ms.
+[   +1 ms] Running 1 shutdown hook
+[        ] Shutdown hooks complete
+[        ] exiting with code 0

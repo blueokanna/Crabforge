@@ -1,0 +1,7 @@
+agents-a0e0eaf2c670c1ae.exe omo_receives_text_through_the_gateway
+
+running 1 test
+test omo_receives_text_through_the_gateway has been running for over 60 seconds
+test omo_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 123.00s

@@ -1,0 +1,9 @@
+Stage,Claude Code,Hook snapshot,Local model reply
+Assign,2.1.332,1.0.0,Yes
+Outside scope,2.1.332,,Yes
+Pinned after library update,2.1.332,1.0.0,Yes
+Sync,2.1.332,2.0.0,Yes
+Apply with matching archive,2.1.332,2.0.0,Yes
+Withdraw destination,2.1.332,,Yes
+Withdraw source,2.1.332,,Yes
+Preserve external flag edit,2.1.332,,Yes

@@ -1,0 +1,273 @@
+agents-a0e0eaf2c670c1ae.exe claude_receives_text_through_the_gateway
+
+running 1 test
+test claude_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 18.56s
+
+
+agents-a0e0eaf2c670c1ae.exe codex_exec_receives_assistant_text_through_the_gateway
+
+running 1 test
+test codex_exec_receives_assistant_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 18.78s
+
+
+agents-a0e0eaf2c670c1ae.exe copilot_uses_the_gateway_in_offline_mode
+
+running 1 test
+test copilot_uses_the_gateway_in_offline_mode has been running for over 60 seconds
+test copilot_uses_the_gateway_in_offline_mode ... FAILED
+
+failures:
+
+---- copilot_uses_the_gateway_in_offline_mode stdout ----
+Error: Copilot CLI exceeded 90s on chat for local/m, completed gateway attempts []
+
+Caused by:
+    deadline has elapsed
+
+
+failures:
+    copilot_uses_the_gateway_in_offline_mode
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 27 filtered out; finished in 157.49s
+
+
+agents-a0e0eaf2c670c1ae.exe crush_receives_text_through_the_gateway
+
+running 1 test
+test crush_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 9.67s
+
+
+agents-a0e0eaf2c670c1ae.exe deveco_loads_the_selected_model_and_authenticated_agent_endpoint
+
+running 1 test
+test deveco_loads_the_selected_model_and_authenticated_agent_endpoint ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 15.15s
+
+
+agents-a0e0eaf2c670c1ae.exe gemini_receives_text_through_the_gateway
+
+running 1 test
+test gemini_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 7.25s
+
+
+agents-a0e0eaf2c670c1ae.exe goose_receives_text_through_the_gateway
+
+running 1 test
+test goose_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 2.29s
+
+
+agents-a0e0eaf2c670c1ae.exe kimi_receives_text_through_the_gateway
+
+running 1 test
+test kimi_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 7.51s
+
+
+agents-a0e0eaf2c670c1ae.exe mimocode_receives_text_through_the_gateway
+
+running 1 test
+test mimocode_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 23.61s
+
+
+agents-a0e0eaf2c670c1ae.exe mu_receives_text_through_the_gateway
+
+running 1 test
+test mu_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 10.03s
+
+
+agents-a0e0eaf2c670c1ae.exe nanobot_receives_text_through_the_gateway
+
+running 1 test
+test nanobot_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 11.77s
+
+
+agents-a0e0eaf2c670c1ae.exe omo_receives_text_through_the_gateway
+
+running 1 test
+test omo_receives_text_through_the_gateway has been running for over 60 seconds
+Timed out after 190 seconds
+
+agents-a0e0eaf2c670c1ae.exe omp_discovers_profiles_and_writes_the_directory_selected_by_native_flags
+
+running 1 test
+test omp_discovers_profiles_and_writes_the_directory_selected_by_native_flags ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 16.11s
+
+
+agents-a0e0eaf2c670c1ae.exe omp_protocol_picker_changes_the_native_wire_request
+
+running 1 test
+test omp_protocol_picker_changes_the_native_wire_request ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 47.19s
+
+
+agents-a0e0eaf2c670c1ae.exe omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses
+
+running 1 test
+test omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 12.10s
+
+
+agents-a0e0eaf2c670c1ae.exe omp_reads_advisor_choices_and_resets_from_the_named_profile
+
+running 1 test
+test omp_reads_advisor_choices_and_resets_from_the_named_profile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 11.16s
+
+
+agents-a0e0eaf2c670c1ae.exe omp_reads_thinking_levels_without_changing_fallback_roles
+
+running 1 test
+test omp_reads_thinking_levels_without_changing_fallback_roles ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 6.26s
+
+
+agents-a0e0eaf2c670c1ae.exe omp_receives_text_through_the_gateway
+
+running 1 test
+test omp_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 22.34s
+
+
+agents-a0e0eaf2c670c1ae.exe omp_starts_on_the_saved_role_and_restores_the_original_fallback
+
+running 1 test
+test omp_starts_on_the_saved_role_and_restores_the_original_fallback ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 8.64s
+
+
+agents-a0e0eaf2c670c1ae.exe omp_sync_restores_available_models_to_the_effective_scope
+
+running 1 test
+test omp_sync_restores_available_models_to_the_effective_scope ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 9.10s
+
+
+agents-a0e0eaf2c670c1ae.exe opencode_receives_text_through_the_gateway
+
+running 1 test
+test opencode_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 3.82s
+
+
+agents-a0e0eaf2c670c1ae.exe pi_receives_text_through_the_gateway
+
+running 1 test
+test pi_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 3.31s
+
+
+agents-a0e0eaf2c670c1ae.exe pi_returns_the_result_of_a_streamed_read_call
+
+running 1 test
+test pi_returns_the_result_of_a_streamed_read_call ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 1.04s
+
+
+agents-a0e0eaf2c670c1ae.exe prime_agent_receives_text_through_the_gateway
+
+running 1 test
+test prime_agent_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 25.65s
+
+
+agents-a0e0eaf2c670c1ae.exe qwen_receives_text_through_the_gateway
+
+running 1 test
+test qwen_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 4.34s
+
+
+agents-a0e0eaf2c670c1ae.exe vibe_receives_text_through_the_gateway
+
+running 1 test
+test vibe_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 11.16s
+
+
+crabforge_core-d27fc92773980eee.exe webchat::tests::browser_reads_session_headers_only_from_a_listed_origin
+
+running 1 test
+test webchat::tests::browser_reads_session_headers_only_from_a_listed_origin ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 83 filtered out; finished in 1.39s
+
+
+crabforge_core-d27fc92773980eee.exe webchat::tests::browser_submits_text_and_waits_for_the_completed_turn
+
+running 1 test
+test webchat::tests::browser_submits_text_and_waits_for_the_completed_turn ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 83 filtered out; finished in 3.97s
+
+
+kubo-0863ee352e8753e9.exe go_and_rust_peers_exchange_authenticated_http_in_both_directions
+
+running 1 test
+test go_and_rust_peers_exchange_authenticated_http_in_both_directions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+
+
+llama-d49ba84de6f66f0e.exe local_weights_generate_text_for_each_client_protocol
+
+running 1 test
+test local_weights_generate_text_for_each_client_protocol ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.90s
+
+
+llama-d49ba84de6f66f0e.exe official_ollama_client_lists_models_and_streams_real_tokens
+
+running 1 test
+test official_ollama_client_lists_models_and_streams_real_tokens ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 2.14s
+
+
+magpie-b5d1927902f04b4d.exe quic_client_reaches_a_native_magpie_upstream
+
+running 1 test
+test quic_client_reaches_a_native_magpie_upstream ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 7.69s
+
+
+magpie-b5d1927902f04b4d.exe quic_client_receives_real_model_output_via_magpie
+
+running 1 test
+test quic_client_receives_real_model_output_via_magpie ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 2.33s

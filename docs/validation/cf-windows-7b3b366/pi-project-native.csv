@@ -1,0 +1,2 @@
+Client,Version,Project settings,Assignment,Sync,Withdrawal,Theme and skill,Upstream,Transfer
+Pi,1.6.0,Isolated .pi/settings.json,1.0.0 session hook and prompt executed,Pinned 1.0.0 until explicit sync then 2.0.0 executed,Original settings bytes restored and hook absent,Native discovery before and after withdrawal,Five localhost model replies,"Archived pinned 1.0.0 after saving 2.0.0; separate profile rejected missing snapshot, applied matching TAR, ran 2.0.0 and withdrew local ownership"

@@ -1,0 +1,14 @@
+Check,Result
+Workspace directories scanned,73098
+Vendor directories,0
+Traversal errors,0
+ARB files,9
+Message keys per locale,336
+Rust version,0.1.0
+Flutter version,0.1.0+1
+courierust,1.1.3
+nextjson,0.1.5
+recurse-x,0.2.6
+rustbinary,0.1.10
+libp2p,0.57.1
+Rust license directories,311
