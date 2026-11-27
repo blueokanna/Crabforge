@@ -167,6 +167,192 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
 }
 
 #[tokio::test]
+async fn translated_media_preserves_inline_images_audio_and_tool_order() -> Result<()> {
+    use std::sync::Mutex;
+
+    const PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aCHwAAAAASUVORK5CYII=";
+    const WAV: &str = "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+    let uri = format!("data:image/png;base64,{PNG}");
+    let formats = ["chat", "responses", "anthropic", "gemini"];
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let base = format!("http://{}", listener.local_addr()?);
+    let captures = Arc::new(Mutex::new(Vec::new()));
+    let router = Router::new().fallback(post({
+        let captures = captures.clone();
+        move |request: Incoming| {
+            let captures = captures.clone();
+            async move {
+                captures
+                    .lock()
+                    .unwrap()
+                    .push(nextjson::from_slice::<Value>(&request.body).unwrap());
+                vendor(request).await
+            }
+        }
+    }));
+    let server =
+        tokio::spawn(async move { crabforge_test_support::server::serve(listener, router).await });
+    let dir = tempfile::tempdir()?;
+    let providers: Vec<_> = formats
+        .iter()
+        .map(|name| json!({"id":name,"models":["m"],"endpoints":{(*name):base}}))
+        .collect();
+    let cfg = json!({"listen":"127.0.0.1:0","providers":providers});
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let service = Service::start(dir.path()).await?;
+    let client = crabforge_test_support::Client::default();
+    let key = config::token(dir.path())?;
+    let send = |from: &str, to: &str, input: Value| {
+        let (path, mut body) = request(from, &format!("{to}/m"), false);
+        body.as_object_mut()
+            .unwrap()
+            .extend(input.as_object().unwrap().clone());
+        client
+            .post(format!("http://{}{path}", service.addr))
+            .bearer_auth(&key)
+            .body(body.to_string())
+            .send()
+    };
+
+    let image = |format| match format {
+        "chat" => (
+            "/messages/0/content",
+            json!({"type":"image_url","image_url":{"url":uri,"detail":"auto"}}),
+            json!({"type":"text","text":"city?"}),
+        ),
+        "responses" => (
+            "/input/0/content",
+            json!({"type":"input_image","image_url":uri,"detail":"auto"}),
+            json!({"type":"input_text","text":"city?"}),
+        ),
+        "anthropic" => (
+            "/messages/0/content",
+            json!({"type":"image","source":{"type":"base64","media_type":"image/png","data":PNG}}),
+            json!({"type":"text","text":"city?"}),
+        ),
+        "gemini" => (
+            "/contents/0/parts",
+            json!({"inlineData":{"mimeType":"image/png","data":PNG}}),
+            json!({"text":"city?"}),
+        ),
+        _ => unreachable!(),
+    };
+    for from in formats {
+        let (_, image_part, prompt) = image(from);
+        let parts = json!([image_part, prompt]);
+        let input = match from {
+            "chat" | "anthropic" => json!({"messages":[{"role":"user","content":parts}]}),
+            "responses" => json!({"input":[{"role":"user","content":parts}]}),
+            "gemini" => json!({"contents":[{"role":"user","parts":parts}]}),
+            _ => unreachable!(),
+        };
+        for to in formats.into_iter().filter(|to| *to != from) {
+            let res = send(from, to, input.clone()).await?;
+            assert_eq!(res.status(), 200, "{from} -> {to}: {}", res.text().await?);
+            let (pointer, image_part, prompt) = image(to);
+            assert_eq!(
+                captures.lock().unwrap().last().unwrap().pointer(pointer),
+                Some(&json!([image_part, prompt]))
+            );
+        }
+    }
+
+    let chat_audio = json!({"type":"input_audio","input_audio":{"format":"wav","data":WAV}});
+    let gemini_audio = json!({"inlineData":{"mimeType":"audio/wav","data":WAV}});
+    let res = send("chat", "gemini", json!({"messages":[
+        {"role":"user","content":[{"type":"text","text":"city?"},chat_audio]},
+        {"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"record","arguments":"{}"}}]},
+        {"role":"tool","tool_call_id":"call_1","content":[{"type":"text","text":"recorded"},chat_audio]}
+    ]})).await?;
+    assert_eq!(res.status(), 200, "{}", res.text().await?);
+    {
+        let bodies = captures.lock().unwrap();
+        let sent = bodies.last().unwrap();
+        assert_eq!(sent.pointer("/contents/0/parts/1"), Some(&gemini_audio));
+        assert_eq!(
+            sent.pointer("/contents/2/parts"),
+            Some(&json!([
+                {"functionResponse":{"id":"call_1","name":"record","response":{"output":"recorded"}}},
+                gemini_audio
+            ]))
+        );
+    }
+    let res = send(
+        "gemini",
+        "chat",
+        json!({"contents":[{"role":"user","parts":[
+            {"text":"city?"},{"inline_data":{"mime_type":"audio/wav","data":WAV}}
+        ]}]}),
+    )
+    .await?;
+    assert_eq!(res.status(), 200, "{}", res.text().await?);
+    assert_eq!(
+        captures
+            .lock()
+            .unwrap()
+            .last()
+            .unwrap()
+            .pointer("/messages/0/content/1"),
+        Some(&chat_audio)
+    );
+
+    let remote = "https://example.invalid/city.png";
+    let res = send(
+        "responses",
+        "anthropic",
+        json!({"input":[{"role":"user","content":[
+            {"type":"input_text","text":"city?"},{"type":"input_image","image_url":remote}
+        ]}]}),
+    )
+    .await?;
+    assert_eq!(res.status(), 200, "{}", res.text().await?);
+    assert_eq!(
+        captures
+            .lock()
+            .unwrap()
+            .last()
+            .unwrap()
+            .pointer("/messages/0/content/1/source"),
+        Some(&json!({"type":"url","url":remote}))
+    );
+    for (from, to, input, error) in [
+        (
+            "chat",
+            "gemini",
+            json!({"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":remote}}]}]}),
+            "requires base64 image data",
+        ),
+        (
+            "responses",
+            "chat",
+            json!({"input":[{"role":"user","content":[{"type":"input_image","file_id":"file_123"}]}]}),
+            "require a native endpoint",
+        ),
+        (
+            "chat",
+            "anthropic",
+            json!({"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":uri,"detail":"high"}}]}]}),
+            "cannot preserve explicit image detail",
+        ),
+        (
+            "chat",
+            "responses",
+            json!({"messages":[{"role":"user","content":[chat_audio]}]}),
+            "cannot represent input audio",
+        ),
+    ] {
+        let res = send(from, to, input).await?;
+        assert_eq!(res.status(), 400);
+        let body = res.text().await?;
+        assert!(body.contains(error), "{body}");
+    }
+    assert_eq!(captures.lock().unwrap().len(), 15);
+    service.stop().await;
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn relay_uses_a_reachable_native_endpoint_for_the_actual_request() -> Result<()> {
     let upstream = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", upstream.local_addr()?);

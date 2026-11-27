@@ -37,7 +37,9 @@ OpenAI Chat Completions、Responses 和 Anthropic Messages 的 SSE 响应开启�
 
 规则可用 `useEffort` 将已请求推理的请求调整为 `low`、`medium`、`high`、`xhigh` 或 `max`。网关在原生转发 OpenAI Chat Completions、Responses、Anthropic Messages 或 Gemini 请求时，对每次尝试分别适配目标模型。Gemini 2.5 使用推理 token 预算，受支持的 Gemini 3 和 4 模型采用上游声明或官方文档列出的等级。目标模型能力未知或客户端已显式关闭推理时，沿用客户端设置。在供应商编辑器使用「发现模型」，或执行 `carbforge-cli models primary --sync` 读取上游声明的等级。可执行 `carbforge-cli model spec primary/model --reasoning low,medium,high` 设置自定义等级，用 `--reasoning auto` 清除。Magpie 导入保留组内的 `useEffort`，并通过 `--settings` 或 `--settings-only` 保留 `modelEfforts`。
 
-网关在这些协议之间转译文本请求时，会将请求的推理设置适配到目标模型支持的参数。显式关闭推理需要目标模型支持关闭。请求推理摘要、显示思考过程或携带带签名的思考历史时，需要使用原生端点。
+网关在这些协议之间转译请求时，会将请求的推理设置适配到目标模型支持的参数。显式关闭推理需要目标模型支持关闭。请求推理摘要、显示思考过程或携带带签名的思考历史时，需要使用原生端点。
+
+四种协议之间转译用户消息时，可以携带内联 Base64 图片。Chat、Responses 和 Messages 也可将 HTTP 图片 URL 直接传给所选供应商。转译到 Gemini 时请使用内联图片。Chat 与 Gemini 之间支持 WAV 和 MP3 音频输入，Chat 工具返回的录音也可转发到 Gemini。目标模型须支持相应的输入模态。供应商专用文件 ID 以及目标协议无法表达的图片细节设置需要兼容端点。
 
 在路由组 JSON 的 `classifier` 同级加入 `"effort":"auto"`，由分类器为已请求推理的请求评估等级。网关可在一次调用中判定意图与等级，并在同一命名会话的工具续轮中复用结果、传给嵌套组。命中规则的 `useEffort` 优先。路由组分享和加密备份均保留该设置。
 

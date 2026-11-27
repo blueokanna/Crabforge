@@ -528,14 +528,19 @@ fn collect_text<'a>(content: &'a Value, text: &mut Vec<&'a str>, images: &mut bo
             *images |= matches!(
                 field(block, "type"),
                 Some("image" | "image_url" | "input_image")
-            ) || ["/inlineData/mimeType", "/fileData/mimeType"]
-                .iter()
-                .any(|p| {
-                    block
-                        .pointer(p)
-                        .and_then(Value::as_str)
-                        .is_some_and(|mime| mime.starts_with("image/"))
-                });
+            ) || [
+                "/inlineData/mimeType",
+                "/inline_data/mime_type",
+                "/fileData/mimeType",
+                "/file_data/mime_type",
+            ]
+            .iter()
+            .any(|p| {
+                block
+                    .pointer(p)
+                    .and_then(Value::as_str)
+                    .is_some_and(|mime| mime.starts_with("image/"))
+            });
         }
     }
 }

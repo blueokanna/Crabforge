@@ -39,7 +39,7 @@ impl Resolver for FixtureAddress {
 
 #[tokio::test]
 async fn console_go_forwards_untranslatable_input_in_its_original_protocol() -> Result<()> {
-    const BODY: &str = r#"{ "model": "go/minimax-m2.7", "messages": [{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,aGk="}}]}] }"#;
+    const BODY: &str = r#"{ "model": "go/minimax-m2.7", "messages": [{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,aGk=","detail":"high"}}]}] }"#;
     const REPLY: &str = r#"{"choices":[{"message":{"content":"received"}}]}"#;
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let address = listener.local_addr()?;

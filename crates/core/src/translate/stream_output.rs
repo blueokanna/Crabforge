@@ -179,6 +179,7 @@ impl Encoder {
             }
             Part::Call { id, name, args } => (id, name, args),
             Part::Result { .. } => bail!("unexpected function result from model"),
+            Part::Attachment(_) => bail!("unexpected attachment from model"),
         };
         self.close_text();
         let arguments = args.to_string();

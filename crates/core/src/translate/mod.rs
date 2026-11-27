@@ -1,3 +1,4 @@
+mod attachment;
 mod reply;
 mod request;
 pub(crate) mod sse;
@@ -5,6 +6,7 @@ mod stream_input;
 mod stream_output;
 
 use anyhow::{Context, Result, bail, ensure};
+use attachment::Attachment;
 use nextjson::{Map, Value, json};
 use std::collections::HashMap;
 
@@ -22,6 +24,7 @@ pub enum Format {
 #[derive(Debug)]
 enum Part {
     Text(String),
+    Attachment(Attachment),
     Call {
         id: String,
         name: String,
@@ -30,6 +33,7 @@ enum Part {
     Result {
         id: String,
         output: String,
+        attachments: Vec<Attachment>,
     },
 }
 
@@ -98,6 +102,10 @@ fn read_content(format: Format, content: &Value, reply: bool) -> Result<Vec<Part
         {
             continue;
         }
+        if !reply && let Some(attachment) = Attachment::read(format, p)? {
+            parts.push(Part::Attachment(attachment));
+            continue;
+        }
         let part = match format {
             Format::Gemini => {
                 if let Some(s) = field(p, "text").as_str() {
@@ -122,6 +130,7 @@ fn read_content(format: Format, content: &Value, reply: bool) -> Result<Vec<Part
                     Part::Result {
                         id: field(result, "id").as_str().unwrap_or(name).into(),
                         output: field(result, "response").to_string(),
+                        attachments: vec![],
                     }
                 } else {
                     bail!("unsupported Gemini part")
@@ -142,6 +151,7 @@ fn read_content(format: Format, content: &Value, reply: bool) -> Result<Vec<Part
                     Part::Result {
                         id: text(p, "tool_use_id")?.into(),
                         output: strings(&read_parts(format, field(p, "content"))?)?,
+                        attachments: vec![],
                     }
                 }
                 other => bail!("cannot translate content block {other}"),
@@ -172,6 +182,7 @@ fn read_turn(format: Format, m: &Value) -> Result<Turn> {
                     parts: vec![Part::Result {
                         id: text(m, "call_id")?.into(),
                         output: text(m, "output")?.into(),
+                        attachments: vec![],
                     }],
                 });
             }
@@ -184,10 +195,22 @@ fn read_turn(format: Format, m: &Value) -> Result<Turn> {
         .or((format == Format::Gemini).then_some("user"))
         .context("message has no role")?;
     let mut parts = match (format, role) {
-        (Format::Chat, "tool") => vec![Part::Result {
-            id: text(m, "tool_call_id")?.into(),
-            output: strings(&read_parts(format, field(m, "content"))?)?,
-        }],
+        (Format::Chat, "tool") => {
+            let mut output = String::new();
+            let mut attachments = vec![];
+            for part in read_parts(format, field(m, "content"))? {
+                match part {
+                    Part::Text(text) => output.push_str(&text),
+                    Part::Attachment(attachment) => attachments.push(attachment),
+                    _ => bail!("unsupported Chat tool result"),
+                }
+            }
+            vec![Part::Result {
+                id: text(m, "tool_call_id")?.into(),
+                output,
+                attachments,
+            }]
+        }
         (Format::Gemini, _) => read_parts(format, field(m, "parts"))?,
         (Format::Chat, "assistant") if field(m, "content").is_null() => vec![],
         _ => read_parts(format, field(m, "content"))?,
@@ -227,40 +250,105 @@ fn write_turns(format: Format, turns: &[Turn]) -> Result<Vec<Value>> {
         let role = &turn.role;
         let mut parts = vec![];
         let mut calls = vec![];
-        for p in &turn.parts {
-            match p {
-            Part::Text(t)=>parts.push(match format {
-                Format::Chat=>json!(t),Format::Responses=>json!({"type":if role=="assistant"{"output_text"}else{"input_text"},"text":t}),Format::Messages=>json!({"type":"text","text":t}),Format::Gemini=>json!({"text":t})}),
-            Part::Call{id,name,args}=>{
-                ensure!(role=="assistant" && args.is_object(),"invalid function call");call_names.insert(id,name);
-                match format {
-                    Format::Chat=>calls.push(json!({"id":id,"type":"function","function":{"name":name,"arguments":args.to_string()}})),
-                    Format::Messages=>parts.push(json!({"type":"tool_use","id":id,"name":name,"input":args})),
-                    Format::Gemini=>parts.push(json!({"functionCall":{"id":id,"name":name,"args":args}})),
-                    Format::Responses=>{if !parts.is_empty(){out.push(json!({"type":"message","role":role,"content":std::mem::take(&mut parts)}));}out.push(json!({"type":"function_call","call_id":id,"name":name,"arguments":args.to_string()}));}
-                }
-            }
-            Part::Result{id,output}=>{
-                match format {
-                    Format::Chat|Format::Responses=>{
-                        if !parts.is_empty(){if format==Format::Chat{out.push(json!({"role":role,"content":joined(&parts)}));}else{out.push(json!({"type":"message","role":role,"content":parts}));}parts.clear();}
-                        out.push(if format==Format::Chat {json!({"role":"tool","tool_call_id":id,"content":output})}else{json!({"type":"function_call_output","call_id":id,"output":output})});
+        for part in &turn.parts {
+            match part {
+                Part::Text(text) => parts.push(match format {
+                    Format::Chat => json!(text),
+                    Format::Responses => {
+                        let kind = if role == "assistant" {
+                            "output_text"
+                        } else {
+                            "input_text"
+                        };
+                        json!({"type":kind,"text":text})
                     }
-                    Format::Messages=>parts.push(json!({"type":"tool_result","tool_use_id":id,"content":output})),
-                    Format::Gemini=>{let name=call_names.get(id).context("function response has no matching call")?;let data=nextjson::from_str::<Value>(output).ok().filter(Value::is_object).unwrap_or_else(||json!({"output":output}));parts.push(json!({"functionResponse":{"id":id,"name":name,"response":data}}));}
+                    Format::Messages => json!({"type":"text","text":text}),
+                    Format::Gemini => json!({"text":text}),
+                }),
+                Part::Attachment(attachment) => {
+                    ensure!(role == "user", "attachments require a user turn");
+                    parts.push(attachment.write(format)?);
+                }
+                Part::Call { id, name, args } => {
+                    ensure!(
+                        role == "assistant" && args.is_object(),
+                        "invalid function call"
+                    );
+                    call_names.insert(id, name);
+                    match format {
+                        Format::Chat => calls.push(json!({"id":id,"type":"function","function":{"name":name,"arguments":args.to_string()}})),
+                        Format::Messages => parts.push(json!({"type":"tool_use","id":id,"name":name,"input":args})),
+                        Format::Gemini => parts.push(json!({"functionCall":{"id":id,"name":name,"args":args}})),
+                        Format::Responses => {
+                            if !parts.is_empty() {
+                                out.push(json!({"type":"message","role":role,"content":std::mem::take(&mut parts)}));
+                            }
+                            out.push(json!({"type":"function_call","call_id":id,"name":name,"arguments":args.to_string()}));
+                        }
+                    }
+                }
+                Part::Result {
+                    id,
+                    output,
+                    attachments,
+                } => {
+                    ensure!(
+                        attachments.is_empty() || format == Format::Gemini,
+                        "this endpoint cannot represent tool attachments"
+                    );
+                    match format {
+                        Format::Chat | Format::Responses => {
+                            if !parts.is_empty() {
+                                let content = if format == Format::Chat {
+                                    chat_content(std::mem::take(&mut parts))
+                                } else {
+                                    Value::Array(std::mem::take(&mut parts))
+                                };
+                                if format == Format::Chat {
+                                    out.push(json!({"role":role,"content":content}));
+                                } else {
+                                    out.push(
+                                        json!({"type":"message","role":role,"content":content}),
+                                    );
+                                }
+                            }
+                            out.push(if format == Format::Chat {
+                                json!({"role":"tool","tool_call_id":id,"content":output})
+                            } else {
+                                json!({"type":"function_call_output","call_id":id,"output":output})
+                            });
+                        }
+                        Format::Messages => parts
+                            .push(json!({"type":"tool_result","tool_use_id":id,"content":output})),
+                        Format::Gemini => {
+                            let name = call_names
+                                .get(id)
+                                .context("function response has no matching call")?;
+                            let data = nextjson::from_str::<Value>(output)
+                                .ok()
+                                .filter(Value::is_object)
+                                .unwrap_or_else(|| json!({"output":output}));
+                            parts.push(
+                                json!({"functionResponse":{"id":id,"name":name,"response":data}}),
+                            );
+                            for attachment in attachments {
+                                parts.push(attachment.write(format)?);
+                            }
+                        }
+                    }
                 }
             }
-        }
         }
         if parts.is_empty() && calls.is_empty() {
             continue;
         }
         out.push(match format {
             Format::Chat => {
+                let content = chat_content(parts);
                 if calls.is_empty() {
-                    json!({"role":role,"content":joined(&parts)})
+                    json!({"role":role,"content":content})
                 } else {
-                    json!({"role":role,"content":joined(&parts),"tool_calls":calls})
+                    json!({"role":role,"content":content,"tool_calls":calls})
                 }
             }
             Format::Responses => json!({"type":"message","role":role,"content":parts}),
@@ -273,6 +361,17 @@ fn write_turns(format: Format, turns: &[Turn]) -> Result<Vec<Value>> {
     Ok(out)
 }
 
-fn joined(parts: &[Value]) -> String {
-    parts.iter().filter_map(Value::as_str).collect()
+fn chat_content(parts: Vec<Value>) -> Value {
+    if parts.iter().all(Value::is_string) {
+        return Value::from(parts.iter().filter_map(Value::as_str).collect::<String>());
+    }
+    Value::Array(
+        parts
+            .into_iter()
+            .map(|part| match part.as_str() {
+                Some(text) => json!({"type":"text","text":text}),
+                None => part,
+            })
+            .collect(),
+    )
 }
