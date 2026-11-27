@@ -6,7 +6,6 @@ use super::{
 use crate::{
     agents::NativeAgent,
     claude_plugins::{ENABLED, MARKETPLACES, project_target, read_object, run_plugin_command},
-    config::read_limited,
     native_settings,
     project_instructions::replace,
     rules::resolved_folder,
@@ -16,7 +15,6 @@ use nextjson::{NsonDeserialize, NsonSerialize, Value, json};
 use std::{
     collections::BTreeMap,
     fs,
-    io::ErrorKind,
     path::{Path, PathBuf},
 };
 
@@ -134,12 +132,8 @@ impl Project {
             text.len() <= MAX_LEDGER,
             "Claude Code assignments exceed 1 MiB"
         );
-        fs::create_dir_all(
-            self.ledger
-                .parent()
-                .context("missing assignment directory")?,
-        )?;
-        replace(&self.ledger, &text)
+        let before = native_settings::read(&self.ledger)?;
+        native_settings::write(&self.ledger, before.as_deref(), Some(&text))
     }
 
     fn marketplace(&self, content: &str) -> String {
@@ -219,10 +213,14 @@ impl Project {
             "plugins": [{"name": &pin.name, "source": "./plugin"}]
         }))?;
         let manifest = Path::new(".claude-plugin/marketplace.json");
+        ensure!(
+            resolved_folder(&self.markets)? == self.markets,
+            "Claude Code marketplace directory was redirected"
+        );
         fs::create_dir_all(&self.markets)?;
-        if let Ok(path) = fs::symlink_metadata(&placement.directory) {
+        if placement.directory.try_exists()? {
             ensure!(
-                path.is_dir() && resolved_folder(&placement.directory)? == placement.directory,
+                resolved_folder(&placement.directory)? == placement.directory,
                 "Claude Code marketplace was redirected"
             );
             let source = native_settings::read(&placement.directory.join(manifest))?;
@@ -239,6 +237,28 @@ impl Project {
         replace(&directory.join(manifest), &catalog)?;
         tree.write(&directory.join("plugin"))?;
         fs::rename(directory, &placement.directory)?;
+        Ok(())
+    }
+
+    fn verify_install(&self, place: &Placement<'_>, name: &str, content: &str) -> Result<()> {
+        let cache = self
+            .home
+            .join("plugins/cache")
+            .join(&place.marketplace)
+            .join(name);
+        let record = place
+            .installed
+            .and_then(single_install)
+            .context("missing Claude Code installation record")?;
+        let path = record
+            .get("installPath")
+            .and_then(Value::as_str)
+            .context("missing Claude Code plugin installation path")?;
+        let folder = Path::new(path).canonicalize()?;
+        ensure!(
+            folder.parent() == Some(cache.as_path()) && Tree::read(&folder)?.hash() == content,
+            "installed Claude Code snapshot was modified"
+        );
         Ok(())
     }
 
@@ -288,6 +308,7 @@ impl Project {
             .installed
             .and_then(single_install)
             .context("missing Claude Code installation record")?;
+        self.verify_install(&place, &pin.name, content)?;
         Ok(installation_receipt(record))
     }
 
@@ -362,10 +383,9 @@ impl Placement<'_> {
 }
 
 fn load(ledger: &Path) -> Result<Store> {
-    let store: Store = match read_limited(ledger, MAX_LEDGER) {
-        Ok(bytes) => nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?,
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Store::default()),
-        Err(error) => return Err(error.into()),
+    let store: Store = match native_settings::read(ledger)? {
+        Some(text) => nextjson::from_str(&text).map_err(anyhow::Error::msg)?,
+        None => return Ok(Store::default()),
     };
     for (name, entry) in &store.entries {
         ensure!(
@@ -419,6 +439,21 @@ fn active_snapshot<'a>(
         return Ok(content);
     }
     anyhow::bail!("Claude Code assignment changed; resolve it before exporting")
+}
+
+fn exportable_snapshot<'a>(
+    project: &Project,
+    native: &Native,
+    entry: &'a Assignment,
+) -> Result<(&'a str, Tree)> {
+    let content = active_snapshot(project, native, entry)?;
+    let pin = &entry.placements[content];
+    project.verify_install(
+        &project.placement(native, content, pin)?,
+        &pin.name,
+        content,
+    )?;
+    Ok((content, verified_tree(&project.objects, content)?.1))
 }
 
 pub(super) fn edit(
@@ -478,9 +513,8 @@ pub(super) fn edit(
                 .entries
                 .iter()
                 .map(|(name, entry)| {
-                    let content =
-                        active_snapshot(&project, &native, entry).with_context(|| name.clone())?;
-                    verified_tree(&project.objects, content)?;
+                    let (content, _) = exportable_snapshot(&project, &native, entry)
+                        .with_context(|| name.clone())?;
                     Ok((name.clone(), content.to_owned()))
                 })
                 .collect::<Result<_>>()?;
@@ -491,8 +525,7 @@ pub(super) fn edit(
                 .entries
                 .get(&name.to_ascii_lowercase())
                 .context("Claude Code assignment was removed")?;
-            let content = active_snapshot(&project, &native, entry)?;
-            let (_, tree) = verified_tree(&project.objects, content)?;
+            let (content, tree) = exportable_snapshot(&project, &native, entry)?;
             return super::export_tree(&tree, content, output);
         }
     }

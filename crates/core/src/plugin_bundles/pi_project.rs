@@ -1,34 +1,19 @@
 use super::{
     Bundle, PI, Tree, check_revision, encode,
-    project::{self, Edit, MAX_LEDGER, Row, View, checksum, hash, path_key, verified_tree},
+    project::{self, Edit, Row, Store, View, checksum, hash, path_key, verified_tree},
     revision,
 };
-use crate::{
-    config::read_limited, native_settings, project_instructions::replace, project_mcp::jsonc,
-};
+use crate::{native_settings, project_mcp::jsonc, rules::resolved_folder};
 use anyhow::{Context, Result, ensure};
-use nextjson::{NsonDeserialize, NsonSerialize, Value};
+use nextjson::Value;
 use std::{
     collections::BTreeMap,
-    env, fs,
-    io::ErrorKind,
+    env,
     path::{Component, Path, PathBuf},
 };
 
 const PACKAGES: &str = "packages";
 const EMPTY: &str = "{}\n";
-
-#[derive(Default, NsonDeserialize, NsonSerialize)]
-struct Store {
-    entries: BTreeMap<String, String>,
-    pending: Option<Pending>,
-}
-
-#[derive(NsonDeserialize, NsonSerialize)]
-struct Pending {
-    entries: BTreeMap<String, Option<String>>,
-    after: String,
-}
 
 const ASSIGNMENT_KIND: &str = "crabforge-pi-project";
 
@@ -74,53 +59,13 @@ fn source(project: &Path, folder: &Path) -> Result<String> {
     Ok(source.to_owned())
 }
 
-impl Store {
-    fn load(path: &Path, settings: Option<&str>) -> Result<Self> {
-        let mut state: Self = match read_limited(path, MAX_LEDGER) {
-            Ok(bytes) => nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?,
-            Err(error) if error.kind() == ErrorKind::NotFound => Self::default(),
-            Err(error) => return Err(error.into()),
-        };
-        if let Some(pending) = state.pending.take()
-            && settings.is_some_and(|text| hash(text) == pending.after)
-        {
-            state.update(pending.entries);
-        }
-        Ok(state)
+fn export(store: &Store, project: &Path, objects: &Path, packages: &Packages) -> Result<String> {
+    let mut selections = BTreeMap::new();
+    for (name, assigned) in &store.entries {
+        let (content, _) = assigned_snapshot(name, assigned, project, objects, packages)?;
+        selections.insert(name.clone(), content.to_owned());
     }
-
-    fn update(&mut self, updates: BTreeMap<String, Option<String>>) {
-        for (name, source) in updates {
-            if let Some(source) = source {
-                self.entries.insert(name, source);
-            } else {
-                self.entries.remove(&name);
-            }
-        }
-    }
-
-    fn save(&self, path: &Path) -> Result<()> {
-        let text = encode(self)?;
-        ensure!(
-            text.len() <= MAX_LEDGER,
-            "Pi project assignments exceed 1 MiB"
-        );
-        fs::create_dir_all(path.parent().context("missing Pi project ledger folder")?)?;
-        replace(path, &text)
-    }
-
-    fn revision(&self, identity: &str, settings: Option<&str>) -> Result<String> {
-        Ok(hash(&encode(&(identity, settings, &self.entries))?))
-    }
-
-    fn export(&self, project: &Path, objects: &Path, packages: &Packages) -> Result<String> {
-        let mut selections = BTreeMap::new();
-        for (name, assigned) in &self.entries {
-            let (content, _) = assigned_snapshot(name, assigned, project, objects, packages)?;
-            selections.insert(name.clone(), content.to_owned());
-        }
-        project::export(ASSIGNMENT_KIND, selections)
-    }
+    project::export(ASSIGNMENT_KIND, selections)
 }
 
 fn assigned_snapshot<'a>(
@@ -291,15 +236,15 @@ pub(super) fn edit(
     let _guard = native_settings::lock(dir)?;
     let (project, target) = target(dir, project)?;
     let identity = path_key(&target)?;
-    let ledger = library
+    let ledger = resolved_folder(&std::path::absolute(library)?)?
         .join("pi-projects")
         .join(hash(&identity))
         .with_extension("json");
-    let mut settings = native_settings::read(&target)?;
+    let settings = native_settings::read(&target)?;
     let mut store = Store::load(&ledger, settings.as_deref())?;
     let text = settings.as_deref().unwrap_or(EMPTY);
     let mut packages = Packages::read(&project, text)?;
-    let objects = crate::rules::resolved_folder(&std::path::absolute(objects)?)?;
+    let objects = resolved_folder(&std::path::absolute(objects)?)?;
     if let Some(expected) = edit.expected() {
         ensure!(
             store.revision(&identity, settings.as_deref())? == expected,
@@ -308,7 +253,7 @@ pub(super) fn edit(
     }
     let requested = match edit {
         Edit::Read => BTreeMap::new(),
-        Edit::Export { .. } => return store.export(&project, &objects, &packages),
+        Edit::Export { .. } => return export(&store, &project, &objects, &packages),
         Edit::Archive { name, output, .. } => {
             let assigned = store
                 .entries
@@ -368,20 +313,14 @@ pub(super) fn edit(
             updates.insert(name, desired);
         }
     }
-    if let Some(after) = after {
-        if after != text {
-            store.pending = Some(Pending {
-                entries: updates.clone(),
-                after: hash(&after),
-            });
-            store.save(&ledger)?;
-            native_settings::write(&target, settings.as_deref(), Some(&after))?;
-            settings = Some(after);
-            store.pending = None;
-        }
-        store.update(updates);
-        store.save(&ledger)?;
-    }
+    store.commit(
+        &ledger,
+        &target,
+        settings.as_deref(),
+        after.as_deref(),
+        updates,
+    )?;
+    let settings = after.filter(|after| after != text).or(settings);
 
     let mut rows = BTreeMap::new();
     for (key, bundle) in bundles.iter().filter(|(_, bundle)| is_pi(bundle)) {
@@ -438,6 +377,7 @@ pub(super) fn edit(
 mod tests {
     use super::*;
     use crate::plugin_bundles::{self, Edit as LibraryEdit};
+    use std::fs;
 
     fn project_edit(data: &Path, project: &Path, edit: Edit<'_>) -> Result<Value> {
         let text = plugin_bundles::edit(data, LibraryEdit::PiProject { project, edit })?;
@@ -565,9 +505,7 @@ mod tests {
             },
         )?;
         let mut invalid = carried;
-        invalid
-            .packages
-            .insert("zz-missing".to_owned(), second.content.clone());
+        invalid.insert("zz-missing".to_owned(), second.content.clone());
         assert!(apply(&encode(&invalid)?).is_err());
         assert!(!destination_file.exists());
         assert_eq!(

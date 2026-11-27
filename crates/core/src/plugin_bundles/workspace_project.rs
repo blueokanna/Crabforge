@@ -129,6 +129,14 @@ impl Workspace {
 
     fn stage(&self, pin: &Pin<'_>) -> Result<()> {
         let (_, tree) = verified_tree(&self.objects, pin.content)?;
+        let target = self.snapshot_path(pin, &tree)?;
+        if matches!(self.agent, Agent::Codex) {
+            self.stage_codex_catalog(pin, &tree)?;
+        }
+        stage_tree(&target, &tree, pin.content)
+    }
+
+    fn snapshot_path(&self, pin: &Pin<'_>, tree: &Tree) -> Result<PathBuf> {
         let manifest = tree
             .text(Path::new(self.agent.manifest()))?
             .context("snapshot lacks the native plugin manifest")?;
@@ -143,23 +151,41 @@ impl Workspace {
             "native plugin name differs from the bundle name"
         );
         match self.agent {
-            Agent::Antigravity => stage_tree(&self.root.join(&pin.source), &tree, pin.content),
+            Agent::Antigravity => Ok(self.root.join(&pin.source)),
             Agent::Codex => {
                 ensure!(name == pin.key, "Codex plugin names must be lowercase");
                 let version = manifest
                     .get("version")
                     .and_then(Value::as_str)
-                    .unwrap_or("0.0.0");
+                    .filter(|version| !version.is_empty())
+                    .unwrap_or("local");
                 ensure!(
                     windows_filename(version) && !matches!(version, "." | ".."),
                     "invalid Codex plugin version"
                 );
-                self.stage_codex(pin, version, &tree)
+                let cache = self
+                    .profile
+                    .join("plugins/cache")
+                    .join(&pin.market)
+                    .join(pin.key);
+                ensure!(
+                    resolved_folder(&cache)? == cache,
+                    "Codex plugin cache was redirected"
+                );
+                if cache.try_exists()? {
+                    for entry in fs::read_dir(&cache)? {
+                        ensure!(
+                            entry?.file_name() == version,
+                            "Codex plugin cache contains another version"
+                        );
+                    }
+                }
+                Ok(cache.join(version))
             }
         }
     }
 
-    fn stage_codex(&self, pin: &Pin<'_>, version: &str, tree: &Tree) -> Result<()> {
+    fn stage_codex_catalog(&self, pin: &Pin<'_>, tree: &Tree) -> Result<()> {
         let catalog = pin.catalog.join(".agents/plugins/marketplace.json");
         stage_tree(&pin.catalog.join("plugin"), tree, pin.content)?;
         let text = encode(&json!({
@@ -172,28 +198,15 @@ impl Workspace {
             Some(existing) => ensure!(existing == text, "Codex marketplace was modified"),
             None => native_settings::write(&catalog, None, Some(&text))?,
         }
-        let cache = self
-            .profile
-            .join("plugins/cache")
-            .join(&pin.market)
-            .join(pin.key);
-        ensure!(
-            resolved_folder(&cache)? == cache,
-            "Codex plugin cache was redirected"
-        );
-        if cache.try_exists()? {
-            ensure!(
-                fs::read_dir(&cache)?
-                    .collect::<std::io::Result<Vec<_>>>()?
-                    .iter()
-                    .all(|entry| entry.file_name() == version),
-                "Codex plugin cache contains another version"
-            );
-        }
-        stage_tree(&cache.join(version), tree, pin.content)
+        Ok(())
     }
 
-    fn check_external(&self, pin: &Pin<'_>, profile: Option<&str>) -> Result<()> {
+    fn check_external(
+        &self,
+        pin: &Pin<'_>,
+        profile: Option<&str>,
+        settings: Option<&str>,
+    ) -> Result<()> {
         match self.agent {
             Agent::Codex => ensure!(
                 !toml_entry(&toml(profile.unwrap_or(""))?, "plugins", &pin.id)?.is_some_and(
@@ -208,6 +221,23 @@ impl Workspace {
                 "Codex user profile already enables this plugin"
             ),
             Agent::Antigravity => {
+                let text = settings.unwrap_or("{}\n");
+                let config: Value = nextjson::from_str(text.trim_start_matches('\u{feff}'))
+                    .map_err(anyhow::Error::msg)?;
+                ensure!(
+                    !config
+                        .get("exclude")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .any(|value| {
+                            value
+                                .as_str()
+                                .is_some_and(|name| name.eq_ignore_ascii_case(pin.key))
+                        }),
+                    "Antigravity project excludes plugin {}",
+                    pin.key
+                );
                 for directory in [".agents", ".agent", "_agents", "_agent"] {
                     let existing = self.root.join(directory).join("plugins").join(pin.key);
                     match fs::symlink_metadata(existing) {
@@ -225,7 +255,10 @@ impl Workspace {
 }
 
 fn toml(text: &str) -> Result<DocumentMut> {
-    text.parse().context("invalid Codex plugin settings TOML")
+    text.strip_prefix('\u{feff}')
+        .unwrap_or(text)
+        .parse()
+        .context("invalid Codex plugin settings TOML")
 }
 
 fn table<'a>(document: &'a mut DocumentMut, key: &str) -> Result<&'a mut dyn toml_edit::TableLike> {
@@ -323,7 +356,8 @@ fn placement(agent: Agent, settings: Option<&str>, pin: &Pin<'_>) -> Result<(boo
 fn change(agent: Agent, settings: Option<&str>, pin: &Pin<'_>, active: bool) -> Result<String> {
     match agent {
         Agent::Codex => {
-            let mut document = toml(settings.unwrap_or(""))?;
+            let original = settings.unwrap_or("");
+            let mut document = toml(original)?;
             let entries = table(&mut document, "plugins")?;
             if active {
                 let mut entry = Table::new();
@@ -348,7 +382,17 @@ fn change(agent: Agent, settings: Option<&str>, pin: &Pin<'_>, active: bool) -> 
             } else {
                 markets.remove(&pin.market);
             }
-            Ok(document.to_string())
+            let mut updated = document.to_string();
+            if original
+                .find('\n')
+                .is_some_and(|index| original[..index].ends_with('\r'))
+            {
+                updated = updated.replace("\r\n", "\n").replace('\n', "\r\n");
+            }
+            if original.starts_with('\u{feff}') {
+                updated.insert(0, '\u{feff}');
+            }
+            Ok(updated)
         }
         Agent::Antigravity => {
             let text = settings.unwrap_or("{}\n");
@@ -386,20 +430,28 @@ pub(super) fn edit(
         None
     };
     let mut store = Store::load(&project.ledger, before.as_deref())?;
+    let identity = hash(&encode(&(&project.identity, &profile))?);
     let kind = format!("crabforge-{}-project", agent.key());
     if let Some(expected) = operation.expected() {
         ensure!(
-            store.revision(&project.identity, before.as_deref())? == expected,
+            store.revision(&identity, before.as_deref())? == expected,
             "project plugins changed; reload them"
         );
     }
     let snapshot = |key: &str, content: &str| -> Result<Tree> {
         let pin = project.pin(key, content)?;
+        project.check_external(&pin, profile.as_deref(), before.as_deref())?;
         ensure!(
             placement(agent, before.as_deref(), &pin)?.0,
             "project plugin {key} was modified"
         );
-        Ok(verified_tree(&project.objects, content)?.1)
+        let (_, tree) = verified_tree(&project.objects, content)?;
+        let target = project.snapshot_path(&pin, &tree)?;
+        ensure!(
+            target.canonicalize()? == target && Tree::read(&target)?.hash() == content,
+            "installed project snapshot was modified"
+        );
+        Ok(tree)
     };
     let requested = match operation {
         Edit::Read => BTreeMap::new(),
@@ -470,7 +522,7 @@ pub(super) fn edit(
         }
         if let Some(content) = desired {
             let pin = project.pin(key, content)?;
-            project.check_external(&pin, profile.as_deref())?;
+            project.check_external(&pin, profile.as_deref(), after.as_deref())?;
             let (present, conflict) = placement(agent, after.as_deref(), &pin)?;
             ensure!(
                 !conflict && (!present || prior == Some(content)),
@@ -509,7 +561,9 @@ pub(super) fn edit(
         let status = if modified
             || conflict
             || (present && prior != Some(&bundle.content))
-            || project.check_external(&pin, profile.as_deref()).is_err()
+            || project
+                .check_external(&pin, profile.as_deref(), after.as_deref())
+                .is_err()
         {
             "conflict"
         } else if owned && prior == Some(&bundle.content) {
@@ -548,7 +602,7 @@ pub(super) fn edit(
         }
     }
     encode(&View {
-        revision: store.revision(&project.identity, after.as_deref())?,
+        revision: store.revision(&identity, after.as_deref())?,
         packages: rows.into_values().collect(),
     })
 }
