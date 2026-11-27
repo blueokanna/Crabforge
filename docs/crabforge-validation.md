@@ -24,6 +24,8 @@ Antigravity、Grok Build 和 DeepSeek Harness 钩子整合提交 `18a3d431f284c0
 
 Grok Build 1.0.92 在用户和项目作用域执行 `Stop` 钩子，写入本机标记并收到本机模型响应。通过 `inspect` 核对了项目信任和撤销。DeepSeek Harness 0.2.2-rc.5 安装两个同版本包并加载 Cordis 配置，原生会话日志记录了 `Stop` 退出码 0 与测试标记。撤销后配置逐字节恢复，新进程继续收到本机模型响应，日志中没有钩子调用。Antigravity CLI 1.5.18 的用户和项目隔离配置通过发布和撤销，用户钩子备份逐字节恢复。Antigravity 原生执行仍需 Google OAuth。[Grok 进程](validation/agent-library-followup/grok-hook-process.csv) · [Harness 进程](validation/agent-library-followup/dsh-hook-process.csv) · [Antigravity 配置](validation/agent-library-followup/antigravity-hook-config.csv)
 
+冻结钩子版本 `18a3d431f284c021d9e99e72bcb65d801634550e` 在加载原生客户端夹具后通过全部 153 项 Rust 测试，包含默认忽略的集成测试。审计的 28 棵依赖树均未启用 Serde、Hyper 或 Reqwest。[回归日志](validation/agent-library-followup/native-hooks-regression.log) · [依赖审计](validation/agent-library-followup/native-hooks-dependencies.csv)
+
 ### Windows x64 子代理与斜杠命令（`5b905b3`）
 
 从 `5b905b39d790a4eae9625b7995714373f72230ec` 离线构建的 ZIP 为 63,745,300 字节，SHA-256 为 `8C405A7762C8D1D8EFF01E75BDD83FBBF7754FB7622B9412725020A6975E4B7B`。核对 340 项构建输入、671 项解压清单、126 项资产及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。Clippy、Flutter 分析及两项组件测试通过。三个入口的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-5b905b3/build-inputs.sha256) · [解压清单](validation/cf-windows-5b905b3/SHA256SUMS) · [依赖审计](validation/cf-windows-5b905b3/dependency-audit.csv)
