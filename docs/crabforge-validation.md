@@ -36,6 +36,10 @@ Windows Release 的 Rust 运行器在 `688ea1a` 注册了 Flutter 文件选择�
 
 公开的 `anthropics/claude-plugins-official` 市场返回 317 个候选，其中 316 个有来源。CLI 选中并保存了含五个文件的 `frontend-design` 1.1.1。隔离的 Pi 1.6.0 进程在本地 Pi 包复制出的命令中展开位置参数和全部参数，并收到本机模型夹具响应。同一定义也生成了 Claude Code 命令文件。[公开市场](validation/shared-plugin-library/plugin-bundles-public.csv) · [Pi 进程](validation/shared-plugin-library/plugin-bundles-pi.csv)
 
+共享插件合并提交 `340d95dc49f086dfea0451658897b4cddba5cea6` 通过 156 项 Rust 回归，包含默认忽略的真实客户端进程测试。[完整 Rust 回归](validation/cf-windows-340d95d/regression.log)
+
+Rust 依赖审计覆盖 Windows x64 与 Cargo 全目标的常规、构建及测试依赖。`Cargo.lock` 中还有可选的 `hyper`、`hyper-util`、`serde`、`serde_core` 和 `serde_derive` 记录，当前启用的依赖树均未使用这些包。
+
 项目分配由各资源库管理。整包项目分配、同步、撤销及分配携带仍待实现，Pi 扩展和主题发布以及原生插件运行时集成也待补齐。
 
 ### Windows x64 Claude Code 插件（`ad2088c`）

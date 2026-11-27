@@ -36,6 +36,10 @@ The localhost smart HTTPS Git fixture used `feature/review` to browse multiple c
 
 The public `anthropics/claude-plugins-official` marketplace returned 317 candidates, with sources for 316. The CLI selected and saved `frontend-design` 1.1.1 with five files. An isolated Pi 1.6.0 process expanded positional and all-argument placeholders from a command copied from a local Pi package and received a reply from the localhost model fixture. The same definition also produced a Claude Code command file. [Public marketplace](validation/shared-plugin-library/plugin-bundles-public.csv) · [Pi process](validation/shared-plugin-library/plugin-bundles-pi.csv)
 
+The shared plugin merge `340d95dc49f086dfea0451658897b4cddba5cea6` passed 156 Rust regressions, including the client-process tests that Cargo skips by default. [Full Rust regression](validation/cf-windows-340d95d/regression.log)
+
+The Rust audit covers runtime, build and test dependencies for Windows x64 and all Cargo targets. `Cargo.lock` still records the optional `hyper`, `hyper-util`, `serde`, `serde_core` and `serde_derive` packages. The enabled dependency trees use none of them.
+
 Project assignments belong to the individual resource libraries. Whole-bundle assignment, synchronization, withdrawal and transfer of assignments remain pending, along with publication of Pi extensions and themes and integration with native plugin runtimes.
 
 ## Windows x64 Claude Code plugin snapshot `ad2088c`

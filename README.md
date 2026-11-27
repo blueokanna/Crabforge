@@ -175,6 +175,8 @@ Pass the full address advertised by the gateway to `carbforge-cli tunnel <addres
 
 ## Build for Windows x64
 
+To run the Windows x64 ZIP, extract the full archive and launch `desktop\crabforge.exe`. The two CLI executables are at the archive root. The target computer requires the x64 Microsoft Visual C++ v14 Redistributable. [Microsoft runtime download](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
+
 The unpacked `9aeb7e5` gateway had median working set and private bytes of 7.53 / 1.42 MiB for an empty catalog and 8.85 / 1.86 MiB for Chat. With a 700 ms delay between upstream events, the first complete SSE event arrived in 6, 2 and 2 ms. Three desktop cold starts from the unpacked ZIP had a median working set of 154.39 MiB and 227.91 MiB of private bytes. The frozen source passed 113 Rust tests and all 28 dependency checks across Windows x64 and all Cargo targets. The checked runtime, build and test trees had no enabled Serde, Hyper or Reqwest packages. [Dependency audit](docs/validation/cf-windows-9aeb7e5/dependency-audit.csv) · [Windows validation](docs/crabforge-validation.en.md)
 
 Install the Rust MSVC toolchain, Flutter and the Visual Studio Desktop development with C++ workload. The recorded Windows builds used Rust 1.99.1, Flutter 3.47.9 and Dart 3.13.7.

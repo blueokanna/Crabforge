@@ -175,6 +175,8 @@ carbforge-cli project-mcp library sync
 
 ## 构建 Windows x64 版本
 
+运行 Windows x64 版时，先完整解压 ZIP，再启动 `desktop\crabforge.exe`。两个 CLI 入口位于解压根目录。目标计算机需要安装 x64 版 Microsoft Visual C++ v14 可再发行组件。[微软运行库下载](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
+
 `9aeb7e5` 解压版网关的空目录工作集和私有字节中位数为 7.53 和 1.42 MiB，Chat 负载为 8.85 和 1.86 MiB。三次末帧延后 700 毫秒，客户端首个完整 SSE 事件分别在 6、2、2 毫秒到达。解压版桌面三次冷启动的工作集和私有字节中位数为 154.39 和 227.91 MiB。冻结源码通过 113 项 Rust 测试和 28 组依赖审计，Windows x64 与 Cargo 全目标的常规、构建和测试依赖树均未启用 Serde、Hyper 或 Reqwest。[依赖审计](docs/validation/cf-windows-9aeb7e5/dependency-audit.csv) · [Windows 验收记录](docs/crabforge-validation.md)
 
 安装 Rust 的 MSVC 工具链、Flutter 和 Visual Studio 的「使用 C++ 的桌面开发」工作负载。已记录的构建环境为 Rust 1.99.1、Flutter 3.47.9 和 Dart 3.13.7。
