@@ -195,6 +195,35 @@ pub struct MagpieGroupImport {
     applied: bool,
 }
 
+fn take_entries(bundle: &mut BTreeMap<String, Value>, section: &str) -> Result<Option<Vec<Value>>> {
+    match bundle.remove(section) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Array(entries)) => Ok(Some(entries)),
+        Some(_) => anyhow::bail!("invalid Magpie backup {section} list"),
+    }
+}
+
+fn take_order(bundle: &mut BTreeMap<String, Value>, field: &str) -> Result<Vec<String>> {
+    Ok(bundle
+        .remove(field)
+        .map(nextjson::from_value)
+        .transpose()
+        .map_err(|_| anyhow::anyhow!("invalid Magpie backup order field {field:?}"))?
+        .unwrap_or_default())
+}
+
+fn other_sections(bundle: BTreeMap<String, Value>) -> Vec<String> {
+    bundle
+        .into_keys()
+        .filter(|field| {
+            !matches!(
+                field.as_str(),
+                "version" | "created" | "app" | "keys" | "providersKeys"
+            )
+        })
+        .collect()
+}
+
 pub fn import_magpie_groups(
     dir: &Path,
     previous: &str,
@@ -204,15 +233,8 @@ pub fn import_magpie_groups(
     apply: bool,
 ) -> Result<MagpieGroupImport> {
     let mut bundle = open_backup(file, passphrase)?;
-    let Some(Value::Array(groups)) = bundle.remove("groups") else {
-        anyhow::bail!("Magpie backup has no group list");
-    };
-    let order: Vec<String> = bundle
-        .remove("groupOrder")
-        .map(nextjson::from_value)
-        .transpose()
-        .map_err(|_| anyhow::anyhow!("invalid Magpie group order"))?
-        .unwrap_or_default();
+    let groups = take_entries(&mut bundle, "groups")?.context("Magpie backup has no group list")?;
+    let order = take_order(&mut bundle, "groupOrder")?;
     let mut cfg = Config::parse(previous)?;
     let groups = cfg.restore_magpie_groups(groups, selected, &order)?;
     let text = cfg.formatted()?;
@@ -235,27 +257,76 @@ pub fn import_magpie_providers(
     apply: bool,
 ) -> Result<MagpieProviderImport> {
     let mut bundle = open_backup(file, passphrase)?;
-    let Some(Value::Array(providers)) = bundle.remove("providers") else {
-        anyhow::bail!("Magpie backup has no provider list");
-    };
-    let order: Vec<String> = bundle
-        .remove("order")
-        .map(nextjson::from_value)
-        .transpose()
-        .map_err(|_| anyhow::anyhow!("invalid Magpie provider order"))?
-        .unwrap_or_default();
-    let other_sections = bundle
-        .keys()
-        .filter(|field| {
-            !matches!(
-                field.as_str(),
-                "version" | "created" | "app" | "keys" | "providersKeys"
-            )
-        })
-        .cloned()
-        .collect();
+    let providers =
+        take_entries(&mut bundle, "providers")?.context("Magpie backup has no provider list")?;
+    let order = take_order(&mut bundle, "order")?;
     let previous = snapshot(dir)?;
     let mut cfg = Config::parse(&previous)?;
+    let providers = restore_providers(&mut cfg, providers, selected, key_envs, &order)?;
+    ensure!(
+        !providers.is_empty(),
+        "Magpie backup has no providers to import"
+    );
+    finish_import(dir, &previous, &cfg, &providers, apply)?;
+    Ok(MagpieProviderImport {
+        providers,
+        other_sections: other_sections(bundle),
+        applied: apply,
+    })
+}
+
+#[derive(NsonSerialize)]
+pub struct MagpieRoutingImport {
+    providers: Vec<String>,
+    groups: Vec<String>,
+    other_sections: Vec<String>,
+    applied: bool,
+}
+
+pub fn import_magpie_routing(
+    dir: &Path,
+    file: &Path,
+    passphrase: &str,
+    providers: &[String],
+    groups: &[String],
+    key_envs: &BTreeMap<String, String>,
+    apply: bool,
+) -> Result<MagpieRoutingImport> {
+    let mut bundle = open_backup(file, passphrase)?;
+    let previous = snapshot(dir)?;
+    let mut cfg = Config::parse(&previous)?;
+    let definitions = take_entries(&mut bundle, "providers")?.unwrap_or_default();
+    let order = take_order(&mut bundle, "order")?;
+    let providers = restore_providers(&mut cfg, definitions, providers, key_envs, &order)?;
+    let definitions = take_entries(&mut bundle, "groups")?.unwrap_or_default();
+    let order = take_order(&mut bundle, "groupOrder")?;
+    let groups = if definitions.is_empty() && groups.is_empty() {
+        Vec::new()
+    } else {
+        cfg.restore_magpie_groups(definitions, groups, &order)?
+    };
+    ensure!(
+        !providers.is_empty() || !groups.is_empty(),
+        "Magpie backup has no providers or groups to import"
+    );
+    finish_import(dir, &previous, &cfg, &providers, apply)?;
+    bundle.remove("settingsKeys");
+    bundle.remove("libraryKeys");
+    Ok(MagpieRoutingImport {
+        providers,
+        groups,
+        other_sections: other_sections(bundle),
+        applied: apply,
+    })
+}
+
+fn restore_providers(
+    cfg: &mut Config,
+    providers: Vec<Value>,
+    selected: &[String],
+    key_envs: &BTreeMap<String, String>,
+    order: &[String],
+) -> Result<Vec<String>> {
     let mut occupied: BTreeSet<_> = cfg
         .providers
         .iter()
@@ -305,14 +376,20 @@ pub fn import_magpie_providers(
             "provider {id:?} is absent from the selected backup entries"
         );
     }
-    ensure!(
-        !imported.is_empty(),
-        "Magpie backup has no providers to import"
-    );
     let ranks: BTreeMap<_, _> = order.iter().enumerate().map(|(i, id)| (id, i)).collect();
     imported.sort_by_key(|p| ranks.get(&p.id).copied().unwrap_or(usize::MAX));
     let providers = imported.iter().map(|p| p.id.clone()).collect();
     cfg.providers.extend(imported);
+    Ok(providers)
+}
+
+fn finish_import(
+    dir: &Path,
+    previous: &str,
+    cfg: &Config,
+    providers: &[String],
+    apply: bool,
+) -> Result<()> {
     let text = cfg.formatted()?;
     let cfg = Config::parse(&text)?;
     let groups = cfg.resolved_groups();
@@ -326,7 +403,8 @@ pub fn import_magpie_providers(
                 .map(|model| format!("{}/{model}", provider.id))
         })
         .collect();
-    for provider in cfg.providers.iter().filter(|p| found.contains(&p.id)) {
+    let imported: BTreeSet<_> = providers.iter().collect();
+    for provider in cfg.providers.iter().filter(|p| imported.contains(&p.id)) {
         for target in &provider.fallback {
             ensure!(
                 target.contains('/')
@@ -340,13 +418,9 @@ pub fn import_magpie_providers(
         }
     }
     if apply {
-        save(dir, &previous, &text)?;
+        save(dir, previous, &text)?;
     }
-    Ok(MagpieProviderImport {
-        providers,
-        other_sections,
-        applied: apply,
-    })
+    Ok(())
 }
 
 #[cfg(test)]
@@ -481,6 +555,69 @@ mod tests {
         let stored = fs::read(&settings)?;
         assert!(import(&selected, true).is_err());
         assert_eq!(fs::read(&settings)?, stored);
+        Ok(())
+    }
+
+    #[test]
+    fn routing_backup_validates_cross_references_before_writing() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("routing.magpie-backup");
+        let settings = dir.path().join("settings.json");
+        let original = r#"{"listen":"127.0.0.1:0"}"#;
+        fs::write(&settings, original)?;
+        seal(
+            &file,
+            json!({"version":2, "order":["backup","lab"], "groupOrder":["tools","work"],
+                "settingsKeys":false, "settings":{"listen":"127.0.0.1:1"}, "usage":{},
+                "providers":[
+                    {"id":"lab","chat":"http://127.0.0.1:1","models":["m"],
+                     "key":"fixture-only","fallback":["group/old-work"]},
+                    {"id":"backup","was":["old-backup"],"chat":"http://127.0.0.1:1","models":["m"]}
+                ],
+                "groups":[
+                    {"id":"work","former":["old-work"],"members":["group/tools"]},
+                    {"id":"tools","members":["backup/m"]},
+                    {"id":"unsupported","members":["lab/m"],"redact":"on"}
+                ]
+            }),
+        );
+        let keys = BTreeMap::from([("lab".into(), "LAB_API_KEY".into())]);
+        let groups = ["work".into(), "tools".into()];
+        let restore = |providers: &[String], groups: &[String], apply| {
+            import_magpie_routing(
+                dir.path(),
+                &file,
+                PASSPHRASE,
+                providers,
+                groups,
+                &keys,
+                apply,
+            )
+        };
+        assert!(import_magpie_providers(dir.path(), &file, PASSPHRASE, &[], &keys, true).is_err());
+        assert!(restore(&[], &groups[1..], true).is_err());
+        assert!(restore(&["lab".into()], &groups, true).is_err());
+        assert!(restore(&[], &[], true).is_err());
+        let preview = restore(&[], &groups, false)?;
+        assert!(!preview.applied);
+        assert_eq!(preview.providers, ["backup", "lab"]);
+        assert_eq!(preview.groups, ["tools", "work"]);
+        assert_eq!(preview.other_sections, ["settings", "usage"]);
+        assert_eq!(fs::read_to_string(&settings)?, original);
+        assert!(restore(&[], &groups, true)?.applied);
+        let stored = fs::read_to_string(&settings)?;
+        let cfg = Config::parse(&stored)?;
+        assert_eq!(cfg.listen.port(), 0);
+        assert_eq!(cfg.providers[1].fallback, ["group/old-work"]);
+        assert_eq!(cfg.providers[1].key_env, "LAB_API_KEY");
+        assert_eq!(
+            cfg.renamed_model("old-backup/m").as_deref(),
+            Some("backup/m")
+        );
+        assert_eq!(cfg.group_display_order, ["auto-m", "tools", "work"]);
+        assert!(!stored.contains("fixture-only"));
+        assert!(restore(&[], &groups, true).is_err());
+        assert_eq!(fs::read_to_string(&settings)?, stored);
         Ok(())
     }
 }

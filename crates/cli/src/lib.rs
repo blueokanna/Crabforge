@@ -2,7 +2,7 @@ use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
 use crabforge_core::webchat::{Browser, Site};
 use crabforge_core::{config, peer, service::Service};
-use std::{net::SocketAddr, path::PathBuf};
+use std::{collections::BTreeMap, net::SocketAddr, path::PathBuf};
 mod agent;
 mod agent_files;
 mod claude_plugins;
@@ -40,6 +40,22 @@ enum Command {
     Group {
         #[command(subcommand)]
         command: Option<GroupCommand>,
+    },
+    /// Preview or atomically import providers and routing groups from a sealed Magpie backup.
+    ImportMagpie {
+        file: PathBuf,
+        /// Select a provider by ID. Repeat to import several. Defaults to all providers.
+        #[arg(long = "provider")]
+        providers: Vec<String>,
+        /// Select a group by ID. Repeat to include nested groups. Defaults to all groups.
+        #[arg(long = "group")]
+        groups: Vec<String>,
+        /// Read this provider's API key from the specified environment variable.
+        #[arg(long = "key-env", value_parser = parse_key_env, value_name = "PROVIDER=VARIABLE")]
+        key_envs: Vec<(String, String)>,
+        /// Save the selected settings to Crabforge's data directory in one write.
+        #[arg(long)]
+        apply: bool,
     },
     /// Print the API endpoint presets as JSON.
     Catalog,
@@ -274,6 +290,16 @@ fn parse_key_env(input: &str) -> Result<(String, String), String> {
         .ok_or_else(|| "expected PROVIDER=VARIABLE".into())
 }
 
+fn key_env_map(entries: Vec<(String, String)>) -> Result<BTreeMap<String, String>> {
+    let count = entries.len();
+    let map: BTreeMap<_, _> = entries.into_iter().collect();
+    ensure!(
+        map.len() == count,
+        "specify one key environment variable per provider"
+    );
+    Ok(map)
+}
+
 fn backup_passphrase() -> Result<zeroize::Zeroizing<String>> {
     use std::io::{BufRead, IsTerminal, Read, stdin};
     const MAX_PASSPHRASE: u64 = 16 * 1024;
@@ -432,14 +458,40 @@ fn parse_weight(input: &str) -> Result<(String, u32), String> {
     Ok((id.to_owned(), weight))
 }
 
+pub fn run() -> Result<()> {
+    dispatch(Args::parse())
+}
+
 #[tokio::main(flavor = "current_thread")]
-pub async fn run() -> Result<()> {
-    let args = Args::parse();
+async fn dispatch(args: Args) -> Result<()> {
     let dir = match args.data_dir {
         Some(p) => p,
         None => config::data_dir()?,
     };
     match args.command {
+        Command::ImportMagpie {
+            file,
+            providers,
+            groups,
+            key_envs,
+            apply,
+        } => {
+            let key_envs = key_env_map(key_envs)?;
+            let passphrase = backup_passphrase()?;
+            let report = config::import_magpie_routing(
+                &dir,
+                &file,
+                &passphrase,
+                &providers,
+                &groups,
+                &key_envs,
+                apply,
+            )?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+            );
+        }
         Command::Provider {
             command:
                 ProviderCommand::ImportMagpie {
@@ -449,12 +501,7 @@ pub async fn run() -> Result<()> {
                     apply,
                 },
         } => {
-            let count = key_envs.len();
-            let key_envs: std::collections::BTreeMap<_, _> = key_envs.into_iter().collect();
-            ensure!(
-                key_envs.len() == count,
-                "specify one key environment variable per provider"
-            );
+            let key_envs = key_env_map(key_envs)?;
             let passphrase = backup_passphrase()?;
             let report = config::import_magpie_providers(
                 &dir,
@@ -1017,7 +1064,7 @@ pub async fn run() -> Result<()> {
         Command::Key => println!("{}", config::token(&dir)?),
         Command::PeerId => println!("{}", peer::identity(&dir)?.public().to_peer_id()),
         Command::Serve => {
-            let mut service = Service::start(&dir).await?;
+            let mut service = Box::pin(Service::start(&dir)).await?;
             eprintln!("HTTP http://{}/v1", service.addr);
             if let Some(peer) = &service.peer {
                 eprintln!("P2P {}", peer.address);
@@ -1029,12 +1076,12 @@ pub async fn run() -> Result<()> {
             relay_fallback,
             listen,
         } => {
-            let (addr, mut task) = peer::tunnel_with_relay(
+            let (addr, mut task) = Box::pin(peer::tunnel_with_relay(
                 peer::identity(&dir)?,
                 &remote,
                 relay_fallback.as_deref(),
                 listen,
-            )
+            ))
             .await?;
             eprintln!("Tunnel http://{addr}/v1");
             tokio::select! { r=&mut task=>r.context("tunnel task")??, r=tokio::signal::ctrl_c()=>{r?;task.abort();} }

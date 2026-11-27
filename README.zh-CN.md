@@ -45,6 +45,13 @@ carbforge-cli group import-magpie .\magpie.magpie-backup --group work --group fa
 
 导入保留组 ID、旧 ID、显示顺序和已支持的路由设置。遇到 ID 冲突、成员不可用或分类器等尚未支持的设置时，整批导入会被拒绝。通过 `magpie group share <id> --text` 导出的便携 JSON 也可用 `carbforge-cli group import <file>` 导入。
 
+要同时恢复供应商和路由组，请使用顶层 `import-magpie` 命令。供应商的回退目标可以指向同一备份中的路由组。省略 `--provider` 或 `--group` 会选择对应区段中的全部条目。预览列出选中的 ID 和备份中的其他区段。加上 `--apply` 后，所有引用通过校验才会一次写入两类设置。
+
+```powershell
+carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_API_KEY
+carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_API_KEY --apply
+```
+
 ## 管理客户端资源
 
 在「客户端连接」中选定 Agent，打开「项目指令」并选择项目文件夹。Crabforge 在 Agent 的项目文件里维护与 Magpie 兼容的 Markdown 区块。「恢复上一版本」会先检查当前文件是否与备份对应，再恢复文件。

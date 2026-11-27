@@ -45,6 +45,13 @@ carbforge-cli group import-magpie .\magpie.magpie-backup --group work --group fa
 
 The group import preserves IDs, former IDs, display order and supported routing settings. An ID conflict, unavailable member or unsupported setting such as a classifier rejects the entire selection. Portable JSON shares from `magpie group share <id> --text` can also be added with `carbforge-cli group import <file>`.
 
+To restore providers and groups together, use `import-magpie` at the top level. This also works when a provider's fallback points to a group in the same backup. Omit `--provider` or `--group` to select every entry in that section. The preview lists the selected IDs and any other backup sections. `--apply` saves both selections in one write after all references pass validation.
+
+```powershell
+carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_API_KEY
+carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_API_KEY --apply
+```
+
 ## Manage client resources
 
 Open **Client connections → Project instructions** for a supported agent, then choose a project folder. Crabforge edits the Magpie-compatible Markdown block in the selected agent's file. **Restore previous version** restores the previous file after checking that the current version still matches the backup.
