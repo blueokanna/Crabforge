@@ -1,0 +1,3 @@
+Client version,Scope,Crabforge CLI verification
+Antigravity CLI 1.5.18,User,"Isolated named group, direct SessionStart, withdrawal, byte-for-byte restore"
+Antigravity CLI 1.5.18,Project,"Isolated project path, direct SessionStart, withdrawal"

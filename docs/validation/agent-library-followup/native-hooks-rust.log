@@ -1,0 +1,25 @@
+   Compiling crabforge-core v0.1.0 (D:\RustProject\Crabforge-native-hook-clients\crates\core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 43.14s
+     Running unittests src\lib.rs (D:/RustProject/Crabforge/target/skill-profiles\debug\deps\crabforge_core-fd73c13237502b8e.exe)
+
+running 10 tests
+test hooks::dsh::tests::profile_entry_preserves_comments_and_refuses_foreign_plugin_configuration ... ok
+test hooks::project::tests::assignments_follow_shared_definitions_and_preserve_native_changes ... ok
+test hooks::project::tests::rejects_a_project_target_that_overlaps_a_user_profile ... ok
+test hooks::tests::adoption_keeps_native_bytes_and_external_edits ... ok
+test hooks::tests::antigravity_preserves_named_hooks_and_restores_native_bytes ... ok
+test hooks::tests::codex_removal_keeps_later_group_indexes_and_comments ... ok
+test hooks::tests::grok_adoption_uses_the_discovered_file_without_publishing_a_copy ... ok
+test hooks::tests::installed_hook_removal_rejects_ambiguous_managed_copies ... ok
+test hooks::tests::installed_hook_removal_restores_exact_bytes_and_checks_revisions ... ok
+test hooks::tests::synchronization_recovers_a_committed_hook_write ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.87s
+
+    Checking crabforge-core v0.1.0 (D:\RustProject\Crabforge-native-hook-clients\crates\core)
+    Checking crabforge-cli v0.1.0 (D:\RustProject\Crabforge-native-hook-clients\crates\cli)
+    Checking crabforge-bridge v0.1.0 (D:\RustProject\Crabforge-native-hook-clients\crates\bridge)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 22.36s
+   Compiling crabforge-core v0.1.0 (D:\RustProject\Crabforge-native-hook-clients\crates\core)
+   Compiling crabforge-cli v0.1.0 (D:\RustProject\Crabforge-native-hook-clients\crates\cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 35.04s

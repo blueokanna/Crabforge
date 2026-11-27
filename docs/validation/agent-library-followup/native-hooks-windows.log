@@ -1,0 +1,46 @@
+Progress: resolved 1, reused 0, downloaded 0, added 0
+ WARN  Issues with peer dependencies found
+.
+├─┬ @deepseek-ai/dsh-hook-protocol 0.2.2-rc.5
+│ ├── ✕ missing peer @deepseek-ai/cordis@~4.1.0
+│ ├── ✕ missing peer @deepseek-ai/dsh-shell@0.2.2-rc.5
+│ └── ✕ missing peer @deepseek-ai/dsh-session@0.2.2-rc.5
+└─┬ @deepseek-ai/dsh-hooks-claude-code 0.2.2-rc.5
+  ├── ✕ missing peer @deepseek-ai/cordis@~4.1.0
+  ├── ✕ missing peer @deepseek-ai/dsh-session@0.2.2-rc.5
+  ├── ✕ missing peer @deepseek-ai/dsh-llm@0.2.2-rc.5
+  ├── ✕ missing peer @deepseek-ai/dsh-agent@0.2.2-rc.5
+  ├── ✕ missing peer @deepseek-ai/dsh-tools@0.2.2-rc.5
+  ├── ✕ missing peer @deepseek-ai/dsh-subagent@0.2.2-rc.5
+  └── ✕ missing peer @deepseek-ai/dsh-working-directory@0.2.2-rc.5
+Peer dependencies that should be installed:
+  @deepseek-ai/cordis@">=4.1.0 <4.2.0-0"
+  @deepseek-ai/dsh-agent@0.2.2-rc.5
+  @deepseek-ai/dsh-llm@0.2.2-rc.5
+  @deepseek-ai/dsh-session@0.2.2-rc.5
+  @deepseek-ai/dsh-shell@0.2.2-rc.5
+  @deepseek-ai/dsh-subagent@0.2.2-rc.5
+  @deepseek-ai/dsh-tools@0.2.2-rc.5
+  @deepseek-ai/dsh-working-directory@0.2.2-rc.5
+
+dependencies:
++ @deepseek-ai/dsh-hook-protocol 0.2.2-rc.5
++ @deepseek-ai/dsh-hooks-claude-code 0.2.2-rc.5
+
+Packages: +5
++++++
+Progress: resolved 5, reused 5, downloaded 0, added 5, done
+Done in 942ms using pnpm v10.34.9
+dsh: warning: @deepseek-ai/dsh-hook-protocol declares no dsh.bundle — installed as a plain dependency, not a profile layer
+dsh: warning: @deepseek-ai/dsh-hooks-claude-code declares no dsh.bundle — installed as a plain dependency, not a profile layer
+Formatted integration_test/agent_hooks_test.dart
+Formatted 1 file (1 changed) in 0.05 seconds.
+Analyzing gui...
+No issues found! (ran in 67.9s)
+00:00 +0: loading D:/RustProject/Crabforge-native-hook-clients/gui/integration_test/agent_hooks_test.dart
+Building Windows application...                                    86.1s
+√ Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: Publish, adopt, remove and restore hooks in both layouts
+00:38 +1: (tearDownAll)
+00:38 +1: All tests passed!

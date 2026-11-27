@@ -1,0 +1,2 @@
+Client,Scope,Native verification
+DeepSeek Harness 0.2.2-rc.5,headless profile,"Same-version package install, Cordis load, Stop process exit 0 and marker in native session log, localhost model response, exact patch restoration and no Hook invocation after withdrawal"
