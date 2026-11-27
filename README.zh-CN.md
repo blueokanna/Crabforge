@@ -34,7 +34,16 @@ carbforge-cli provider import-magpie .\magpie.magpie-backup --provider deepseek 
 carbforge-cli provider import-magpie .\magpie.magpie-backup --provider deepseek --key-env deepseek=DEEPSEEK_API_KEY --apply
 ```
 
-导入支持包含明确模型 ID 和标准 HTTP API 端点的供应商，并保留已支持的路由设置。供应商 ID 和旧 ID 必须唯一。启动 Crabforge 前，在指定环境变量中设置 API 密钥。结果中的 `other_sections` 列出备份的其他区段。导入供应商后，可用 `magpie group share <id> --text` 导出兼容的路由组，再用 `carbforge-cli group import <file>` 导入。备份超过 64 MiB 时，可用 `magpie backup --no-usage --no-library` 生成较小的文件。
+导入支持包含明确模型 ID 和标准 HTTP API 端点的供应商，并保留已支持的路由设置。供应商 ID 和旧 ID 必须唯一。启动 Crabforge 前，在指定环境变量中设置 API 密钥。结果中的 `other_sections` 列出备份的其他区段。备份超过 64 MiB 时，可用 `magpie backup --no-usage --no-library` 生成较小的文件。
+
+配置供应商后，可以从同一备份预览和应用路由组。重复使用 `--group` 选取要导入的组，包括目标中尚不存在的子组。省略此选项会选择备份中保存的所有组。
+
+```powershell
+carbforge-cli group import-magpie .\magpie.magpie-backup --group work --group fallback
+carbforge-cli group import-magpie .\magpie.magpie-backup --group work --group fallback --apply
+```
+
+导入保留组 ID、旧 ID、显示顺序和已支持的路由设置。遇到 ID 冲突、成员不可用或分类器等尚未支持的设置时，整批导入会被拒绝。通过 `magpie group share <id> --text` 导出的便携 JSON 也可用 `carbforge-cli group import <file>` 导入。
 
 ## 管理客户端资源
 

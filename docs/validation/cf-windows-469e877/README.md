@@ -10,9 +10,9 @@
 - 下载件的哈希与 GitHub API 一致。解压后两个 CLI 都报告 `0.1.0`，输出完全相同的 97 项预设。六个 PE 文件的 Authenticode 状态为 `NotSigned`。
 - The downloaded artifact matched GitHub's digest. Both unpacked CLIs reported `0.1.0` and returned the same 97 preset records. All six PE files showed `NotSigned` under Authenticode.
 
-下表的 Windows x64 构建均通过，下载件的大小和 SHA-256 均与 GitHub 一致。每个包均含 311 个 Rust 许可目录和补录正文。解压后，两种 CLI 入口都返回相同的 97 项预设。
+下表的 Windows x64 构建均通过，下载件的大小和 SHA-256 均与 GitHub 一致。解压后，两种 CLI 入口都返回相同的 97 项预设。
 
-The Windows x64 builds below passed. The downloaded ZIP sizes and SHA-256 digests matched GitHub. Each package contains 311 Rust license directories and the supplemental texts. Both unpacked CLI entry points returned the same 97 presets.
+The Windows x64 builds below passed. The downloaded ZIP sizes and SHA-256 digests matched GitHub. Both unpacked CLI entry points returned the same 97 presets.
 
 | 源码 / Source | ZIP bytes | ZIP SHA-256 | GitHub Actions |
 | --- | ---: | --- | --- |
@@ -21,10 +21,15 @@ The Windows x64 builds below passed. The downloaded ZIP sizes and SHA-256 digest
 | `26acbe6ac39bd140580d74762c4182ce64a21f46` | 65,008,011 | `0582F62878FF1DF612B206B7188E6B344B3DB6F6E20966ADE9F8A0D688B1C25C` | [Run 45955859685](https://github.com/blueokanna/Crabforge/actions/runs/45955859685) · [Artifact 15179309529](https://github.com/blueokanna/Crabforge/actions/runs/45955859685/artifacts/15179309529) |
 | `6191cfd264c031e5cd4ed01c48b9a77ccc5560bf` | 65,009,120 | `A3E090CFA94A8841CEE7B35146F7DCEC4CAAAB0984474C1BEB5ECE94E2BE59AF` | [Run 45958239454](https://github.com/blueokanna/Crabforge/actions/runs/45958239454) · [Artifact 15180043889](https://github.com/blueokanna/Crabforge/actions/runs/45958239454/artifacts/15180043889) |
 | `17cae79c1b4b8e2d7686340e6db6c71ff9ebb7aa` | 65,009,118 | `9420794F712625C1EC371F56A533490700E4C2DB2E5B2E3A26F9752F96351182` | [Run 45961563177](https://github.com/blueokanna/Crabforge/actions/runs/45961563177) · [Artifact 15181248050](https://github.com/blueokanna/Crabforge/actions/runs/45961563177/artifacts/15181248050) |
+| `1faa92f51ca75f7a5fd5a7a328a7c63d35440ceb` | 65,133,307 | `8FD429BF06FE3FCD405B29A6A7CC5A06469C0604CA5512BE4CCB6721A229AFE2` | [Run 45964710149](https://github.com/blueokanna/Crabforge/actions/runs/45964710149) · [Artifact 15184091576](https://github.com/blueokanna/Crabforge/actions/runs/45964710149/artifacts/15184091576) |
 
-`26acbe6`、`6191cfd` 和 `17cae79` 的每个包均含 668 个文件，与解压后的 SHA-256 逐项一致。两个 CLI 均报告 `0.1.0`，六个 Windows PE 的 Authenticode 状态均为 `NotSigned`。产品 PNG、三套文字字体和图标字体通过字节核对。Rust 补录许可正文的 SHA-256 为 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`。
+`26acbe6`、`6191cfd` 和 `17cae79` 的每个包均含 668 个文件和 311 个 Rust 许可目录，归档内容与解压后的 SHA-256 逐项一致。两个 CLI 均报告 `0.1.0`，六个 Windows PE 的 Authenticode 状态均为 `NotSigned`。产品 PNG、三套文字字体和图标字体通过字节核对。Rust 补录许可正文的 SHA-256 为 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`。
 
-All 668 archive entries in each package from `26acbe6`, `6191cfd` and `17cae79` matched their extracted file hashes. Both CLI executables reported `0.1.0`, and all six Windows PE files reported `NotSigned` under Authenticode. The product PNG, three text fonts and icon font passed byte verification. The supplemental Rust license texts had SHA-256 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`.
+Each package from `26acbe6`, `6191cfd` and `17cae79` included 311 Rust license directories. All 668 archive entries matched their extracted file hashes. Both CLI executables reported `0.1.0`, and all six Windows PE files reported `NotSigned` under Authenticode. The product PNG, three text fonts and icon font passed byte verification. The supplemental Rust license texts had SHA-256 `4194156F90E6854E38C54445E280FE6380571EFE254F740493C1A8D4C363521E`.
+
+`1faa92f` 的 GitHub runner 通过 126 项 Rust 测试、Clippy、Flutter 分析和 4 项 Flutter 测试。33 项 Rust 外部夹具测试按默认设置跳过。下载件的 670 个文件与解压后的 SHA-256 逐项一致，313 个 Rust 许可目录含两个新增的 Apache-2.0 正文。产品 PNG、三套文字字体、图标字体和补录许可均通过字节核对。两个解压 CLI 均报告 `0.1.0`，97 项预设完全一致，六个 PE 均为 `NotSigned`。
+
+The GitHub runner for `1faa92f` passed 126 Rust tests, Clippy, Flutter analysis and four Flutter tests. The default suite skipped 33 Rust fixture tests. All 670 archive entries matched their extracted SHA-256 hashes. The 313 Rust license directories included the two new Apache-2.0 license texts. The product PNG, three text fonts, icon font and supplemental licenses matched byte for byte. Both unpacked CLIs reported `0.1.0` and identical catalogs of 97 presets. All six PE files reported `NotSigned`.
 
 RustSec 使用 `cargo-audit 0.23.0` 和公告库提交 `c9f6c91a44dbad9d71742329e9df061279f9c4be` 扫描该锁文件，发现零项已知漏洞和一项停止维护提示。`paste 1.0.15` 由 `if-watch` 的非 Windows netlink 依赖链引入，在 Windows x64 的全特性启用图中未出现。
 
@@ -116,9 +121,29 @@ Magpie `0.1.4936` and the unpacked CLI from `26acbe6` exchanged a weighted group
 
 A subsequent Windows test created a native encrypted backup with Magpie `0.1.4936` using a Chinese filename and passphrase. Both CLI entry points previewed the selected providers. Applying the import preserved order, a former ID and fallback settings. A loopback request using the former ID received a 429 from the primary and a 200 from one fallback. The HTTP fixture confirmed that the API key came from the selected environment variable. Wrong passphrases, modified ciphertext, disabled providers and ID conflicts left the destination settings byte for byte intact. Full backup restoration remains outstanding. [Provider import guide](../../../README.md#import-providers-from-magpie)
 
-同一包的 `mcp memory` 通过独立进程的标准输入输出完成 `2025-11-25` 协议协商、工具枚举、项目隔离和保存去重。第二项目不能归档第一项目的记录。MCP 拒绝改写 CLI 创建的记忆。客户端归档记录后，CLI 以当前修订恢复成功，再用旧修订提交时被拒绝。恢复的记录在新 MCP 进程中可检索。
+`1faa92f` 的解压包复跑了供应商备份导入。同一备份经四个进程同时应用，只有一次写入成功，最终配置完整。两个 CLI 均通过 Windows ConPTY 口令提示、无回显及只读预览检查。
 
-The same package's `mcp memory` negotiated protocol `2025-11-25` over stdio, listed its tools, isolated projects and deduplicated saves. A process scoped to the second project could not archive a record from the first. MCP rejected a change to a record created by the CLI. After the client archived a record, the CLI restored it with the current revision and rejected a subsequent edit with the old revision. A new MCP process found the restored record. [Memory MCP tests](../../../crates/core/src/memory/mcp.rs)
+The unpacked `1faa92f` build repeated the provider backup import. Four concurrent processes attempted to apply the same backup. Exactly one write succeeded and the resulting configuration was complete. Both CLI entry points passed the Windows ConPTY checks for a visible prompt, no passphrase echo and a read-only preview.
+
+`1faa92f` 解压 CLI 通过八项记忆检查，包括检索、`2025-11-25` 协商、项目和 Agent 隔离、去重、归档、恢复和拒绝旧修订。Claude Code 2.1.332 在项目批准后连接 stdio、Streamable HTTP 和 SSE。两种 HTTP 传输验证自定义请求头，三种传输均在项目外不可见，且撤回后消失。原批准文件逐字节保留。
+
+The unpacked `1faa92f` CLI passed eight memory checks covering search, `2025-11-25` negotiation, project and agent isolation, deduplication, archiving, restore and stale revision rejection. Claude Code 2.1.332 connected over stdio, Streamable HTTP and SSE after project approval. Both HTTP transports verified the configured header. All three servers were absent outside the project and after withdrawal, and the approval file remained byte for byte intact. [Memory checks](1faa92f-memory-process.csv) · [Native MCP transport checks](1faa92f-project-mcp-transports.csv)
+
+同一解压 CLI 的三轮回环 SSE 首事件为 5.424、2.974、2.234 ms，结束为 706.124、703.181、703.197 ms。每轮由独立网关进程处理，调用上游一次，代理未收到请求。
+
+The same unpacked CLI received the first loopback SSE event at 5.424, 2.974 and 2.234 ms, and the final event at 706.124, 703.181 and 703.197 ms. Each round started its own gateway process, made one upstream request and sent no traffic to the proxy. [Streaming samples](1faa92f-forward-h1.csv)
+
+`1faa92f` 在 Windows 10 x64 build 19045 上重复采样三轮。工作集／私有字节中位数以 MiB 计，Crabforge 空闲桌面为 159.95／233.75。空目录网关为 Crabforge 8.24／1.65、Magpie 0.1.4936 58.84／92.60。回环对话为 Crabforge 9.56／2.11、Magpie 70.85／99.91，分别列出两个和一个模型 ID。该轮只采样 Crabforge 桌面进程。
+
+The `1faa92f` package ran three sampling rounds on Windows 10 x64 build 19045. Median working set and private bytes in MiB were 159.95 and 233.75 for the idle Crabforge desktop. For the empty gateway catalog they were 8.24 and 1.65 for Crabforge and 58.84 and 92.60 for Magpie 0.1.4936. For loopback chat they were 9.56 and 2.11 for Crabforge and 70.85 and 99.91 for Magpie, with two and one listed model IDs respectively. This desktop rerun sampled Crabforge alone. [Desktop samples](1faa92f-desktop-working-set.csv) · [Gateway samples](1faa92f-gateway-memory.csv)
+
+`1faa92f51ca75f7a5fd5a7a328a7c63d35440ceb` 的本地 Windows 源码构建另通过了 18 项按默认配置跳过的进程测试。Kubo 0.43.1 双向交换鉴权请求，llama.cpp b12722 使用相同 GGUF 权重通过六协议推理，Ollama Python SDK 0.6.3 读取模型目录及流式 token，Magpie 0.1.4936 通过两项 QUIC 转发。其余 13 项覆盖 Claude Code 2.1.332、Codex 0.172.0、Gemini 0.71.1、Pi 1.6.0 及 Oh My Pi 19.2.1 和 Bun 1.4.5 的实际进程。所有 P2P 节点均位于同一主机。
+
+The local Windows source build of `1faa92f51ca75f7a5fd5a7a328a7c63d35440ceb` passed 18 process tests that the default suite skips. Kubo 0.43.1 exchanged authenticated requests in both directions. llama.cpp b12722 used the same GGUF weights for six protocols. The Ollama Python SDK 0.6.3 read the model list and streamed tokens, and Magpie 0.1.4936 passed both QUIC forwarding cases. The other 13 cases exercised Claude Code 2.1.332, Codex 0.172.0, Gemini 0.71.1, Pi 1.6.0 and Oh My Pi 19.2.1 with Bun 1.4.5. All P2P peers ran on the same host. [Agent process tests](../../../crates/cli/tests/agents.rs)
+
+本地 Windows 路由组导入测试使用 Magpie 0.1.4936 CLI 写出的原生加密备份。两个 Crabforge CLI 都通过预览。一次原子应用保留三个组的顺序、旧 ID、停用状态、加权配置、匹配成员排列和中文备注。向旧组 ID 发起的实际网关请求命中手选的嵌套加权组并获得 HTTP 200。缺子组、错误口令、冲突和带脱敏规则的批次均被拒绝，目标设置逐字节一致。
+
+The local Windows group import test used a native encrypted backup written by Magpie 0.1.4936. Both Crabforge CLIs previewed it. One atomic apply preserved the three groups' order, former IDs, disabled state, weights, matched-member placement and Chinese note. A gateway request using the former group ID reached its manually selected nested weighted group and returned HTTP 200. A missing child, wrong passphrase, ID collision and redaction setting each caused rejection and left the destination settings byte for byte intact. [Group import guide](../../../README.md#import-providers-from-magpie)
 
 ## 签名与许可 / Signing and licenses
 

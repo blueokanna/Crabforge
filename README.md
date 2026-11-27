@@ -34,7 +34,16 @@ carbforge-cli provider import-magpie .\magpie.magpie-backup --provider deepseek 
 carbforge-cli provider import-magpie .\magpie.magpie-backup --provider deepseek --key-env deepseek=DEEPSEEK_API_KEY --apply
 ```
 
-The import supports providers with explicit model IDs and standard HTTP API endpoints. It preserves supported routing settings and requires unique provider IDs and aliases. Set the API key in the specified environment variable before starting Crabforge. The result lists other backup sections under `other_sections`. To migrate a supported route group, export it with `magpie group share <id> --text`, then use `carbforge-cli group import <file>` after importing its providers. For backups above 64 MiB, create a smaller file with `magpie backup --no-usage --no-library`.
+The import supports providers with explicit model IDs and standard HTTP API endpoints. It preserves supported routing settings and requires unique provider IDs and aliases. Set the API key in the specified environment variable before starting Crabforge. The result lists other backup sections under `other_sections`. For backups above 64 MiB, create a smaller file with `magpie backup --no-usage --no-library`.
+
+After configuring the providers, preview and apply routing groups from the same backup. Repeat `--group` for each group you want to add, including any nested group that is absent from the destination. Omit it to select every stored group.
+
+```powershell
+carbforge-cli group import-magpie .\magpie.magpie-backup --group work --group fallback
+carbforge-cli group import-magpie .\magpie.magpie-backup --group work --group fallback --apply
+```
+
+The group import preserves IDs, former IDs, display order and supported routing settings. An ID conflict, unavailable member or unsupported setting such as a classifier rejects the entire selection. Portable JSON shares from `magpie group share <id> --text` can also be added with `carbforge-cli group import <file>`.
 
 ## Manage client resources
 

@@ -1,4 +1,5 @@
 use super::{Config, merge_name};
+use crate::config::{valid_group_name, valid_id};
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value, json};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -90,18 +91,203 @@ fn shared_text(text: &str) -> Result<SharedGroup> {
             "unsupported shared group setting: {field}"
         );
     }
-    ensure!(
-        matches!(
-            group.routing.as_str(),
-            "" | "order" | "manual" | "rotate" | "weight"
-        ),
-        "unsupported shared routing strategy: {}",
-        group.routing
-    );
+    group.validate_routing()?;
     Ok(group)
 }
 
+impl SharedGroup {
+    fn validate_routing(&self) -> Result<()> {
+        ensure!(
+            matches!(
+                self.routing.as_str(),
+                "" | "order" | "manual" | "rotate" | "weight"
+            ),
+            "unsupported shared routing strategy: {}",
+            self.routing
+        );
+        Ok(())
+    }
+}
+
 impl Config {
+    fn restore_group_routing(
+        &mut self,
+        id: &str,
+        routing: &str,
+        pick: Option<String>,
+        weights: BTreeMap<String, u32>,
+    ) {
+        self.group_picks.remove(id);
+        self.group_last_picks.remove(id);
+        self.group_weights.remove(id);
+        self.group_last_weights.remove(id);
+        self.rotating_groups.remove(id);
+        if routing == "manual" {
+            self.group_picks
+                .insert(id.to_owned(), pick.unwrap_or_default());
+        } else if let Some(pick) = pick {
+            self.group_last_picks.insert(id.to_owned(), pick);
+        }
+        if routing == "weight" {
+            self.group_weights.insert(id.to_owned(), weights);
+        } else if !weights.is_empty() {
+            self.group_last_weights.insert(id.to_owned(), weights);
+        }
+        if routing == "rotate" {
+            self.rotating_groups.insert(id.to_owned());
+        }
+    }
+
+    pub(in crate::config) fn restore_magpie_groups(
+        &mut self,
+        definitions: Vec<Value>,
+        selected: &[String],
+        order: &[String],
+    ) -> Result<Vec<String>> {
+        let resolved = self.resolved_groups();
+        let mut occupied: BTreeSet<_> = resolved
+            .members
+            .keys()
+            .chain(&self.hidden_auto_groups)
+            .chain(self.former_groups.keys())
+            .map(String::as_str)
+            .chain(
+                resolved
+                    .aliases
+                    .keys()
+                    .filter_map(|id| id.strip_prefix("group/")),
+            )
+            .map(str::to_owned)
+            .collect();
+        let mut ids = Vec::new();
+        for raw in definitions {
+            let source = raw
+                .get("id")
+                .and_then(Value::as_str)
+                .context("missing Magpie group ID")?;
+            if !selected.is_empty() && !selected.iter().any(|id| id == source) {
+                continue;
+            }
+            let id = source.to_owned();
+            let group: SharedGroup = nextjson::from_value(raw)
+                .map_err(|_| anyhow::anyhow!("invalid Magpie group definition: {id}"))?;
+            ensure!(
+                valid_id(&id) && !id.starts_with("auto-"),
+                "unsupported Magpie group ID {id:?}"
+            );
+            ensure!(occupied.insert(id.clone()), "group ID already in use: {id}");
+            self.restore_magpie_group(&id, group, &mut occupied)
+                .with_context(|| format!("Magpie group {id}"))?;
+            ids.push(id);
+        }
+        for id in selected {
+            ensure!(ids.contains(id), "group {id:?} is absent from the backup");
+        }
+        ensure!(!ids.is_empty(), "Magpie backup has no groups to import");
+        let ranks: BTreeMap<_, _> = order.iter().enumerate().map(|(i, id)| (id, i)).collect();
+        ids.sort_by_key(|id| ranks.get(id).copied().unwrap_or(usize::MAX));
+        self.group_display_order = resolved
+            .ordered_names(&self.group_display_order)
+            .into_iter()
+            .cloned()
+            .chain(ids.iter().cloned())
+            .collect();
+        Ok(ids)
+    }
+
+    fn restore_magpie_group(
+        &mut self,
+        id: &str,
+        mut group: SharedGroup,
+        occupied: &mut BTreeSet<String>,
+    ) -> Result<()> {
+        let disabled: bool = group
+            .other
+            .remove("disabled")
+            .map(nextjson::from_value)
+            .transpose()
+            .map_err(|_| anyhow::anyhow!("invalid disabled state"))?
+            .unwrap_or_default();
+        for field in group.other.keys() {
+            ensure!(
+                field == "routedAt",
+                "unsupported Magpie group setting: {field}"
+            );
+        }
+        ensure!(group.matched.is_empty(), "backup contains derived members");
+        group.validate_routing()?;
+        let members = group.members.unwrap_or_default();
+        self.set_member_patterns(id, group.patterns)?;
+        ensure!(
+            group.placed.is_empty() || self.group_match.contains_key(id),
+            "member placement requires patterns"
+        );
+        let expanded = self.expand_patterns(id, &members);
+        let available: HashSet<_> = expanded.iter().map(String::as_str).collect();
+        for member in group
+            .placed
+            .iter()
+            .chain(&group.off)
+            .chain(group.weights.keys())
+        {
+            ensure!(
+                available.contains(member.as_str()),
+                "unavailable group member {member:?}"
+            );
+        }
+        let pick = if group.pick.is_empty() {
+            None
+        } else {
+            ensure!(
+                available.contains(group.pick.as_str()),
+                "unavailable group pick {:?}",
+                group.pick
+            );
+            Some(group.pick)
+        };
+        ensure!(
+            group.routing == "manual"
+                || expanded.is_empty()
+                || expanded.iter().any(|m| !group.off.contains(m)),
+            "all members are switched off"
+        );
+        for alias in group.former {
+            ensure!(
+                valid_group_name(&alias),
+                "invalid former group ID {alias:?}"
+            );
+            ensure!(
+                occupied.insert(alias.clone()),
+                "group ID already in use: {alias}"
+            );
+            self.former_groups.insert(alias, id.to_owned());
+        }
+        self.group_labels.insert(
+            id.to_owned(),
+            if group.name.is_empty() {
+                id.to_owned()
+            } else {
+                group.name
+            },
+        );
+        self.group_notes.insert(id.to_owned(), group.note);
+        if disabled {
+            self.disabled_groups.insert(id.to_owned());
+        }
+        if group.unlists {
+            self.group_unlists.insert(id.to_owned());
+        }
+        if !group.placed.is_empty() {
+            self.group_placed.insert(id.to_owned(), group.placed);
+        }
+        if !group.off.is_empty() {
+            self.group_off.insert(id.to_owned(), group.off);
+        }
+        self.restore_group_routing(id, &group.routing, pick, group.weights);
+        self.groups.insert(id.to_owned(), members);
+        Ok(())
+    }
+
     pub fn share_group(&self, reference: &str) -> Result<String> {
         let groups = self.resolved_groups();
         let id = self.group_name(reference);
@@ -294,25 +480,13 @@ impl Config {
         if !off.is_empty() && (group.routing == "manual" || off.len() < expanded.len()) {
             cfg.group_off.insert(id.clone(), off);
         }
-        cfg.group_picks.remove(&id);
-        cfg.group_last_picks.remove(&id);
-        cfg.group_weights.remove(&id);
-        cfg.group_last_weights.remove(&id);
-        cfg.rotating_groups.remove(&id);
-        let pick = here(&group.pick);
-        if group.routing == "manual" {
-            cfg.group_picks.insert(
-                id.clone(),
-                pick.unwrap_or_else(|| {
-                    cfg.expand_patterns(&id, &members)
-                        .into_iter()
-                        .next()
-                        .unwrap_or_default()
-                }),
-            );
-        } else if let Some(pick) = pick {
-            cfg.group_last_picks.insert(id.clone(), pick);
-        }
+        let pick = here(&group.pick).or_else(|| {
+            if group.routing == "manual" {
+                cfg.expand_patterns(&id, &members).into_iter().next()
+            } else {
+                None
+            }
+        });
         let mut weights = BTreeMap::new();
         for (member, weight) in group.weights {
             if let Some(target) = here(&member)
@@ -321,14 +495,6 @@ impl Config {
                 let entry = weights.entry(target).or_insert(weight);
                 *entry = weight.max(*entry);
             }
-        }
-        if group.routing == "weight" {
-            cfg.group_weights.insert(id.clone(), weights);
-        } else if !weights.is_empty() {
-            cfg.group_last_weights.insert(id.clone(), weights);
-        }
-        if group.routing == "rotate" {
-            cfg.rotating_groups.insert(id.clone());
         }
         cfg.groups.insert(id.clone(), members);
         for old in group.former {
@@ -339,6 +505,7 @@ impl Config {
                 cfg.former_groups.entry(old).or_insert_with(|| id.clone());
             }
         }
+        cfg.restore_group_routing(&id, &group.routing, pick, weights);
         let cfg = Config::parse(&cfg.to_json()?)?;
         Ok((cfg, report))
     }

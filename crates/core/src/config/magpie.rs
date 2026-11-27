@@ -167,14 +167,7 @@ pub struct MagpieProviderImport {
     applied: bool,
 }
 
-pub fn import_magpie_providers(
-    dir: &Path,
-    file: &Path,
-    passphrase: &str,
-    selected: &[String],
-    key_envs: &BTreeMap<String, String>,
-    apply: bool,
-) -> Result<MagpieProviderImport> {
+fn open_backup(file: &Path, passphrase: &str) -> Result<BTreeMap<String, Value>> {
     ensure!(
         !passphrase.is_empty(),
         "a Magpie backup requires its passphrase"
@@ -184,7 +177,7 @@ pub fn import_magpie_providers(
         nextjson::from_slice(bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&bytes))
             .map_err(|_| anyhow::anyhow!("invalid Magpie backup envelope"))?;
     let plain = envelope.open(passphrase)?;
-    let mut bundle: BTreeMap<String, Value> = nextjson::from_slice(&plain)
+    let bundle: BTreeMap<String, Value> = nextjson::from_slice(&plain)
         .map_err(|_| anyhow::anyhow!("invalid decrypted Magpie backup"))?;
     ensure!(
         matches!(
@@ -193,6 +186,55 @@ pub fn import_magpie_providers(
         ),
         "unsupported Magpie backup version"
     );
+    Ok(bundle)
+}
+
+#[derive(NsonSerialize)]
+pub struct MagpieGroupImport {
+    groups: Vec<String>,
+    applied: bool,
+}
+
+pub fn import_magpie_groups(
+    dir: &Path,
+    previous: &str,
+    file: &Path,
+    passphrase: &str,
+    selected: &[String],
+    apply: bool,
+) -> Result<MagpieGroupImport> {
+    let mut bundle = open_backup(file, passphrase)?;
+    let Some(Value::Array(groups)) = bundle.remove("groups") else {
+        anyhow::bail!("Magpie backup has no group list");
+    };
+    let order: Vec<String> = bundle
+        .remove("groupOrder")
+        .map(nextjson::from_value)
+        .transpose()
+        .map_err(|_| anyhow::anyhow!("invalid Magpie group order"))?
+        .unwrap_or_default();
+    let mut cfg = Config::parse(previous)?;
+    let groups = cfg.restore_magpie_groups(groups, selected, &order)?;
+    let text = cfg.formatted()?;
+    Config::parse(&text)?;
+    if apply {
+        save(dir, previous, &text)?;
+    }
+    Ok(MagpieGroupImport {
+        groups,
+        applied: apply,
+    })
+}
+
+pub fn import_magpie_providers(
+    dir: &Path,
+    file: &Path,
+    passphrase: &str,
+    selected: &[String],
+    key_envs: &BTreeMap<String, String>,
+    apply: bool,
+) -> Result<MagpieProviderImport> {
+    let mut bundle = open_backup(file, passphrase)?;
     let Some(Value::Array(providers)) = bundle.remove("providers") else {
         anyhow::bail!("Magpie backup has no provider list");
     };
@@ -392,6 +434,53 @@ mod tests {
         fs::write(&file, tampered)?;
         assert!(run(PASSPHRASE, &selected, true).is_err());
         assert_eq!(fs::read_to_string(&settings)?, before);
+        Ok(())
+    }
+
+    #[test]
+    fn group_backup_preserves_addresses_and_rejects_incomplete_batches() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("groups.magpie-backup");
+        let settings = dir.path().join("settings.json");
+        let original = r#"{"providers":[{"id":"lab","endpoints":{"chat":"http://127.0.0.1:1"},"models":["m","n"]}]}"#;
+        fs::write(&settings, original)?;
+        seal(
+            &file,
+            json!({"version":1, "groupOrder":["team","tools"], "groups":[
+                {"id":"tools","name":"Tool models","routing":"weight","members":["lab/m"],
+                 "match":["lab/n*"],"placed":["lab/n","lab/m"],"weights":{"lab/n":3},
+                 "former":["old-tools"]},
+                {"id":"team","name":"Team routes","members":["group/old-tools"],"note":"测试",
+                 "disabled":true,"routing":"manual","pick":"group/old-tools"},
+                {"id":"blocked","members":["lab/n"],"redact":"on"},
+                {"id":"self","members":["group/self"]}
+            ]}),
+        );
+        let previous = snapshot(dir.path())?;
+        let import = |ids: &[String], apply| {
+            import_magpie_groups(dir.path(), &previous, &file, PASSPHRASE, ids, apply)
+        };
+        let selected = ["team".into(), "tools".into()];
+        assert!(import(&selected[..1], true).is_err());
+        assert!(import(&["self".into()], true).is_err());
+        assert!(import(&[], true).is_err());
+        assert!(!import(&selected, false)?.applied);
+        assert_eq!(fs::read_to_string(&settings)?, original);
+        let report = import(&selected, true)?;
+        assert!(report.applied);
+        assert_eq!(report.groups, ["team", "tools"]);
+        let cfg = super::super::load(dir.path())?;
+        assert_eq!(cfg.group_display_order, report.groups);
+        assert_eq!(cfg.former_groups["old-tools"], "tools");
+        assert_eq!(cfg.resolved_groups().members["team"], ["group/tools"]);
+        assert_eq!(cfg.group_picks["team"], "group/old-tools");
+        assert!(cfg.disabled_groups.contains("team"));
+        assert_eq!(cfg.group_notes["team"], "测试");
+        assert_eq!(cfg.group_placed["tools"], ["lab/n", "lab/m"]);
+        assert_eq!(cfg.group_weights["tools"]["lab/n"], 3);
+        let stored = fs::read(&settings)?;
+        assert!(import(&selected, true).is_err());
+        assert_eq!(fs::read(&settings)?, stored);
         Ok(())
     }
 }

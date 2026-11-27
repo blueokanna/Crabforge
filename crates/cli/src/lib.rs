@@ -325,6 +325,16 @@ enum GroupCommand {
         #[arg(long)]
         replace: bool,
     },
+    /// Preview routing groups from a sealed Magpie backup, or add them with --apply.
+    ImportMagpie {
+        file: PathBuf,
+        /// Select a group by ID. Repeat to include nested groups. Defaults to all groups.
+        #[arg(long = "group")]
+        groups: Vec<String>,
+        /// Save the selected groups to Crabforge's data directory.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Show one group's address, strategy, members, note and parent groups.
     Show {
         id: String,
@@ -519,6 +529,25 @@ pub async fn run() -> Result<()> {
             let previous = config::snapshot(&dir)?;
             let mut cfg = config::Config::parse(&previous)?;
             match command.unwrap_or(GroupCommand::List) {
+                GroupCommand::ImportMagpie {
+                    file,
+                    groups,
+                    apply,
+                } => {
+                    let passphrase = backup_passphrase()?;
+                    let report = config::import_magpie_groups(
+                        &dir,
+                        &previous,
+                        &file,
+                        &passphrase,
+                        &groups,
+                        apply,
+                    )?;
+                    println!(
+                        "{}",
+                        nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+                    );
+                }
                 GroupCommand::Share { id } => println!("{}", cfg.share_group(&id)?),
                 GroupCommand::Import { file, replace } => {
                     use std::io::Read;

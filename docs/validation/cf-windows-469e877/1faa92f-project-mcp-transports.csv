@@ -1,0 +1,4 @@
+Client,Version,Transport,Before approval,Native health check,Header required,Outside project,After withdrawal,Project approval file
+Claude Code,2.1.332,stdio,Pending approval,Connected,N/A,Absent,Absent,Byte-for-byte preserved
+Claude Code,2.1.332,http,Pending approval,Connected,Verified,Absent,Absent,Byte-for-byte preserved
+Claude Code,2.1.332,sse,Pending approval,Connected,Verified,Absent,Absent,Byte-for-byte preserved

@@ -1,0 +1,9 @@
+Entry point,Check,Result
+CLI,"Unicode BOM Markdown, tag and project scope",pass
+CLI,"text, scope and tag search",pass
+MCP stdio,2025-11-25 initialization and four tools,pass
+MCP stdio,duplicate save returns the same ID,pass
+MCP stdio,reject cross-project and cross-agent archive,pass
+MCP stdio,protect the CLI record from edit,pass
+MCP stdio,archive and hide from active search,pass
+CLI and MCP stdio,"restore, reject stale revision and search after restart",pass
