@@ -711,6 +711,12 @@ impl Config {
                 "group {group}: classifier prompt exceeds 4000 characters"
             );
             ensure!(
+                classifiers
+                    .intent_sure
+                    .is_none_or(|sure| (0.0..=1.0).contains(&sure)),
+                "group {group}: intentSure must be between 0 and 1"
+            );
+            ensure!(
                 classifiers.effort.is_empty() || classifiers.automatic_effort(),
                 "group {group}: effort must be auto or left to the client"
             );

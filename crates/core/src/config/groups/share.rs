@@ -31,6 +31,8 @@ struct SharedGroup {
     classifier_more: Vec<String>,
     #[njson(rename = "classifyPrompt", skip_serializing_if = "String::is_empty")]
     classify_prompt: String,
+    #[njson(rename = "intentSure", skip_serializing_if = "Option::is_none")]
+    intent_sure: Option<f64>,
     #[njson(skip_serializing_if = "String::is_empty")]
     note: String,
     #[njson(skip_serializing_if = "String::is_empty")]
@@ -116,6 +118,7 @@ impl SharedGroup {
             classifier: std::mem::take(&mut self.classifier),
             classifier_more: std::mem::take(&mut self.classifier_more),
             classify_prompt: std::mem::take(&mut self.classify_prompt),
+            intent_sure: self.intent_sure.take(),
         }
     }
 
@@ -381,6 +384,7 @@ impl Config {
             classifier: classifiers.classifier,
             classifier_more: classifiers.classifier_more,
             classify_prompt: classifiers.classify_prompt,
+            intent_sure: classifiers.intent_sure,
             unlists: self.group_unlists.contains(&id),
             id: id.clone(),
             ..Default::default()

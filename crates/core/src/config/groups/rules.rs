@@ -130,6 +130,8 @@ pub struct Classifiers {
     pub classifier_more: Vec<String>,
     #[njson(skip_serializing_if = "String::is_empty")]
     pub classify_prompt: String,
+    #[njson(skip_serializing_if = "Option::is_none")]
+    pub intent_sure: Option<f64>,
 }
 
 impl Classifiers {
@@ -138,6 +140,7 @@ impl Classifiers {
             && self.classifier.is_empty()
             && self.classifier_more.is_empty()
             && self.classify_prompt.is_empty()
+            && self.intent_sure.is_none()
     }
 
     pub(crate) fn automatic_effort(&self) -> bool {

@@ -290,6 +290,7 @@ void main() {
       final tokens = width == 1200 ? 100 : 200;
       final intent = 'Review $width';
       final effort = width == 1200 ? 'medium' : 'high';
+      final confidence = width == 1200 ? 0.6 : 0;
       await saveLimits(
         seconds,
         patience,
@@ -300,10 +301,11 @@ void main() {
             cfg['group_rules']?['review']?[0]['intent'] == intent &&
             cfg['group_rules']?['review']?[0]['useEffort'] == effort &&
             cfg['group_classifiers']?['review']?['effort'] == 'auto' &&
+            cfg['group_classifiers']?['review']?['intentSure'] == confidence &&
             cfg['group_classifiers']?['review']?['classifier'] ==
                 'openai/gpt-4.1',
         routingRules:
-            '{"classifier":"openai/gpt-4.1","effort":"auto","rules":[{"use":"openai/gpt-4.1","tokens":$tokens,"intent":"$intent","useEffort":"$effort"}]}',
+            '{"classifier":"openai/gpt-4.1","effort":"auto","intentSure":$confidence,"rules":[{"use":"openai/gpt-4.1","tokens":$tokens,"intent":"$intent","useEffort":"$effort"}]}',
       );
       await openPage(nav, strings.gateway);
       await tester.tap(find.text(strings.networkSettings));

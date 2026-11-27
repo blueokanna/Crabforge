@@ -430,6 +430,12 @@ Windows Debug 通过 160 项 Rust 测试及全目标 Clippy，33 项忽略。回
 
 Windows Debug passed 160 Rust tests and all-target Clippy, with 33 tests ignored. A loopback fixture exercised both CLIs and checked the `generateContent` voice and spoken prompt, the WAV header, exact PCM samples, and HTTP 400 for an SSE request. The Rust regression also covered group fallback after malformed PCM, PCM extraction from WAV with an extra RIFF chunk, and audio passthrough on a native OpenAI-compatible relay. Live Google AI Studio and Vertex AI verification requires provider credentials. [Media regression](../../../crates/core/tests/media.rs)
 
+### 意图置信度 / Intent confidence
+
+Windows Debug 通过 160 项 Rust 测试和全目标 Clippy，33 项忽略。两个 CLI 均从 Magpie 0.1.4936 原版加密备份导入 `intentSure`，核对了分享、拒绝越界阈值并保留磁盘设置，以及置信度恰好达到阈值时命中意图。Rust 回归覆盖低置信度续轮、非法置信度触发候补、显式 `0` 和自动推理等级。Windows 桌面通过 `flutter_rust_bridge` 在 1,200 和 560 逻辑像素下分别保存 `0.6` 和 `0`。Flutter 分析、四项单测和桌面布局集成测试均通过。 [网关回归](../../../crates/core/tests/gateway.rs) · [桌面测试](../../../gui/integration_test/console_layout_test.dart)
+
+Windows Debug passed 160 Rust tests and all-target Clippy, with 33 tests ignored. Both CLIs imported `intentSure` from an encrypted Magpie 0.1.4936 backup, checked sharing, rejected an out-of-range threshold without changing the saved configuration, and matched an intent at the exact threshold. The Rust regression covered low-confidence tool continuations, backup classifiers after invalid confidence, explicit `0`, and automatic reasoning effort. The Windows desktop saved `0.6` at 1,200 logical pixels and `0` at 560 through `flutter_rust_bridge`. Flutter analysis, four unit tests, and the Windows layout integration test passed. [Gateway regression](../../../crates/core/tests/gateway.rs) · [Desktop test](../../../gui/integration_test/console_layout_test.dart)
+
 ### 供应商重试历史构建 / Historical provider retry build
 
 按完整 SHA 补验 `649c036b07986275aeef4529d1228dc4fec7d3ae` 时，Run `46024892156` 在 Rust 检查阶段失败。`config.rs:441` 将重试时限校验插入了环境变量校验的表达式，导致语法错误，Windows 包未生成。后继 `dfd58df4c3c3461d8969f5a654a40c437c15bb13` 已修正校验位置，其下载验收包括供应商重试。 [Windows job 140593634231](https://github.com/blueokanna/Crabforge/actions/runs/46024892156/job/140593634231)

@@ -875,6 +875,28 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
                         StatusCode::OK,
                         json!({"choices":[{"message":{"content":"1"}}]}).to_string(),
                     ),
+                    "confidence" | "confidence-backup" => {
+                        assert!(
+                            body["messages"][0]["content"]
+                                .as_str()
+                                .unwrap()
+                                .contains("include a confidence number")
+                        );
+                        let prompt: Value =
+                            nextjson::from_str(body["messages"][1]["content"].as_str().unwrap())
+                                .unwrap();
+                        let answer = match (model, prompt["message"].as_str().unwrap()) {
+                            (_, "Thanks") => json!({"intent":0}),
+                            (_, "Low confidence") => json!({"intent":1,"confidence":0.4}),
+                            ("confidence", "Out of range") => json!({"intent":1,"confidence":1.1}),
+                            _ => json!({"intent":1,"confidence":0.6}),
+                        };
+                        (
+                            StatusCode::OK,
+                            json!({"choices":[{"message":{"content":answer.to_string()}}]})
+                                .to_string(),
+                        )
+                    }
                     _ => (StatusCode::OK, model.to_owned()),
                 }
             }
@@ -887,7 +909,7 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
     let cfg = json!({
         "listen":"127.0.0.1:0",
         "classify_timeout":2,
-        "providers":[{"id":"fixture","models":["slow","decide","changing","transient","usual","review","deep"],
+        "providers":[{"id":"fixture","models":["slow","decide","changing","transient","usual","review","deep","confidence","confidence-backup"],
             "endpoints":{"chat":format!("http://{addr}/v1")}}],
         "groups":{
             "outer":["fixture/usual","group/intent"],
@@ -895,7 +917,8 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
             "classifier":["fixture/decide"],
             "changing":["fixture/usual","fixture/review","fixture/deep"],
             "transient":["fixture/usual","fixture/review"],
-            "manual":["fixture/usual","fixture/review"]
+            "manual":["fixture/usual","fixture/review"],
+            "threshold":["fixture/usual","fixture/review"]
         },
         "group_picks":{"manual":"fixture/usual"},
         "group_rules":{
@@ -903,13 +926,15 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
             "changing":[{"use":"fixture/review","intent":"General review"},
                         {"use":"fixture/deep","intent":"Deep review","effort":"high"}],
             "transient":[{"use":"fixture/review","intent":"Review report"}],
-            "manual":[{"use":"fixture/review","intent":"Review report"}]
+            "manual":[{"use":"fixture/review","intent":"Review report"}],
+            "threshold":[{"use":"fixture/review","intent":"Review report"}]
         },
         "group_classifiers":{
             "intent":{"classifier":"fixture/slow","classifierMore":["group/classifier"],"classifyPrompt":"Judge which task was requested."},
             "changing":{"classifier":"fixture/changing"},
             "transient":{"classifier":"fixture/transient"},
-            "manual":{"classifier":"fixture/decide"}
+            "manual":{"classifier":"fixture/decide","intentSure":0},
+            "threshold":{"classifier":"fixture/confidence","classifierMore":["fixture/confidence-backup"],"intentSure":0.6}
         }
     });
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
@@ -1019,6 +1044,37 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
         ]
     );
 
+    calls.lock().unwrap().clear();
+    for (message, with_tools, expected) in [
+        ("Low confidence", false, "usual"),
+        ("Low confidence", true, "usual"),
+        ("Review it", false, "review"),
+        ("Out of range", false, "review"),
+        ("Thanks", false, "usual"),
+    ] {
+        assert_eq!(
+            send("group/threshold", message, with_tools, "none")
+                .await?
+                .text()
+                .await?,
+            expected
+        );
+    }
+    assert_eq!(
+        *calls.lock().unwrap(),
+        [
+            "confidence",
+            "usual",
+            "usual",
+            "confidence",
+            "review",
+            "confidence",
+            "confidence-backup",
+            "review",
+            "confidence",
+            "usual",
+        ]
+    );
     let config = config::load(dir.path())?;
     let shared = config.share_group("intent")?;
     let (restored, report) = config.import_group(&shared, false)?;
@@ -1027,6 +1083,13 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
         ["group/classifier"]
     );
     assert_eq!(restored.group_rules[&report.id][0].intent, "Review report");
+    for (group, threshold) in [("threshold", 0.6), ("manual", 0.0)] {
+        let (restored, report) = config.import_group(&config.share_group(group)?, false)?;
+        assert_eq!(
+            restored.group_classifiers[&report.id].intent_sure,
+            Some(threshold)
+        );
+    }
     service.stop().await;
     upstream.abort();
     Ok(())
@@ -1430,7 +1493,7 @@ async fn automatic_effort_shares_the_intent_verdict_and_flows_into_subgroups() -
                         if question["kinds"].as_array().unwrap().is_empty() {
                             "{\"effort\":\"high\"}"
                         } else {
-                            "{\"intent\":1,\"effort\":\"high\"}"
+                            "{\"intent\":1,\"effort\":\"high\",\"confidence\":0.6}"
                         }
                     }
                     _ => "done",
@@ -1452,7 +1515,7 @@ async fn automatic_effort_shares_the_intent_verdict_and_flows_into_subgroups() -
         "groups":{"outer":["fixture/ordinary","group/nested"],"nested":["fixture/reasoner"]},
         "group_rules":{"outer":[{"use":"group/nested","intent":"Review","effort":"on"}]},
         "group_classifiers":{
-            "outer":{"effort":"auto","classifier":"fixture/primary","classifierMore":["fixture/backup"]},
+            "outer":{"effort":"auto","classifier":"fixture/primary","classifierMore":["fixture/backup"],"intentSure":0.6},
             "nested":{"effort":"auto","classifier":"fixture/backup"}
         }
     });
