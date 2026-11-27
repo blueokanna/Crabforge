@@ -29,6 +29,8 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 
 路由组编辑器的「繁忙重试时限」或 `group set --patience <秒>` 适用于上游临时过载和限流。首次轮询候选结束后，网关会逐步延长等待时间，并在成员的时限内按 `Retry-After` 重试繁忙成员。填 `0` 继承，填 `-1` 关闭重试，或填 `1` 至 `240` 秒。网关默认值可在「网关 → 网络设置」或 `group default-patience <秒>` 中设置，此处 `0` 代表 60 秒。现有配置默认关闭重试。修改后重启网关。
 
+针对直接发往供应商的请求，可在供应商编辑器设置「繁忙重试时限」，或执行 `carbforge-cli provider set primary patience=15`。填 `0` 使用 60 秒，填 `-1` 关闭。直接发往路由组的请求使用组的时限，嵌套组明确设置的时限优先。导入 Magpie 备份时会保留供应商明确设置的 `patience`。保存后重启网关。
+
 要按条件转发生成请求，可在路由组编辑器修改「路由规则（JSON）」，也可执行 `carbforge-cli group rules work rules.json`。执行 `carbforge-cli group rules work` 可查看当前规则，保存 `[]` 可清空。`use` 和可选的 `more` 填写组内成员。命中的规则按顺序将成员提到前面，其余成员沿用组的路由策略。命中 `pause` 时跳过指定成员，手动选定优先。规则可随 Magpie 分享及加密路由组备份迁移。保存后重启网关。
 
 ```json

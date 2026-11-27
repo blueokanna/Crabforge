@@ -247,6 +247,7 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
     let dir = tempdir()?;
     let providers = ["busy", "ready"].map(|id| Provider {
         fallback: vec![],
+        patience: -1,
         no_stand_in: false,
         model_protocols: Default::default(),
         free_models: Default::default(),
@@ -483,7 +484,7 @@ async fn group_first_content_deadline_holds_preludes_and_respects_nested_overrid
 }
 
 #[tokio::test]
-async fn group_patience_retries_busy_members_in_order_within_their_budget() -> Result<()> {
+async fn patience_retries_busy_members_within_group_or_direct_provider_budgets() -> Result<()> {
     use std::sync::{Arc, Mutex};
     use tokio::time::Instant;
 
@@ -503,6 +504,9 @@ async fn group_patience_retries_busy_members_in_order_within_their_budget() -> R
                     ("first", _) => (StatusCode::TOO_MANY_REQUESTS, "2", "busy"),
                     ("second", 0 | 1) => (StatusCode::SERVICE_UNAVAILABLE, "0", "busy"),
                     ("second", _) => (StatusCode::OK, "0", "ready"),
+                    ("direct", 0 | 1) | ("legacy", _) => {
+                        (StatusCode::SERVICE_UNAVAILABLE, "0", "busy")
+                    }
                     ("quota", _) => (StatusCode::TOO_MANY_REQUESTS, "0", "insufficient_quota"),
                     ("future", _) => (
                         StatusCode::SERVICE_UNAVAILABLE,
@@ -521,17 +525,21 @@ async fn group_patience_retries_busy_members_in_order_within_their_budget() -> R
     let dir = tempdir()?;
     let cfg = json!({
         "listen":"127.0.0.1:0",
-        "providers":[{"id":"fixture","models":["first","second","quota","future"],
-            "endpoints":{"chat":format!("http://{addr}/v1")}}],
+        "providers":[
+            {"id":"fixture","models":["first","second","quota","future","direct"],
+             "patience":3,"endpoints":{"chat":format!("http://{addr}/v1")}},
+            {"id":"legacy","models":["legacy"],"endpoints":{"chat":format!("http://{addr}/v1")}}
+        ],
         "groups":{
             "pool":["fixture/first","fixture/second"],
             "off":["group/no-retry"],
             "no-retry":["fixture/second"],
+            "direct-off":["fixture/direct"],
             "quota":["fixture/quota"],
             "future":["fixture/future"]
         },
         "default_group_patience":3,
-        "group_patience":{"no-retry":-1}
+        "group_patience":{"no-retry":-1,"direct-off":-1}
     });
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
     let service = Service::start(dir.path()).await?;
@@ -558,6 +566,11 @@ async fn group_patience_retries_busy_members_in_order_within_their_budget() -> R
     let retried = send("group/pool").await?;
     assert_eq!(retried.status(), 200);
     assert_eq!(retried.text().await?, "ready");
+    assert_eq!(send("group/direct-off").await?.status(), 503);
+    let direct = send("fixture/direct").await?;
+    assert_eq!(direct.status(), 200);
+    assert_eq!(direct.text().await?, "ready");
+    assert_eq!(send("legacy/legacy").await?.status(), 503);
     let calls = calls.lock().unwrap().clone();
     assert_eq!(
         calls
@@ -565,10 +578,12 @@ async fn group_patience_retries_busy_members_in_order_within_their_budget() -> R
             .map(|(name, _)| name.as_str())
             .collect::<Vec<_>>(),
         [
-            "second", "quota", "future", "first", "second", "first", "second"
+            "second", "quota", "future", "first", "second", "first", "second", "direct", "direct",
+            "direct", "legacy"
         ],
     );
     assert!(calls[5].1.duration_since(calls[4].1) >= Duration::from_secs(2));
+    assert!(calls[9].1.duration_since(calls[8].1) >= Duration::from_secs(2));
     assert_eq!(
         service
             .history
@@ -577,7 +592,7 @@ async fn group_patience_retries_busy_members_in_order_within_their_budget() -> R
             .iter()
             .map(|attempt| attempt.status)
             .collect::<Vec<_>>(),
-        [503, 429, 503, 429, 503, 429, 200],
+        [503, 429, 503, 429, 503, 429, 200, 503, 503, 200, 503],
     );
     service.stop().await;
     upstream.abort();

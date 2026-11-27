@@ -85,6 +85,7 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
         providers: formats
             .iter()
             .map(|name| Provider {
+                patience: -1,
                 fallback: vec![],
                 no_stand_in: false,
                 model_protocols: Default::default(),

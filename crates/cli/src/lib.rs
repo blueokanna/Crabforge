@@ -304,12 +304,18 @@ enum ProviderCommand {
     Rename { from: String, to: String },
     /// Show or replace the ordered fallback models and groups. Use none to clear.
     Fallback { id: String, targets: Vec<String> },
-    /// Set fallback-for-others=yes|no (also accepts on|off).
+    /// Set fallback-for-others=yes|no or patience=SECONDS.
     Set {
         id: String,
-        #[arg(action = clap::ArgAction::Set, value_parser = parse_stand_in)]
-        setting: bool,
+        #[arg(value_parser = parse_provider_setting)]
+        setting: ProviderSetting,
     },
+}
+
+#[derive(Clone)]
+enum ProviderSetting {
+    FallbackForOthers(bool),
+    Patience(i32),
 }
 
 fn parse_key_env(input: &str) -> Result<(String, String), String> {
@@ -356,15 +362,20 @@ fn backup_passphrase() -> Result<zeroize::Zeroizing<String>> {
     Ok(line)
 }
 
-fn parse_stand_in(input: &str) -> Result<bool, String> {
-    match input
-        .strip_prefix("fallback-for-others=")
-        .map(str::to_ascii_lowercase)
-        .as_deref()
-    {
-        Some("yes" | "on") => Ok(true),
-        Some("no" | "off") => Ok(false),
-        _ => Err("expected fallback-for-others=yes|no".into()),
+fn parse_provider_setting(input: &str) -> Result<ProviderSetting, String> {
+    match input.split_once('=') {
+        Some(("fallback-for-others", value)) => match value.to_ascii_lowercase().as_str() {
+            "yes" | "on" => Ok(ProviderSetting::FallbackForOthers(true)),
+            "no" | "off" => Ok(ProviderSetting::FallbackForOthers(false)),
+            _ => Err("expected fallback-for-others=yes|no".into()),
+        },
+        Some(("patience", value)) => value
+            .parse::<i32>()
+            .ok()
+            .filter(|seconds| (-1..=240).contains(seconds))
+            .map(ProviderSetting::Patience)
+            .ok_or_else(|| "patience must be between -1 and 240 seconds".into()),
+        _ => Err("expected fallback-for-others=yes|no or patience=SECONDS".into()),
     }
 }
 
@@ -636,7 +647,10 @@ async fn dispatch(args: Args) -> Result<()> {
                 .iter_mut()
                 .find(|p| p.id == id)
                 .context("unknown provider")?;
-            provider.no_stand_in = !setting;
+            match setting {
+                ProviderSetting::FallbackForOthers(allow) => provider.no_stand_in = !allow,
+                ProviderSetting::Patience(seconds) => provider.patience = seconds,
+            }
             config::save(&dir, &previous, &cfg.to_json()?)?;
         }
         Command::Group { command } => {

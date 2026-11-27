@@ -64,6 +64,9 @@ pub struct Provider {
     /// Backup model and route group IDs in the order to try for direct requests.
     #[njson(default, skip_serializing_if = "Vec::is_empty")]
     pub fallback: Vec<String>,
+    /// Seconds to retry busy upstreams on direct requests. Zero selects sixty seconds.
+    #[njson(default = "disabled_patience", skip_serializing_if = "patience_is_off")]
+    pub patience: i32,
     #[njson(
         default,
         alias = "noStandIn",
@@ -162,7 +165,7 @@ impl Default for Config {
             group_first_content: BTreeMap::new(),
             default_group_first_content: 0,
             group_patience: BTreeMap::new(),
-            default_group_patience: -1,
+            default_group_patience: disabled_patience(),
             group_rules: BTreeMap::new(),
             group_off: BTreeMap::new(),
             group_unlists: BTreeSet::new(),
@@ -189,7 +192,11 @@ fn is_zero(value: &i32) -> bool {
 }
 
 fn patience_is_off(value: &i32) -> bool {
-    *value == -1
+    *value == disabled_patience()
+}
+
+fn disabled_patience() -> i32 {
+    -1
 }
 
 fn valid_id(s: &str) -> bool {
@@ -431,6 +438,11 @@ impl Config {
                         .key_env
                         .bytes()
                         .all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            ensure!(
+                (-1..=240).contains(&p.patience),
+                "{}: retry patience must be between -1 and 240 seconds",
+                p.id
+            );
                         && !p.key_env.as_bytes()[0].is_ascii_digit()),
                 "invalid key environment variable"
             );

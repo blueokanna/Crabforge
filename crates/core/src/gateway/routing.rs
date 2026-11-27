@@ -165,10 +165,9 @@ impl Gateway {
         let requested_group = matches!(route, Route::Group { .. });
         let limits = Limits {
             first_content: requested_group.then_some(self.config.default_group_first_content),
-            patience: if requested_group {
-                self.config.default_group_patience
-            } else {
-                -1
+            patience: match route {
+                Route::Model(target) => self.config.providers[target.provider].patience,
+                _ => self.config.default_group_patience,
             },
         };
         // A direct request keeps its origin even when the primary lacks this protocol.

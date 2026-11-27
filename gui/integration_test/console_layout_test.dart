@@ -206,6 +206,18 @@ void main() {
       TextFormField,
       strings.groupPatienceSeconds,
     );
+    Future<void> saveAndRead(bool Function(Map) persisted) async {
+      await tester.tap(saveRouteLimits);
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      var saved = false;
+      while (!saved && DateTime.now().isBefore(deadline)) {
+        await tester.pump(const Duration(milliseconds: 50));
+        saved = persisted(jsonDecode(settings.readAsStringSync()) as Map);
+      }
+      expect(saved, isTrue);
+      await tester.pumpAndSettle();
+    }
+
     Future<void> saveLimits(
       int firstContent,
       int patience,
@@ -224,21 +236,25 @@ void main() {
         await tester.ensureVisible(field);
         await tester.enterText(field, routingRules);
       }
-      await tester.tap(saveRouteLimits);
-      final deadline = DateTime.now().add(const Duration(seconds: 10));
-      var saved = false;
-      while (!saved && DateTime.now().isBefore(deadline)) {
-        await tester.pump(const Duration(milliseconds: 50));
-        saved = persisted(jsonDecode(settings.readAsStringSync()) as Map);
-      }
-      expect(saved, isTrue);
-      await tester.pumpAndSettle();
+      await saveAndRead(persisted);
     }
 
     for (final width in [1200, 560]) {
       tester.view.physicalSize = Size(width.toDouble(), 800);
       await tester.pumpAndSettle();
       final nav = navigation(width);
+      await openPage(nav, strings.providers);
+      await tester.tap(find.text('openai'));
+      await tester.pumpAndSettle();
+      final providerPatience = width == 1200 ? 7 : 0;
+      await tester.ensureVisible(patienceField);
+      await tester.enterText(patienceField, '$providerPatience');
+      await saveAndRead(
+        (cfg) => (cfg['providers'] as List).any(
+          (item) =>
+              item['id'] == 'openai' && item['patience'] == providerPatience,
+        ),
+      );
       await openPage(nav, strings.groups);
       await tester.tap(find.text('group/review'));
       await tester.pumpAndSettle();

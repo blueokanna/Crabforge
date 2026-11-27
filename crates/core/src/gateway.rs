@@ -1284,6 +1284,7 @@ mod tests {
             .unwrap();
         let p = Provider {
             fallback: vec![],
+            patience: -1,
             no_stand_in: false,
             model_protocols: Default::default(),
             free_models: Default::default(),

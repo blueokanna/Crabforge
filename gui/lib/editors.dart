@@ -111,6 +111,7 @@ class ProviderEditor extends StatefulWidget {
 
 class _ProviderEditorState extends State<ProviderEditor> {
   final form = GlobalKey<FormState>();
+  final patience = GlobalKey<FormFieldState<String>>();
   bool loading = false;
   String? discoveryMessage;
   String presetModelText = '';
@@ -456,6 +457,14 @@ class _ProviderEditorState extends State<ProviderEditor> {
                 hint: 'provider/model\ngroup/backup',
                 lines: 2,
               ),
+              _SecondsField(
+                fieldKey: patience,
+                seconds: widget.provider?['patience'] ?? -1,
+                label: context.strings.groupPatienceSeconds,
+                invalid: context.strings.invalidGroupPatience,
+                maximum: 240,
+                hint: context.strings.defaultGroupPatienceHelp,
+              ),
               SwitchListTile(
                 title: Text(context.strings.allowProviderFallback),
                 value: allowFallback,
@@ -474,6 +483,7 @@ class _ProviderEditorState extends State<ProviderEditor> {
       FilledButton(
         onPressed: () {
           if (form.currentState!.validate()) {
+            final wait = int.parse(patience.currentState!.value!.trim());
             Navigator.pop(context, <String, dynamic>{
               'id': id.text.trim(),
               'key_env': keyEnv.text.trim(),
@@ -482,6 +492,7 @@ class _ProviderEditorState extends State<ProviderEditor> {
               'models': linesOf(models.text),
               if (fallback.text.trim().isNotEmpty)
                 'fallback': linesOf(fallback.text),
+              if (wait != -1) 'patience': wait,
               if (!allowFallback) 'no_stand_in': true,
               if (modelProtocols.isNotEmpty)
                 'model_protocols': {

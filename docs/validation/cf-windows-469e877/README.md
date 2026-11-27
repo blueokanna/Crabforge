@@ -360,6 +360,12 @@ The Windows workspace passed 149 Rust tests, with 33 external or specialized tes
 
 The all-target and Windows x64 dependency graphs contained 423 and 343 active package versions. Both graphs included the five pinned dependencies and were free of Serde-family crates, Hyper and Reqwest. The upstream `LICENSE-MIT` files for Jiff, Jiff Core and Jiff TZDB share SHA-256 `0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f`. RustSec snapshot `8b75c83c3c9142dd18e93d75b8d895a13d285861` reported zero known vulnerabilities in the lockfile and retained the maintenance warning for the non-Windows netlink dependency `paste 1.0.15`. [License staging](../../../.github/scripts/stage-windows.ps1) · [RUSTSEC-2024-0436](https://rustsec.org/advisories/RUSTSEC-2024-0436.html)
 
+### 供应商繁忙重试 / Direct provider retries
+
+两个 Windows Debug CLI 均从 Magpie 0.1.4936 加密备份保留供应商的 `patience`。验收覆盖 `0`、`-1`、超出范围时设置字节不变、现有 `fallback-for-others` 命令、直接请求 503 后按预算重试并返回完整 SSE，以及路由组关闭重试。149 项工作区 Rust 测试、全特性 Clippy、Flutter 分析和四项单测通过。Windows Debug 桌面通过 `flutter_rust_bridge` 在 560 和 1,200 逻辑像素下分别保存 `0` 和 `7` 秒。 [网关回归](../../../crates/core/tests/gateway.rs) · [桌面回归](../../../gui/integration_test/console_layout_test.dart)
+
+Both Windows Debug CLIs preserved provider `patience` from an encrypted Magpie 0.1.4936 backup. The checks covered `0`, `-1`, unchanged settings bytes after an out-of-range input, the existing `fallback-for-others` command, a direct request that retried a 503 and returned the complete SSE response, and a group that disabled retries. The workspace passed 149 Rust tests, all-feature Clippy, Flutter analysis and four Flutter unit tests. The Windows Debug desktop saved `0` and `7` seconds at 560 and 1,200 logical pixels respectively through `flutter_rust_bridge`. [Gateway regression](../../../crates/core/tests/gateway.rs) · [Desktop regression](../../../gui/integration_test/console_layout_test.dart)
+
 ## Grok Build 会话 / Grok Build sessions
 
 Grok Build 1.0.92 通过回环夹具启动原生会话，并用同一个会话 ID 继续到第 12 轮。每轮上游收到之前的用户提示。两个 Windows Debug CLI 均列出原生会话 ID、项目和配置路径，从日志恢复完全相同的 12 条用户原话和预览修订，并拒绝未经发现的配置目录。Rust 回归覆盖分段提示、客户端内部操作和子代理日志。

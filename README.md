@@ -29,6 +29,8 @@ To limit how long a group waits for its first streamed text, reasoning or tool c
 
 For temporary upstream overload and rate limits, set **Retry patience** in the route group editor or pass `--patience <seconds>` to `group set`. After the initial failover attempts, the gateway can retry busy members with increasing delays and honor `Retry-After` within each member's budget. Use `0` to inherit, `-1` to disable retries, or `1` to `240` seconds. Set the gateway default in **Gateway → Network settings** or with `group default-patience <seconds>`, where `0` selects 60 seconds. Existing configurations start with retries disabled. Restart the gateway to apply changes.
 
+For requests addressed directly to a provider, set **Retry patience** in that provider's editor or run `carbforge-cli provider set primary patience=15`. Use `0` for 60 seconds or `-1` to disable retries. A request addressed directly to a group starts with the group's budget, with explicit budgets on nested groups taking precedence. An explicit provider `patience` setting is preserved during Magpie backup import. Restart the gateway after saving.
+
 To route generation requests conditionally, edit **Routing rules (JSON)** in the route group or run `carbforge-cli group rules work rules.json`. Run `carbforge-cli group rules work` to print the saved rules, or save `[]` to clear them. The `use` and optional `more` entries name members of the group. Matching rules put their members first in rule order, then the group's strategy orders the other members. A matching `pause` removes its member for the request. Manual selection takes precedence. Rules travel with Magpie shares and encrypted group backups. Restart the gateway after saving.
 
 ```json

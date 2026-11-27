@@ -105,6 +105,7 @@ struct BackupProvider {
     models: Vec<String>,
     catalog: String,
     fallback: Vec<String>,
+    patience: Option<i32>,
     no_stand_in: bool,
     count_free: bool,
     #[njson(flatten)]
@@ -174,6 +175,7 @@ impl BackupProvider {
             key_env,
             models: self.models,
             fallback: self.fallback,
+            patience: self.patience.unwrap_or_else(super::disabled_patience),
             no_stand_in: self.no_stand_in,
             free_models,
             model_protocols: BTreeMap::new(),
@@ -643,7 +645,7 @@ mod tests {
                 "providers": [
                     {"id":"lab", "was":["previous"], "key":"fixture-api-key", "models":["m"],
                      "anthropic":"http://127.0.0.1:1", "authHeader":"bearer", "noStandIn":true,
-                     "fallback":["backup/n"]},
+                     "fallback":["backup/n"], "patience":27},
                     {"id":"backup", "key":"", "models":["n"], "chat":"http://127.0.0.1:1/v1",
                      "modelsURL":"http://127.0.0.1:1/v1/models", "countFree":true},
                     {"id":"off", "off":true, "chat":"http://127.0.0.1:1/v1", "models":["m"]}
@@ -679,6 +681,8 @@ mod tests {
         let tampered = fs::read_to_string(&file)?.replace("100000", "100001");
         fs::write(&file, tampered)?;
         assert!(run(PASSPHRASE, &selected, true).is_err());
+        assert_eq!(lab.patience, 27);
+        assert_eq!(cfg.providers[0].patience, -1);
         assert_eq!(fs::read_to_string(&settings)?, before);
         Ok(())
     }
