@@ -539,6 +539,9 @@ fn reconcile<'a>(
     }
     let patch = if dsh {
         let active = events.values().any(|location| !location.entries.is_empty());
+        if active && selected {
+            dsh::validate_config(&source).context("DeepSeek Harness requires strict JSON hooks")?;
+        }
         if sync && (!empty || !active) {
             dsh::plan(target, active, selected)?
         } else {

@@ -32,6 +32,14 @@ void main() {
       }
     }
     final settings = File('$root/claude/settings.json');
+    final dshHome = Platform.environment['DSH_HOME'];
+    final dshProfile = Directory('$root/dsh/profiles/headless');
+    final dshPatch = File('${dshProfile.path}/cordis.patch.yml');
+    final checkDsh =
+        dshHome != null &&
+        Directory(dshHome).uri == Directory('$root/dsh').uri &&
+        dshPatch.existsSync();
+    final originalDshPatch = checkDsh ? dshPatch.readAsBytesSync() : null;
     settings.parent.createSync(recursive: true);
     const original =
         '{"env":{"PREEXISTING":"kept"},"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"echo existing"}]}]}}';
@@ -97,6 +105,9 @@ void main() {
     );
     await tap(find.widgetWithText(FilterChip, 'Claude Code'));
     await tap(find.widgetWithText(FilterChip, 'Gemini CLI'));
+    if (checkDsh) {
+      await tap(find.widgetWithText(FilterChip, 'DeepSeek Harness'));
+    }
     await tap(find.widgetWithText(FilledButton, 'Save'));
     final managed = find.byKey(const ValueKey('managed'));
     await waitFor(managed);
@@ -105,6 +116,14 @@ void main() {
       File('$root/agents/gemini/.gemini/settings.json').readAsStringSync(),
       contains('AfterAgent'),
     );
+    if (checkDsh) {
+      await waitFor(below(managed, find.text('DeepSeek Harness · Applied')));
+      expect(dshPatch.readAsStringSync(), contains('id: crabforge-hooks'));
+      expect(
+        File('${dshProfile.path}/crabforge-hooks.json').readAsStringSync(),
+        contains('echo managed'),
+      );
+    }
 
     settings.writeAsStringSync(
       settings.readAsStringSync().replaceFirst('echo managed', 'echo external'),
@@ -121,6 +140,13 @@ void main() {
       File('$root/gemini/.gemini/settings.json').readAsStringSync(),
       isNot(contains('echo managed')),
     );
+    if (checkDsh) {
+      expect(dshPatch.readAsBytesSync(), originalDshPatch);
+      expect(
+        File('${dshProfile.path}/crabforge-hooks.json').readAsStringSync(),
+        isNot(contains('echo managed')),
+      );
+    }
 
     final beforeRemoval = settings.readAsBytesSync();
     await tap(below(page, find.byTooltip('Remove installed hook')));

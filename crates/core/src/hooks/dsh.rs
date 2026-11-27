@@ -84,6 +84,10 @@ fn update(source: &str, path: &str, active: bool) -> Result<Option<String>> {
         let Some(mapping) = entry.as_mapping() else {
             continue;
         };
+        ensure!(
+            field(mapping, "id").as_deref() != Some(ID),
+            "DeepSeek Harness hook profile entry is overridden"
+        );
         let Some(insert) = mapping.get("insert") else {
             continue;
         };
@@ -123,6 +127,15 @@ fn update(source: &str, path: &str, active: bool) -> Result<Option<String>> {
         text.insert(0, '\u{feff}');
     }
     Ok(Some(text))
+}
+
+pub(super) fn validate_config(source: &str) -> Result<()> {
+    let value: Value = nextjson::from_str(source).map_err(anyhow::Error::msg)?;
+    ensure!(
+        !source.starts_with('\u{feff}') && value.is_object(),
+        "DeepSeek Harness hook configuration must be a JSON object without a BOM"
+    );
+    Ok(())
 }
 
 fn run(profile: &Path, home: &Path, args: &[&str], timeout: Duration) -> Result<String> {
