@@ -1,5 +1,5 @@
 use super::{AuthHeader, Config, Endpoints, Provider, catalog_url, read_limited, save, snapshot};
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use nextjson::{NsonDeserialize, NsonSerialize, Value};
 use ring::{aead, pbkdf2};
@@ -99,6 +99,7 @@ struct BackupProvider {
     responses: String,
     anthropic: String,
     gemini: String,
+    decide: String,
     #[njson(rename = "modelsURL")]
     models_url: String,
     auth_header: AuthHeader,
@@ -145,6 +146,7 @@ impl BackupProvider {
             &self.responses,
             &self.anthropic,
             &self.gemini,
+            &self.decide,
             &self.models_url,
         ] {
             if !endpoint.is_empty() {
@@ -155,6 +157,72 @@ impl BackupProvider {
                 );
             }
         }
+        let (decisions, systemone) =
+            if self.other.get("preset").and_then(Value::as_str) == Some("remote-magpie") {
+                if let Some(base) = [&self.chat, &self.responses, &self.anthropic, &self.decide]
+                    .into_iter()
+                    .find(|base| !base.is_empty())
+                {
+                    let mut url = super::endpoint(base)?;
+                    let path = url.path().trim_end_matches('/');
+                    if let Some(base) = [
+                        "/chat/completions",
+                        "/messages/count_tokens",
+                        "/messages",
+                        "/responses",
+                        "/systemone",
+                        "/decisions",
+                    ]
+                    .into_iter()
+                    .find_map(|suffix| path.strip_suffix(suffix))
+                    {
+                        let base = base.to_owned();
+                        url.set_path(&base);
+                    }
+                    (url.to_string(), url.to_string())
+                } else {
+                    (String::new(), String::new())
+                }
+            } else if self.decide.is_empty() {
+                (String::new(), String::new())
+            } else {
+                let mut url = super::endpoint(&self.decide)?;
+                let path = url.path().trim_end_matches('/');
+                match url.host_str() {
+                    host if host == Some("api.openai.com") || super::azure(&url) => {
+                        (self.decide, String::new())
+                    }
+                    Some("ai-gateway.vercel.sh") if !path.ends_with("/v4/ai") => {
+                        let base = path.strip_suffix("/systemone").unwrap_or(path);
+                        let base = base.strip_suffix("/models").unwrap_or(base);
+                        let base = base.strip_suffix("/v1").unwrap_or(base);
+                        let path = if base.is_empty() {
+                            "/typesafe/v1".to_owned()
+                        } else {
+                            format!("{base}/v1")
+                        };
+                        url.set_path(&path);
+                        (String::new(), url.to_string())
+                    }
+                    Some("generativelanguage.googleapis.com" | "api.cloudflare.com") => {
+                        bail!(
+                            "{} needs a vendor-specific Magpie decision adapter",
+                            self.id
+                        );
+                    }
+                    _ => {
+                        ensure!(
+                            !path.ends_with("/v4/ai") && !path.contains("/client/v4"),
+                            "{} needs a vendor-specific Magpie decision adapter",
+                            self.id
+                        );
+                        if path.is_empty() {
+                            url.set_path("/systemone");
+                        }
+                        (String::new(), url.to_string())
+                    }
+                }
+            };
         let free_models = if self.count_free {
             self.models.iter().cloned().collect()
         } else {
@@ -169,6 +237,8 @@ impl BackupProvider {
                 responses: self.responses,
                 anthropic: self.anthropic,
                 gemini: self.gemini,
+                decisions,
+                systemone,
                 models_url: self.models_url,
                 auth_header: self.auth_header,
                 ..Default::default()
@@ -674,7 +744,8 @@ mod tests {
                      "anthropic":"http://127.0.0.1:1", "authHeader":"bearer", "noStandIn":true,
                      "fallback":["backup/n"], "patience":27},
                     {"id":"backup", "key":"", "models":["n"], "chat":"http://127.0.0.1:1/v1",
-                     "modelsURL":"http://127.0.0.1:1/v1/models", "countFree":true},
+                     "modelsURL":"http://127.0.0.1:1/v1/models", "countFree":true,
+                     "decide":"http://127.0.0.1:1/v1"},
                     {"id":"off", "off":true, "chat":"http://127.0.0.1:1/v1", "models":["m"]}
                 ]
             }),
@@ -704,6 +775,10 @@ mod tests {
         assert_eq!(lab.fallback, ["backup/n"]);
         assert!(lab.no_stand_in);
         assert!(cfg.providers[0].free_models.contains("n"));
+        assert_eq!(
+            cfg.providers[0].endpoints.systemone,
+            "http://127.0.0.1:1/v1"
+        );
         assert!(run(PASSPHRASE, &selected, true).is_err());
         let tampered = fs::read_to_string(&file)?.replace("100000", "100001");
         fs::write(&file, tampered)?;

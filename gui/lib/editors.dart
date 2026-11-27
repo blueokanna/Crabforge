@@ -99,6 +99,8 @@ const protocolLabels = {
   'responses': 'Responses',
   'anthropic': 'Anthropic Messages',
   'gemini': 'Gemini',
+  'decisions': 'OpenAI Decisions',
+  'systemone': 'System One',
 };
 
 class ProviderEditor extends StatefulWidget {
@@ -149,7 +151,10 @@ class _ProviderEditorState extends State<ProviderEditor> {
         'base_url': vertexBase.text.trim(),
       }
     else
-      for (final e in urls.entries) e.key: e.value.text.trim(),
+      for (final e in urls.entries)
+        if ((e.key != 'decisions' && e.key != 'systemone') ||
+            e.value.text.trim().isNotEmpty)
+          e.key: e.value.text.trim(),
     if (modelsUrl.text.trim().isNotEmpty) 'models_url': modelsUrl.text.trim(),
     if (!vertexProject &&
         urls['anthropic']!.text.trim().isNotEmpty &&

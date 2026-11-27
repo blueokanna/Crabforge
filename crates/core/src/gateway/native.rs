@@ -1,4 +1,4 @@
-use super::{Api, Config, Format, Provider};
+use super::{Api, Config, Format, Provider, decision};
 use crate::catalog::RelayEndpoint;
 use crate::config::ResolvedGroups;
 use std::collections::BTreeMap;
@@ -9,6 +9,9 @@ pub struct NativeProtocols {
     chat: bool,
     responses: bool,
     messages: bool,
+    decisions: bool,
+    system_one: bool,
+    decision_classifier: bool,
     preferred: Option<Format>,
 }
 
@@ -22,6 +25,8 @@ impl NativeProtocols {
         let responses = responses_url.is_some();
         let messages = Api::Messages("messages").url(p, model).is_some();
         let gemini = Api::Gemini("generateContent").url(p, model).is_some();
+        let decisions = decision::decisions_url(p, model).is_some();
+        let system_one = decision::system_one_url(p, model).is_some();
         let leaf = model
             .rsplit('/')
             .next()
@@ -77,6 +82,15 @@ impl NativeProtocols {
             chat,
             responses,
             messages,
+            decisions,
+            system_one,
+            decision_classifier: (decisions || system_one) && preferred.is_none()
+                || decisions && model == decision::LUNA
+                || system_one
+                    && matches!(
+                        model,
+                        "decision-model-preview" | "doubao-seed-2-1-lite-260915"
+                    ),
             preferred,
         }
     }
@@ -90,6 +104,9 @@ impl NativeProtocols {
             common.chat &= member.chat;
             common.responses &= member.responses;
             common.messages &= member.messages;
+            common.decisions &= member.decisions;
+            common.system_one &= member.system_one;
+            common.decision_classifier |= member.decision_classifier;
             prefers_responses |= member.preferred == Some(Format::Responses);
         }
         common.preferred = (common.responses && prefers_responses).then_some(Format::Responses);
@@ -109,11 +126,17 @@ impl NativeProtocols {
         self.pi_api()
     }
 
+    pub(super) fn decision_classifier(self) -> bool {
+        self.decision_classifier
+    }
+
     pub(super) fn endpoints(self) -> Vec<&'static str> {
         [
             (self.chat, "/v1/chat/completions"),
             (self.responses, "/v1/responses"),
             (self.messages, "/v1/messages"),
+            (self.decisions, "/v1/decisions"),
+            (self.system_one, "/v1/systemone"),
         ]
         .into_iter()
         .filter_map(|(served, path)| served.then_some(path))

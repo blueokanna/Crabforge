@@ -16,6 +16,240 @@ fn ephemeral() -> SocketAddr {
 }
 
 #[tokio::test]
+async fn decision_apis_preserve_native_requests_and_translate_group_fallbacks() -> Result<()> {
+    use crabforge_test_support::server::{IntoResponse, Json};
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let (seen, mut requests) = tokio::sync::mpsc::unbounded_channel();
+    let app = Router::new().observe(seen)
+        .route("/native/decisions", post(|Incoming {body, ..}: Incoming| async move {
+            let value: Value = nextjson::from_slice(&body).unwrap();
+            match value["model"].as_str().unwrap() {
+                "luna" if value.get("prompt_cache_key").is_some() => {
+                    assert_eq!(&body[..], br#"{ "model" : "luna", "input": "direct", "questions": [{"type":"predicate"}], "prompt_cache_key": "keep" }"#);
+                    (StatusCode::OK, "{\"native\":true}").into_response()
+                }
+                "luna" => {
+                    assert_eq!(value["questions"][0]["name"], json!("z"));
+                    assert_eq!(value["questions"][1]["name"], json!("a"));
+                    assert_eq!(value["questions"][1]["choices"][0]["value"], json!("second"));
+                    assert_eq!(value["questions"][2]["levels"][0]["label"], json!("small"));
+                    assert_eq!(value.pointer("/input/0/content/0/data/document"), Some(&json!(123)));
+                    assert_eq!(value.pointer("/input/0/content/1/image_url"), Some(&json!("https://example.org/receipt.png")));
+                    ([("x-request-id", "fixture"), ("set-cookie", "private=1")], Json(json!({"model":"luna","answers":[
+                        {"type":"choice","name":"a","choice":"first","confidence":0.8,"probabilities":[{"value":"first","probability":0.9}]},
+                        {"type":"predicate","name":"z","probability":0.75},
+                        {"type":"score","name":"work","score":0.9,"probabilities":[{"label":"small","probability":0.1},{"label":"large","probability":0.9}]}
+                    ],"usage":{"input_tokens":30,"output_tokens":4}}))).into_response()
+                }
+                "busy" => (StatusCode::TOO_MANY_REQUESTS, [("retry-after", "7")], "busy").into_response(),
+                model => panic!("unexpected model {model}"),
+            }
+        }))
+        .route("/fallback/systemone", post(|Incoming {body, ..}: Incoming| async move {
+            let value: Value = nextjson::from_slice(&body).unwrap();
+            assert_eq!(value["model"], json!("jev"));
+            if value["state"].as_str() == Some("direct") {
+                assert_eq!(value.get("vendor_extension"), Some(&json!([1, 2])));
+                return Json(json!({"native":true}));
+            }
+            assert_eq!(value.pointer("/state/messages/0/content"), Some(&json!("A receipt\n{\"total\":42}")));
+            assert_eq!(value.pointer("/state/messages/1/refusal"), Some(&json!("Unable to read it")));
+            assert_eq!(value["images"], json!(["data:image/png;base64,AAAA"]));
+            assert_eq!(value.pointer("/questions/question_2/type"), Some(&json!("noul")));
+            assert_eq!(value.pointer("/questions/choice/criteria/true"), Some(&json!("Approved")));
+            assert_eq!(value.pointer("/questions/work/criteria/1"), Some(&json!("large: Extensive")));
+            assert!(value.get("prompt_cache_key").is_none());
+            Json(json!({"answers":{
+                "question_2":{"noul":0.25},"choice":{"choice":"true","probabilities":{"true":0.9,"false":0.1}},
+                "work":{"score":0.8,"probabilities":{"large: Extensive":0.8,"0":0.2}}
+            },"usage":{"input_tokens":12,"output_tokens":3}}))
+        }));
+    let server = tokio::spawn(crabforge_test_support::server::serve(listener, app));
+    let dir = tempdir()?;
+    let cfg = json!({"listen":"127.0.0.1:0","providers":[
+        {"id":"openai","models":["luna","busy"],"endpoints":{"decisions":format!("http://{addr}/native/decisions/")}},
+        {"id":"jev","models":["jev"],"endpoints":{"systemone":format!("http://{addr}/fallback")}},
+        {"id":"chat","models":["m"],"endpoints":{"chat":format!("http://{addr}/chat/v1")}}
+    ],"groups":{"judges":["chat/m","openai/busy","jev/jev"]}});
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let gateway = Service::start(dir.path()).await?;
+    let token = config::token(dir.path())?;
+    let base = format!("http://{}/v1", gateway.addr);
+    let client = crabforge_test_support::Client::default();
+    let send = |path: &str, body: String| {
+        client
+            .post(format!("{base}/{path}"))
+            .bearer_auth(&token)
+            .body(body)
+            .send()
+    };
+
+    let native = send("decisions", r#"{ "model" : "openai/luna", "input": "direct", "questions": [{"type":"predicate"}], "prompt_cache_key": "keep" }"#.into()).await?;
+    assert_eq!(native.text().await?, "{\"native\":true}");
+    assert_eq!(requests.try_recv()?, "/native/decisions");
+    let native = send(
+        "systemone",
+        json!({"model":"jev/jev","state":"direct","questions":{},"vendor_extension":[1,2]})
+            .to_string(),
+    )
+    .await?;
+    assert_eq!(native.text().await?, "{\"native\":true}");
+    assert_eq!(requests.try_recv()?, "/fallback/systemone");
+
+    let system_one = json!({"model":"openai/luna","state":{"document":123},"images":["https://example.org/receipt.png"],"questions":{
+        "z":{"type":"noul","instructions":"Readable?"},"a":{"type":"choice","criteria":{"second":"Corresponding page","first":null}},
+        "work":{"type":"score","criteria":["small","large"]}
+    }});
+    let reply = send("systemone", system_one.to_string())
+        .await?
+        .error_for_status()?;
+    assert_eq!(reply.headers()["x-request-id"], "fixture");
+    assert!(!reply.headers().contains_key("set-cookie"));
+    let reply: Value = nextjson::from_slice(&reply.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(reply.pointer("/answers/z/noul"), Some(&json!(0.75)));
+    assert_eq!(
+        reply["answers"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .collect::<Vec<_>>(),
+        ["z", "a", "work"]
+    );
+    assert_eq!(reply.pointer("/answers/a/choice"), Some(&json!("first")));
+    assert_eq!(
+        reply.pointer("/answers/work/probabilities/large"),
+        Some(&json!(0.9))
+    );
+    assert_eq!(reply.pointer("/usage/output_tokens"), Some(&json!(4)));
+    assert_eq!(requests.try_recv()?, "/native/decisions");
+
+    let request = json!({"model":"group/judges","prompt_cache_key":"cache","input":[
+        {"role":"user","content":[{"type":"input_text","text":"A receipt"},{"type":"input_json","data":{"total":42}},
+            {"type":"input_image","image_url":"data:image/png;base64,AAAA"}]},
+        {"role":"assistant","content":[{"type":"refusal","refusal":"Unable to read it"}]}
+    ],"questions":[{"type":"predicate","instructions":"Valid?"},{"type":"choice","name":"choice","choices":[{"value":true,"description":"Approved"},{"value":false}]},
+        {"type":"score","name":"work","levels":[{"label":"small"},{"label":"large","description":"Extensive"}]},{"type":"predicate","name":"question_1"}]});
+    let reply = send("decisions", request.to_string())
+        .await?
+        .error_for_status()?;
+    let reply: Value = nextjson::from_slice(&reply.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(reply.pointer("/answers/0/name"), Some(&Value::Null));
+    assert_eq!(reply.pointer("/answers/0/probability"), Some(&json!(0.25)));
+    assert_eq!(reply.pointer("/answers/1/choice"), Some(&json!(true)));
+    assert_eq!(
+        reply.pointer("/answers/1/probabilities/1/value"),
+        Some(&json!(false))
+    );
+    assert_eq!(
+        reply.pointer("/answers/2/probabilities/1/label"),
+        Some(&json!("large"))
+    );
+    assert_eq!(reply.pointer("/answers/3/type"), Some(&json!("refusal")));
+    assert_eq!(reply.pointer("/usage/total_tokens"), Some(&json!(15)));
+    assert_eq!(requests.try_recv()?, "/native/decisions");
+    assert_eq!(requests.try_recv()?, "/fallback/systemone");
+
+    let rejected = send("decisions", json!({"model":"jev/jev","input":[{"type":"function_call","name":"search"}],"questions":[{"type":"predicate"}]}).to_string()).await?;
+    assert_eq!(rejected.status(), 400);
+    assert!(rejected.text().await?.contains("input[0]"));
+    let rejected = send("systemone", json!({"model":"openai/luna","state":"test","audio":["data:audio/wav;base64,AAAA"],"questions":{"x":{"type":"noul"}}}).to_string()).await?;
+    assert_eq!(rejected.status(), 400);
+    assert!(rejected.text().await?.contains("audio"));
+    assert_eq!(
+        send("decisions", json!({"model":"chat/m"}).to_string())
+            .await?
+            .status(),
+        400
+    );
+    assert!(requests.try_recv().is_err());
+    gateway.stop().await;
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
+async fn decision_classifier_applies_native_confidence_and_keeps_automatic_effort() -> Result<()> {
+    use crabforge_test_support::server::Json;
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let (seen, mut requests) = tokio::sync::mpsc::unbounded_channel();
+    let app = Router::new().observe(seen)
+        .route("/judge/decisions", post(|Incoming { body, .. }: Incoming| async move {
+            let value: Value = nextjson::from_slice(&body).unwrap();
+            assert_eq!(value["model"], json!("gpt-6-luna"));
+            let message = value.pointer("/input/0/content/0/data/message").unwrap().as_str().unwrap();
+            assert_eq!(value.pointer("/questions/0/name"), Some(&json!("intent")));
+            let intent = if message == "Declined" {
+                json!({"type":"refusal","name":"intent"})
+            } else {
+                json!({"type":"choice","name":"intent","choice":"1","confidence":0.9,
+                    "probabilities":[{"value":"1","probability":0.65},{"value":"0","probability":0.35}]})
+            };
+            let mut answers = vec![intent];
+            if let Some(name) = value.pointer("/questions/1/name") {
+                assert_eq!(name, &json!("effort"));
+                answers.push(json!({"type":"score","name":"effort","score":2.0}));
+            }
+            Json(json!({"answers":answers}))
+        }))
+        .route("/chat/chat/completions", post(|Incoming { body, .. }: Incoming| async move {
+            let value: Value = nextjson::from_slice(&body).unwrap();
+            let model = value["model"].as_str().unwrap();
+            if model == "backup" {
+                return Json(json!({"choices":[{"message":{"content":"1"}}]}));
+            }
+            Json(json!({"selected":model,"effort":value.get("reasoning_effort")}))
+        }));
+    let server = tokio::spawn(crabforge_test_support::server::serve(listener, app));
+    let dir = tempdir()?;
+    let members = json!(["chat/usual", "chat/review"]);
+    let rule = json!([{"intent":"Review a report","use":"chat/review"}]);
+    let cfg = json!({"listen":"127.0.0.1:0","providers":[
+        {"id":"judge","models":["gpt-6-luna"],"endpoints":{"decisions":format!("http://{addr}/judge")}},
+        {"id":"chat","models":["usual","review","backup"],"endpoints":{"chat":format!("http://{addr}/chat")},
+            "model_reasoning_levels":{"usual":["medium","high"],"review":["medium","high"]}}
+    ],"groups":{"default":members,"zero":members,"recover":members},"group_rules":{"default":rule,"zero":rule,"recover":rule},
+      "group_classifiers":{
+        "default":{"classifier":"judge/gpt-6-luna","effort":"auto"},
+        "zero":{"classifier":"judge/gpt-6-luna","intentSure":0},
+        "recover":{"classifier":"judge/gpt-6-luna","classifierMore":["chat/backup"]}
+    }});
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let gateway = Service::start(dir.path()).await?;
+    let token = config::token(dir.path())?;
+    let url = format!("http://{}/v1/chat/completions", gateway.addr);
+    let client = crabforge_test_support::Client::default();
+    for (group, message, model, effort) in [
+        ("default", "Review", "usual", "high"),
+        ("zero", "Review", "review", "medium"),
+        ("recover", "Declined", "review", "medium"),
+    ] {
+        let body = json!({"model":format!("group/{group}"),"reasoning_effort":"medium","messages":[{"role":"user","content":message}]});
+        let reply = client
+            .post(&url)
+            .bearer_auth(&token)
+            .body(body.to_string())
+            .send()
+            .await?
+            .error_for_status()?;
+        let reply: Value =
+            nextjson::from_slice(&reply.bytes().await?).map_err(anyhow::Error::msg)?;
+        assert_eq!(reply["selected"], json!(model));
+        assert_eq!(reply["effort"], json!(effort));
+        assert_eq!(requests.try_recv()?, "/judge/decisions");
+        if group == "recover" {
+            assert_eq!(requests.try_recv()?, "/chat/chat/completions");
+        }
+        assert_eq!(requests.try_recv()?, "/chat/chat/completions");
+    }
+    assert!(requests.try_recv().is_err());
+    gateway.stop().await;
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn native_endpoints_follow_models_aliases_and_enabled_group_members() -> Result<()> {
     let root = tempdir()?;
     let cfg = json!({"listen":"127.0.0.1:0","providers":[

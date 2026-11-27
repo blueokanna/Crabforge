@@ -271,11 +271,23 @@ void main() {
       await tester.pumpAndSettle();
       final providerPatience = width == 1200 ? 7 : 0;
       await fillField(patienceField, '$providerPatience');
+      final decisions = width == 1200
+          ? 'https://api.openai.com/v1/decisions'
+          : 'http://127.0.0.1:3250/v1';
+      final systemOne = 'http://127.0.0.1:3251/$width/systemone';
+      for (final (label, value) in [
+        (strings.protocolBase('OpenAI Decisions'), decisions),
+        (strings.protocolBase('System One'), systemOne),
+      ]) {
+        await fillField(find.widgetWithText(TextFormField, label), value);
+      }
       await saveAndRead(
         (cfg) => (cfg['providers'] as List).any(
           (item) =>
               item['id'] == 'openai' &&
               item['patience'] == providerPatience &&
+              item['endpoints']['decisions'] == decisions &&
+              item['endpoints']['systemone'] == systemOne &&
               listEquals(item['model_reasoning_levels']?['gpt-4.1'] as List?, [
                 'low',
                 'high',

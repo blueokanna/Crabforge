@@ -94,6 +94,13 @@ async fn protocol_directories_merge_only_complete_lists_and_allow_an_override() 
             }),
         )
         .route(
+            "/judge/v1/models",
+            get(|Incoming { headers, .. }| async move {
+                assert_eq!(headers["x-magpie-deciders"], "true");
+                Json(json!({"data":[{"id":"jev","native_endpoints":["/v1/systemone"]}]}))
+            }),
+        )
+        .route(
             "/account/catalog",
             get(|Incoming { uri, .. }| async move {
                 assert_eq!(uri.query(), Some("edition=team"));
@@ -107,11 +114,17 @@ async fn protocol_directories_merge_only_complete_lists_and_allow_an_override() 
         responses: format!("{root}/chat/"),
         anthropic: format!("{root}/anthropic"),
         gemini: format!("{root}/gemini"),
+        systemone: format!("{root}/judge/v1/systemone/"),
         ..Default::default()
     };
-    assert_eq!(
-        discover(&endpoints, "").await?,
-        ["shared", "chat", "gemini"]
+    let models = crabforge_core::catalog::discover_catalog(&endpoints, "").await?;
+    assert_eq!(models.models, ["shared", "chat", "gemini", "jev"]);
+    assert!(
+        models.model_protocols["jev"]
+            .native_endpoints
+            .as_ref()
+            .unwrap()
+            .contains(&crabforge_core::catalog::RelayEndpoint::SystemOne)
     );
     assert_eq!(hits.load(Ordering::Relaxed), 1);
     let endpoints = Endpoints {

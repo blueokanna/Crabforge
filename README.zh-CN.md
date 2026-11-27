@@ -47,6 +47,10 @@ OpenAI Chat Completions、Responses 和 Anthropic Messages 的 SSE 响应开启�
 
 DashScope `qwen-audio` TTS 模型通过 `/v1/audio/speech` 默认返回完整 MP3。可将 `response_format` 设为 `wav`、`pcm` 或 `opus`。`voice` 可填写模型专用音色，填写 OpenAI 音色名时使用 DashScope 模型的默认音色。用 `instructions` 描述朗读方式，`speed` 限在 0.5–2 倍。使用 `qwen-audio` ASR 模型时，向 `/v1/audio/transcriptions` 发送包含 `model` 和 `file` 的 multipart 请求。可用 `language` 提示识别语言，并选择 `json`、`text` 或 `verbose_json`。原生转写路径忽略 OpenAI 的 `prompt` 字段。 [Qwen-Audio 语音合成](https://help.aliyun.com/zh/model-studio/qwen-audio-tts-http-api) · [Qwen-Audio 语音识别](https://help.aliyun.com/zh/model-studio/qwen-audio-asr-http-api)
 
+使用 `POST /v1/decisions` 调用 OpenAI Decisions，使用 `POST /v1/systemone` 调用 System One。先将模型或部署 ID 加入供应商，再在桌面的供应商编辑器或 `endpoints` JSON 中填写 `decisions` 或 `systemone` 的上游基址或完整方法 URL。网关可识别带 API 密钥的 OpenAI 官方 `gpt-6-luna` 端点和已配置的 Azure OpenAI 部署。路由组按配置的顺序或轮换策略尝试兼容成员，优先使用各成员的原生协议。网关可双向转换判断题、选择题和评分题。目标协议无法承载请求字段时返回 HTTP 400。
+
+路由组可用 Decisions 上的 `gpt-6-luna` 或仅提供决策端点的供应商作为分类器。一次原生调用可同时判断意图并为推理量评分。原生分类器默认使用 `intentSure: 0.4`，有答案概率分布时据此计算置信度。设为 `intentSure: 0` 可接受任意置信度的意图判断。
+
 在路由组 JSON 的 `classifier` 同级加入 `"effort":"auto"`，由分类器为已请求推理的请求评估等级。网关可在一次调用中判定意图与等级，并在同一命名会话的工具续轮中复用结果、传给嵌套组。命中规则的 `useEffort` 优先。路由组分享和加密备份均保留该设置。
 
 配置 `intent` 规则时，在同一编辑器或 CLI 命令中传入 JSON 对象。`classifier` 和 `classifierMore` 接受已配置的模型和路由组 ID，`classifyPrompt` 可选。

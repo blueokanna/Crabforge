@@ -45,6 +45,10 @@ pub struct Endpoints {
     pub anthropic: String,
     pub gemini: String,
     #[njson(skip_serializing_if = "String::is_empty")]
+    pub decisions: String,
+    #[njson(skip_serializing_if = "String::is_empty")]
+    pub systemone: String,
+    #[njson(skip_serializing_if = "String::is_empty")]
     pub models_url: String,
 }
 
@@ -476,6 +480,8 @@ impl Config {
                 &p.endpoints.responses,
                 &p.endpoints.anthropic,
                 &p.endpoints.gemini,
+                &p.endpoints.decisions,
+                &p.endpoints.systemone,
             ];
             if let Some(site) = p.web_site {
                 ensure!(
@@ -503,11 +509,14 @@ impl Config {
                     p.id
                 );
             }
-            for (base, protocol) in
-                bases
-                    .into_iter()
-                    .zip(["chat", "responses", "anthropic", "gemini"])
-            {
+            for (base, protocol) in bases.into_iter().zip([
+                "chat",
+                "responses",
+                "anthropic",
+                "gemini",
+                "openai",
+                "systemone",
+            ]) {
                 if !base.is_empty() {
                     api_base(base, protocol)?;
                 }

@@ -66,6 +66,8 @@ string_enum! {
         Chat => "/v1/chat/completions",
         Responses => "/v1/responses",
         Messages => "/v1/messages",
+        Decisions => "/v1/decisions",
+        SystemOne => "/v1/systemone",
     }
 }
 
@@ -106,6 +108,8 @@ fn sources(bases: &Endpoints) -> Result<Vec<Source>> {
         (&bases.responses, "chat"),
         (&bases.anthropic, "anthropic"),
         (&bases.gemini, "gemini"),
+        (&bases.decisions, "decisions"),
+        (&bases.systemone, "systemone"),
     ];
     if !bases.models_url.is_empty() {
         let api = if bases.vertex.is_some() {
@@ -168,12 +172,19 @@ fn list_url(mut url: Url, api: &str) -> Result<Url> {
     if crate::config::mantle(&url) && url.path().trim_end_matches('/') == "/openai/v1" {
         url.set_path("/v1");
     }
-    let append_v1 = api == "anthropic" && !url.path().trim_end_matches('/').ends_with("/v1");
+    let clean_path = url.path().trim_end_matches('/');
+    let decision = matches!(api, "decisions" | "systemone");
+    let append_v1 =
+        api == "anthropic" && !clean_path.ends_with("/v1") || decision && clean_path.is_empty();
+    let strip_method = decision && clean_path.rsplit('/').next() == Some(api);
     {
         let mut path = url
             .path_segments_mut()
             .map_err(|_| anyhow::anyhow!("invalid API base"))?;
         path.pop_if_empty();
+        if strip_method {
+            path.pop();
+        }
         if append_v1 {
             path.push("v1");
         }
@@ -326,6 +337,9 @@ impl CatalogAuth<'_> {
         }
         if api == "anthropic" {
             headers.insert("anthropic-version".into(), "2023-06-01".into());
+        }
+        if matches!(api, "decisions" | "systemone") {
+            headers.insert("x-magpie-deciders".into(), "true".into());
         }
         if let Some(token) = self.bearer {
             headers.insert(

@@ -23,6 +23,7 @@ use url::Url;
 mod affinity;
 mod classifier;
 mod cors;
+mod decision;
 mod effort;
 mod first_content;
 mod keepalive;
@@ -379,6 +380,20 @@ impl<'a> Api<'a> {
             return matches!(self, Self::Chat("chat/completions"))
                 .then_some(Destination::Browser(site));
         }
+        if let Self::Chat(path @ (decision::DECISIONS | decision::SYSTEM_ONE)) = self {
+            let decisions = || decision::decisions_url(p, model);
+            let system_one = || decision::system_one_url(p, model);
+            let (url, native) = if path == decision::DECISIONS {
+                decisions()
+                    .map(|url| (url, decision::DECISIONS))
+                    .or_else(|| system_one().map(|url| (url, decision::SYSTEM_ONE)))?
+            } else {
+                system_one()
+                    .map(|url| (url, decision::SYSTEM_ONE))
+                    .or_else(|| decisions().map(|url| (url, decision::DECISIONS)))?
+            };
+            return Some(Destination::Upstream(url, Self::Chat(native), None));
+        }
         if let Self::Chat(path) = self
             && let Some((url, native)) = dashscope::destination(p, model, path)
         {
@@ -414,6 +429,7 @@ impl<'a> Api<'a> {
                     RelayEndpoint::Chat => (Api::Chat("chat/completions"), Format::Chat),
                     RelayEndpoint::Messages => (Api::Messages("messages"), Format::Messages),
                     RelayEndpoint::Responses => (Api::Responses("responses"), Format::Responses),
+                    RelayEndpoint::Decisions | RelayEndpoint::SystemOne => continue,
                 };
                 if let Some(url) = api.url(p, model) {
                     if from == to {
@@ -424,6 +440,15 @@ impl<'a> Api<'a> {
             }
             if translated.is_some() {
                 return translated;
+            }
+            if endpoints.iter().any(|endpoint| {
+                matches!(
+                    endpoint,
+                    crate::catalog::RelayEndpoint::Decisions
+                        | crate::catalog::RelayEndpoint::SystemOne
+                )
+            }) {
+                return None;
             }
         }
         if let Some(url) = self.url(p, model) {
@@ -715,6 +740,8 @@ async fn serve_http(
         "chat/completions"
         | "embeddings"
         | "rerank"
+        | decision::DECISIONS
+        | decision::SYSTEM_ONE
         | "images/generations"
         | "images/edits"
         | "audio/speech"
@@ -1016,6 +1043,18 @@ async fn forward(
             Err(_) if candidates.advance().await => continue,
             Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
         };
+        let (decision_body, decision_reply) = match (api, native) {
+            (Api::Chat(path @ (decision::DECISIONS | decision::SYSTEM_ONE)), Api::Chat(native))
+                if path != native =>
+            {
+                match decision::request(path, model, &bytes, &url) {
+                    Ok((body, reply)) => (Some(body), Some(reply)),
+                    Err(_) if candidates.advance().await => continue,
+                    Err(error) => return failure(StatusCode::BAD_REQUEST, &format!("{error:#}")),
+                }
+            }
+            _ => (None, None),
+        };
         let rewritten = candidate
             .effort
             .zip(api.format())
@@ -1046,6 +1085,9 @@ async fn forward(
             None
         };
         let mut request = Request::post(url.as_str());
+        if matches!(native, Api::Chat(decision::SYSTEM_ONE)) && decision::ark(&url) {
+            request = request.header("ark-beta-systemone-api", "true");
+        }
         if crate::opencode::Console::request(&url).is_some() && native.format().is_some() {
             let seed = headers
                 .get("x-opencode-session")
@@ -1066,6 +1108,7 @@ async fn forward(
         ] {
             if translation.is_none()
                 && media_body.is_none()
+                && decision_body.is_none()
                 && ollama.is_none()
                 && let Some(value) = headers.get(h)
             {
@@ -1115,7 +1158,7 @@ async fn forward(
         let stream = converted.as_ref().is_some_and(|body| body.stream);
         let parts = if let Some(body) = vertex_body {
             vec![body.into()]
-        } else if let Some(body) = media_body {
+        } else if let Some(body) = media_body.or(decision_body) {
             vec![body]
         } else if let Some(upload) = &upload {
             request = request.header(header::CONTENT_TYPE, &upload.content_type);
@@ -1211,6 +1254,10 @@ async fn forward(
             && status.is_success()
         {
             reply.convert(upstream, &url, &gw.client).await
+        } else if let Some(reply) = decision_reply
+            && status.is_success()
+        {
+            reply.convert(upstream, &asked).await
         } else {
             Ok(upstream_response(upstream, permit.clone()))
         };
