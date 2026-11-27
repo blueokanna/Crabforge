@@ -40,7 +40,9 @@ Windows Release 的 Rust 运行器在 `688ea1a` 注册了 Flutter 文件选择�
 
 Rust 依赖审计覆盖 Windows x64 与 Cargo 全目标的常规、构建及测试依赖。`Cargo.lock` 中还有可选的 `hyper`、`hyper-util`、`serde`、`serde_core` 和 `serde_derive` 记录，当前启用的依赖树均未使用这些包。
 
-Claude Code、Codex 和 Antigravity 的整包项目分配及携带待实现。隔离配置下，Claude Code 2.1.332 用原生 `local` 作用域登记市场并安装包，随后在本机模型回合执行了包内钩子。Codex 0.172.0 在用户配置中安装包，仅在打开了项目启用项的受信任项目内报告已启用。Antigravity 1.5.18 在隔离用户配置中验证、安装、列出并卸载了含一项技能的包。[原生客户端试验](validation/shared-plugin-library/native-project-probes.csv)
+Claude Code、Codex 和 Antigravity 支持整包项目分配、显式同步、撤销及 JSON/TAR 携带。Claude Code 2.1.332 用八轮本机模型请求验证了各阶段的 `SessionStart` 钩子。首轮同步时 Claude Code 重排安装记录字段，导致两个版本仍登记在案。改用安装路径、版本和时间戳判定所有权后，复测成功加载 2.0.0。Codex 0.172.0 发出九轮本机模型请求，其中一轮使用未声明版本的插件。受信任项目中的请求包含对应的固定版本技能，项目外及撤销后的请求不含该技能。携带至独立 Codex 配置后，两端用户配置均保留原内容。Codex 和 Antigravity 在暂存附件被修改后拒绝导出 JSON 及归档 TAR。[原生客户端试验](validation/shared-plugin-library/native-project-probes.csv) · [Claude Code](validation/shared-plugin-library/claude-bundle-project-native.csv) · [Codex 和 Antigravity](validation/shared-plugin-library/workspace-plugin-native.csv)
+
+Antigravity 1.5.18 用官方 CLI 验证了两个整包版本及跨项目携带后的副本，并核对了工作区发现条目、二进制附件、过期修订和外部修改。模型会话内加载仍需 Google OAuth 验证。抽取共用项目台账后，Pi 1.6.0 通过五轮本机模型验证，撤销时逐字节恢复项目设置。Windows Debug 在 560 像素列表及 1,280 像素网格中覆盖了四个客户端的项目入口。[Pi 回归](validation/shared-plugin-library/pi-project-native.csv) · [Windows 桌面测试](validation/shared-plugin-library/workspace-plugin-windows.log) · [客户端发现机制](https://antigravity.google/docs/customization-discovery.md)
 
 ### Windows x64 Pi 项目包（`e7b7d65`）
 

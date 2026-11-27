@@ -1,0 +1,20 @@
+Client,Version,Stage,Snapshot,Evidence
+codex,0.172.0,Assign,1.0.0,Native model request and reply
+codex,0.172.0,Outside scope,,Native model request and reply
+codex,0.172.0,Pinned after library update,1.0.0,Native model request and reply
+codex,0.172.0,Sync,2.0.0,Native model request and reply
+codex,0.172.0,Apply with matching archive,2.0.0,Native model request and reply
+codex,0.172.0,Withdraw destination,,Native model request and reply
+codex,0.172.0,Withdraw source,,Native model request and reply
+codex,0.172.0,Preserve external edit,,Native model request and reply
+codex,0.172.0,Reject modified staged snapshot,2.0.0,JSON export and TAR archive rejected
+codex,0.172.0,Versionless manifest with local cache label,,Native model request and reply
+antigravity,1.5.18,Assign,1.0.0,Native bundle validation and project manifest
+antigravity,1.5.18,Outside scope,,Project manifest inspection
+antigravity,1.5.18,Pinned after library update,1.0.0,Native bundle validation and project manifest
+antigravity,1.5.18,Sync,2.0.0,Native bundle validation and project manifest
+antigravity,1.5.18,Apply with matching archive,2.0.0,Native bundle validation and project manifest
+antigravity,1.5.18,Withdraw destination,,Project manifest inspection
+antigravity,1.5.18,Withdraw source,,Project manifest inspection
+antigravity,1.5.18,Preserve external edit,,Project manifest inspection
+antigravity,1.5.18,Reject modified staged snapshot,2.0.0,JSON export and TAR archive rejected
