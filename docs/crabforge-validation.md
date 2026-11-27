@@ -40,7 +40,11 @@ Windows Debug 集成在 560 像素列表中浏览本地市场并选择插件包�
 
 从 `ad2088c9daefc5548683f629f8d53a3a412c88ed` 离线构建的 ZIP 为 64,547,641 字节，SHA-256 为 `D3DD84828CB96B773C6E669FB28488C43940C78FCE4A4877D5331B90FE90ADC1`。核验 353 项构建输入、671 项包内文件、126 项资产及两个 CLI 各 97 项相同预设。三个入口的 Authenticode 状态均为 `NotSigned`。冻结版通过 154 项 Rust 测试、全目标 Clippy、Flutter 分析和两项组件测试。审计的 28 棵依赖树均未启用 Serde、Hyper 或 Reqwest。[构建输入](validation/cf-windows-ad2088c/build-inputs.sha256) · [解压清单](validation/cf-windows-ad2088c/SHA256SUMS) · [回归日志](validation/cf-windows-ad2088c/regression.log) · [依赖审计](validation/cf-windows-ad2088c/dependency-audit.csv)
 
-解压后的 CLI 调用 Claude Code 2.1.332 添加、浏览、刷新和移除本地市场，安装、禁用、更新插件至 1.1.0，再卸载并保留插件数据。隔离项目在用户配置禁用时成功启用插件。撤销逐字节保留外部写入的 `false`，过期修订被拒绝。CLI 完成带固定 ref 的 GitHub 市场声明及启用 ID 的导入导出。Windows 插件界面通过 560 和 1,280 像素的列表、网格、浏览安装、项目分配及设置导入导出测试。[Claude Code 进程](validation/cf-windows-ad2088c/claude-plugin-process.csv)
+解压后的 CLI 调用 Claude Code 2.1.332 添加、浏览、刷新和移除本地市场，安装、禁用、更新插件至 1.1.0，再卸载并保留插件数据。隔离项目在用户配置禁用时成功启用插件。撤销逐字节保留外部写入的 `false`，过期修订被拒绝。CLI 完成带固定 ref 的 GitHub 市场声明及启用 ID 的导入导出。Windows 插件界面通过 560 和 1,280 像素的列表、网格、浏览安装、项目分配及设置导入导出测试。[Claude Code 进程](validation/cf-windows-ad2088c/claude-plugin-process.csv) · [Claude 插件桌面测试](validation/cf-windows-ad2088c/claude-plugins.log)
+
+冻结版通过十三轮 Windows Debug 集成，覆盖控制台、Oh My Pi 重启、布局和客户端资源库。Hooks 重跑使用隔离的 Grok 和 DeepSeek Harness 配置。[Windows 集成日志](validation/cf-windows-ad2088c/) · [Hooks 重试](validation/cf-windows-ad2088c/agent-hooks.log)
+
+Flutter Profile 采集 567 帧，UI 构建 P90/P99 为 2.387/14.796 ms，帧总跨度 P90/P99 为 3.958/15.606 ms。四帧总跨度超过 16.67 ms，最长 34.126 ms。GPU 与物理显示计时仍待实测。[Profile 日志](validation/cf-windows-ad2088c/profile.log) · [逐帧数据](validation/cf-windows-ad2088c/profile-frames.json)
 
 三轮解压 Release 启动中，工作集／私有字节中位数为 Crabforge 133.44/195.92 MiB、Magpie 主进程 77.44/93.76 MiB、含七个 WebView2 子进程的 Magpie 441.67/390.72 MiB。上游等待 700 ms 时，本机 SSE 首事件为 24、5、3 ms，末事件为 734、712、704 ms。同机 IPv6 回环、网卡全局 IPv6 和 Kubo 回退均以无效密钥收到 HTTP 401，以有效密钥收到 HTTP 200。[桌面内存](validation/cf-windows-ad2088c/desktop-comparison.csv) · [SSE 延迟](validation/cf-windows-ad2088c/forward-h1.csv) · [IPv6 和回退](validation/cf-windows-ad2088c/ipv6.csv)
 

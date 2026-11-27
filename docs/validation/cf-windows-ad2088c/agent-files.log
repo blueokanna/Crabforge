@@ -1,0 +1,7 @@
+00:00 +0: loading D:/RustProject/Crabforge/dist/cf-windows-ad2088c/source/gui/integration_test/agent_files_test.dart
+Building Windows application...                                   119.0s
+Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: Publish commands and subagents in both layouts
+01:06 +1: (tearDownAll)
+01:06 +1: All tests passed!
