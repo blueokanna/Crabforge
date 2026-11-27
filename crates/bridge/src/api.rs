@@ -348,6 +348,58 @@ pub fn project_agent_hooks(
     hooks::edit_project(&config::data_dir()?, std::path::Path::new(&project), edit)
 }
 
+pub fn claude_plugins(
+    project: Option<String>,
+    id: Option<String>,
+    revision: Option<String>,
+    enabled: Option<bool>,
+) -> Result<String> {
+    use crabforge_core::claude_plugins::{self, Edit};
+    let edit = match (id.as_deref(), revision.as_deref(), enabled) {
+        (None, None, None) => Edit::Read,
+        (Some(id), Some(revision), Some(enabled)) => Edit::Set {
+            id,
+            revision,
+            enabled,
+        },
+        _ => anyhow::bail!("a plugin edit needs an ID, revision and enabled state"),
+    };
+    claude_plugins::edit(
+        &config::data_dir()?,
+        project.as_deref().map(std::path::Path::new),
+        edit,
+    )
+}
+
+pub fn manage_claude_plugin(action: String, target: String) -> Result<String> {
+    use crabforge_core::claude_plugins::{self, Manage};
+    let action = match action.as_str() {
+        "add-marketplace" => Manage::AddMarketplace,
+        "update-marketplace" => Manage::UpdateMarketplace,
+        "remove-marketplace" => Manage::RemoveMarketplace,
+        "install" => Manage::Install,
+        "update" => Manage::Update,
+        "uninstall" => Manage::Uninstall,
+        _ => anyhow::bail!("unsupported Claude Code plugin action"),
+    };
+    claude_plugins::manage(&config::data_dir()?, action, &target)
+}
+
+pub fn export_claude_plugin_settings() -> Result<String> {
+    crabforge_core::claude_plugins::export_settings(&config::data_dir()?)
+}
+
+pub fn available_claude_plugins() -> Result<String> {
+    crabforge_core::claude_plugins::available(&config::data_dir()?)
+}
+
+pub fn import_claude_plugin_settings(source: String) -> Result<String> {
+    use crabforge_core::claude_plugins::{self, Edit};
+    let dir = config::data_dir()?;
+    claude_plugins::import_settings(&dir, &source)?;
+    claude_plugins::edit(&dir, None, Edit::Read)
+}
+
 pub fn agent_files(
     subagents: bool,
     project: Option<String>,

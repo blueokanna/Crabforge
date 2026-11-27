@@ -573,6 +573,48 @@ class AppLocalizationsKo extends AppLocalizations {
   String get memberPatterns => '모델 패턴 (한 줄에 하나씩)';
 
   @override
+  String get pluginCatalog => '플러그인 찾아보기';
+
+  @override
+  String get noAvailablePlugins => '이 마켓플레이스에 설치할 수 있는 플러그인이 없습니다.';
+
+  @override
+  String get exportPluginSettings => '플러그인 설정 내보내기';
+
+  @override
+  String get importPluginSettings => '플러그인 설정 가져오기';
+
+  @override
+  String get claudePlugins => 'Claude Code 플러그인';
+
+  @override
+  String get pluginMarketplaces => '마켓플레이스';
+
+  @override
+  String get addPluginMarketplace => '마켓플레이스 추가';
+
+  @override
+  String get pluginSource => '마켓플레이스 경로 또는 URL';
+
+  @override
+  String get installPlugin => '플러그인 설치';
+
+  @override
+  String get updatePlugin => '플러그인 업데이트';
+
+  @override
+  String get enablePlugin => '플러그인 사용';
+
+  @override
+  String get disablePlugin => '플러그인 사용 중지';
+
+  @override
+  String get pluginEnabled => '사용 중';
+
+  @override
+  String get noClaudePlugins => '이 범위에 설치된 Claude Code 플러그인이 없습니다.';
+
+  @override
   String get shareGroup => '공유할 그룹 복사';
 
   @override

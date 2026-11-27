@@ -578,6 +578,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memberPatterns => 'Model patterns, one per line';
 
   @override
+  String get pluginCatalog => 'Browse plugins';
+
+  @override
+  String get noAvailablePlugins =>
+      'No plugins available from these marketplaces.';
+
+  @override
+  String get exportPluginSettings => 'Export plugin settings';
+
+  @override
+  String get importPluginSettings => 'Import plugin settings';
+
+  @override
+  String get claudePlugins => 'Claude Code plugins';
+
+  @override
+  String get pluginMarketplaces => 'Marketplaces';
+
+  @override
+  String get addPluginMarketplace => 'Add marketplace';
+
+  @override
+  String get pluginSource => 'Marketplace path or URL';
+
+  @override
+  String get installPlugin => 'Install plugin';
+
+  @override
+  String get updatePlugin => 'Update plugin';
+
+  @override
+  String get enablePlugin => 'Enable plugin';
+
+  @override
+  String get disablePlugin => 'Disable plugin';
+
+  @override
+  String get pluginEnabled => 'Enabled';
+
+  @override
+  String get noClaudePlugins =>
+      'No Claude Code plugins installed for this scope.';
+
+  @override
   String get shareGroup => 'Copy group to share';
 
   @override

@@ -5,6 +5,7 @@ use crabforge_core::{config, peer, service::Service};
 use std::{net::SocketAddr, path::PathBuf};
 mod agent;
 mod agent_files;
+mod claude_plugins;
 mod environment;
 mod groups;
 mod hooks;
@@ -99,6 +100,14 @@ enum Command {
     Commands {
         #[command(subcommand)]
         command: agent_files::Command,
+    },
+    /// List installed Claude Code plugins and manage user or project enablement.
+    ClaudePlugins {
+        /// Manage plugin assignments in this project.
+        #[arg(long, global = true)]
+        project: Option<PathBuf>,
+        #[command(subcommand)]
+        command: claude_plugins::Command,
     },
     /// Discover recent local Claude Code and Codex sessions.
     Sessions {
@@ -854,6 +863,9 @@ pub async fn run() -> Result<()> {
         Command::Skills { command } => skills::run(&dir, command)?,
         Command::Environment { command } => environment::run(&dir, command)?,
         Command::Hooks { project, command } => hooks::run(&dir, project.as_deref(), command)?,
+        Command::ClaudePlugins { project, command } => {
+            claude_plugins::run(&dir, project.as_deref(), command)?
+        }
         Command::Subagents { project, command } => agent_files::run(
             &dir,
             crabforge_core::agent_files::Kind::Subagent,

@@ -573,6 +573,48 @@ class AppLocalizationsJa extends AppLocalizations {
   String get memberPatterns => 'モデルのパターン（1 行に 1 つ）';
 
   @override
+  String get pluginCatalog => 'プラグインを探す';
+
+  @override
+  String get noAvailablePlugins => 'これらのマーケットプレイスに利用可能なプラグインはありません。';
+
+  @override
+  String get exportPluginSettings => 'プラグイン設定をエクスポート';
+
+  @override
+  String get importPluginSettings => 'プラグイン設定をインポート';
+
+  @override
+  String get claudePlugins => 'Claude Code プラグイン';
+
+  @override
+  String get pluginMarketplaces => 'マーケットプレイス';
+
+  @override
+  String get addPluginMarketplace => 'マーケットプレイスを追加';
+
+  @override
+  String get pluginSource => 'マーケットプレイスのパスまたは URL';
+
+  @override
+  String get installPlugin => 'プラグインをインストール';
+
+  @override
+  String get updatePlugin => 'プラグインを更新';
+
+  @override
+  String get enablePlugin => 'プラグインを有効化';
+
+  @override
+  String get disablePlugin => 'プラグインを無効化';
+
+  @override
+  String get pluginEnabled => '有効';
+
+  @override
+  String get noClaudePlugins => 'このスコープには Claude Code プラグインがインストールされていません。';
+
+  @override
   String get shareGroup => '共有用にグループをコピー';
 
   @override

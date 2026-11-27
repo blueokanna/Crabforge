@@ -1144,6 +1144,90 @@ abstract class AppLocalizations {
   /// **'Model patterns, one per line'**
   String get memberPatterns;
 
+  /// No description provided for @pluginCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse plugins'**
+  String get pluginCatalog;
+
+  /// No description provided for @noAvailablePlugins.
+  ///
+  /// In en, this message translates to:
+  /// **'No plugins available from these marketplaces.'**
+  String get noAvailablePlugins;
+
+  /// No description provided for @exportPluginSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Export plugin settings'**
+  String get exportPluginSettings;
+
+  /// No description provided for @importPluginSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Import plugin settings'**
+  String get importPluginSettings;
+
+  /// No description provided for @claudePlugins.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code plugins'**
+  String get claudePlugins;
+
+  /// No description provided for @pluginMarketplaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Marketplaces'**
+  String get pluginMarketplaces;
+
+  /// No description provided for @addPluginMarketplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Add marketplace'**
+  String get addPluginMarketplace;
+
+  /// No description provided for @pluginSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Marketplace path or URL'**
+  String get pluginSource;
+
+  /// No description provided for @installPlugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Install plugin'**
+  String get installPlugin;
+
+  /// No description provided for @updatePlugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Update plugin'**
+  String get updatePlugin;
+
+  /// No description provided for @enablePlugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable plugin'**
+  String get enablePlugin;
+
+  /// No description provided for @disablePlugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable plugin'**
+  String get disablePlugin;
+
+  /// No description provided for @pluginEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get pluginEnabled;
+
+  /// No description provided for @noClaudePlugins.
+  ///
+  /// In en, this message translates to:
+  /// **'No Claude Code plugins installed for this scope.'**
+  String get noClaudePlugins;
+
   /// No description provided for @shareGroup.
   ///
   /// In en, this message translates to:

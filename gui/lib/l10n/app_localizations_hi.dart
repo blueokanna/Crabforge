@@ -581,6 +581,50 @@ class AppLocalizationsHi extends AppLocalizations {
   String get memberPatterns => 'मॉडल पैटर्न, हर पंक्ति में एक';
 
   @override
+  String get pluginCatalog => 'प्लगइन ब्राउज़ करें';
+
+  @override
+  String get noAvailablePlugins =>
+      'इन मार्केटप्लेस में कोई प्लगइन उपलब्ध नहीं है।';
+
+  @override
+  String get exportPluginSettings => 'प्लगइन सेटिंग निर्यात करें';
+
+  @override
+  String get importPluginSettings => 'प्लगइन सेटिंग आयात करें';
+
+  @override
+  String get claudePlugins => 'Claude Code प्लगइन';
+
+  @override
+  String get pluginMarketplaces => 'प्लगइन मार्केटप्लेस';
+
+  @override
+  String get addPluginMarketplace => 'मार्केटप्लेस जोड़ें';
+
+  @override
+  String get pluginSource => 'मार्केटप्लेस का पथ या URL';
+
+  @override
+  String get installPlugin => 'प्लगइन इंस्टॉल करें';
+
+  @override
+  String get updatePlugin => 'प्लगइन अपडेट करें';
+
+  @override
+  String get enablePlugin => 'प्लगइन चालू करें';
+
+  @override
+  String get disablePlugin => 'प्लगइन बंद करें';
+
+  @override
+  String get pluginEnabled => 'चालू है';
+
+  @override
+  String get noClaudePlugins =>
+      'इस दायरे में कोई Claude Code प्लगइन इंस्टॉल नहीं है।';
+
+  @override
   String get shareGroup => 'साझा करने के लिए समूह कॉपी करें';
 
   @override

@@ -9,6 +9,7 @@ import 'brand_icon.dart';
 import 'agent_environment.dart';
 import 'agent_files.dart';
 import 'agent_hooks.dart';
+import 'claude_plugins.dart';
 import 'agent_rules.dart';
 import 'agent_sessions.dart';
 import 'agent_skills.dart';
@@ -1502,6 +1503,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                       ),
                       icon: const Icon(Icons.bolt_outlined),
                       label: Text(context.strings.agentHooks),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => const ClaudePlugins(),
+                      ),
+                      icon: const Icon(Icons.extension_outlined),
+                      label: Text(context.strings.claudePlugins),
                     ),
                     TextButton.icon(
                       onPressed: () => showDialog<void>(

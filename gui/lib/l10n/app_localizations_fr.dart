@@ -585,6 +585,50 @@ class AppLocalizationsFr extends AppLocalizations {
   String get memberPatterns => 'Motifs de modèles, un par ligne';
 
   @override
+  String get pluginCatalog => 'Parcourir les extensions';
+
+  @override
+  String get noAvailablePlugins =>
+      'Aucune extension disponible dans ces catalogues.';
+
+  @override
+  String get exportPluginSettings => 'Exporter les paramètres des extensions';
+
+  @override
+  String get importPluginSettings => 'Importer les paramètres des extensions';
+
+  @override
+  String get claudePlugins => 'Extensions Claude Code';
+
+  @override
+  String get pluginMarketplaces => 'Catalogues d’extensions';
+
+  @override
+  String get addPluginMarketplace => 'Ajouter un catalogue';
+
+  @override
+  String get pluginSource => 'Chemin ou URL du catalogue';
+
+  @override
+  String get installPlugin => 'Installer l’extension';
+
+  @override
+  String get updatePlugin => 'Mettre à jour l’extension';
+
+  @override
+  String get enablePlugin => 'Activer l’extension';
+
+  @override
+  String get disablePlugin => 'Désactiver l’extension';
+
+  @override
+  String get pluginEnabled => 'Activée';
+
+  @override
+  String get noClaudePlugins =>
+      'Aucune extension Claude Code installée pour cette portée.';
+
+  @override
   String get shareGroup => 'Copier le groupe pour le partager';
 
   @override

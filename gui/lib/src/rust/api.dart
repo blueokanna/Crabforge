@@ -228,6 +228,35 @@ Future<String> projectAgentHooks({
   agents: agents,
 );
 
+Future<String> claudePlugins({
+  String? project,
+  String? id,
+  String? revision,
+  bool? enabled,
+}) => RustLib.instance.api.crateApiClaudePlugins(
+  project: project,
+  id: id,
+  revision: revision,
+  enabled: enabled,
+);
+
+Future<String> manageClaudePlugin({
+  required String action,
+  required String target,
+}) => RustLib.instance.api.crateApiManageClaudePlugin(
+  action: action,
+  target: target,
+);
+
+Future<String> exportClaudePluginSettings() =>
+    RustLib.instance.api.crateApiExportClaudePluginSettings();
+
+Future<String> availableClaudePlugins() =>
+    RustLib.instance.api.crateApiAvailableClaudePlugins();
+
+Future<String> importClaudePluginSettings({required String source}) =>
+    RustLib.instance.api.crateApiImportClaudePluginSettings(source: source);
+
 Future<String> agentFiles({
   required bool subagents,
   String? project,

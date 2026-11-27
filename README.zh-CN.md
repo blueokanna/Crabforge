@@ -106,6 +106,12 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 选择 **导入斜杠命令** 可从文件、本地文件夹或 Git URL 预览外部 Markdown 或 TOML 命令。导入将提示词和描述复制到库，并保留来源供后续检查更新。文件布局可识别格式时，Crabforge 会转换 Claude、Pi、Gemini 和 Qwen 的占位符。CLI 使用 `commands probe-source <来源>` 和 `commands import-source`，JSON 请求格式与子代理相同。
 
+在 **客户端连接 → Claude Code 插件** 管理 Claude Code 用户配置中的插件和市场。将 Claude Code 加入 `PATH` 后，可以添加本地目录或远程市场，浏览市场目录、安装和更新插件，或卸载插件并保留持久数据。CLI 提供 `claude-plugins list`、`available`、`add-marketplace`、`update-marketplace`、`remove-marketplace`、`install`、`update` 和 `uninstall`。用 `list` 返回的 `--revision` 配合 `enable` 或 `disable` 修改用户配置。
+
+选择 **打开项目**，把已安装插件启用到该目录下的 `.claude/settings.local.json`。CLI 用 `claude-plugins --project <目录> list` 获取修订，再使用同一项目选项执行 `enable <名称@市场> --revision <修订>`。仅当插件键由 Crabforge 写入且值仍为 `true` 时，撤销分配才会移除该键。配置编辑会保留其他键和已有的项目选择。
+
+插件菜单支持以 JSON 导出和导入设置。CLI 可保存 `claude-plugins export-settings` 的输出，再用 `claude-plugins import-settings <文件>` 导入。JSON 携带 GitHub 或普通 HTTPS 市场声明及已启用的插件 ID，也包括官方市场中已启用的插件。本机路径和含凭据、请求头或 URL 查询参数的来源保留在原配置中。导入补充缺失的声明和启用项，保留本地选择，由 Claude Code 负责安装。
+
 `carbforge-cli subagents` 和 `carbforge-cli commands` 均支持 `list`、`save`、`remove` 和 `sync`。用 `subagents --project <文件夹>` 选择项目库。`save` 从标准输入读取 UTF-8 JSON，字段包括 `name`、`prompt` 和 `agents`。子代理还要求 `description`，可选字段为 `model`、`effort`、`skills` 和 `mcp`。将以下内容保存为 `check.json`，在 Windows 执行 `cmd.exe /d /c "carbforge-cli commands save < check.json"` 即可发布。
 
 ```json
