@@ -96,6 +96,8 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 **移除已安装的钩子** 会移除所选事件条目，并把原客户端配置文件保存在 Crabforge 数据目录的 `hooks/backups` 下。一个分组条目可能包含多条命令。客户端文件仍与移除后完全一致时，可从 **钩子备份** 恢复。CLI 使用 `hooks remove-installed <key>` 和 `hooks restore <id>`，其中键和 ID 分别来自 `hooks list` 的 `installed` 和 `backups` 字段。
 
+在 **钩子 → 打开项目** 中，将共享钩子分配给项目中的 Claude Code 或 Codex。Claude Code 读取 `.claude/settings.local.json`，Codex 读取 `.codex/hooks.json`。项目分配使用独立修订，并随共享定义更新。取消选择所有客户端即可撤销。在 CLI 中，用 `hooks --project <目录> list` 获取 `shared` 下的分配修订，再执行 `hooks --project <目录> assign <名称> --revision <修订> --agent claude`。Codex 使用 `--agent codex`，撤销时省略 `--agent`。原生发现、移除和恢复也可使用同一个项目选项。新增或修改 Codex 钩子后，按客户端的信任设置在 `/hooks` 中确认。
+
 在 **客户端连接 → 子代理** 向 Claude Code、Codex、OpenCode、Gemini CLI、Qwen Code、Factory Droid、Grok Build、Cursor 和 Copilot CLI 发布原生 Markdown 或 TOML。也可以在同一窗口选择项目文件夹，管理该项目的子代理。项目配置另支持 Antigravity。Claude Code 支持技能引用和推理级别，Claude Code 和 Factory Droid 支持 MCP 服务器名称，Codex 支持模型 ID 和推理级别。
 
 打开项目后选择 **共享子代理**，把用户库条目分配给该项目的客户端。用户库内的修改与重命名会同步到已分配的项目。取消选中所有客户端可撤销分配。CLI 用 `subagents --project <文件夹> list` 获取 `shared` 条目和修订，再用 `subagents --project <文件夹> assign <名称> --revision <修订> --agent claude` 分配。重复 `--agent` 可选多个客户端，省略它可撤销。撤销会移除未修改的受管理文件，并保留外部修改。

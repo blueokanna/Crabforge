@@ -1,6 +1,6 @@
 use anyhow::{Result, ensure};
 use clap::Subcommand;
-use crabforge_core::hooks::{self, Edit};
+use crabforge_core::hooks::{self, Edit, ProjectAssignment};
 use std::{
     io::{self, Read},
     path::Path,
@@ -32,9 +32,17 @@ pub(super) enum Command {
     },
     /// Retry the native assignments.
     Sync,
+    /// Assign a shared hook to project clients. Omit --agent to withdraw it.
+    Assign {
+        name: String,
+        #[arg(long)]
+        revision: String,
+        #[arg(long = "agent")]
+        agents: Vec<String>,
+    },
 }
 
-pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
+pub(super) fn run(dir: &Path, project: Option<&Path>, command: Command) -> Result<()> {
     let edit = match command {
         Command::List => Edit::Read,
         Command::Save { old, revision } => {
@@ -56,7 +64,20 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
         Command::Restore { id } => Edit::Restore { id },
         Command::Remove { name, revision } => Edit::Remove { name, revision },
         Command::Sync => Edit::Sync,
+        Command::Assign {
+            name,
+            revision,
+            agents,
+        } => Edit::Assign(ProjectAssignment {
+            name,
+            revision,
+            agents,
+        }),
     };
-    println!("{}", hooks::edit(dir, edit)?);
+    let result = match project {
+        Some(project) => hooks::edit_project(dir, project, edit),
+        None => hooks::edit(dir, edit),
+    }?;
+    println!("{result}");
     Ok(())
 }

@@ -2,6 +2,7 @@
   "importSlashCommands": "슬래시 명령 가져오기",
   "commandImportSource": "Markdown 또는 TOML 파일, 로컬 폴더 또는 Git URL",
   "commandChooseFile": "명령 파일 선택",
+  "projectHookAssignment": "프로젝트 훅 할당 편집",
   "removeInstalledHook": "설치된 훅 제거",
   "hookBackups": "훅 백업",
   "restoreHookBackup": "훅 백업 복원",

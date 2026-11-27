@@ -13,6 +13,8 @@ use std::{
 
 mod backup;
 mod native;
+mod project;
+pub use project::Assignment as ProjectAssignment;
 
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
 pub const MAX_ENTRY: usize = 64 * 1024;
@@ -102,6 +104,8 @@ struct Entry {
     value: Value,
     #[njson(default, skip_serializing_if = "Option::is_none")]
     equivalent: Option<Value>,
+    #[njson(default, skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
 }
 
 #[derive(NsonDeserialize, NsonSerialize)]
@@ -121,6 +125,8 @@ struct Store {
     hooks: BTreeMap<String, Hook>,
     publications: Vec<Publication>,
     pending: Option<Pending>,
+    #[njson(default, skip_serializing_if = "BTreeMap::is_empty")]
+    projects: BTreeMap<String, project::Assignments>,
 }
 
 #[derive(NsonSerialize)]
@@ -157,6 +163,10 @@ struct View<'a> {
     errors: Vec<(&'a Target, String)>,
     events: BTreeMap<&'static str, Vec<&'static str>>,
     backups: Vec<backup::Backup>,
+    #[njson(skip_serializing_if = "Vec::is_empty")]
+    shared: Vec<project::Choice<'a>>,
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
+    project_errors: BTreeMap<String, String>,
 }
 
 pub enum Edit {
@@ -179,6 +189,7 @@ pub enum Edit {
     Restore {
         id: String,
     },
+    Assign(ProjectAssignment),
     Sync,
 }
 
@@ -371,13 +382,8 @@ fn reconcile<'a>(
     target: &'a Target,
     default: &str,
     sync: bool,
+    wanted: BTreeMap<String, Hook>,
 ) -> Result<Vec<Status<'a>>> {
-    let wanted = store
-        .hooks
-        .values()
-        .filter(|hook| hook.agents.contains(&target.agent))
-        .cloned()
-        .collect::<Vec<_>>();
     let previous = store.entries(target).cloned().unwrap_or_default();
     if wanted.is_empty() && previous.is_empty() {
         return Ok(Vec::new());
@@ -388,12 +394,15 @@ fn reconcile<'a>(
     let mut events = native::read(&source)?;
     let mut placements = Vec::new();
     let mut managed = BTreeMap::new();
-    let mut wanted = wanted
-        .into_iter()
-        .map(|hook| (hook.name.clone(), hook))
-        .collect::<BTreeMap<_, _>>();
-    for (name, owned) in previous {
-        let selected = wanted.remove(&name);
+    let mut wanted = wanted;
+    for (id, mut owned) in previous {
+        let selected = wanted.remove(&id);
+        let name = if let Some(hook) = &selected {
+            owned.name = (hook.name != id).then(|| hook.name.clone());
+            hook.name.clone()
+        } else {
+            owned.name.clone().unwrap_or_else(|| id.clone())
+        };
         match indexes(&events, &owned).as_slice() {
             [index] => {
                 if let Some(hook) = &selected {
@@ -408,10 +417,10 @@ fn reconcile<'a>(
                             status: "applied",
                             detail: None,
                         });
-                        managed.insert(name, owned);
+                        managed.insert(id, owned);
                         continue;
                     }
-                    wanted.insert(name.clone(), hook.clone());
+                    wanted.insert(id, hook.clone());
                 } else {
                     placements.push(Status {
                         name: name.clone(),
@@ -431,17 +440,19 @@ fn reconcile<'a>(
                     detail: None,
                 });
                 if selected.is_some() {
-                    managed.insert(name, owned);
+                    managed.insert(id, owned);
                 }
             }
         }
     }
-    for (name, hook) in wanted {
+    for (id, hook) in wanted {
+        let name = hook.name.clone();
         let (event, value) = native::encode(target.agent, &hook)?;
         let entry = Entry {
             event,
             value: native::canonical(&value),
             equivalent: None,
+            name: (name != id).then(|| name.clone()),
         };
         let status = if indexes(&events, &entry).is_empty() {
             if target.agent == Agent::Cursor {
@@ -449,7 +460,7 @@ fn reconcile<'a>(
             }
             source = native::add(&source, &entry.event, value)?;
             events = native::read(&source)?;
-            managed.insert(name.clone(), entry);
+            managed.insert(id, entry);
             if sync { "applied" } else { "pending" }
         } else {
             "existing"
@@ -492,6 +503,7 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
     }
     match edit {
         Edit::Read | Edit::Sync => {}
+        Edit::Assign(_) => anyhow::bail!("select a project to assign a hook"),
         Edit::Save { source, previous } => {
             ensure!(source.len() <= MAX_ENTRY, "hook entry exceeds 64 KiB");
             let hook: Hook =
@@ -503,6 +515,7 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
                     name == hook.name || !store.hooks.contains_key(&hook.name),
                     "hook name already exists"
                 );
+                project::update(&mut store.projects, &name, &hook)?;
                 store.hooks.remove(&name);
                 for publication in &mut store.publications {
                     if let Some(entry) = publication.entries.remove(&name) {
@@ -521,18 +534,12 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
         Edit::Remove { name, revision } => {
             store.check(&name, &revision)?;
             store.hooks.remove(&name);
+            for project in store.projects.values_mut() {
+                project.hooks.remove(&name);
+            }
             store.save(&path)?;
         }
-        Edit::RemoveInstalled { key } => {
-            let (found, before) = find_installed(targets, &store, &key)?;
-            ensure!(
-                found.removable,
-                "cannot distinguish this hook from a managed copy"
-            );
-            let after = native::remove(found.target.agent, &before, &found.event, found.index)?;
-            backup::save(&backups, found.target, found.event, &before, &after)?;
-            native_settings::write(Path::new(&found.target.path), Some(&before), Some(&after))?;
-        }
+        Edit::RemoveInstalled { key } => remove_installed(targets, &store, &backups, &key)?,
         Edit::Restore { id } => backup::restore(&backups, targets, &id)?,
         Edit::Adopt { key, name } => {
             ensure!(!store.hooks.contains_key(&name), "hook name already exists");
@@ -549,6 +556,7 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
                 event: found.event,
                 equivalent: (encoded != found.entry).then_some(encoded),
                 value: found.entry,
+                name: None,
             };
             ensure!(
                 indexes(&native::read(&before)?, &entry).len() == 1,
@@ -568,11 +576,42 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
             store.save(&path)?;
         }
     }
+    let project_errors = if sync {
+        project::sync(&library, &store, targets)
+    } else {
+        BTreeMap::new()
+    };
+    render(&library, targets, &mut store, sync, None, project_errors)
+}
+
+fn wanted(hooks: &BTreeMap<String, Hook>, agent: Agent) -> BTreeMap<String, Hook> {
+    hooks
+        .iter()
+        .filter(|(_, hook)| hook.agents.contains(&agent))
+        .map(|(name, hook)| (name.clone(), hook.clone()))
+        .collect()
+}
+
+fn render(
+    library: &Path,
+    targets: &BTreeMap<Target, &str>,
+    store: &mut Store,
+    sync: bool,
+    project: Option<project::View<'_>>,
+    project_errors: BTreeMap<String, String>,
+) -> Result<String> {
+    let path = library.join("library.json");
     let mut placements = Vec::new();
     let mut installed = Vec::new();
     let mut errors = Vec::new();
     for (target, default) in targets {
-        match reconcile(&mut store, &path, target, default, sync) {
+        let wanted = wanted(
+            project
+                .as_ref()
+                .map_or(&store.hooks, |project| &project.wanted),
+            target.agent,
+        );
+        match reconcile(store, &path, target, default, sync, wanted) {
             Ok(rows) => placements.extend(rows),
             Err(error) => {
                 errors.push((target, format!("{error:#}")));
@@ -598,8 +637,9 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
             }));
         }
     }
-    let hooks = store
-        .hooks
+    let hooks = project
+        .as_ref()
+        .map_or(&store.hooks, |project| &project.wanted)
         .values()
         .map(|hook| {
             Ok(Saved {
@@ -613,12 +653,32 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
         placements,
         installed,
         errors,
-        backups: backup::list(&backups, targets)?,
+        backups: backup::list(&library.join("backups"), targets)?,
+        shared: project
+            .as_ref()
+            .map_or_else(Vec::new, |project| project.shared.clone()),
+        project_errors,
         events: targets
             .keys()
             .map(|target| (target.agent.id(), native::native_events(target.agent)))
             .collect(),
     })
+}
+
+fn remove_installed(
+    targets: &BTreeMap<Target, &str>,
+    store: &Store,
+    backups: &Path,
+    key: &str,
+) -> Result<()> {
+    let (found, before) = find_installed(targets, store, key)?;
+    ensure!(
+        found.removable,
+        "cannot distinguish this hook from a managed copy"
+    );
+    let after = native::remove(found.target.agent, &before, &found.event, found.index)?;
+    backup::save(backups, found.target, found.event, &before, &after)?;
+    native_settings::write(Path::new(&found.target.path), Some(&before), Some(&after))
 }
 
 fn find_installed<'a>(
@@ -642,6 +702,11 @@ fn find_installed<'a>(
 
 pub fn edit(dir: &Path, change: Edit) -> Result<String> {
     edit_in(dir, &targets(dir)?, change)
+}
+
+pub fn edit_project(dir: &Path, root: &Path, change: Edit) -> Result<String> {
+    let _lock = native_settings::lock(dir)?;
+    project::edit(&dir.join("hooks"), root, &targets(dir)?, change)
 }
 
 #[cfg(test)]

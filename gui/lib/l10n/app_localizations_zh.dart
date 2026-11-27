@@ -19,6 +19,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commandChooseFile => '选择命令文件';
 
   @override
+  String get projectHookAssignment => '编辑项目钩子分配';
+
+  @override
   String get sharedSubagents => '共享子代理';
 
   @override

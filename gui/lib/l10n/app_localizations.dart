@@ -130,6 +130,12 @@ abstract class AppLocalizations {
   /// **'Choose command file'**
   String get commandChooseFile;
 
+  /// No description provided for @projectHookAssignment.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit project hook assignment'**
+  String get projectHookAssignment;
+
   /// No description provided for @sharedSubagents.
   ///
   /// In en, this message translates to:

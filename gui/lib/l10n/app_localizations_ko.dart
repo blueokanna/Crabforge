@@ -19,6 +19,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get commandChooseFile => '명령 파일 선택';
 
   @override
+  String get projectHookAssignment => '프로젝트 훅 할당 편집';
+
+  @override
   String get sharedSubagents => '공유 하위 에이전트';
 
   @override

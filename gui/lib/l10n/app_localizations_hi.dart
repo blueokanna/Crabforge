@@ -20,6 +20,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get commandChooseFile => 'कमांड फ़ाइल चुनें';
 
   @override
+  String get projectHookAssignment => 'प्रोजेक्ट हुक असाइनमेंट बदलें';
+
+  @override
   String get sharedSubagents => 'साझा सबएजेंट';
 
   @override

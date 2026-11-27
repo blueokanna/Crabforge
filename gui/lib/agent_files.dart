@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'collection_view.dart';
 import 'language.dart';
+import 'project_picker.dart';
 import 'src/rust/api.dart' as api;
 
 typedef _Json = Map<String, dynamic>;
@@ -132,49 +133,7 @@ class _AgentFilesState extends State<AgentFiles> {
   }
 
   Future<void> _chooseProject() async {
-    final strings = context.strings;
-    var folder = _project ?? '';
-    final project = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        void open() {
-          if (folder.trim().isNotEmpty) {
-            Navigator.pop(dialogContext, folder.trim());
-          }
-        }
-
-        return AlertDialog(
-          title: Text(strings.openProject),
-          content: TextFormField(
-            initialValue: folder,
-            onChanged: (value) => folder = value,
-            onFieldSubmitted: (_) => open(),
-            decoration: InputDecoration(
-              labelText: strings.projectFolder,
-              suffixIcon: IconButton(
-                tooltip: strings.projectFolder,
-                icon: const Icon(Icons.folder_open_outlined),
-                onPressed: () async {
-                  final path = await getDirectoryPath(
-                    initialDirectory: _project,
-                  );
-                  if (dialogContext.mounted && path != null) {
-                    Navigator.pop(dialogContext, path);
-                  }
-                },
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(strings.cancel),
-            ),
-            FilledButton(onPressed: open, child: Text(strings.openProject)),
-          ],
-        );
-      },
-    );
+    final project = await openProjectFolder(context, _project);
     if (mounted && project != null) _scope(project);
   }
 

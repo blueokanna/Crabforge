@@ -2,6 +2,7 @@
   "importSlashCommands": "Importer des commandes slash",
   "commandImportSource": "Fichier Markdown ou TOML, dossier local ou URL Git",
   "commandChooseFile": "Choisir un fichier de commande",
+  "projectHookAssignment": "Modifier l’affectation du hook au projet",
   "removeInstalledHook": "Supprimer le hook installé",
   "hookBackups": "Sauvegardes des hooks",
   "restoreHookBackup": "Restaurer la sauvegarde du hook",

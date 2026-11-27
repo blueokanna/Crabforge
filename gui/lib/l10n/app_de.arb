@@ -2,6 +2,7 @@
   "importSlashCommands": "Slash-Befehle importieren",
   "commandImportSource": "Markdown- oder TOML-Datei, lokaler Ordner oder Git-URL",
   "commandChooseFile": "Befehlsdatei auswählen",
+  "projectHookAssignment": "Hook-Zuweisung im Projekt bearbeiten",
   "removeInstalledHook": "Installierten Hook entfernen",
   "hookBackups": "Hook-Sicherungen",
   "restoreHookBackup": "Hook-Sicherung wiederherstellen",

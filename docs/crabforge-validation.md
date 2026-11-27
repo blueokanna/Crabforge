@@ -16,6 +16,8 @@
 
 斜杠命令来源导入通过七项定向 Rust 测试、全目标 Clippy 和 Windows Debug 集成。桌面在列表和网格中查看 TOML 命令，选中后将转换为 `$ARGUMENTS` 的提示词发布到 Claude Code。CLI 从本机智能 HTTPS Git 仓库的 `feature/review` 选择并导入 TOML 命令，复查保存的 URL 时状态为 `unchanged`。[Windows 集成](validation/agent-library-followup/command-import.log) · [本机 Git 夹具](validation/agent-library-followup/command-git-https.csv)
 
+项目钩子分配提交 `9953bde0c9fbcd934574ca35a56f649fbfad1599` 通过七项定向 Rust 测试、全目标 Clippy、Flutter 分析和 560、1,280 像素布局的 Windows Debug 集成。测试覆盖项目隔离、过期修订、改名、保留外部编辑和逐字节恢复。Claude Code 2.1.332 和 Codex 0.172.0 执行了发布的 `SessionStart` 命令，并收到本机模型夹具的响应。Codex 在隔离配置中确认了项目和钩子哈希的信任状态。[原生客户端结果](validation/agent-library-followup/project-hooks-process.csv) · [Windows 集成](validation/agent-library-followup/project-hooks-windows.log)
+
 ### Windows x64 子代理与斜杠命令（`5b905b3`）
 
 从 `5b905b39d790a4eae9625b7995714373f72230ec` 离线构建的 ZIP 为 63,745,300 字节，SHA-256 为 `8C405A7762C8D1D8EFF01E75BDD83FBBF7754FB7622B9412725020A6975E4B7B`。核对 340 项构建输入、671 项解压清单、126 项资产及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。Clippy、Flutter 分析及两项组件测试通过。三个入口的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-5b905b3/build-inputs.sha256) · [解压清单](validation/cf-windows-5b905b3/SHA256SUMS) · [依赖审计](validation/cf-windows-5b905b3/dependency-audit.csv)

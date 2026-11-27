@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'collection_view.dart';
 import 'language.dart';
+import 'project_picker.dart';
 import 'src/rust/api.dart' as api;
 
 typedef _Json = Map<String, dynamic>;
@@ -33,13 +34,46 @@ class AgentHooks extends StatefulWidget {
 
 class _AgentHooksState extends State<AgentHooks> {
   _Json _view = const {};
+  String? _project;
   bool _busy = false;
   Object? _error;
 
   @override
   void initState() {
     super.initState();
-    _load(api.agentHooks);
+    _load(_read);
+  }
+
+  Future<String> _projectRequest(
+    String action, {
+    String? key,
+    String? revision,
+    List<String> agents = const [],
+  }) => api.projectAgentHooks(
+    project: _project!,
+    action: action,
+    key: key,
+    revision: revision,
+    agents: agents,
+  );
+
+  Future<String> _read() =>
+      _project == null ? api.agentHooks() : _projectRequest('list');
+
+  Future<String> _sync() =>
+      _project == null ? api.syncAgentHooks() : _projectRequest('sync');
+
+  void _scope(String? project) {
+    setState(() {
+      _project = project;
+      _view = const {};
+    });
+    _load(_read);
+  }
+
+  Future<void> _chooseProject() async {
+    final project = await openProjectFolder(context, _project);
+    if (mounted && project != null) _scope(project);
   }
 
   Future<void> _load(Future<String> Function() run) async {
@@ -97,6 +131,74 @@ class _AgentHooksState extends State<AgentHooks> {
     }
   }
 
+  Future<void> _assign(_Json choice) async {
+    final hook = choice['hook'] as _Json;
+    final name = hook['name'] as String;
+    final event = hook['event'] as String;
+    final client = event.contains(':') ? event.split(':').first : null;
+    final agents = (_view['events'] as _Json).keys.where(
+      (agent) => client == null || client == agent,
+    );
+    final selected = (choice['agents'] as List).cast<String>().toSet();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(name),
+          scrollable: true,
+          content: SizedBox(
+            width: 450,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 12,
+              children: [
+                Text(_eventName(context, event)),
+                SelectableText(hook['command'] as String),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final agent in agents)
+                      FilterChip(
+                        label: Text(_agents[agent] ?? agent),
+                        selected: selected.contains(agent),
+                        onSelected: (value) => setState(() {
+                          if (value) {
+                            selected.add(agent);
+                          } else {
+                            selected.remove(agent);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.strings.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(context.strings.save),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted && result == true) {
+      await _load(
+        () => _projectRequest(
+          'assign',
+          key: name,
+          revision: choice['revision'] as String,
+          agents: selected.toList(),
+        ),
+      );
+    }
+  }
+
   Future<void> _changeInstalled(_Json row, {required bool restore}) async {
     final strings = context.strings;
     final target = row['target'] as _Json;
@@ -128,7 +230,14 @@ class _AgentHooksState extends State<AgentHooks> {
     );
     if (mounted && confirmed == true) {
       final key = row[restore ? 'id' : 'key'] as String;
-      await _load(() => api.recoverAgentHook(key: key, restore: restore));
+      await _load(
+        () => _project == null
+            ? api.recoverAgentHook(key: key, restore: restore)
+            : _projectRequest(
+                restore ? 'restore' : 'remove-installed',
+                key: key,
+              ),
+      );
     }
   }
 
@@ -150,8 +259,11 @@ class _AgentHooksState extends State<AgentHooks> {
   Widget build(BuildContext context) {
     final strings = context.strings;
     final grid = CollectionLayout.of(context).grid;
+    final project = _project;
     final saved = {
-      for (final row in (_view['hooks'] as List? ?? const []).cast<_Json>())
+      for (final row
+          in (_view[project == null ? 'hooks' : 'shared'] as List? ?? const [])
+              .cast<_Json>())
         (row['hook'] as _Json)['name'] as String: row,
     };
     final placements = <String, List<_Json>>{};
@@ -177,19 +289,39 @@ class _AgentHooksState extends State<AgentHooks> {
                 child: EditorHeading(strings.agentHooks),
               ),
               Wrap(
+                spacing: 8,
                 children: [
-                  TextButton.icon(
-                    onPressed: _busy ? null : () => _edit(),
-                    icon: const Icon(Icons.add),
-                    label: Text(strings.addHook),
+                  ChoiceChip(
+                    label: Text(strings.resourceUserScope),
+                    selected: project == null,
+                    onSelected: _busy || project == null
+                        ? null
+                        : (_) => _scope(null),
                   ),
+                  ActionChip(
+                    avatar: const Icon(Icons.folder_open_outlined),
+                    label: Text(strings.openProject),
+                    onPressed: _busy ? null : _chooseProject,
+                  ),
+                ],
+              ),
+              if (project != null)
+                Tooltip(message: project, child: _line(project)),
+              Wrap(
+                children: [
+                  if (project == null)
+                    TextButton.icon(
+                      onPressed: _busy ? null : () => _edit(),
+                      icon: const Icon(Icons.add),
+                      label: Text(strings.addHook),
+                    ),
                   TextButton.icon(
-                    onPressed: _busy ? null : () => _load(api.syncAgentHooks),
+                    onPressed: _busy ? null : () => _load(_sync),
                     icon: const Icon(Icons.sync),
                     label: Text(strings.syncMcpLibrary),
                   ),
                   IconButton(
-                    onPressed: _busy ? null : () => _load(api.agentHooks),
+                    onPressed: _busy ? null : () => _load(_read),
                     icon: const Icon(Icons.refresh),
                     tooltip: strings.reload,
                   ),
@@ -201,6 +333,12 @@ class _AgentHooksState extends State<AgentHooks> {
                   slivers: [
                     if (_error != null)
                       SliverToBoxAdapter(child: SelectableText('$_error')),
+                    for (final issue
+                        in (_view['project_errors'] as _Json? ?? const {})
+                            .entries)
+                      SliverToBoxAdapter(
+                        child: SelectableText('${issue.key}\n${issue.value}'),
+                      ),
                     for (final row in _view['errors'] as List? ?? const [])
                       SliverToBoxAdapter(
                         child: SelectableText('${row[0]['path']}\n${row[1]}'),
@@ -237,9 +375,17 @@ class _AgentHooksState extends State<AgentHooks> {
                           ),
                           onTap: _busy || entry == null
                               ? null
-                              : () => _edit(saved: entry),
+                              : () => project == null
+                                    ? _edit(saved: entry)
+                                    : _assign(entry),
                           actions: [
-                            if (entry != null) ...[
+                            if (entry != null && project != null)
+                              IconButton(
+                                onPressed: _busy ? null : () => _assign(entry),
+                                icon: const Icon(Icons.group_add_outlined),
+                                tooltip: strings.projectHookAssignment,
+                              ),
+                            if (entry != null && project == null) ...[
                               IconButton(
                                 onPressed: _busy
                                     ? null
@@ -296,7 +442,7 @@ class _AgentHooksState extends State<AgentHooks> {
                             ),
                             onTap: () => _inspect(row),
                             actions: [
-                              if (hook != null)
+                              if (hook != null && project == null)
                                 IconButton(
                                   onPressed: _busy
                                       ? null

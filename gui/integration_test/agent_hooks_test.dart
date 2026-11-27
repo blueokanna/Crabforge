@@ -136,5 +136,37 @@ void main() {
     await tap(find.widgetWithText(FilledButton, 'Restore hook backup'));
     await waitFor(below(page, find.text('Restored')));
     expect(settings.readAsBytesSync(), beforeRemoval);
+
+    final project = Directory('$root/project')..createSync();
+    final projectSettings = File('${project.path}/.claude/settings.local.json');
+    await tap(below(page, find.text('Open project')));
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Project folder'),
+      project.path,
+    );
+    await tap(find.widgetWithText(FilledButton, 'Open project'));
+    final assign = below(
+      adopted,
+      find.byTooltip('Edit project hook assignment'),
+    );
+    await tap(assign);
+    await tap(find.widgetWithText(FilterChip, 'Claude Code'));
+    await tap(find.widgetWithText(FilledButton, 'Save'));
+    await waitFor(below(adopted, find.text('Claude Code · Applied')));
+    expect(projectSettings.readAsStringSync(), contains('echo existing'));
+    expect(settings.readAsBytesSync(), beforeRemoval);
+
+    tester.view.physicalSize = const Size(1280, 900);
+    await tester.pumpAndSettle();
+    await tap(below(page, find.byTooltip('Grid view')));
+    await tap(assign);
+    await tap(find.widgetWithText(FilterChip, 'Claude Code'));
+    await tap(find.widgetWithText(FilledButton, 'Save'));
+    await waitFor(below(adopted, find.text('Claude Code · Removed')));
+    expect(
+      projectSettings.readAsStringSync(),
+      isNot(contains('echo existing')),
+    );
+    expect(settings.readAsBytesSync(), beforeRemoval);
   });
 }

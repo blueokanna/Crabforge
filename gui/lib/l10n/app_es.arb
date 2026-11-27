@@ -2,6 +2,7 @@
   "importSlashCommands": "Importar comandos de barra",
   "commandImportSource": "Archivo Markdown o TOML, carpeta local o URL de Git",
   "commandChooseFile": "Elegir archivo de comando",
+  "projectHookAssignment": "Editar asignación del hook al proyecto",
   "removeInstalledHook": "Quitar hook instalado",
   "hookBackups": "Copias de seguridad de hooks",
   "restoreHookBackup": "Restaurar copia del hook",

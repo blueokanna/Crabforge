@@ -1,0 +1,7 @@
+Client,Published shape,Observed native behavior
+Claude Code,SessionStart,Local marker and model response
+Gemini CLI,SessionStart timeout 5000ms in both profiles,Local marker and model response via both profiles
+Codex,Indexed SessionStart group,"Later hook retained its key and trusted hash after withdrawal, executed and received model response"
+Cursor,Version 1 flat sessionStart,Configuration verified
+Claude Code project,.claude/settings.local.json,"Local marker, model response and withdrawal"
+Codex project,.codex/hooks.json,"Project trust, hook hash, local marker, model response and withdrawal"

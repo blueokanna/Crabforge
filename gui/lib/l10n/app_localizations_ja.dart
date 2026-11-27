@@ -19,6 +19,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get commandChooseFile => 'コマンドファイルを選択';
 
   @override
+  String get projectHookAssignment => 'プロジェクトへのフックの割り当てを編集';
+
+  @override
   String get sharedSubagents => '共有サブエージェント';
 
   @override

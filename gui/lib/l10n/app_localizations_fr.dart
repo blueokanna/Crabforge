@@ -20,6 +20,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commandChooseFile => 'Choisir un fichier de commande';
 
   @override
+  String get projectHookAssignment =>
+      'Modifier l’affectation du hook au projet';
+
+  @override
   String get sharedSubagents => 'Sous-agents partagés';
 
   @override

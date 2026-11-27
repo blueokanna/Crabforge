@@ -2,6 +2,7 @@
   "importSlashCommands": "Import slash commands",
   "commandImportSource": "Markdown or TOML file, local folder, or Git URL",
   "commandChooseFile": "Choose command file",
+  "projectHookAssignment": "Edit project hook assignment",
   "sharedSubagents": "Shared subagents",
   "importSubagents": "Import subagents",
   "subagentImportSource": "Markdown file, local folder, or Git URL",

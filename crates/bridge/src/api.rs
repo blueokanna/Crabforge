@@ -321,6 +321,33 @@ pub fn sync_agent_hooks() -> Result<String> {
     hooks::edit(&config::data_dir()?, Edit::Sync)
 }
 
+pub fn project_agent_hooks(
+    project: String,
+    action: String,
+    key: Option<String>,
+    revision: Option<String>,
+    agents: Vec<String>,
+) -> Result<String> {
+    use crabforge_core::hooks::{self, Edit, ProjectAssignment};
+    let edit = match action.as_str() {
+        "list" => Edit::Read,
+        "sync" => Edit::Sync,
+        "assign" => Edit::Assign(ProjectAssignment {
+            name: key.context("missing hook name")?,
+            revision: revision.context("missing assignment revision")?,
+            agents,
+        }),
+        "remove-installed" => Edit::RemoveInstalled {
+            key: key.context("missing hook key")?,
+        },
+        "restore" => Edit::Restore {
+            id: key.context("missing hook backup ID")?,
+        },
+        _ => anyhow::bail!("unsupported project hook action"),
+    };
+    hooks::edit_project(&config::data_dir()?, std::path::Path::new(&project), edit)
+}
+
 pub fn agent_files(
     subagents: bool,
     project: Option<String>,
