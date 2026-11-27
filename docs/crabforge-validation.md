@@ -46,7 +46,7 @@ Rust 依赖审计覆盖 Windows x64 与 Cargo 全目标的常规、构建及测�
 
 从 `688ea1aa11811602d6e950fbc40291970d3ad6b1` 离线构建的 `crabforge-0.1.0-windows-x64.zip` 为 64,910,131 字节，SHA-256 为 `9D98775C7EB00B4585FF8920034B45F18F2451A915FFB5C007C2687A47349A61`。核对 360 项构建输入、671 项包内及解压文件哈希、126 项资产和两个 CLI 各 97 项相同预设。三个入口的 Authenticode 状态均为 `NotSigned`。[发布信息](validation/cf-windows-688ea1a/snapshot.csv) · [构建输入](validation/cf-windows-688ea1a/build-inputs.sha256) · [文件哈希](validation/cf-windows-688ea1a/SHA256SUMS) · [签名检查](validation/cf-windows-688ea1a/authenticode.csv)
 
-全目标 Clippy、Flutter 分析、两项组件测试及 28 棵依赖树审计通过。156 项 Rust 全量回归使用 `340d95d`，该版与打包版的构建输入只有两份 Rust Windows 运行器文件不同。[Clippy](validation/cf-windows-688ea1a/clippy.log) · [Flutter 分析](validation/cf-windows-688ea1a/analyze.log) · [组件测试](validation/cf-windows-688ea1a/widget.log) · [依赖审计](validation/cf-windows-688ea1a/dependency-audit.csv) · [Rust 回归](validation/cf-windows-340d95d/regression.log)
+打包源码 `688ea1a` 通过 157 项 Rust 全量回归，0 失败、0 忽略，包含真实客户端、Pi 包资源和同机 DCUtR 升级。全目标 Clippy、Flutter 分析、两项组件测试及 28 棵依赖树审计也已通过。[Rust 回归](validation/cf-windows-688ea1a/regression.log) · [Clippy](validation/cf-windows-688ea1a/clippy.log) · [Flutter 分析](validation/cf-windows-688ea1a/analyze.log) · [组件测试](validation/cf-windows-688ea1a/widget.log) · [依赖审计](validation/cf-windows-688ea1a/dependency-audit.csv)
 
 工作区复扫 69,280 个目录，发现 0 个 `vendor` 目录和 0 个遍历错误。冻结版的九个 ARB 文件各有 325 个消息键，键集合完全一致。锁文件核对通过，Courierust 为 1.1.3、NextJSON 为 0.1.5、recurse-x 为 0.2.6、RustBinary 为 0.1.10、libp2p 为 0.57.1。[依赖树](validation/cf-windows-688ea1a/dependency-audit.csv) · [构建输入](validation/cf-windows-688ea1a/build-inputs.sha256)
 
@@ -54,9 +54,11 @@ Rust 依赖审计覆盖 Windows x64 与 Cargo 全目标的常规、构建及测�
 
 解压 CLI 在同一 Windows 主机分别通过 IPv6 回环、网卡全局 IPv6 的 QUIC 直连，以及直连失败后的 Kubo Circuit Relay v2 回退。三条路径均在无效密钥时返回 401，在有效密钥时返回 200。独立公网主机之间的 IPv6、UDP 直连、打洞及回退待验。[IPv6 及回退样本](validation/cf-windows-688ea1a/ipv6.csv)
 
-本机 SSE 上游将末事件延后 700 ms。三轮首个完整事件分别在 12、8、2 ms 到达，末事件分别在 726、721、704 ms 到达。每轮上游收到一个请求，设置的 HTTP 代理收到零个 CONNECT 请求。[流式样本](validation/cf-windows-688ea1a/forward-h1.csv)
+本机 SSE 上游将末事件延后 700 ms。首次三轮的首事件为 12、8、2 ms，末事件为 726、721、704 ms。复测三轮的首事件为 16、3、2 ms，末事件为 722、719、708 ms。每轮上游收到一个请求，设置的 HTTP 代理收到零个 CONNECT 请求。[首次流式样本](validation/cf-windows-688ea1a/forward-h1.csv) · [复测样本](validation/cf-windows-688ea1a/forward-h1-repeat.csv)
 
 三个隔离网关进程样本的工作集与私有字节中位数，空目录负载下 Crabforge 为 8.09 / 1.54 MiB、Magpie 为 53.74 / 86.82 MiB。Chat 使用同一台主机上的模型夹具，Crabforge 为 9.45 / 2.07 MiB、Magpie 为 70.49 / 98.25 MiB。Chat 目录分别列出两项和一项。[空目录内存](validation/cf-windows-688ea1a/gateway-catalog-memory.csv) · [Chat 内存](validation/cf-windows-688ea1a/gateway-chat-memory.csv)
+
+桌面内存取三轮的中位数。每轮将解压版 Crabforge 在独立数据目录内冷启动，窗口与 P2P 身份文件就绪三秒后采样，同时读取持续运行的 Magpie 参考窗口。Crabforge 的工作集与私有字节为 157.86 / 232.45 MiB，Magpie 主进程为 80.86 / 96.96 MiB，计入七个 WebView2 子进程后为 509.06 / 426.44 MiB。[桌面内存样本](validation/cf-windows-688ea1a/desktop-comparison.csv) · [主机与参考程序](validation/cf-windows-688ea1a/host.csv)
 
 ### Windows x64 Claude Code 插件（`ad2088c`）
 
