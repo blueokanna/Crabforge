@@ -48,7 +48,15 @@ The offline `crabforge-0.1.0-windows-x64.zip` built from `688ea1aa11811602d6e950
 
 All-target Clippy, Flutter analysis, two widget tests and the audit of 28 dependency trees passed. The full 156-test Rust run used `340d95d`. The two frozen input lists differ only in the two Rust Windows runner files. [Clippy](validation/cf-windows-688ea1a/clippy.log) · [Flutter analysis](validation/cf-windows-688ea1a/analyze.log) · [Widget tests](validation/cf-windows-688ea1a/widget.log) · [Dependency audit](validation/cf-windows-688ea1a/dependency-audit.csv) · [Rust regression](validation/cf-windows-340d95d/regression.log)
 
+A workspace scan covered 69,280 directories and found zero `vendor` directories and zero traversal errors. All nine frozen ARB files had the same 325 message keys. The lockfile check verified Courierust 1.1.3, NextJSON 0.1.5, recurse-x 0.2.6, RustBinary 0.1.10 and libp2p 0.57.1. [Dependency trees](validation/cf-windows-688ea1a/dependency-audit.csv) · [Build inputs](validation/cf-windows-688ea1a/build-inputs.sha256)
+
 The unpacked desktop passed the TAR round trip through native Save and Open dialogs. The unpacked CLI passed the localhost smart HTTPS Git fixture and a Pi 1.6.0 turn against a localhost model. It browsed 317 candidates in the public Claude plugin marketplace and saved `frontend-design` 1.1.1. [Native file dialogs](validation/cf-windows-688ea1a/plugin-bundle-dialogs.csv) · [HTTPS Git](validation/cf-windows-688ea1a/plugin-bundles-https.csv) · [Pi](validation/cf-windows-688ea1a/plugin-bundles-pi.csv) · [Public marketplace](validation/cf-windows-688ea1a/plugin-bundles-public.csv)
+
+The unpacked CLI passed IPv6 loopback, direct QUIC to the local network adapter's assigned global IPv6 address, and Kubo Circuit Relay v2 fallback after a failed direct connection. All three paths ran on one Windows host and returned 401 with an invalid key and 200 with a valid key. Public IPv6, direct UDP, hole punching and fallback between independent hosts await verification. [IPv6 and fallback samples](validation/cf-windows-688ea1a/ipv6.csv)
+
+The localhost SSE upstream delayed its final event by 700 ms. The first complete events arrived in 12, 8 and 2 ms, and the final events arrived in 726, 721 and 704 ms. Each trial reached the upstream once and sent zero CONNECT requests to the configured HTTP proxy. [Streaming samples](validation/cf-windows-688ea1a/forward-h1.csv)
+
+Median gateway working set and private bytes over three isolated processes per workload were 8.09 / 1.54 MiB for Crabforge and 53.74 / 86.82 MiB for Magpie with an empty catalog. Both products used the same localhost model fixture for Chat. Crabforge measured 9.45 / 2.07 MiB and Magpie measured 70.49 / 98.25 MiB. Their Chat catalogs listed two and one entries, respectively. [Empty catalog memory](validation/cf-windows-688ea1a/gateway-catalog-memory.csv) · [Chat memory](validation/cf-windows-688ea1a/gateway-chat-memory.csv)
 
 ## Windows x64 Claude Code plugin snapshot `ad2088c`
 

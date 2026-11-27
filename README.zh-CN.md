@@ -177,7 +177,7 @@ carbforge-cli project-mcp library sync
 
 运行 Windows x64 版时，先完整解压 ZIP，再启动 `desktop\crabforge.exe`。两个 CLI 入口位于解压根目录。目标计算机需要安装 x64 版 Microsoft Visual C++ v14 可再发行组件。[微软运行库下载](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
 
-`9aeb7e5` 解压版网关的空目录工作集和私有字节中位数为 7.53 和 1.42 MiB，Chat 负载为 8.85 和 1.86 MiB。三次末帧延后 700 毫秒，客户端首个完整 SSE 事件分别在 6、2、2 毫秒到达。解压版桌面三次冷启动的工作集和私有字节中位数为 154.39 和 227.91 MiB。冻结源码通过 113 项 Rust 测试和 28 组依赖审计，Windows x64 与 Cargo 全目标的常规、构建和测试依赖树均未启用 Serde、Hyper 或 Reqwest。[依赖审计](docs/validation/cf-windows-9aeb7e5/dependency-audit.csv) · [Windows 验收记录](docs/crabforge-validation.md)
+Windows x64 `688ea1a` 冻结包为 `crabforge-0.1.0-windows-x64.zip`，包内及解压后共逐项核对 671 个文件哈希。解压版桌面通过 Windows 原生保存和打开对话框完成 TAR 往返。本机上游将 SSE 末事件延后 700 毫秒，解压版 CLI 三轮的首个完整事件分别在 12、8、2 毫秒到达。[发布信息](docs/validation/cf-windows-688ea1a/snapshot.csv) · [Windows 验收记录](docs/crabforge-validation.md)
 
 安装 Rust 的 MSVC 工具链、Flutter 和 Visual Studio 的「使用 C++ 的桌面开发」工作负载。已记录的构建环境为 Rust 1.99.1、Flutter 3.47.9 和 Dart 3.13.7。
 
@@ -188,4 +188,4 @@ flutter pub get
 flutter build windows --release
 ```
 
-双 CLI 位于 `target/release`。分发桌面应用时复制整个 `gui/build/windows/x64/runner/Release` 目录，其中包含 `crabforge.exe`、Flutter 运行库、Rust 桥接库及 `data`。项目仍在移植 Magpie 功能，各次冻结版本的实测结果和限制可在验收记录中查询。
+双 CLI 位于 `target/release`。分发桌面应用时复制整个 `gui/build/windows/x64/runner/Release` 目录，其中包含 `crabforge.exe`、Flutter 运行库、文件选择器插件、Rust 桥接库及 `data`。项目仍在移植 Magpie 功能，各次冻结版本的实测结果和限制可在验收记录中查询。
