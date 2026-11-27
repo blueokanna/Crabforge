@@ -112,6 +112,24 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @importSlashCommands.
+  ///
+  /// In en, this message translates to:
+  /// **'Import slash commands'**
+  String get importSlashCommands;
+
+  /// No description provided for @commandImportSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown or TOML file, local folder, or Git URL'**
+  String get commandImportSource;
+
+  /// No description provided for @commandChooseFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose command file'**
+  String get commandChooseFile;
+
   /// No description provided for @importSubagents.
   ///
   /// In en, this message translates to:

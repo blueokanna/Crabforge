@@ -10,6 +10,15 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get importSlashCommands => 'スラッシュコマンドをインポート';
+
+  @override
+  String get commandImportSource => 'Markdown または TOML ファイル、ローカルフォルダー、Git URL';
+
+  @override
+  String get commandChooseFile => 'コマンドファイルを選択';
+
+  @override
   String get importSubagents => 'サブエージェントをインポート';
 
   @override

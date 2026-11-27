@@ -12,9 +12,9 @@ pub(super) enum Command {
     List,
     /// Find existing native files and return their content revisions.
     Discover,
-    /// Preview subagents in a local Markdown file, folder or Git source.
+    /// Preview resources in a local file, folder or Git source.
     ProbeSource { source: String },
-    /// Import selected subagent files from a preview request read as UTF-8 JSON.
+    /// Import selected resource files from a preview request read as UTF-8 JSON.
     ImportSource,
     /// Manage an unchanged native resource at its existing path.
     Adopt {

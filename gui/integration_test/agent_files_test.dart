@@ -120,6 +120,34 @@ void main() {
     await tap(find.widgetWithText(FilledButton, 'Manage in Crabforge'));
     await waitFor(find.byKey(const ValueKey('native-check')));
     expect(native.readAsBytesSync(), utf8.encode(original));
+    final external = File('$root/compare.toml')
+      ..writeAsStringSync(
+        "description = 'Compare files'\nprompt = 'Compare {{args}}.'\n",
+      );
+    await tap(below(commands, find.text('Import slash commands')));
+    final commandImporter = find.byKey(const ValueKey('import-commands'));
+    await tester.enterText(
+      below(commandImporter, find.byType(TextField)),
+      external.path,
+    );
+    await tap(below(commandImporter, find.text('Scan source')));
+    await verifyLayout(commandImporter, false);
+    await verifyLayout(commandImporter, true);
+    await tap(below(commandImporter, find.byType(Checkbox)));
+    await tap(
+      below(commandImporter, find.widgetWithText(FilterChip, 'Claude Code')),
+    );
+    await tap(
+      below(
+        commandImporter,
+        find.widgetWithText(FilledButton, 'Import slash commands'),
+      ),
+    );
+    await waitFor(find.byKey(const ValueKey('compare')));
+    expect(
+      File('$root/claude/commands/compare.md').readAsStringSync(),
+      contains(r'Compare $ARGUMENTS.'),
+    );
     await tap(below(commands, find.widgetWithText(TextButton, 'Close')));
     expect(commands, findsNothing);
 

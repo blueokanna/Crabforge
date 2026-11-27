@@ -1,4 +1,7 @@
 {
+  "importSlashCommands": "स्लैश कमांड इंपोर्ट करें",
+  "commandImportSource": "Markdown या TOML फ़ाइल, स्थानीय फ़ोल्डर या Git URL",
+  "commandChooseFile": "कमांड फ़ाइल चुनें",
   "importSubagents": "सबएजेंट आयात करें",
   "subagentImportSource": "Markdown फ़ाइल, स्थानीय फ़ोल्डर या Git URL",
   "subagentChooseFile": "Markdown फ़ाइल चुनें",

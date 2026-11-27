@@ -1,4 +1,7 @@
 {
+  "importSlashCommands": "スラッシュコマンドをインポート",
+  "commandImportSource": "Markdown または TOML ファイル、ローカルフォルダー、Git URL",
+  "commandChooseFile": "コマンドファイルを選択",
   "importSubagents": "サブエージェントをインポート",
   "subagentImportSource": "Markdown ファイル、ローカルフォルダ、または Git URL",
   "subagentChooseFile": "Markdown ファイルを選択",

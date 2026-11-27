@@ -10,6 +10,16 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get importSlashCommands => 'Importar comandos de barra';
+
+  @override
+  String get commandImportSource =>
+      'Arquivo Markdown ou TOML, pasta local ou URL Git';
+
+  @override
+  String get commandChooseFile => 'Escolher arquivo de comando';
+
+  @override
   String get importSubagents => 'Importar subagentes';
 
   @override

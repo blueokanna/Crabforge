@@ -10,6 +10,15 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get importSlashCommands => '导入斜杠命令';
+
+  @override
+  String get commandImportSource => 'Markdown 或 TOML 文件、本地文件夹或 Git URL';
+
+  @override
+  String get commandChooseFile => '选择命令文件';
+
+  @override
   String get importSubagents => '导入子代理';
 
   @override

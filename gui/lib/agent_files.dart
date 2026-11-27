@@ -140,7 +140,8 @@ class _AgentFilesState extends State<AgentFiles> {
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _ImportSubagents(
+      builder: (_) => _ImportResources(
+        subagents: widget.subagents,
         source: source,
         scan: (source) => _request('probe-source', source: source),
         save: (source) => _request('import-source', source: source),
@@ -309,11 +310,15 @@ class _AgentFilesState extends State<AgentFiles> {
                     icon: const Icon(Icons.folder_copy_outlined),
                     label: Text(strings.findNativeResources),
                   ),
-                  if (subagents && _project == null)
+                  if (_project == null)
                     TextButton.icon(
                       onPressed: available ? _import : null,
                       icon: const Icon(Icons.file_download_outlined),
-                      label: Text(strings.importSubagents),
+                      label: Text(
+                        subagents
+                            ? strings.importSubagents
+                            : strings.importSlashCommands,
+                      ),
                     ),
                   TextButton.icon(
                     onPressed: available ? () => _load('sync') : null,
@@ -433,18 +438,24 @@ class _AgentFilesState extends State<AgentFiles> {
   }
 }
 
-class _ImportSubagents extends StatefulWidget {
-  const _ImportSubagents({this.source, required this.scan, required this.save});
+class _ImportResources extends StatefulWidget {
+  const _ImportResources({
+    required this.subagents,
+    this.source,
+    required this.scan,
+    required this.save,
+  });
 
+  final bool subagents;
   final String? source;
   final Future<String> Function(String source) scan;
   final Future<String> Function(String source) save;
 
   @override
-  State<_ImportSubagents> createState() => _ImportSubagentsState();
+  State<_ImportResources> createState() => _ImportResourcesState();
 }
 
-class _ImportSubagentsState extends State<_ImportSubagents> {
+class _ImportResourcesState extends State<_ImportResources> {
   late final _source = TextEditingController(text: widget.source);
   final _selected = <String>{};
   final _clients = <String>{};
@@ -469,7 +480,13 @@ class _ImportSubagentsState extends State<_ImportSubagents> {
         ? await getDirectoryPath()
         : (await openFile(
             acceptedTypeGroups: [
-              const XTypeGroup(label: 'Markdown', extensions: ['md']),
+              if (widget.subagents)
+                const XTypeGroup(label: 'Markdown', extensions: ['md'])
+              else
+                const XTypeGroup(
+                  label: 'Markdown, TOML',
+                  extensions: ['md', 'toml'],
+                ),
             ],
           ))?.path;
     if (!mounted || path == null) return;
@@ -524,6 +541,10 @@ class _ImportSubagentsState extends State<_ImportSubagents> {
   Widget build(BuildContext context) {
     final strings = context.strings;
     final grid = CollectionLayout.of(context).grid;
+    final subagents = widget.subagents;
+    final title = subagents
+        ? strings.importSubagents
+        : strings.importSlashCommands;
     final candidates =
         (_preview?['candidates'] as List?)?.cast<_Json>() ?? const <_Json>[];
     final agents =
@@ -532,7 +553,7 @@ class _ImportSubagentsState extends State<_ImportSubagents> {
       (row) => row['status'] == 'new' && _selected.contains(row['path']),
     );
     return Dialog(
-      key: const ValueKey('import-subagents'),
+      key: ValueKey(subagents ? 'import-subagents' : 'import-commands'),
       child: SizedBox(
         width: 800,
         height: 640,
@@ -544,7 +565,7 @@ class _ImportSubagentsState extends State<_ImportSubagents> {
             children: [
               DefaultTextStyle(
                 style: Theme.of(context).textTheme.titleLarge!,
-                child: EditorHeading(strings.importSubagents),
+                child: EditorHeading(title),
               ),
               TextField(
                 controller: _source,
@@ -554,7 +575,9 @@ class _ImportSubagentsState extends State<_ImportSubagents> {
                   if (_source.text.trim().isNotEmpty && !_busy) _scan();
                 },
                 decoration: InputDecoration(
-                  labelText: strings.subagentImportSource,
+                  labelText: subagents
+                      ? strings.subagentImportSource
+                      : strings.commandImportSource,
                 ),
               ),
               Wrap(
@@ -567,7 +590,9 @@ class _ImportSubagentsState extends State<_ImportSubagents> {
                   ),
                   IconButton(
                     onPressed: _busy ? null : () => _pick(folder: false),
-                    tooltip: strings.subagentChooseFile,
+                    tooltip: subagents
+                        ? strings.subagentChooseFile
+                        : strings.commandChooseFile,
                     icon: const Icon(Icons.insert_drive_file_outlined),
                   ),
                   OutlinedButton(
@@ -666,7 +691,7 @@ class _ImportSubagentsState extends State<_ImportSubagents> {
                     onPressed: _busy || _selected.isEmpty
                         ? null
                         : () => _save(candidates),
-                    child: Text(strings.importSubagents),
+                    child: Text(title),
                   ),
                 ],
               ),

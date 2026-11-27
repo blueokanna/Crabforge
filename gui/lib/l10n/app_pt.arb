@@ -1,4 +1,7 @@
 {
+  "importSlashCommands": "Importar comandos de barra",
+  "commandImportSource": "Arquivo Markdown ou TOML, pasta local ou URL Git",
+  "commandChooseFile": "Escolher arquivo de comando",
   "importSubagents": "Importar subagentes",
   "subagentImportSource": "Arquivo Markdown, pasta local ou URL do Git",
   "subagentChooseFile": "Escolher arquivo Markdown",

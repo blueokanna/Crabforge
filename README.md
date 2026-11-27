@@ -98,6 +98,8 @@ For other Git hosts, enter the repository's HTTPS or SSH clone URL. GitLab and G
 
 **Client connections → Slash commands** publishes reusable prompts to Claude Code, OpenCode, Pi, Gemini CLI, Qwen Code and Factory Droid. Use `$ARGUMENTS` for all arguments, or `$1`, `$2` and so on for individual arguments in Claude Code, OpenCode and Pi. Crabforge converts the placeholders for each client and reports assignments that use unsupported arguments. For Codex, use a skill for a reusable prompt.
 
+Select **Import slash commands** to preview external Markdown or TOML commands from a file, local folder or Git URL. Imports copy the prompt and description into the library and retain the source for update checks. Claude, Pi, Gemini and Qwen placeholders are converted when the file layout identifies their format. The CLI uses `commands probe-source <source>` and `commands import-source` with the same JSON request format as subagents.
+
 `carbforge-cli subagents` and `carbforge-cli commands` support `list`, `save`, `remove`, and `sync`. `subagents --project <folder>` selects a project library. `save` reads UTF-8 JSON from standard input with `name`, `prompt`, and `agents`. Supply `description` for subagents. Optional subagent fields are `model`, `effort`, `skills` and `mcp`. Save this example as `check.json` and run `cmd.exe /d /c "carbforge-cli commands save < check.json"` to publish it from Windows.
 
 ```json

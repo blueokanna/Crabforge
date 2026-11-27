@@ -17,7 +17,7 @@ use std::{
 mod catalog;
 mod remote;
 mod tree;
-pub(crate) use remote::{is_repository_url, visit_repository_markdown};
+pub(crate) use remote::{is_repository_url, visit_repository_documents};
 use tree::Tree;
 pub(crate) use tree::is_link;
 

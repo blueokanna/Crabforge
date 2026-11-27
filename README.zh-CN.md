@@ -98,6 +98,8 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 在 **客户端连接 → 斜杠命令** 向 Claude Code、OpenCode、Pi、Gemini CLI、Qwen Code 和 Factory Droid 发布可复用提示词。`$ARGUMENTS` 表示全部参数。Claude Code、OpenCode 和 Pi 也可用 `$1`、`$2` 等引用单个参数。Crabforge 按客户端格式转换占位符，并报告无法发布的分配。Codex 可用技能保存可复用提示词。
 
+选择 **导入斜杠命令** 可从文件、本地文件夹或 Git URL 预览外部 Markdown 或 TOML 命令。导入将提示词和描述复制到库，并保留来源供后续检查更新。文件布局可识别格式时，Crabforge 会转换 Claude、Pi、Gemini 和 Qwen 的占位符。CLI 使用 `commands probe-source <来源>` 和 `commands import-source`，JSON 请求格式与子代理相同。
+
 `carbforge-cli subagents` 和 `carbforge-cli commands` 均支持 `list`、`save`、`remove` 和 `sync`。用 `subagents --project <文件夹>` 选择项目库。`save` 从标准输入读取 UTF-8 JSON，字段包括 `name`、`prompt` 和 `agents`。子代理还要求 `description`，可选字段为 `model`、`effort`、`skills` 和 `mcp`。将以下内容保存为 `check.json`，在 Windows 执行 `cmd.exe /d /c "carbforge-cli commands save < check.json"` 即可发布。
 
 ```json

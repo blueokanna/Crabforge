@@ -259,7 +259,7 @@ pub(super) fn markdown(source: &str) -> Result<(Option<YamlOwned>, &str)> {
 static CLAUDE_ARGUMENT: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\\\$[0-9]+|\$ARGUMENTS\[([0-9]+)\]|\$([0-9]+)").unwrap());
 
-fn portable_arguments(agent: &str, prompt: &str) -> String {
+pub(super) fn portable_arguments(agent: &str, prompt: &str) -> String {
     match agent {
         "claude" => CLAUDE_ARGUMENT
             .replace_all(prompt, |parts: &Captures<'_>| {

@@ -412,10 +412,10 @@ fn library_in(
     let scan = source
         .map(|source| {
             ensure!(
-                kind == Kind::Subagent && !profiles.project_scope,
-                "import subagents into the user library"
+                !profiles.project_scope,
+                "import resources into the user library"
             );
-            import::Scan::open(source)
+            import::Scan::open(kind, source)
         })
         .transpose()?;
     let _guard = native_settings::lock(dir)?;
@@ -435,6 +435,7 @@ fn library_in(
         Edit::Discover | Edit::ProbeSource { .. } => unreachable!(),
         Edit::ImportSource { request } => {
             import::apply(
+                kind,
                 scan.expect("source scan"),
                 request,
                 &mut store,
@@ -1033,6 +1034,71 @@ mod tests {
         let kept = import(&preview)?;
         assert_eq!(kept["entries"].as_array().unwrap().len(), 1);
         assert!(fs::read_to_string(target)?.contains("Local instructions."));
+        Ok(())
+    }
+
+    #[test]
+    fn command_import_translates_native_placeholders_and_preserves_sources() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let dir = temp.path().join("data");
+        let root = temp.path().join("external");
+        let claude = root.join(".claude/commands/inspect_plan.md");
+        let gemini = root.join(".gemini/commands/compare.toml");
+        fs::create_dir_all(claude.parent().unwrap())?;
+        fs::create_dir_all(gemini.parent().unwrap())?;
+        let original = "\u{feff}---\r\ndescription: Inspect a plan\r\n---\r\nInspect $ARGUMENTS[0] and $1.\r\n";
+        fs::write(&claude, original)?;
+        fs::write(
+            &gemini,
+            "description = 'Compare files'\nprompt = 'Compare {{args}}.'\n",
+        )?;
+        fs::write(root.join("README.md"), "This documents the repository.")?;
+        let profiles = native::Profiles {
+            kind: Kind::Command,
+            agents: &["opencode"],
+            homes: BTreeMap::from([("opencode", vec![temp.path().join("opencode")])]),
+            project_scope: false,
+        };
+        let path = dir.join("commands/library.json");
+        let call = |edit| -> Result<Value> {
+            nextjson::from_str(&library_in(&dir, Kind::Command, &path, &profiles, edit)?)
+                .map_err(anyhow::Error::msg)
+        };
+        let source = root.to_str().unwrap();
+        let preview = call(Edit::ProbeSource {
+            source: source.into(),
+        })?;
+        let candidates = preview["candidates"].as_array().unwrap();
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0]["name"].as_str(), Some("inspect_plan"));
+        assert_eq!(candidates[1]["name"].as_str(), Some("compare"));
+        let files = candidates.iter().map(|row| {
+            nextjson::json!({"path": row["path"].clone(), "revision": row["revision"].clone()})
+        }).collect::<Vec<_>>();
+        let request = ImportRequest::from_json(
+            &nextjson::json!({"source": source, "files": files, "agents": ["opencode"]})
+                .to_string(),
+        )?;
+        let imported = call(Edit::ImportSource { request })?;
+        assert_eq!(
+            imported["entries"][0]["entry"]["prompt"].as_str(),
+            Some("Compare $ARGUMENTS.")
+        );
+        assert_eq!(
+            imported["entries"][1]["entry"]["prompt"].as_str(),
+            Some("Inspect $1 and $2.")
+        );
+        let published = temp.path().join("opencode/commands/inspect_plan.md");
+        assert!(fs::read_to_string(published)?.contains("Inspect $1 and $2."));
+        assert_eq!(fs::read(&claude)?, original.as_bytes());
+        let saved_source = imported["entries"][0]["source"].as_str().unwrap();
+        let rescanned = call(Edit::ProbeSource {
+            source: saved_source.into(),
+        })?;
+        assert_eq!(
+            rescanned["candidates"][0]["status"].as_str(),
+            Some("unchanged")
+        );
         Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use super::{Entry, Kind, MAX_DOCUMENT, Store, discovery, encode, hash, path_key};
-use crate::skills::{is_repository_url, visit_repository_markdown};
+use crate::skills::{is_repository_url, visit_repository_documents};
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize};
 use std::{
@@ -8,6 +8,7 @@ use std::{
     io::Read,
     path::Path,
 };
+use toml_edit::{DocumentMut, Item};
 
 const MAX_FILES: usize = 5000;
 const MAX_PATHS: usize = 32768;
@@ -36,7 +37,7 @@ impl Request {
         let request: Self = nextjson::from_str(source).map_err(anyhow::Error::msg)?;
         ensure!(
             (1..=MAX_CANDIDATES).contains(&request.files.len()),
-            "select between 1 and {MAX_CANDIDATES} subagent files"
+            "select between 1 and {MAX_CANDIDATES} resource files"
         );
         Ok(request)
     }
@@ -57,8 +58,8 @@ struct SourceFile {
     entry: Entry,
 }
 
-#[derive(Default)]
 pub(super) struct Scan {
+    kind: Kind,
     candidates: Vec<SourceFile>,
     skill_folders: BTreeSet<String>,
     files: usize,
@@ -67,17 +68,26 @@ pub(super) struct Scan {
     truncated: bool,
 }
 
-fn name(input: &str) -> String {
+fn name_limit(kind: Kind) -> usize {
+    match kind {
+        Kind::Subagent => 50,
+        Kind::Command => 64,
+    }
+}
+
+fn name(kind: Kind, input: &str) -> String {
     let name = input
-        .split(|c: char| !c.is_ascii_alphanumeric())
+        .split(|c: char| !(c.is_ascii_alphanumeric() || kind == Kind::Command && c == '_'))
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join("-")
         .to_ascii_lowercase();
-    name[..name.len().min(50)].trim_end_matches('-').to_owned()
+    name[..name.len().min(name_limit(kind))]
+        .trim_matches(['-', '_'])
+        .to_owned()
 }
 
-fn entry(path: &str, local_folder: Option<&str>, raw: &str) -> Option<Entry> {
+fn subagent(path: &str, local_folder: Option<&str>, raw: &str) -> Option<Entry> {
     let normalized = discovery::normalize(raw);
     let (front, body) = discovery::markdown(&normalized).ok()?;
     let front = front?;
@@ -86,7 +96,9 @@ fn entry(path: &str, local_folder: Option<&str>, raw: &str) -> Option<Entry> {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
-    let explicit = field("name").map(name).unwrap_or_default();
+    let explicit = field("name")
+        .map(|value| name(Kind::Subagent, value))
+        .unwrap_or_default();
     let name = if explicit.is_empty() {
         let (parent, filename) = path.rsplit_once('/').unwrap_or(("", path));
         let folder = local_folder.unwrap_or_else(|| parent.rsplit('/').next().unwrap_or_default());
@@ -97,11 +109,11 @@ fn entry(path: &str, local_folder: Option<&str>, raw: &str) -> Option<Entry> {
             return None;
         }
         let (stem, _) = filename.rsplit_once('.')?;
-        name(stem.strip_suffix(".agent").unwrap_or(stem))
+        name(Kind::Subagent, stem.strip_suffix(".agent").unwrap_or(stem))
     } else {
         explicit
     };
-    let mut entry = Entry {
+    Some(Entry {
         name,
         description,
         prompt: body.trim_matches('\n').to_owned(),
@@ -110,35 +122,103 @@ fn entry(path: &str, local_folder: Option<&str>, raw: &str) -> Option<Entry> {
         effort: None,
         skills: Vec::new(),
         mcp: Vec::new(),
-    };
-    entry.validate(Kind::Subagent, &[]).ok()?;
-    Some(entry)
+    })
 }
 
-fn markdown_file(path: &str) -> bool {
-    path.rsplit_once('.')
-        .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("md"))
+fn command(path: &str, native_path: &str, selected: bool, raw: &str) -> Option<Entry> {
+    let file = path.rsplit('/').next()?;
+    let (stem, extension) = file.rsplit_once('.')?;
+    let in_folder = |name: &str| {
+        native_path
+            .rsplit(['/', '\\'])
+            .skip(1)
+            .any(|part| part.eq_ignore_ascii_case(name))
+    };
+    if stem.eq_ignore_ascii_case("readme")
+        || !selected
+            && !["commands", "command", "prompts"]
+                .into_iter()
+                .any(in_folder)
+    {
+        return None;
+    }
+    let source = discovery::normalize(raw);
+    let (agent, description, prompt) = if extension.eq_ignore_ascii_case("toml") {
+        let doc: DocumentMut = source.parse().ok()?;
+        let description = doc
+            .get("description")
+            .and_then(Item::as_str)
+            .unwrap_or_default();
+        let prompt = doc.get("prompt")?.as_str()?;
+        ("gemini", description.to_owned(), prompt.to_owned())
+    } else {
+        let (front, prompt) = discovery::markdown(&source).ok()?;
+        let description = front
+            .as_ref()
+            .and_then(|root| root.as_mapping_get("description"))
+            .and_then(|value| value.as_str())
+            .unwrap_or_default();
+        let agent = if in_folder(".claude") {
+            "claude"
+        } else if in_folder("prompts") {
+            "pi"
+        } else if in_folder(".qwen") {
+            "qwen"
+        } else {
+            ""
+        };
+        (agent, description.to_owned(), prompt.to_owned())
+    };
+    Some(Entry {
+        name: name(Kind::Command, stem),
+        description,
+        prompt: discovery::portable_arguments(agent, prompt.trim_matches('\n')),
+        agents: Vec::new(),
+        model: None,
+        effort: None,
+        skills: Vec::new(),
+        mcp: Vec::new(),
+    })
+}
+
+fn document_file(kind: Kind, path: &str) -> bool {
+    path.rsplit_once('.').is_some_and(|(_, extension)| {
+        extension.eq_ignore_ascii_case("md")
+            || kind == Kind::Command && extension.eq_ignore_ascii_case("toml")
+    })
 }
 
 impl Scan {
-    pub(super) fn open(source: &str) -> Result<Self> {
+    pub(super) fn open(kind: Kind, source: &str) -> Result<Self> {
         let source = source.trim();
         ensure!(
             !source.is_empty() && source.len() <= 4096 && !source.contains('\0'),
-            "enter a local Markdown file, folder or Git URL"
+            "enter a local file, folder or Git URL"
         );
-        let mut scan = Self::default();
+        let mut scan = Self {
+            kind,
+            candidates: Vec::new(),
+            skill_folders: BTreeSet::new(),
+            files: 0,
+            paths: 0,
+            bytes: 0,
+            truncated: false,
+        };
         if is_repository_url(source) {
-            visit_repository_markdown(source, |path, url, content| {
-                scan.inspect(path, url.clone(), url, None, content)
-            })?;
+            visit_repository_documents(
+                source,
+                |path| document_file(kind, path),
+                |path, url, selected, content| {
+                    scan.inspect(path, url.clone(), url, None, selected, content)
+                },
+            )?;
         } else {
-            let root = fs::canonicalize(source).context("open subagent source")?;
+            let root = fs::canonicalize(source).context("open resource source")?;
             let metadata = fs::metadata(&root)?;
             if metadata.is_dir() {
                 scan.folder(&root, &root, 0)?;
             } else {
-                ensure!(metadata.is_file(), "expected a regular Markdown file");
+                ensure!(metadata.is_file(), "expected a regular source file");
                 scan.local_file(&root, &root)?;
             }
         }
@@ -161,9 +241,11 @@ impl Scan {
                 .cmp(&order(right))
                 .then(left.path.cmp(&right.path))
         });
-        let mut names = BTreeSet::new();
-        scan.candidates
-            .retain(|file| names.insert(file.entry.name.clone()));
+        if kind == Kind::Subagent {
+            let mut names = BTreeSet::new();
+            scan.candidates
+                .retain(|file| names.insert(file.entry.name.clone()));
+        }
         if scan.candidates.len() > MAX_CANDIDATES {
             scan.candidates.truncate(MAX_CANDIDATES);
             scan.truncated = true;
@@ -215,14 +297,14 @@ impl Scan {
         let Some(path) = path.to_str() else {
             return Ok(());
         };
-        if !markdown_file(path)
+        if !document_file(self.kind, path)
             || file
                 .parent()
                 .is_some_and(|parent| parent.join("SKILL.md").is_file())
         {
             return Ok(());
         }
-        let source = file.to_str().context("subagent source path is not UTF-8")?;
+        let source = file.to_str().context("resource source path is not UTF-8")?;
         let folder = file
             .parent()
             .and_then(Path::file_name)
@@ -232,6 +314,7 @@ impl Scan {
             path_key(source),
             source.to_owned(),
             folder,
+            root == file || file.parent() == Some(root),
             &mut File::open(file)?,
         )
     }
@@ -242,6 +325,7 @@ impl Scan {
         key: String,
         source: String,
         local_folder: Option<&str>,
+        selected: bool,
         input: &mut dyn Read,
     ) -> Result<()> {
         let (folder, file) = path.rsplit_once('/').unwrap_or(("", path));
@@ -265,9 +349,27 @@ impl Scan {
             .take(MAX_DOCUMENT as u64 + 1)
             .read_to_end(&mut bytes)?;
         self.bytes += bytes.len();
-        if bytes.len() <= MAX_DOCUMENT
-            && let Ok(raw) = std::str::from_utf8(&bytes)
-            && let Some(entry) = entry(path, local_folder, raw)
+        let Some(raw) = std::str::from_utf8(&bytes)
+            .ok()
+            .filter(|raw| raw.len() <= MAX_DOCUMENT)
+        else {
+            return Ok(());
+        };
+        let entry = match self.kind {
+            Kind::Subagent => subagent(path, local_folder, raw),
+            Kind::Command => command(
+                path,
+                if local_folder.is_some() {
+                    &source
+                } else {
+                    path
+                },
+                selected,
+                raw,
+            ),
+        };
+        if let Some(mut entry) = entry
+            && entry.validate(self.kind, &[]).is_ok()
         {
             self.candidates.push(SourceFile {
                 path: path.to_owned(),
@@ -343,6 +445,7 @@ pub(super) fn preview(scan: &Scan, store: &Store, agents: &[&str]) -> Result<Str
 }
 
 pub(super) fn apply(
+    kind: Kind,
     scan: Scan,
     request: Request,
     store: &mut Store,
@@ -356,11 +459,8 @@ pub(super) fn apply(
     for Selection { path, revision } in request.files {
         let file = files
             .remove(&path)
-            .context("subagent source file was removed; scan again")?;
-        ensure!(
-            file.revision == revision,
-            "subagent source file changed; scan again"
-        );
+            .context("source file was removed; scan again")?;
+        ensure!(file.revision == revision, "source file changed; scan again");
         let mut entry = file.entry.clone();
         let baseline = baseline(&entry);
         if let Some((saved, origin)) = existing(store, &file) {
@@ -380,13 +480,14 @@ pub(super) fn apply(
                 let suffix = format!("-{index}");
                 entry.name = format!(
                     "{}{}",
-                    base[..base.len().min(50 - suffix.len())].trim_end_matches('-'),
+                    base[..base.len().min(name_limit(kind) - suffix.len())]
+                        .trim_end_matches(['-', '_']),
                     suffix
                 );
             }
             entry.agents = request.agents.clone();
         }
-        entry.validate(Kind::Subagent, agents)?;
+        entry.validate(kind, agents)?;
         store.imported.insert(
             entry.name.clone(),
             Origin {

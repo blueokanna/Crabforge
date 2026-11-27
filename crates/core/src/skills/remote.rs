@@ -139,10 +139,6 @@ impl Source {
                         );
                         directories
                     } else {
-                        ensure!(
-                            is_markdown(file),
-                            "the GitHub file URL must point to Markdown"
-                        );
                         path
                     }
                 }
@@ -256,14 +252,10 @@ fn document_folder(path: &str) -> Option<&str> {
     }
 }
 
-fn is_markdown(path: &str) -> bool {
-    path.rsplit_once('.')
-        .is_some_and(|(_, suffix)| suffix.eq_ignore_ascii_case("md"))
-}
-
-pub(crate) fn visit_repository_markdown(
+pub(crate) fn visit_repository_documents(
     input: &str,
-    mut visit: impl FnMut(&str, String, &mut dyn Read) -> Result<()>,
+    accepts: impl Fn(&str) -> bool,
+    mut visit: impl FnMut(&str, String, bool, &mut dyn Read) -> Result<()>,
 ) -> Result<()> {
     let repo = Repository::open_with_document(input, None)?;
     let selected = repo.folder().unwrap_or_default();
@@ -276,7 +268,7 @@ pub(crate) fn visit_repository_markdown(
         }
         let raw = entry.path_bytes().into_owned();
         let Ok(path) = relative(&raw) else { continue };
-        if !valid_path(path) || !is_markdown(path) {
+        if !valid_path(path) || !accepts(path) {
             continue;
         }
         if path
@@ -289,7 +281,12 @@ pub(crate) fn visit_repository_markdown(
                 .strip_prefix(selected)
                 .is_some_and(|tail| tail.starts_with('/'))
         {
-            visit(path, repo.canonical(path), &mut entry)?;
+            let directly_selected = path == selected
+                || !selected.is_empty()
+                    && path
+                        .rsplit_once('/')
+                        .is_some_and(|(parent, _)| parent == selected);
+            visit(path, repo.canonical(path), directly_selected, &mut entry)?;
         }
     }
     Ok(())

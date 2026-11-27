@@ -10,6 +10,15 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get importSlashCommands => '슬래시 명령 가져오기';
+
+  @override
+  String get commandImportSource => 'Markdown 또는 TOML 파일, 로컬 폴더 또는 Git URL';
+
+  @override
+  String get commandChooseFile => '명령 파일 선택';
+
+  @override
   String get importSubagents => '하위 에이전트 가져오기';
 
   @override

@@ -10,6 +10,16 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get importSlashCommands => 'Slash-Befehle importieren';
+
+  @override
+  String get commandImportSource =>
+      'Markdown- oder TOML-Datei, lokaler Ordner oder Git-URL';
+
+  @override
+  String get commandChooseFile => 'Befehlsdatei auswählen';
+
+  @override
   String get importSubagents => 'Subagenten importieren';
 
   @override

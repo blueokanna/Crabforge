@@ -10,6 +10,16 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get importSlashCommands => 'स्लैश कमांड इंपोर्ट करें';
+
+  @override
+  String get commandImportSource =>
+      'Markdown या TOML फ़ाइल, स्थानीय फ़ोल्डर या Git URL';
+
+  @override
+  String get commandChooseFile => 'कमांड फ़ाइल चुनें';
+
+  @override
   String get importSubagents => 'सबएजेंट आयात करें';
 
   @override

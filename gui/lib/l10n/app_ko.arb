@@ -1,4 +1,7 @@
 {
+  "importSlashCommands": "슬래시 명령 가져오기",
+  "commandImportSource": "Markdown 또는 TOML 파일, 로컬 폴더 또는 Git URL",
+  "commandChooseFile": "명령 파일 선택",
   "importSubagents": "하위 에이전트 가져오기",
   "subagentImportSource": "Markdown 파일, 로컬 폴더 또는 Git URL",
   "subagentChooseFile": "Markdown 파일 선택",

@@ -10,6 +10,16 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get importSlashCommands => 'Importer des commandes slash';
+
+  @override
+  String get commandImportSource =>
+      'Fichier Markdown ou TOML, dossier local ou URL Git';
+
+  @override
+  String get commandChooseFile => 'Choisir un fichier de commande';
+
+  @override
   String get importSubagents => 'Importer des sous-agents';
 
   @override

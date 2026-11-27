@@ -10,6 +10,16 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get importSlashCommands => 'Importar comandos de barra';
+
+  @override
+  String get commandImportSource =>
+      'Archivo Markdown o TOML, carpeta local o URL de Git';
+
+  @override
+  String get commandChooseFile => 'Elegir archivo de comando';
+
+  @override
   String get importSubagents => 'Importar subagentes';
 
   @override
