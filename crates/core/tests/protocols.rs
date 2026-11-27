@@ -248,7 +248,25 @@ async fn streaming_vendor(release: Arc<Notify>, Incoming { uri, body, .. }: Inco
         assert_eq!(req["stream"], json!(true));
     }
     let chat = uri.path() == "/chat/completions";
+    let thoughts = match uri.path() {
+        "/chat/completions" => {
+            vec![json!({"choices":[{"delta":{"reasoning_content":"private scratchpad"}}]})]
+        }
+        "/v1/messages" => vec![
+            json!({"type":"content_block_start","index":3,"content_block":{"type":"thinking","thinking":""}}),
+            json!({"type":"content_block_delta","index":3,"delta":{"type":"thinking_delta","thinking":"private scratchpad"}}),
+            json!({"type":"content_block_delta","index":3,"delta":{"type":"signature_delta","signature":"private signature"}}),
+            json!({"type":"content_block_stop","index":3}),
+        ],
+        "/responses" => vec![
+            json!({"type":"response.reasoning_summary_text.delta","output_index":3,"delta":"private scratchpad"}),
+        ],
+        _ => vec![
+            json!({"candidates":[{"content":{"parts":[{"thought":true,"text":"private scratchpad"}]}}]}),
+        ],
+    };
     let body = async_stream::stream! {
+        for value in thoughts { yield Ok(format!("data: {value}\r\n\r\n").into_bytes()); }
         let first = format!(": heartbeat\r\ndata: {first}\r\n\r\n").into_bytes();
         // Separate the first Chinese code point across transport chunks.
         let at = first.iter().position(|&c| c >= 128).unwrap() + 1;
@@ -315,6 +333,7 @@ async fn translated_text_precedes_upstream_completion_in_all_twelve_directions()
             release.notify_one();
             received.extend_from_slice(&resp.bytes().await?);
             let wire = String::from_utf8(received)?;
+            assert!(!wire.contains("private"), "{from} <- {to}: {wire}");
             for expected in ["call_7", "weather", "上海"] {
                 assert!(wire.contains(expected), "{from} <- {to}: {wire}");
             }
@@ -337,6 +356,126 @@ async fn translated_text_precedes_upstream_completion_in_all_twelve_directions()
     service.stop().await;
     server.abort();
     let _ = server.await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn translated_reasoning_uses_the_target_wire_format_and_preserves_disabled_thinking()
+-> Result<()> {
+    use std::sync::Mutex;
+
+    let captures = Arc::new(Mutex::new(Vec::new()));
+    let seen = captures.clone();
+    let router = Router::new().fallback(post(move |req: Incoming| {
+        let seen = seen.clone();
+        async move {
+            let body: Value = nextjson::from_slice(&req.body).unwrap();
+            seen.lock().unwrap().push(body);
+            let answer = match req.uri.path() {
+                "/chat/completions" => json!({"choices":[{"message":{"role":"assistant","content":"ready"},"finish_reason":"stop"}]}),
+                "/responses" => json!({"status":"completed","output":[{"type":"reasoning","summary":[]},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"ready"}]}]}),
+                "/v1/messages" => json!({"content":[{"type":"thinking","thinking":"private","signature":"private"},{"type":"text","text":"ready"}],"stop_reason":"end_turn"}),
+                "/v1beta/models/gemini-2.5-flash:generateContent" => json!({"candidates":[{"content":{"role":"model","parts":[{"thought":true,"text":"private"},{"text":"ready"}]},"finishReason":"STOP"}]}),
+                other => panic!("unexpected upstream path {other}"),
+            };
+            Json(answer)
+        }
+    }));
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let base = format!("http://{}", listener.local_addr()?);
+    let server = tokio::spawn(crabforge_test_support::server::serve(listener, router));
+    let dir = tempfile::tempdir()?;
+    let cfg = json!({"listen":"127.0.0.1:0","providers":[
+        {"id":"chat","models":["m"],"endpoints":{"chat":&base},"model_reasoning_levels":{"m":["none","low","high"]}},
+        {"id":"response","models":["m"],"endpoints":{"responses":&base},"model_reasoning_levels":{"m":["low","medium","high"]}},
+        {"id":"anthropic","models":["claude-sonnet-4-6"],"endpoints":{"anthropic":&base},"model_reasoning_levels":{"claude-sonnet-4-6":["low","medium","high"]}},
+        {"id":"google","models":["gemini-2.5-flash"],"endpoints":{"gemini":&base}},
+    ],"groups":{"gemini":["google/gemini-2.5-flash"]},"group_rules":{"gemini":[{
+        "use":"google/gemini-2.5-flash","useEffort":"xhigh","where":[{"field":"message","op":"starts","value":"city"}]
+    }]}});
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let service = Service::start(dir.path()).await?;
+    let key = config::token(dir.path())?;
+    let client = crabforge_test_support::Client::default();
+    let send = |from: &str, model: &str, options: Value| {
+        let (path, mut body) = request(from, model, false);
+        body.as_object_mut()
+            .unwrap()
+            .extend(options.as_object().unwrap().clone());
+        client
+            .post(format!("http://{}{path}", service.addr))
+            .bearer_auth(&key)
+            .body(body.to_string())
+            .send()
+    };
+    for (from, model, options, pointer, expected) in [
+        (
+            "chat",
+            "group/gemini",
+            json!({"reasoning_effort":"low"}),
+            "/generationConfig/thinkingConfig/thinkingBudget",
+            json!(24576),
+        ),
+        (
+            "chat",
+            "group/gemini",
+            json!({"reasoning_effort":"none"}),
+            "/generationConfig/thinkingConfig/thinkingBudget",
+            json!(0),
+        ),
+        (
+            "responses",
+            "anthropic/claude-sonnet-4-6",
+            json!({"reasoning":{"effort":"medium"}}),
+            "/output_config/effort",
+            json!("medium"),
+        ),
+        (
+            "anthropic",
+            "response/m",
+            json!({"thinking":{"type":"enabled","budget_tokens":9000},"max_tokens":10000}),
+            "/reasoning/effort",
+            json!("medium"),
+        ),
+        (
+            "gemini",
+            "chat/m",
+            json!({"generationConfig":{"thinkingConfig":{"thinkingLevel":"MEDIUM","includeThoughts":false}}}),
+            "/reasoning_effort",
+            json!("high"),
+        ),
+        (
+            "gemini",
+            "chat/m",
+            json!({"generationConfig":{"thinkingConfig":{"thinkingBudget":0}}}),
+            "/reasoning_effort",
+            json!("none"),
+        ),
+    ] {
+        let reply = send(from, model, options).await?;
+        let status = reply.status();
+        let body = reply.text().await?;
+        assert_eq!(status, 200, "{from} -> {model}: {body}");
+        assert!(
+            body.contains("ready") && !body.contains("private"),
+            "{body}"
+        );
+        assert_eq!(
+            captures.lock().unwrap().last().unwrap().pointer(pointer),
+            Some(&expected)
+        );
+    }
+    let reject = send(
+        "responses",
+        "chat/m",
+        json!({"reasoning":{"effort":"high","summary":"detailed"}}),
+    )
+    .await?;
+    assert_eq!(reject.status(), 400);
+    assert!(reject.text().await?.contains("reasoning summaries"));
+    assert_eq!(captures.lock().unwrap().len(), 6);
+    service.stop().await;
+    server.abort();
     Ok(())
 }
 

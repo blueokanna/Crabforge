@@ -57,6 +57,11 @@ fn thinking_keys(body: &Value) -> Option<(&'static str, &'static str)> {
     None
 }
 
+pub(super) fn disabled(model: &str) -> Option<([&'static str; 2], Value)> {
+    let model = model.rsplit('/').next()?.to_ascii_lowercase();
+    matches_model(&model, "gemini-2.5-flash").then(|| (BUDGET, 0_u32.into()))
+}
+
 pub(super) fn configured(
     model: &str,
     desired: &str,

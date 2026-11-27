@@ -3,7 +3,9 @@ use bytes::Bytes;
 use nextjson::{Value, json};
 
 mod gemini;
+mod translation;
 pub(super) use gemini::thinking as gemini_thinking;
+pub(super) use translation::apply as translate;
 
 pub(super) fn rewrite(
     format: Format,

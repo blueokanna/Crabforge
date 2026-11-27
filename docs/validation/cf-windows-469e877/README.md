@@ -408,11 +408,25 @@ Windows Debug passed 156 Rust tests and all-target Clippy, with 33 tests ignored
 
 Both Windows CLIs imported the group rule from an encrypted Magpie 0.1.4936 backup. The loopback upstream recorded `XHIGH` on Gemini 4 Neon, a 24,576-token budget on the Gemini 2.5 Flash fallback, and the client's explicit `thinkingBudget: 0`. The Rust regression covered automatic `MEDIUM` on Gemini 3.1 Pro and both naming conventions. Live Google endpoints still require credentialed acceptance. [Gateway regression](../../../crates/core/tests/gateway.rs) · [Gemini thinking configuration](https://ai.google.dev/gemini-api/docs/thinking)
 
+### 跨协议推理 / Cross-protocol reasoning
+
+Windows Debug 通过 158 项 Rust 测试和全目标 Clippy，33 项测试忽略。原生 Gemini 夹具核对了 SSE 回退前后的请求和响应字节，并检查未知模型沿用客户端参数。跨协议夹具核对 OpenAI Chat、Responses、Anthropic Messages、Gemini 的目标参数和显式关闭。十二个流式转换方向均在上游结束前交付首个正文事件。转译响应保留可表示的正文与用量，推理块、摘要和签名留在原生协议内。 [网关回归](../../../crates/core/tests/gateway.rs) · [协议回归](../../../crates/core/tests/protocols.rs)
+
+Windows Debug passed 158 Rust tests and all-target Clippy, with 33 tests ignored. The native Gemini fixture checked the requests and SSE response body across fallback, and verified that an unknown model receives the client's settings. The translated fixture checked destination reasoning controls and explicit off across OpenAI Chat, Responses, Anthropic Messages and Gemini. All twelve streaming directions delivered visible text before the upstream finished. Translated replies included representable content and usage. Reasoning blocks, summaries and signatures require their native protocol. [Gateway regression](../../../crates/core/tests/gateway.rs) · [Protocol regression](../../../crates/core/tests/protocols.rs)
+
+两个 Windows CLI 都从同一原版备份导入路由，核对 Chat `low` 在 Gemini 4 Neon 上发送 `XHIGH`，回退时在 Gemini 2.5 Flash 上发送 `24576` token 预算。Chat `none` 跳过无法关闭推理的 Neon，对 Flash 发送零预算并收到转换后的 Chat 回复。
+
+Both Windows CLIs imported the route from the original backup. Chat `low` sent `XHIGH` to Gemini 4 Neon and a 24,576-token budget to Gemini 2.5 Flash on fallback. Chat `none` skipped Neon, sent a zero budget to Flash and returned a translated Chat reply.
+
 ### 供应商重试历史构建 / Historical provider retry build
 
 按完整 SHA 补验 `649c036b07986275aeef4529d1228dc4fec7d3ae` 时，Run `46024892156` 在 Rust 检查阶段失败。`config.rs:441` 将重试时限校验插入了环境变量校验的表达式，导致语法错误，Windows 包未生成。后继 `dfd58df4c3c3461d8969f5a654a40c437c15bb13` 已修正校验位置，其下载验收包括供应商重试。 [Windows job 140593634231](https://github.com/blueokanna/Crabforge/actions/runs/46024892156/job/140593634231)
 
 The Windows check for `649c036b07986275aeef4529d1228dc4fec7d3ae` failed in run `46024892156`. The retry-patience check interrupted the environment-variable expression at `config.rs:441`, causing a syntax error before the Windows package could be built. The successor `dfd58df4c3c3461d8969f5a654a40c437c15bb13` moves the check to its own statement. Its download fixture includes provider retry coverage. [Windows job 140593634231](https://github.com/blueokanna/Crabforge/actions/runs/46024892156/job/140593634231)
+
+修复提交 `dfd58df4c3c3461d8969f5a654a40c437c15bb13` 的 Windows Run `46024944128` 通过 150 项 Rust 测试，33 项忽略。ZIP 为 66,840,697 字节，SHA-256 为 `f8fe161f705d1278c574626a004fef88d404dc884410e995d87772aae5123ece`，676 项清单的 SHA-256 为 `562580f8b02febb02626ba68cf91fe9f8c487ba0f6cb6713610d6b8f4a69a241`。六个 PE 均为 `NotSigned`。首次设置夹具遇到 `WinError 10053`，同包单项和整套重跑均通过。两套 CLI 均验证了供应商重试和组优先级。验后查询的远端 `main` 为 `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9`，包含构建 SHA。 [Job 140593804622](https://github.com/blueokanna/Crabforge/actions/runs/46024944128/job/140593804622) · [Artifact 15212497048](https://github.com/blueokanna/Crabforge/actions/runs/46024944128/artifacts/15212497048)
+
+Windows run `46024944128` for `dfd58df4c3c3461d8969f5a654a40c437c15bb13` passed 150 Rust tests with 33 ignored. The 66,840,697-byte ZIP has SHA-256 `f8fe161f705d1278c574626a004fef88d404dc884410e995d87772aae5123ece`. The 676-entry manifest has SHA-256 `562580f8b02febb02626ba68cf91fe9f8c487ba0f6cb6713610d6b8f4a69a241`. All six PE files reported `NotSigned`. The first settings fixture encountered `WinError 10053`. The individual fixture and complete suite passed on the same package in subsequent runs. Both CLIs verified provider retries and group precedence. The final remote `main` check returned `8fab8d3bb7f3cfd0af7a7fbb9389cf1f6d612ec9`, which includes the build SHA. [Job 140593804622](https://github.com/blueokanna/Crabforge/actions/runs/46024944128/job/140593804622) · [Artifact 15212497048](https://github.com/blueokanna/Crabforge/actions/runs/46024944128/artifacts/15212497048)
 
 ### 高级路由历史下载包 / Historical conditional routing package
 

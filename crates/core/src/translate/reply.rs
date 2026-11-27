@@ -37,7 +37,7 @@ impl Reply {
                 )
             }
             Format::Messages => (
-                read_parts(format, field(v, "content"))?,
+                read_reply_parts(format, field(v, "content"))?,
                 text(v, "stop_reason")?,
                 v.pointer("/usage/input_tokens"),
                 v.pointer("/usage/output_tokens"),
@@ -47,7 +47,7 @@ impl Reply {
                     .first()
                     .context("empty Gemini candidates")?;
                 (
-                    read_parts(
+                    read_reply_parts(
                         format,
                         c.pointer("/content/parts")
                             .context("missing Gemini parts")?,
@@ -60,6 +60,9 @@ impl Reply {
             Format::Responses => {
                 let mut parts = vec![];
                 for item in array(v, "output")? {
+                    if field(item, "type").as_str() == Some("reasoning") {
+                        continue;
+                    }
                     parts.extend(read_turn(format, item)?.parts);
                 }
                 let end = match text(v, "status")? {

@@ -141,6 +141,7 @@ pub fn convert_request(
     bytes: &[u8],
     model: &str,
     stream_in_path: bool,
+    reasoning: impl FnOnce(&Value, &mut Map) -> Result<()>,
 ) -> Result<Converted> {
     let v: Value = nextjson::from_slice(bytes).map_err(anyhow::Error::msg)?;
     let allowed: &[&str] = match from {
@@ -158,6 +159,7 @@ pub fn convert_request(
             "stream_options",
             "store",
             "n",
+            "reasoning_effort",
         ],
         Format::Messages => &[
             "model",
@@ -171,6 +173,8 @@ pub fn convert_request(
             "max_tokens",
             "stop_sequences",
             "metadata",
+            "thinking",
+            "output_config",
         ],
         Format::Responses => &[
             "model",
@@ -183,6 +187,7 @@ pub fn convert_request(
             "top_p",
             "max_output_tokens",
             "store",
+            "reasoning",
         ],
         Format::Gemini => &[
             "contents",
@@ -290,7 +295,13 @@ pub fn convert_request(
     if from == Format::Gemini && !src.is_null() {
         keys(
             src,
-            &["temperature", "topP", "maxOutputTokens", "stopSequences"],
+            &[
+                "temperature",
+                "topP",
+                "maxOutputTokens",
+                "stopSequences",
+                "thinkingConfig",
+            ],
         )?;
     }
     let mut options = Map::new();
@@ -353,6 +364,7 @@ pub fn convert_request(
     } else {
         out.extend(options);
     }
+    reasoning(&v, &mut out)?;
     if to == Format::Responses {
         out.insert("store".into(), false.into());
     }

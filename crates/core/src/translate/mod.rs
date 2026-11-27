@@ -70,6 +70,14 @@ fn strings(parts: &[Part]) -> Result<String> {
 }
 
 fn read_parts(format: Format, content: &Value) -> Result<Vec<Part>> {
+    read_content(format, content, false)
+}
+
+fn read_reply_parts(format: Format, content: &Value) -> Result<Vec<Part>> {
+    read_content(format, content, true)
+}
+
+fn read_content(format: Format, content: &Value, reply: bool) -> Result<Vec<Part>> {
     if let Some(s) = content.as_str() {
         return Ok(vec![Part::Text(s.into())]);
     }
@@ -78,10 +86,27 @@ fn read_parts(format: Format, content: &Value) -> Result<Vec<Part>> {
         .as_array()
         .context("expected text or content blocks")?
     {
+        if reply
+            && match format {
+                Format::Messages => matches!(
+                    field(p, "type").as_str(),
+                    Some("thinking" | "redacted_thinking")
+                ),
+                Format::Gemini => field(p, "thought").as_bool() == Some(true),
+                _ => false,
+            }
+        {
+            continue;
+        }
         let part = match format {
             Format::Gemini => {
                 if let Some(s) = field(p, "text").as_str() {
-                    keys(p, &["text"])?;
+                    let allowed: &[&str] = if reply {
+                        &["text", "thought", "thoughtSignature"]
+                    } else {
+                        &["text"]
+                    };
+                    keys(p, allowed)?;
                     Part::Text(s.into())
                 } else if let Some(call) = p.get("functionCall") {
                     keys(p, &["functionCall"])?;

@@ -916,6 +916,17 @@ async fn forward(
                 &bytes,
                 model,
                 matches!(api, Api::Gemini("streamGenerateContent")),
+                |input, output| {
+                    effort::translate(
+                        from,
+                        to,
+                        input,
+                        output,
+                        model,
+                        candidate.effort,
+                        gw.config.model_levels(p, model),
+                    )
+                },
             ) {
                 Ok(body) => {
                     if body.stream && to == Format::Gemini {

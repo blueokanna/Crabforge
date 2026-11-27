@@ -1,4 +1,4 @@
-use super::{Format, Part, array, field, read_parts, read_turn, text};
+use super::{Format, Part, array, field, read_reply_parts, read_turn, text};
 use crate::json::unsigned;
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::Value;
@@ -124,6 +124,7 @@ impl Decoder {
                 let block = field(v, "content_block");
                 match text(block, "type")? {
                     "text" => parts.push(Part::Text(text(block, "text")?.into())),
+                    "thinking" | "redacted_thinking" => (),
                     "tool_use" => {
                         let f = Function {
                             id: text(block, "id")?.into(),
@@ -143,6 +144,7 @@ impl Decoder {
                 let delta = field(v, "delta");
                 match text(delta, "type")? {
                     "text_delta" => parts.push(Part::Text(text(delta, "text")?.into())),
+                    "thinking_delta" | "signature_delta" => (),
                     "input_json_delta" => self
                         .functions
                         .get_mut(&index(v, "index")?)
@@ -169,7 +171,7 @@ impl Decoder {
     }
 
     fn completed_item(&mut self, i: u64, item: &Value, parts: &mut Vec<Part>) -> Result<()> {
-        if !self.response_items.insert(i) {
+        if !self.response_items.insert(i) || field(item, "type").as_str() == Some("reasoning") {
             return Ok(());
         }
         let turn = read_turn(Format::Responses, item)?;
@@ -215,7 +217,13 @@ impl Decoder {
             | "response.content_part.done"
             | "response.output_text.done"
             | "response.function_call_arguments.delta"
-            | "response.function_call_arguments.done" => (),
+            | "response.function_call_arguments.done"
+            | "response.reasoning_summary_part.added"
+            | "response.reasoning_summary_part.done"
+            | "response.reasoning_summary_text.delta"
+            | "response.reasoning_summary_text.done"
+            | "response.reasoning_text.delta"
+            | "response.reasoning_text.done" => (),
             other => bail!("unsupported Responses event {other}"),
         }
         Ok(parts)
@@ -235,7 +243,7 @@ impl Decoder {
                     "multiple Gemini candidates"
                 );
                 if let Some(content) = candidate.pointer("/content/parts") {
-                    parts.extend(read_parts(Format::Gemini, content)?);
+                    parts.extend(read_reply_parts(Format::Gemini, content)?);
                 }
                 if let Some(reason) = field(candidate, "finishReason").as_str() {
                     self.reason = Some(reason.into());
