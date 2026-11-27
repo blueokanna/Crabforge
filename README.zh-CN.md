@@ -96,6 +96,8 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 在 **客户端连接 → 子代理** 向 Claude Code、Codex、OpenCode、Gemini CLI、Qwen Code、Factory Droid、Grok Build、Cursor 和 Copilot CLI 发布原生 Markdown 或 TOML。也可以在同一窗口选择项目文件夹，管理该项目的子代理。项目配置另支持 Antigravity。Claude Code 支持技能引用和推理级别，Claude Code 和 Factory Droid 支持 MCP 服务器名称，Codex 支持模型 ID 和推理级别。
 
+打开项目后选择 **共享子代理**，把用户库条目分配给该项目的客户端。用户库内的修改与重命名会同步到已分配的项目。取消选中所有客户端可撤销分配。CLI 用 `subagents --project <文件夹> list` 获取 `shared` 条目和修订，再用 `subagents --project <文件夹> assign <名称> --revision <修订> --agent claude` 分配。重复 `--agent` 可选多个客户端，省略它可撤销。撤销会移除未修改的受管理文件，并保留外部修改。
+
 在 **客户端连接 → 斜杠命令** 向 Claude Code、OpenCode、Pi、Gemini CLI、Qwen Code 和 Factory Droid 发布可复用提示词。`$ARGUMENTS` 表示全部参数。Claude Code、OpenCode 和 Pi 也可用 `$1`、`$2` 等引用单个参数。Crabforge 按客户端格式转换占位符，并报告无法发布的分配。Codex 可用技能保存可复用提示词。
 
 `carbforge-cli subagents` 和 `carbforge-cli commands` 均支持 `list`、`save`、`remove` 和 `sync`。用 `subagents --project <文件夹>` 选择项目库。`save` 从标准输入读取 UTF-8 JSON，字段包括 `name`、`prompt` 和 `agents`。子代理还要求 `description`，可选字段为 `model`、`effort`、`skills` 和 `mcp`。将以下内容保存为 `check.json`，在 Windows 执行 `cmd.exe /d /c "carbforge-cli commands save < check.json"` 即可发布。

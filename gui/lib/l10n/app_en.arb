@@ -1,4 +1,5 @@
 {
+  "sharedSubagents": "Shared subagents",
   "importSubagents": "Import subagents",
   "subagentImportSource": "Markdown file, local folder, or Git URL",
   "subagentChooseFile": "Choose Markdown file",

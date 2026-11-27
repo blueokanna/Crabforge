@@ -112,6 +112,12 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @sharedSubagents.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared subagents'**
+  String get sharedSubagents;
+
   /// No description provided for @importSubagents.
   ///
   /// In en, this message translates to:

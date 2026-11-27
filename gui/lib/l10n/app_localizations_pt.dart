@@ -10,6 +10,9 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get sharedSubagents => 'Subagentes compartilhados';
+
+  @override
   String get importSubagents => 'Importar subagentes';
 
   @override

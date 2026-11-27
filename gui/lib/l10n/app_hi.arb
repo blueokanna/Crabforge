@@ -1,4 +1,5 @@
 {
+  "sharedSubagents": "साझा सबएजेंट",
   "importSubagents": "सबएजेंट आयात करें",
   "subagentImportSource": "Markdown फ़ाइल, स्थानीय फ़ोल्डर या Git URL",
   "subagentChooseFile": "Markdown फ़ाइल चुनें",

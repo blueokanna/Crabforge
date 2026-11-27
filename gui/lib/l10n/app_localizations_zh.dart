@@ -10,6 +10,9 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get sharedSubagents => '共享子代理';
+
+  @override
   String get importSubagents => '导入子代理';
 
   @override
