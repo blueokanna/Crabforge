@@ -12,6 +12,7 @@ use crate::{
 use anyhow::Result;
 use http::HeaderMap;
 use nextjson::Value;
+use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     sync::LazyLock,
@@ -184,6 +185,7 @@ pub(super) struct Facts {
     message: String,
     previous_message: String,
     previous_reply: String,
+    turn_identity: Option<[u8; 32]>,
     system: Vec<String>,
     last: Vec<String>,
 }
@@ -223,6 +225,7 @@ impl Facts {
             message: String::new(),
             previous_message: String::new(),
             previous_reply: String::new(),
+            turn_identity: None,
             system: Vec::new(),
             last: Vec::new(),
         };
@@ -244,11 +247,21 @@ impl Facts {
             Format::Responses => "input",
             Format::Gemini => "contents",
         };
+        let mut turn_hash = caller.session.map(|session| {
+            let mut hash = Sha256::new();
+            hash_text(&mut hash, session);
+            hash_text(&mut hash, &facts.agent);
+            hash
+        });
         if let Some(input) = body.get(key) {
             if let Some(prompt) = input.as_str() {
                 length += prompt.len();
                 facts.message = prompt.to_owned();
                 facts.last.push(prompt.to_owned());
+                if let Some(hash) = &mut turn_hash {
+                    hash_text(hash, "");
+                    hash_text(hash, prompt);
+                }
             } else if let Some(turns) = input.as_array() {
                 let mut reply = String::new();
                 for turn in turns {
@@ -278,8 +291,12 @@ impl Facts {
                             .filter(|text| !is_context(text))
                             .collect::<Vec<_>>();
                         if !said.is_empty() {
-                            facts.previous_message =
-                                std::mem::replace(&mut facts.message, said.join("\n"));
+                            let message = said.join("\n");
+                            if let Some(hash) = &mut turn_hash {
+                                hash_text(hash, &reply);
+                                hash_text(hash, &message);
+                            }
+                            facts.previous_message = std::mem::replace(&mut facts.message, message);
                             facts.previous_reply = std::mem::take(&mut reply);
                         }
                         facts.last = text.into_iter().map(str::to_owned).collect();
@@ -297,11 +314,18 @@ impl Facts {
         }
         facts.tokens = length / 4;
         facts.compact = compacting(&facts.system, &facts.last);
+        if !facts.compact {
+            facts.turn_identity = turn_hash.map(|hash| hash.finalize().into());
+        }
         Some(facts)
     }
 
     pub fn conversation(&self) -> (&str, &str, &str) {
         (&self.message, &self.previous_message, &self.previous_reply)
+    }
+
+    pub fn turn_identity(&self) -> Option<[u8; 32]> {
+        self.turn_identity
     }
 
     fn extend_system(&mut self, text: Vec<&str>) {
@@ -357,6 +381,11 @@ impl Facts {
             }
         }
     }
+}
+
+fn hash_text(hash: &mut Sha256, text: &str) {
+    hash.update((text.len() as u64).to_le_bytes());
+    hash.update(text);
 }
 
 fn field<'a>(value: &'a Value, key: &str) -> Option<&'a str> {

@@ -45,6 +45,8 @@ For `intent` rules, supply an object in the same editor or CLI command. `classif
 
 When forwarding reaches a group with a matching intent condition, the classifier receives excerpts of the latest user message and the preceding exchange. The gateway sends the same classification prompt to backup classifiers in order after an error, refusal, invalid reply or timeout. A reply of `0` continues with the ordinary routing rules. Nested groups share one deadline, set in **Gateway → Network settings** or with `carbforge-cli group classify-timeout SECONDS`. `0` uses 15 seconds. Explicit values range from 1 to 60 seconds.
 
+When a client supplies a session ID and the user turn in the request history, concurrent requests and tool continuations can reuse the same intent decision. The gateway keeps up to 256 decisions in memory for up to 30 minutes and still evaluates the current routing conditions and manual selection on each request.
+
 ```json
 [
   {

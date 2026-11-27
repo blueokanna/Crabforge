@@ -780,40 +780,62 @@ async fn intent_classifier_is_called_only_on_reached_groups_and_uses_backups() -
     let url = format!("http://{}/v1/chat/completions", service.addr);
     let token = config::token(dir.path())?;
     let client = crabforge_test_support::Client::with_timeout(Duration::from_secs(5));
-    let send = |group: &str, message: &str| {
+    let send = |group: &str, message: &str, with_tools: bool| {
+        let mut messages = vec![
+            json!({"role":"system","content":"Internal system instructions"}),
+            json!({"role":"user","content":"Open the report"}),
+            json!({"role":"assistant","content":"It is open"}),
+            json!({"role":"user","content":message}),
+        ];
+        if with_tools {
+            messages.extend([
+                json!({"role":"assistant","content":"Checking the report"}),
+                json!({"role":"tool","content":"Tool output","tool_call_id":"report"}),
+            ]);
+        }
         client
             .post(&url)
             .bearer_auth(&token)
-            .body(
-                json!({
-                    "model":group,"messages":[
-                        {"role":"system","content":"Internal system instructions"},
-                        {"role":"user","content":"Open the report"},
-                        {"role":"assistant","content":"It is open"},
-                        {"role":"user","content":message}
-                    ]
-                })
-                .to_string(),
-            )
+            .header("x-session-id", "intent-fixture")
+            .body(json!({"model":group,"messages":messages}).to_string())
             .send()
     };
     assert_eq!(
-        send("group/outer", "Review it").await?.text().await?,
+        send("group/outer", "Review it", false)
+            .await?
+            .text()
+            .await?,
         "usual"
     );
     assert_eq!(
-        send("group/manual", "Review it").await?.text().await?,
+        send("group/manual", "Review it", false)
+            .await?
+            .text()
+            .await?,
         "usual"
     );
+    let (first, concurrent) = tokio::join!(
+        send("group/intent", "Review it", false),
+        send("group/intent", "Review it", false),
+    );
+    assert_eq!(first?.text().await?, "review");
+    assert_eq!(concurrent?.text().await?, "review");
     assert_eq!(
-        send("group/intent", "Review it").await?.text().await?,
+        send("group/intent", "Review it", true)
+            .await?
+            .text()
+            .await?,
         "review"
     );
-    assert_eq!(send("group/intent", "Thanks").await?.text().await?, "usual");
+    assert_eq!(
+        send("group/intent", "Thanks", false).await?.text().await?,
+        "usual"
+    );
     assert_eq!(
         *calls.lock().unwrap(),
         [
-            "usual", "usual", "slow", "decide", "review", "slow", "decide", "usual"
+            "usual", "usual", "slow", "decide", "review", "review", "review", "slow", "decide",
+            "usual"
         ]
     );
 

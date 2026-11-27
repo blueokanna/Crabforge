@@ -272,7 +272,13 @@ impl Gateway {
                                 } else {
                                     let facts = request.facts.expect("classifier request facts");
                                     let intent = classification
-                                        .choose(self, decision.settings, facts, &decision.intents)
+                                        .choose(
+                                            self,
+                                            index,
+                                            decision.settings,
+                                            facts,
+                                            &decision.intents,
+                                        )
                                         .await;
                                     judged.insert(index, intent);
                                     intent
