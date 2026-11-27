@@ -36,7 +36,7 @@ mod routing;
 mod session;
 
 use crate::config::{Config, Provider};
-use crate::media::speech;
+use crate::media::{dashscope, speech};
 use crate::translate::{self, Format};
 use crate::webchat::{Site, WebPrompt};
 use round::Round;
@@ -378,6 +378,15 @@ impl<'a> Api<'a> {
         if let Some(site) = p.web_site {
             return matches!(self, Self::Chat("chat/completions"))
                 .then_some(Destination::Browser(site));
+        }
+        if matches!(self, Self::Chat("images/generations" | "images/edits"))
+            && let Some(url) = dashscope::image_endpoint(p, model)
+        {
+            return Some(Destination::Upstream(
+                url,
+                Self::Chat(dashscope::IMAGE_PATH),
+                None,
+            ));
         }
         if matches!(self, Self::Chat("audio/speech"))
             && speech::gemini_model(model)
@@ -980,6 +989,20 @@ async fn forward(
         } else {
             None
         };
+        let image = if matches!(native, Api::Chat(dashscope::IMAGE_PATH)) {
+            match dashscope::ImageRequest::read(
+                model,
+                &bytes,
+                upload.as_ref(),
+                matches!(api, Api::Chat("images/edits")),
+            ) {
+                Ok(image) => Some(image),
+                Err(_) if candidates.advance().await => continue,
+                Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
+            }
+        } else {
+            None
+        };
         let rewritten = candidate
             .effort
             .zip(api.format())
@@ -1019,7 +1042,7 @@ async fn forward(
                 .or(caller.session);
             request = crate::opencode::conversation(request, seed, &bytes, &gw.token);
         }
-        if upload.is_none() {
+        if upload.is_none() || image.is_some() {
             request = request.header(header::CONTENT_TYPE, "application/json");
         }
         for h in [
@@ -1030,6 +1053,7 @@ async fn forward(
         ] {
             if translation.is_none()
                 && speech.is_none()
+                && image.is_none()
                 && ollama.is_none()
                 && let Some(value) = headers.get(h)
             {
@@ -1078,8 +1102,11 @@ async fn forward(
         }
         let stream = converted.as_ref().is_some_and(|body| body.stream);
         let speech_format = speech.as_ref().map(|speech| speech.format);
+        let image_inline = image.as_ref().map(|image| image.inline);
         let parts = if let Some(body) = vertex_body {
             vec![body.into()]
+        } else if let Some(image) = image {
+            vec![image.body]
         } else if let Some(upload) = &upload {
             request = request.header(header::CONTENT_TYPE, &upload.content_type);
             match upload.body(model) {
@@ -1176,6 +1203,10 @@ async fn forward(
             && status.is_success()
         {
             format.reply(upstream).await
+        } else if let Some(inline) = image_inline
+            && status.is_success()
+        {
+            dashscope::image_reply(upstream, inline, &url, &gw.client).await
         } else {
             Ok(upstream_response(upstream, permit.clone()))
         };

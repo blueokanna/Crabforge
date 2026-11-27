@@ -43,6 +43,8 @@ OpenAI Chat Completions、Responses 和 Anthropic Messages 的 SSE 响应开启�
 
 合成语音时，向 `POST /v1/audio/speech` 发送 `model` 和 `input`。通过 Gemini 专用端点、Google AI Studio 或 Vertex AI 使用 Gemini TTS 模型时，网关调用 `generateContent` 并返回 WAV。将 `response_format` 设为 `pcm` 可获取 24 kHz、16 位单声道原始音频。此路径收到 MP3、Opus、AAC 或 FLAC 请求时会返回 `audio/wav`。`voice` 可填写 Gemini 音色名或 OpenAI 音色名，例如 `nova` 对应 `Zephyr`。用 `instructions` 描述语速。Gemini `generateContent` 返回完整音频并忽略 `speed`。
 
+使用 DashScope 的 Qwen-Image 或 Wan 2.7 图像模型时，向 `POST /v1/images/generations` 或 `POST /v1/images/edits` 发送 `model` 和 `prompt`。编辑接口还接受图片 URL、Base64 数据 URL，以及 `image` 或 `image[]` 字段中的 multipart 文件。`size` 使用 `宽x高`，省略时采用模型默认尺寸。将 `watermark` 设为 `true` 可请求水印。在提示词中描述要修改的区域。默认返回 DashScope 的图片 URL。将 `response_format` 设为 `b64_json` 可获取图片字节，网关从阿里云 OSS 公网 URL 下载，合计上限为 16 MiB。 [Qwen-Image API](https://www.alibabacloud.com/help/en/model-studio/qwen-image-api) · [Qwen-Image 编辑 API](https://www.alibabacloud.com/help/en/model-studio/qwen-image-edit-api)
+
 在路由组 JSON 的 `classifier` 同级加入 `"effort":"auto"`，由分类器为已请求推理的请求评估等级。网关可在一次调用中判定意图与等级，并在同一命名会话的工具续轮中复用结果、传给嵌套组。命中规则的 `useEffort` 优先。路由组分享和加密备份均保留该设置。
 
 配置 `intent` 规则时，在同一编辑器或 CLI 命令中传入 JSON 对象。`classifier` 和 `classifierMore` 接受已配置的模型和路由组 ID，`classifyPrompt` 可选。
