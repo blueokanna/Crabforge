@@ -1,4 +1,10 @@
 {
+  "removeInstalledHook": "इंस्टॉल किया गया हुक हटाएँ",
+  "hookBackups": "हुक बैकअप",
+  "restoreHookBackup": "हुक बैकअप बहाल करें",
+  "hookBackupRestored": "बहाल किया गया",
+  "hookBackupChanged": "क्लाइंट सेटिंग बदल गई हैं",
+  "hookBackupUnavailable": "मूल प्रोफ़ाइल या फ़ाइल उपलब्ध नहीं है",
   "importSubagents": "सबएजेंट आयात करें",
   "subagentImportSource": "Markdown फ़ाइल, स्थानीय फ़ोल्डर या Git URL",
   "subagentChooseFile": "Markdown फ़ाइल चुनें",

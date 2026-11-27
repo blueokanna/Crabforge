@@ -20,6 +20,10 @@ pub(super) enum Command {
     },
     /// Adopt an unchanged native command hook in place.
     Adopt { key: String, name: String },
+    /// Remove the installed hook selected by its current discovery key and keep a backup.
+    RemoveInstalled { key: String },
+    /// Restore an installed-hook backup if the native file is unchanged since removal.
+    Restore { id: String },
     /// Remove a hook and its unchanged managed copies.
     Remove {
         name: String,
@@ -48,6 +52,8 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
             }
         }
         Command::Adopt { key, name } => Edit::Adopt { key, name },
+        Command::RemoveInstalled { key } => Edit::RemoveInstalled { key },
+        Command::Restore { id } => Edit::Restore { id },
         Command::Remove { name, revision } => Edit::Remove { name, revision },
         Command::Sync => Edit::Sync,
     };

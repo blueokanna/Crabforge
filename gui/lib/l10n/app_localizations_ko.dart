@@ -111,6 +111,24 @@ class AppLocalizationsKo extends AppLocalizations {
   String get installedHooks => '클라이언트 설정의 훅';
 
   @override
+  String get removeInstalledHook => '설치된 훅 제거';
+
+  @override
+  String get hookBackups => '훅 백업';
+
+  @override
+  String get restoreHookBackup => '훅 백업 복원';
+
+  @override
+  String get hookBackupRestored => '복원됨';
+
+  @override
+  String get hookBackupChanged => '클라이언트 설정이 변경됨';
+
+  @override
+  String get hookBackupUnavailable => '원래 프로필 또는 파일을 사용할 수 없음';
+
+  @override
   String get hookName => '훅 이름';
 
   @override

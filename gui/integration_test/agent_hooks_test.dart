@@ -11,7 +11,7 @@ import 'desktop_widgets.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testDesktopWidgets('Publish and adopt client hooks in both layouts', (
+  testDesktopWidgets('Publish, adopt, remove and restore hooks in both layouts', (
     tester,
   ) async {
     final root = Platform.environment['CRABFORGE_HOME'] ?? '';
@@ -120,5 +120,21 @@ void main() {
       File('$root/gemini/.gemini/settings.json').readAsStringSync(),
       isNot(contains('echo managed')),
     );
+
+    final beforeRemoval = settings.readAsBytesSync();
+    await tap(below(page, find.byTooltip('Remove installed hook')));
+    await tap(find.widgetWithText(FilledButton, 'Remove'));
+    final restore = below(page, find.byTooltip('Restore hook backup'));
+    await waitFor(restore);
+    expect(settings.readAsStringSync(), isNot(contains('echo external')));
+    expect(settings.readAsStringSync(), contains('echo existing'));
+
+    tester.view.physicalSize = const Size(560, 800);
+    await tester.pumpAndSettle();
+    await tap(below(page, find.byTooltip('List view')));
+    await tap(restore);
+    await tap(find.widgetWithText(FilledButton, 'Restore hook backup'));
+    await waitFor(below(page, find.text('Restored')));
+    expect(settings.readAsBytesSync(), beforeRemoval);
   });
 }

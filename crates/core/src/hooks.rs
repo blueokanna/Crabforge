@@ -11,6 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod backup;
 mod native;
 
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
@@ -137,6 +138,9 @@ struct Found<'a> {
     event: String,
     entry: Value,
     hook: Option<Hook>,
+    removable: bool,
+    #[njson(skip_serializing)]
+    index: usize,
 }
 
 #[derive(NsonSerialize)]
@@ -152,6 +156,7 @@ struct View<'a> {
     installed: Vec<Found<'a>>,
     errors: Vec<(&'a Target, String)>,
     events: BTreeMap<&'static str, Vec<&'static str>>,
+    backups: Vec<backup::Backup>,
 }
 
 pub enum Edit {
@@ -167,6 +172,12 @@ pub enum Edit {
     Adopt {
         key: String,
         name: String,
+    },
+    RemoveInstalled {
+        key: String,
+    },
+    Restore {
+        id: String,
     },
     Sync,
 }
@@ -329,12 +340,12 @@ fn discover<'a>(
             if target.agent == Agent::Codex && *entry == nextjson::json!({"hooks": []}) {
                 continue;
             }
-            if claimed.is_some_and(|claimed| {
+            let managed = claimed.is_some_and(|claimed| {
                 claimed
                     .values()
                     .any(|owned| owned.event == *event && owned.value == *entry)
-            }) && entries.iter().filter(|value| *value == entry).count() == 1
-            {
+            });
+            if managed && entries.iter().filter(|value| *value == entry).count() == 1 {
                 continue;
             }
             let hook =
@@ -346,6 +357,8 @@ fn discover<'a>(
                 event: event.clone(),
                 entry: entry.clone(),
                 hook,
+                removable: !managed,
+                index,
             });
         }
     }
@@ -468,9 +481,13 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
     let library = dir.join("hooks");
     fs::create_dir_all(&library)?;
     let path = library.join("library.json");
+    let backups = library.join("backups");
     let mut store = Store::load(&path)?;
-    let sync = !matches!(edit, Edit::Read);
-    if sync {
+    let sync = !matches!(
+        edit,
+        Edit::Read | Edit::RemoveInstalled { .. } | Edit::Restore { .. }
+    );
+    if !matches!(edit, Edit::Read) {
         store.recover(&path, targets)?;
     }
     match edit {
@@ -506,49 +523,47 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
             store.hooks.remove(&name);
             store.save(&path)?;
         }
+        Edit::RemoveInstalled { key } => {
+            let (found, before) = find_installed(targets, &store, &key)?;
+            ensure!(
+                found.removable,
+                "cannot distinguish this hook from a managed copy"
+            );
+            let after = native::remove(found.target.agent, &before, &found.event, found.index)?;
+            backup::save(&backups, found.target, found.event, &before, &after)?;
+            native_settings::write(Path::new(&found.target.path), Some(&before), Some(&after))?;
+        }
+        Edit::Restore { id } => backup::restore(&backups, targets, &id)?,
         Edit::Adopt { key, name } => {
             ensure!(!store.hooks.contains_key(&name), "hook name already exists");
-            let mut adopted = None;
-            for target in targets.keys() {
-                let Ok(Some(before)) = native_settings::read(Path::new(&target.path)) else {
-                    continue;
-                };
-                let Ok(found) = discover(target, &before, store.entries(target)) else {
-                    continue;
-                };
-                if let Some(found) = found.into_iter().find(|found| found.key == key) {
-                    let mut hook = found
-                        .hook
-                        .context("the native hook cannot be represented as a single command")?;
-                    hook.name = name;
-                    hook.validate()?;
-                    let (_, encoded) = native::encode(target.agent, &hook)?;
-                    let encoded = native::canonical(&encoded);
-                    let entry = Entry {
-                        event: found.event,
-                        equivalent: (encoded != found.entry).then_some(encoded),
-                        value: found.entry,
-                    };
-                    ensure!(
-                        indexes(&native::read(&before)?, &entry).len() == 1,
-                        "identical native hooks cannot be adopted individually"
-                    );
-                    ensure!(
-                        native_settings::read(Path::new(&target.path))?.as_deref()
-                            == Some(before.as_str()),
-                        "native hooks changed; rediscover them"
-                    );
-                    let mut entries = store.entries(target).cloned().unwrap_or_default();
-                    entries.insert(hook.name.clone(), entry);
-                    store.record(Publication {
-                        target: target.clone(),
-                        entries,
-                    });
-                    adopted = Some(hook);
-                    break;
-                }
-            }
-            let hook = adopted.context("native hook changed; rediscover it")?;
+            let (found, before) = find_installed(targets, &store, &key)?;
+            let target = found.target;
+            let mut hook = found
+                .hook
+                .context("the native hook cannot be represented as a single command")?;
+            hook.name = name;
+            hook.validate()?;
+            let (_, encoded) = native::encode(target.agent, &hook)?;
+            let encoded = native::canonical(&encoded);
+            let entry = Entry {
+                event: found.event,
+                equivalent: (encoded != found.entry).then_some(encoded),
+                value: found.entry,
+            };
+            ensure!(
+                indexes(&native::read(&before)?, &entry).len() == 1,
+                "identical native hooks cannot be adopted individually"
+            );
+            ensure!(
+                native_settings::read(Path::new(&target.path))?.as_deref() == Some(before.as_str()),
+                "native hooks changed; rediscover them"
+            );
+            let mut entries = store.entries(target).cloned().unwrap_or_default();
+            entries.insert(hook.name.clone(), entry);
+            store.record(Publication {
+                target: target.clone(),
+                entries,
+            });
             store.hooks.insert(hook.name.clone(), hook);
             store.save(&path)?;
         }
@@ -598,11 +613,31 @@ fn edit_in(dir: &Path, targets: &BTreeMap<Target, &str>, edit: Edit) -> Result<S
         placements,
         installed,
         errors,
+        backups: backup::list(&backups, targets)?,
         events: targets
             .keys()
             .map(|target| (target.agent.id(), native::native_events(target.agent)))
             .collect(),
     })
+}
+
+fn find_installed<'a>(
+    targets: &'a BTreeMap<Target, &str>,
+    store: &Store,
+    key: &str,
+) -> Result<(Found<'a>, String)> {
+    for target in targets.keys() {
+        let Ok(Some(before)) = native_settings::read(Path::new(&target.path)) else {
+            continue;
+        };
+        let Ok(found) = discover(target, &before, store.entries(target)) else {
+            continue;
+        };
+        if let Some(found) = found.into_iter().find(|found| found.key == key) {
+            return Ok((found, before));
+        }
+    }
+    anyhow::bail!("native hook changed; rediscover it")
 }
 
 pub fn edit(dir: &Path, change: Edit) -> Result<String> {
@@ -724,6 +759,76 @@ mod tests {
         let new = native::read(&fs::read_to_string(path).unwrap()).unwrap();
         assert_eq!(new["SessionStart"].len(), 3);
         assert_eq!(new["SessionStart"][1], native::canonical(&later));
+    }
+
+    #[test]
+    fn installed_hook_removal_restores_exact_bytes_and_checks_revisions() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let dir = tmp.path();
+        let (target, targets) = fixture(dir, Agent::Codex);
+        let path = Path::new(&target.path);
+        let original = concat!(
+            "\u{feff}{\r\n  // Keep this comment.\r\n",
+            "  \"hooks\": {\"SessionStart\": [",
+            "{\"hooks\":[{\"type\":\"command\",\"command\":\"echo first\"}]}, ",
+            "{\"hooks\":[{\"type\":\"command\",\"command\":\"echo later\"}]}]},\r\n}\r\n"
+        );
+        fs::write(path, original)?;
+        let view = run(dir, &targets, Edit::Read);
+        let key = view["installed"][0]["key"].as_str().unwrap();
+        let remove = || Edit::RemoveInstalled { key: key.into() };
+        fs::write(path, original.replace("Keep this", "Changed this"))?;
+        assert!(edit_in(dir, &targets, remove()).is_err());
+        assert!(!dir.join("hooks/backups").exists());
+        fs::write(path, original)?;
+
+        let removed = run(dir, &targets, remove());
+        let after = fs::read_to_string(path)?;
+        let groups = native::read(&after)?;
+        assert_eq!(groups["SessionStart"][0], json!({"hooks": []}));
+        assert_eq!(
+            groups["SessionStart"][1]["hooks"][0]["command"].as_str(),
+            Some("echo later")
+        );
+        assert_eq!(removed["backups"][0]["status"].as_str(), Some("ready"));
+        let id = removed["backups"][0]["id"].as_str().unwrap();
+        let restore = || Edit::Restore { id: id.into() };
+        let changed = after.replace("echo later", "echo external edit");
+        fs::write(path, &changed)?;
+        assert!(edit_in(dir, &targets, restore()).is_err());
+        assert_eq!(fs::read_to_string(path)?, changed);
+        assert_eq!(
+            run(dir, &targets, Edit::Read)["backups"][0]["status"].as_str(),
+            Some("conflict")
+        );
+        fs::write(path, after)?;
+        assert!(edit_in(dir, &BTreeMap::new(), restore()).is_err());
+        let restored = run(dir, &targets, restore());
+        assert_eq!(restored["backups"][0]["status"].as_str(), Some("restored"));
+        assert_eq!(fs::read(path)?, original.as_bytes());
+        assert_eq!(restored["installed"].as_array().unwrap().len(), 2);
+        run(dir, &targets, restore());
+        assert_eq!(fs::read(path)?, original.as_bytes());
+        Ok(())
+    }
+
+    #[test]
+    fn installed_hook_removal_rejects_ambiguous_managed_copies() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let dir = tmp.path();
+        let (target, targets) = fixture(dir, Agent::Claude);
+        let path = Path::new(&target.path);
+        run(dir, &targets, save("probe", Agent::Claude, "echo managed"));
+        let source = fs::read_to_string(path)?;
+        let row = native::read(&source)?["SessionStart"][0].clone();
+        let duplicated = native::add(&source, "SessionStart", row)?;
+        fs::write(path, &duplicated)?;
+        let view = run(dir, &targets, Edit::Read);
+        assert_eq!(view["installed"][0]["removable"], json!(false));
+        let key = view["installed"][0]["key"].as_str().unwrap().into();
+        assert!(edit_in(dir, &targets, Edit::RemoveInstalled { key }).is_err());
+        assert_eq!(fs::read_to_string(path)?, duplicated);
+        Ok(())
     }
 
     #[test]

@@ -113,6 +113,24 @@ class AppLocalizationsPt extends AppLocalizations {
   String get installedHooks => 'Hooks nas configurações dos clientes';
 
   @override
+  String get removeInstalledHook => 'Remover hook instalado';
+
+  @override
+  String get hookBackups => 'Backups de hooks';
+
+  @override
+  String get restoreHookBackup => 'Restaurar backup do hook';
+
+  @override
+  String get hookBackupRestored => 'Restaurado';
+
+  @override
+  String get hookBackupChanged => 'As configurações do cliente mudaram';
+
+  @override
+  String get hookBackupUnavailable => 'Perfil ou arquivo original indisponível';
+
+  @override
   String get hookName => 'Nome do hook';
 
   @override
