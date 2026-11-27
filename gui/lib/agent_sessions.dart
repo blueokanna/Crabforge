@@ -14,6 +14,7 @@ const _agentNames = {
   'codex': 'Codex',
   'gemini': 'Gemini CLI',
   'grok': 'Grok Build',
+  'omp': 'Oh My Pi',
   'pi': 'Pi',
 };
 

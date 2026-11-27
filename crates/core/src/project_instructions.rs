@@ -200,7 +200,7 @@ fn agent_target(agent: &str) -> Result<PathBuf> {
     let names: &[&str] = match agent {
         NativeAgent::Claude => &["CLAUDE.md"],
         NativeAgent::Codex => &["AGENTS.override.md", "AGENTS.md"],
-        NativeAgent::Gemini | NativeAgent::Grok | NativeAgent::Pi => {
+        NativeAgent::Gemini | NativeAgent::Grok | NativeAgent::Omp | NativeAgent::Pi => {
             anyhow::bail!("user instructions support Claude Code and Codex")
         }
     };

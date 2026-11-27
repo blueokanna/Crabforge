@@ -57,6 +57,7 @@ pub fn list(dir: &Path, agent: Option<Agent>, limit: usize) -> Result<Listing> {
         Agent::Codex,
         Agent::Gemini,
         Agent::Grok,
+        Agent::Omp,
         Agent::Pi,
     ]
     .into_iter()
@@ -84,6 +85,7 @@ fn session_profiles(dir: &Path, agent: Agent) -> Vec<PathBuf> {
             .chain([dir.join("agents/gemini/.gemini")])
             .collect(),
         Agent::Grok => return agent.home().into_iter().collect(),
+        Agent::Omp => omp_profiles(dir),
         _ => {
             return agent.home().map_or_else(Vec::new, |home| {
                 profiles(agent, home, env::home_dir().as_deref())
@@ -95,6 +97,48 @@ fn session_profiles(dir: &Path, agent: Agent) -> Vec<PathBuf> {
         .into_iter()
         .filter(|path| seen.insert(path.canonicalize().unwrap_or_else(|_| path.clone())))
         .collect()
+}
+
+fn omp_profiles(dir: &Path) -> Vec<PathBuf> {
+    let mut paths = vec![dir.join("agents/omp/sessions")];
+    paths.extend(
+        env::var_os("PI_CODING_AGENT_SESSION_DIR")
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from),
+    );
+    paths.extend(
+        env::var_os("PI_CODING_AGENT_DIR")
+            .filter(|path| !path.is_empty())
+            .map(|path| PathBuf::from(path).join("sessions")),
+    );
+    let mut config_roots = Vec::new();
+    if let Some(home) = Agent::Omp.home() {
+        paths.push(home.join("sessions"));
+        config_roots.extend(home.parent().map(|parent| (parent.to_owned(), true)));
+    }
+    if cfg!(any(target_os = "linux", target_os = "macos"))
+        && let Some(root) = env::var_os("XDG_DATA_HOME").filter(|path| !path.is_empty())
+    {
+        let root = PathBuf::from(root).join("omp");
+        paths.push(root.join("sessions"));
+        config_roots.push((root, false));
+    }
+    for (root, agent_subdirectory) in config_roots {
+        for folder in fs::read_dir(root.join("profiles"))
+            .into_iter()
+            .flatten()
+            .flatten()
+        {
+            if folder.file_type().is_ok_and(|kind| kind.is_dir()) {
+                let mut path = folder.path();
+                if agent_subdirectory {
+                    path.push("agent");
+                }
+                paths.push(path.join("sessions"));
+            }
+        }
+    }
+    paths
 }
 
 fn profiles(agent: Agent, primary: PathBuf, user: Option<&Path>) -> Vec<PathBuf> {
@@ -111,7 +155,7 @@ fn profiles(agent: Agent, primary: PathBuf, user: Option<&Path>) -> Vec<PathBuf>
     let has_sessions = |path: &Path| match agent {
         Agent::Claude => path.join("projects").is_dir(),
         Agent::Codex => path.join("sessions").is_dir() || path.join("archived_sessions").is_dir(),
-        Agent::Gemini | Agent::Grok | Agent::Pi => false,
+        Agent::Gemini | Agent::Grok | Agent::Omp | Agent::Pi => false,
     };
     let mut seen: HashSet<_> = primary.canonicalize().into_iter().collect();
     let mut additional = Vec::new();
@@ -190,7 +234,9 @@ pub(crate) fn excerpt(
                 .context("profile was not found among the client's local profiles")?;
             vec![known]
         }
-        None if matches!(agent, Agent::Gemini | Agent::Pi) => session_profiles(dir, agent),
+        None if matches!(agent, Agent::Gemini | Agent::Omp | Agent::Pi) => {
+            session_profiles(dir, agent)
+        }
         None => vec![agent.home().context("client profile is unavailable")?],
     };
     let roots: Vec<_> = profiles.into_iter().map(|path| (agent, path)).collect();
@@ -263,7 +309,7 @@ fn ordered_logs(roots: &[(Agent, PathBuf)]) -> Result<Vec<Log<'_>>> {
                 }
             }
             Agent::Grok => visit(&home.join("sessions"), 2, *agent, home, false, &mut logs)?,
-            Agent::Pi => visit(home, 1, *agent, home, false, &mut logs)?,
+            Agent::Pi | Agent::Omp => visit(home, 1, *agent, home, false, &mut logs)?,
         }
     }
     logs.sort_unstable_by(|a, b| {
@@ -303,7 +349,7 @@ fn visit<'a>(
                         && (name.ends_with(".json") || name.ends_with(".jsonl"))
                 }
                 Agent::Grok => depth == 0 && name == "updates.jsonl",
-                Agent::Pi => name.ends_with(".jsonl"),
+                Agent::Pi | Agent::Omp => name.ends_with(".jsonl"),
             }
         {
             match entry.metadata().and_then(|metadata| metadata.modified()) {
@@ -374,6 +420,13 @@ impl Log<'_> {
     }
 
     fn read_header(&self, source: impl Read) -> Result<Option<Session>> {
+        if matches!(self.agent, Agent::Pi | Agent::Omp) {
+            let omp = self.agent == Agent::Omp;
+            let shared = omp && pi::is_shared_root(self.profile);
+            return pi::read_header(source.take(MAX_HEADER), omp, shared)?
+                .map(|(id, cwd, title)| self.summary(id, cwd, title))
+                .transpose();
+        }
         let mut reader = BufReader::new(source.take(MAX_HEADER));
         let mut bytes = Vec::new();
         let mut id = String::new();
@@ -423,20 +476,7 @@ impl Log<'_> {
                 }
                 Agent::Gemini => unreachable!("Gemini uses native conversation records"),
                 Agent::Grok => unreachable!("Grok uses a separate session summary"),
-                Agent::Pi => {
-                    if id.is_empty() {
-                        if pi::version(&row).is_none() {
-                            return Ok(None);
-                        }
-                        id = string(&row, "/id").to_owned();
-                        cwd = string(&row, "/cwd").to_owned();
-                        if id.is_empty() || cwd.is_empty() {
-                            return Ok(None);
-                        }
-                    } else if pi::user_message(&row) {
-                        title = message_title(message_parts(row.pointer("/message/content")));
-                    }
-                }
+                Agent::Pi | Agent::Omp => unreachable!("Pi formats use a session header"),
             }
             if !id.is_empty() && !cwd.is_empty() && !title.is_empty() {
                 break;
@@ -461,8 +501,8 @@ impl Log<'_> {
     }
 
     fn read_excerpt(&self, source: impl Read) -> Result<Vec<String>> {
-        if self.agent == Agent::Pi {
-            return pi::read_excerpt(source);
+        if matches!(self.agent, Agent::Pi | Agent::Omp) {
+            return pi::read_excerpt(source, self.agent == Agent::Omp);
         }
         let mut reader = BufReader::new(source.take(MAX_EXCERPT_SCAN));
         let mut bytes = Vec::new();

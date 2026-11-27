@@ -114,6 +114,7 @@ pub enum NativeAgent {
     Codex,
     Gemini,
     Grok,
+    Omp,
     Pi,
 }
 
@@ -124,6 +125,7 @@ impl NativeAgent {
             "codex" => Some(Self::Codex),
             "gemini" => Some(Self::Gemini),
             "grok" => Some(Self::Grok),
+            "omp" => Some(Self::Omp),
             "pi" => Some(Self::Pi),
             _ => None,
         }
@@ -135,6 +137,7 @@ impl NativeAgent {
             Self::Codex => "codex",
             Self::Gemini => "gemini",
             Self::Grok => "grok",
+            Self::Omp => "omp",
             Self::Pi => "pi",
         }
     }
@@ -147,6 +150,12 @@ impl NativeAgent {
             Self::Codex => ("CODEX_HOME", ".codex", false),
             Self::Gemini => ("GEMINI_CLI_HOME", ".gemini", true),
             Self::Grok => ("GROK_HOME", ".grok", false),
+            Self::Omp => {
+                let name = env::var_os("PI_CONFIG_DIR")
+                    .filter(|name| !name.is_empty())
+                    .unwrap_or_else(|| ".omp".into());
+                return Some(env::home_dir()?.join(name).join("agent"));
+            }
             Self::Pi => ("PI_CODING_AGENT_DIR", ".pi/agent", false),
         };
         env::var_os(key)

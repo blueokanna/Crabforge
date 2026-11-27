@@ -348,6 +348,16 @@ Grok Build 1.0.92 通过回环夹具启动原生会话，并用同一个会话 I
 
 Grok Build 1.0.92 started a native session against a loopback fixture and resumed the same session ID through turn 12. The upstream received the earlier user prompts on each turn. Both Windows Debug CLIs listed the native ID, project and profile, extracted the same 12 original prompts and preview revision, and rejected an unconfigured profile. The Rust regression covers split prompts, host turns and subagent logs. [Session reader](../../../crates/core/src/sessions/grok.rs)
 
+## Oh My Pi 会话 / Oh My Pi sessions
+
+Windows 10 上使用 Oh My Pi `19.2.1` 和 Bun `1.4.5`，经 Actions `45996621864` 下载包的两个 CLI 分别完成六轮，对同一个命名配置下的原生会话连续恢复到第 12 轮。回环上游在每轮请求中收到此前的提示，并另答复客户端自动发出的七个模型探测请求。新增读取功能在两个本地 Debug CLI 中返回相同的原生 ID、项目、配置路径、12 条提示和预览修订。读取前后的会话文件字节一致。Rust 回归覆盖旧格式、固定标题记录、清空边界和日志中最后一次保存的活跃分支。
+
+On Windows 10, Oh My Pi `19.2.1` with Bun `1.4.5` resumed a native session in a named profile through turn 12. Each of the two packaged CLIs from Actions run `45996621864` forwarded six turns. The loopback upstream received the earlier prompts on every turn and separately answered seven native model probes. Both local Debug CLIs returned the same session ID, project, profile, 12 prompts and preview revision. Reading left the session file byte-identical. The Rust regression covers legacy records, the title record, clear boundaries and the saved active branch. [Session readers](../../../crates/core/src/sessions.rs) · [Pi and Oh My Pi parser](../../../crates/core/src/sessions/pi.rs)
+
+双 CLI 在共用会话目录中分别识别 Pi 与 Oh My Pi，并跳过下层子代理日志。Pi `1.6.0` 另通过 12 轮原生续接、记忆提炼、审核、发布和逐字节撤回回归。
+
+Both CLIs distinguished Pi and Oh My Pi in a shared session directory and skipped a nested subagent log. A separate Pi `1.6.0` regression verified 12 native turns, memory extraction, review, publication and byte-identical withdrawal.
+
 ## 技能与钩子备份迁移 / Skill and hook backup migration
 
 用 Magpie 0.1.4936 的便携配置生成加密备份。双 Windows Debug CLI 只读预览技能，保留 `SKILL.md` 的 CRLF、含中文路径的二进制附件及客户端分配。四进程并发仅写入一次。显式同步发布到 Claude Code、Codex 和 Pi，撤销保留了外部编辑。钩子用例覆盖命令遮蔽、密码错误、选名、并发、批次冲突及不兼容会话匹配条件。同步后核对 Claude Code 的 `Bash`、Codex 的 `resume` 和 Gemini 的 `run_shell_command` 及毫秒超时，并验证撤销。
@@ -357,6 +367,10 @@ Both Windows Debug CLIs read an encrypted backup written by portable Magpie 0.1.
 Grok `1.0.92` 在回环模型夹具中恢复同一个原生会话。新建会话触发导入的 `new` 钩子，按 ID 恢复触发 `load` 钩子，无匹配条件的对照钩子触发两次。第二轮上游请求包含第一轮提示，两轮都收到模型回复。Antigravity 的会话来源转换由 Rust 单测覆盖。
 
 Grok `1.0.92` resumed the same native session against a loopback model fixture. The imported `new` hook ran on startup, the `load` hook ran on resume by ID, and the unfiltered control ran twice. The second model request retained the first prompt, and both turns received a reply. Rust unit coverage checks the Antigravity session source conversion. [Client hook encoding](../../../crates/core/src/hooks/native.rs)
+
+Windows Actions `45996621864` 从 `802e64a4fbad30846a1079c713b61fd046aedaba` 构建，job `140497503621` 通过依赖门禁、Clippy、143 项 Rust 测试及 Flutter 检查。ZIP `15197592899` 为 65,669,070 字节，SHA-256 为 `9d94246c4811d83cc07fb8f56e0759cadb8659278854aa422e9079b01479479f`。670 项逐文件清单的 SHA-256 为 `0f25c3d4f791de6b7557bef10fe11b81025c305bf4342d1dd93f7ea06bb0614a`。桌面通过启动和退出测试，六个 PE 均返回 `NotSigned`。双 CLI 通过技能、钩子、用户指令和先前的迁移回归，Pi 和 Gemini 各恢复 12 轮原生会话。验收末尾远端 `main` 匹配该完整构建 SHA。
+
+Windows Actions run `45996621864` built `802e64a4fbad30846a1079c713b61fd046aedaba`. Job `140497503621` passed the dependency gate, Clippy, 143 Rust tests and Flutter checks. Artifact `15197592899` was 65,669,070 bytes with SHA-256 `9d94246c4811d83cc07fb8f56e0759cadb8659278854aa422e9079b01479479f`. The 670-file manifest has SHA-256 `0f25c3d4f791de6b7557bef10fe11b81025c305bf4342d1dd93f7ea06bb0614a`. The desktop opened and exited cleanly, and all six PE files reported `NotSigned`. Both CLIs passed skill, hook, user instruction and earlier migration regressions. Pi and Gemini each resumed 12 native turns. Remote `main` matched the full build SHA at the end of verification. [Job](https://github.com/blueokanna/Crabforge/actions/runs/45996621864/job/140497503621) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/45996621864/artifacts/15197592899)
 
 ## 用户指令备份迁移 / User instruction backup migration
 
