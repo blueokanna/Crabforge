@@ -798,12 +798,16 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         if (mounted) widget.onLanguage(code);
       }),
       itemBuilder: (_) => [
-        PopupMenuItem(value: '', child: Text(context.strings.systemLanguage)),
+        workspaceMenuChoice(
+          value: '',
+          selected: widget.language.isEmpty,
+          label: Text(context.strings.systemLanguage),
+        ),
         for (final e in languageNames.entries)
-          CheckedPopupMenuItem(
+          workspaceMenuChoice(
             value: e.key,
-            checked: widget.language == e.key,
-            child: Text(e.value),
+            selected: widget.language == e.key,
+            label: Text(e.value),
           ),
       ],
     );
@@ -846,10 +850,10 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
             }),
             itemBuilder: (_) => [
               for (final font in WorkspaceFont.values)
-                CheckedPopupMenuItem(
+                workspaceMenuChoice(
                   value: font,
-                  checked: widget.font == font,
-                  child: Text(
+                  selected: widget.font == font,
+                  label: Text(
                     font.label,
                     style: TextStyle(fontFamily: font.family),
                   ),

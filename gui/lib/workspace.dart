@@ -2,6 +2,27 @@ import 'package:flutter/material.dart';
 
 import 'material_symbols.dart';
 
+PopupMenuItem<T> workspaceMenuChoice<T>({
+  required T value,
+  required bool selected,
+  required Widget label,
+}) => PopupMenuItem<T>(
+  value: value,
+  child: Semantics(
+    selected: selected,
+    child: Row(
+      children: [
+        SizedBox.square(
+          dimension: 24,
+          child: selected ? const Icon(CrabforgeSymbols.check, size: 20) : null,
+        ),
+        const SizedBox(width: 12),
+        Flexible(child: label),
+      ],
+    ),
+  ),
+);
+
 class WorkspaceBrand extends StatelessWidget {
   const WorkspaceBrand({super.key});
 

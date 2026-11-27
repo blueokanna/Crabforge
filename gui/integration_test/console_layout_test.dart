@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:crabforge/appearance.dart';
 import 'package:crabforge/l10n/app_localizations.dart';
 import 'package:crabforge/language.dart';
 import 'package:crabforge/main.dart';
@@ -9,6 +10,7 @@ import 'package:crabforge/src/rust/api.dart' as native;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -186,6 +188,51 @@ void main() {
     }
     tester.binding.platformDispatcher.localesTestValue = [const Locale('en')];
     await tester.pumpAndSettle();
+
+    final accent = decodeSystemAccent(
+      await ServicesBinding.instance.defaultBinaryMessenger.send(
+        systemAccentChannel,
+        null,
+      ),
+    );
+    expect(accent, isNotNull);
+    final materialApp = find.byType(MaterialApp);
+    expect(
+      tester.widget<MaterialApp>(materialApp).theme!.colorScheme,
+      workspaceTheme(
+        Brightness.light,
+        WorkspaceFont.googleSans,
+        accent: accent,
+      ).colorScheme,
+    );
+    final fontMenu = find.byKey(const ValueKey('font-picker'));
+    for (final font in [WorkspaceFont.harmonyOs, WorkspaceFont.googleSans]) {
+      await tester.tap(fontMenu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(font.label));
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (tester
+                  .widget<MaterialApp>(materialApp)
+                  .theme!
+                  .textTheme
+                  .bodyMedium!
+                  .fontFamily !=
+              font.family &&
+          DateTime.now().isBefore(deadline)) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(
+        tester
+            .widget<MaterialApp>(materialApp)
+            .theme!
+            .textTheme
+            .bodyMedium!
+            .fontFamily,
+        font.family,
+      );
+      expect(await native.uiFont(), font.preference);
+      await tester.pumpAndSettle();
+    }
 
     final project = Directory('${home.path}/layout-project')..createSync();
     final instructions = File('${project.path}/CLAUDE.md');

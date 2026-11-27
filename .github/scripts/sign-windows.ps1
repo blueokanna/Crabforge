@@ -53,7 +53,7 @@ try {
         $status = Get-AuthenticodeSignature -LiteralPath $file.FullName
         $append = if ($status.SignerCertificate) { @('/as') } else { @() }
         & $signTool.FullName sign @append /sha1 $thumbprint /s My /fd SHA256 `
-            /tr https://timestamp.digicert.com /td SHA256 $file.FullName
+            /tr http://timestamp.digicert.com /td SHA256 $file.FullName
         & $signTool.FullName verify /pa /all /tw $file.FullName
     }
 } finally {

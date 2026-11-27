@@ -514,7 +514,13 @@ mod tests {
         );
         let destination_settings = fs::read_to_string(&destination_file)?;
         let local_source = &Packages::read(&destination, &destination_settings)?.entries[0].source;
-        assert!(Path::new(local_source).starts_with(&destination_data));
+        // The Windows runner may put the temporary directory under an 8.3
+        // alias. Pi receives the resolved path to the same library directory.
+        assert!(
+            Path::new(local_source)
+                .canonicalize()?
+                .starts_with(destination_data.canonicalize()?)
+        );
         assert!(local_source.ends_with(&second.content));
 
         let root = project.canonicalize()?;
