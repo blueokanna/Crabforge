@@ -325,6 +325,8 @@ struct BackupSettings {
         skip_serializing_if = "Option::is_none"
     )]
     group_first_content: Option<i32>,
+    #[njson(default, skip_serializing_if = "Option::is_none")]
+    group_patience: Option<i32>,
     #[njson(flatten, skip_serializing)]
     other: BTreeMap<String, Value>,
 }
@@ -438,13 +440,14 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
         anyhow::bail!("Magpie backup has no settings object");
     };
     let mut imported: BackupSettings = nextjson::from_value(raw).map_err(|_| {
-        anyhow::anyhow!("invalid Magpie port, corsOrigins, modelSameAs or groupFirstToken setting")
+        anyhow::anyhow!("invalid Magpie port, corsOrigins, modelSameAs, groupFirstToken or groupPatience setting")
     })?;
     ensure!(
         imported.port.is_some()
             || imported.cors_origins.is_some()
             || imported.model_same_as.is_some()
-            || imported.group_first_content.is_some(),
+            || imported.group_first_content.is_some()
+            || imported.group_patience.is_some(),
         "Magpie backup has no supported settings to import"
     );
     if let Some(port) = &mut imported.port {
@@ -478,6 +481,9 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
     }
     if let Some(seconds) = imported.group_first_content {
         cfg.default_group_first_content = seconds;
+    }
+    if let Some(seconds) = imported.group_patience {
+        cfg.default_group_patience = seconds;
     }
     let skipped_fields = std::mem::take(&mut imported.other).into_keys().collect();
     Ok(MagpieSettingsImport {
@@ -741,8 +747,8 @@ mod tests {
                     {"id":"backup","was":["old-backup"],"chat":"http://127.0.0.1:1","models":["m"]}
                 ],
                 "groups":[
-                    {"id":"work","former":["old-work"],"members":["group/tools"],"firstToken":15},
-                    {"id":"tools","members":["backup/m"],"firstToken":-1},
+                    {"id":"work","former":["old-work"],"members":["group/tools"],"firstToken":15,"patience":30},
+                    {"id":"tools","members":["backup/m"],"firstToken":-1,"patience":-1},
                     {"id":"unsupported","members":["lab/m"],"redact":"on"}
                 ]
             }),
@@ -783,9 +789,12 @@ mod tests {
         assert_eq!(cfg.group_display_order, ["auto-m", "tools", "work"]);
         assert_eq!(cfg.group_first_content["work"], 15);
         assert_eq!(cfg.group_first_content["tools"], -1);
+        assert_eq!(cfg.group_patience["work"], 30);
+        assert_eq!(cfg.group_patience["tools"], -1);
         let share = cfg.share_group("work")?;
         let (restored, group) = cfg.import_group(&share, false)?;
         assert_eq!(restored.group_first_content[&group.id], 15);
+        assert_eq!(restored.group_patience[&group.id], 30);
         assert!(!stored.contains("fixture-only"));
         assert!(restore(&[], &groups, true).is_err());
         assert_eq!(fs::read_to_string(&settings)?, stored);
@@ -820,6 +829,7 @@ mod tests {
             json!({"port":3425, "modelSameAs":{"old/model":"conflicting-name"}}),
             json!({"modelSameAs":{"missing-provider-prefix":"target"}}),
             json!({"groupFirstToken":-2}),
+            json!({"groupPatience":241}),
             json!({"lanKey":"fixture-secret"}),
         ] {
             seal(&file, json!({"version":1, "settings":invalid}));
@@ -831,14 +841,14 @@ mod tests {
             json!({"version":1, "providers":[{"id":"unsupported"}], "groups":[{}],
                 "settings":{"port":0,"lan":true,"lanKey":"fixture-secret",
                     "corsOrigins":["HTTPS://Example.org:443/"],
-                    "modelSameAs":{"lab/vendor/m":"canonical"}, "groupFirstToken":25}}),
+                    "modelSameAs":{"lab/vendor/m":"canonical"}, "groupFirstToken":25,"groupPatience":0}}),
         );
         let preview = restore(false)?;
         let preview = nextjson::to_value(&preview).unwrap();
         assert_eq!(
             preview,
             json!({"providers":[], "groups":[], "settings":{"port":3425,
-                 "corsOrigins":["https://example.org"], "modelSameAs":{"lab/vendor/m":"canonical"}, "groupFirstToken":25,
+                 "corsOrigins":["https://example.org"], "modelSameAs":{"lab/vendor/m":"canonical"}, "groupFirstToken":25,"groupPatience":0,
                 "skipped_fields":["lan","lanKey"]}, "other_sections":["groups","providers"],
                 "applied":false})
         );
@@ -854,6 +864,7 @@ mod tests {
         assert_eq!(cfg.model_same_as["lab/vendor/m"], "canonical");
         assert_eq!(cfg.model_same_as["old/model"], "old-name");
         assert_eq!(cfg.default_group_first_content, 25);
+        assert_eq!(cfg.default_group_patience, 0);
         assert!(!stored.contains("fixture-secret"));
         Ok(())
     }

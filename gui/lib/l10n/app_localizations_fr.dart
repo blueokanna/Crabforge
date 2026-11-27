@@ -773,6 +773,21 @@ class AppLocalizationsFr extends AppLocalizations {
       'Saisissez un nombre entier entre -1 et 2147483647.';
 
   @override
+  String get groupPatienceSeconds => 'Délai de nouvelle tentative (secondes)';
+
+  @override
+  String get groupPatienceHelp =>
+      'Utilisez 0 pour hériter du délai ou -1 pour désactiver les nouvelles tentatives.';
+
+  @override
+  String get defaultGroupPatienceHelp =>
+      'Utilisez 0 pour 60 secondes ou -1 pour désactiver les nouvelles tentatives.';
+
+  @override
+  String get invalidGroupPatience =>
+      'Saisissez un nombre entier entre -1 et 240.';
+
+  @override
   String get enableMember => 'Activer le membre';
 
   @override

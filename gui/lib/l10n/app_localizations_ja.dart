@@ -753,6 +753,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get invalidFirstContent => '-1 から 2147483647 までの整数を入力してください。';
 
   @override
+  String get groupPatienceSeconds => '再試行の制限時間（秒）';
+
+  @override
+  String get groupPatienceHelp => '0 で設定を継承し、-1 で再試行を無効にします。';
+
+  @override
+  String get defaultGroupPatienceHelp => '0 は 60 秒、-1 は再試行を無効にします。';
+
+  @override
+  String get invalidGroupPatience => '-1 から 240 までの整数を入力してください。';
+
+  @override
   String get enableMember => 'メンバーを有効にする';
 
   @override

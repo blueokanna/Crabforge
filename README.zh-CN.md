@@ -27,6 +27,8 @@ Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\co
 
 可在路由组编辑器设置「首段内容超时」，或在 `group set` 中传入 `--first-content <秒>`。`0` 继承外层组或「网关 → 网络设置」中的默认值，`-1` 表示单独指定等待。若成员在时限内没有流式输出文本、推理或工具调用，且还有兼容的候选，网关会为本次尝试记录 HTTP 504 并切到下一成员。修改后重启网关。
 
+路由组编辑器的「繁忙重试时限」或 `group set --patience <秒>` 适用于上游临时过载和限流。首次轮询候选结束后，网关会逐步延长等待时间，并在成员的时限内按 `Retry-After` 重试繁忙成员。填 `0` 继承，填 `-1` 关闭重试，或填 `1` 至 `240` 秒。网关默认值可在「网关 → 网络设置」或 `group default-patience <秒>` 中设置，此处 `0` 代表 60 秒。现有配置默认关闭重试。修改后重启网关。
+
 ## 从 Magpie 导入供应商
 
 使用 `magpie backup` 生成的 `.magpie-backup` 文件。CLI 会提示输入备份口令，输入内容不可见。先运行第一条命令预览，再加 `--apply` 保存。省略 `--provider` 可选择全部供应商，重复此选项可选择多个。
@@ -54,7 +56,7 @@ carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_A
 carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_API_KEY --apply
 ```
 
-加 `--settings` 可同时导入网关端口、允许的浏览器来源、等价模型名和路由组的默认首段内容超时。仅迁移这些设置时使用 `--settings-only`。预览在 `settings` 中显示导入值，并在 `settings.skipped_fields` 中列出跳过的字段名。重启网关后会在现有回环地址上监听导入的端口。备份中的来源列表替换现有列表，等价模型名合并到现有映射。同一模型的等价名称发生冲突时，整批导入会被拒绝。
+加 `--settings` 可同时导入网关端口、允许的浏览器来源、等价模型名、路由组的默认首段内容超时和繁忙重试时限。仅迁移这些设置时使用 `--settings-only`。预览在 `settings` 中显示导入值，并在 `settings.skipped_fields` 中列出跳过的字段名。重启网关后会在现有回环地址上监听导入的端口。备份中的来源列表替换现有列表，等价模型名合并到现有映射。同一模型的等价名称发生冲突时，整批导入会被拒绝。
 
 ```powershell
 carbforge-cli import-magpie .\magpie.magpie-backup --settings-only

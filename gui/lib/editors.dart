@@ -537,6 +537,7 @@ typedef GroupSelection = ({
   String name,
   String note,
   int firstContent,
+  int patience,
   bool listMembers,
   List<String> off,
   List<String> members,
@@ -560,6 +561,7 @@ class GroupEditor extends StatefulWidget {
     required this.off,
     required this.listMembers,
     required this.firstContent,
+    required this.patience,
     this.pick,
     this.name,
     this.note,
@@ -567,6 +569,7 @@ class GroupEditor extends StatefulWidget {
   final String? name, note;
   final bool listMembers;
   final int firstContent;
+  final int patience;
   final GroupStrategy strategy;
   final Map<String, int> weights;
   final String? pick;
@@ -580,6 +583,7 @@ class _GroupEditorState extends State<GroupEditor> {
   late final name = TextEditingController(text: widget.name);
   late final note = TextEditingController(text: widget.note);
   final firstContent = GlobalKey<FormFieldState<String>>();
+  final patience = GlobalKey<FormFieldState<String>>();
   late bool listMembers = widget.listMembers;
   late final named = [...widget.members];
   late final patterns = TextEditingController(text: widget.patterns.join('\n'));
@@ -664,10 +668,21 @@ class _GroupEditorState extends State<GroupEditor> {
             children: [
               field(context, name, context.strings.groupId),
               field(context, note, context.strings.groupNote),
-              _FirstContentField(
+              _SecondsField(
                 fieldKey: firstContent,
                 seconds: widget.firstContent,
+                label: context.strings.firstContentSeconds,
+                invalid: context.strings.invalidFirstContent,
+                maximum: 2147483647,
                 hint: context.strings.groupFirstContentHelp,
+              ),
+              _SecondsField(
+                fieldKey: patience,
+                seconds: widget.patience,
+                label: context.strings.groupPatienceSeconds,
+                invalid: context.strings.invalidGroupPatience,
+                maximum: 240,
+                hint: context.strings.groupPatienceHelp,
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 14),
@@ -862,11 +877,13 @@ class _GroupEditorState extends State<GroupEditor> {
               ? null
               : () {
                   final field = firstContent.currentState!;
-                  if (!field.validate()) return;
+                  final wait = patience.currentState!;
+                  if (!field.validate() || !wait.validate()) return;
                   Navigator.pop<GroupSelection>(context, (
                     name: name.text.trim(),
                     note: note.text,
                     firstContent: int.parse(field.value!.trim()),
+                    patience: int.parse(wait.value!.trim()),
                     listMembers: listMembers,
                     off: members.where(off.contains).toList(),
                     members: members.where(named.contains).toList(),
@@ -893,16 +910,19 @@ class _GroupEditorState extends State<GroupEditor> {
   }
 }
 
-class _FirstContentField extends StatelessWidget {
-  const _FirstContentField({
+class _SecondsField extends StatelessWidget {
+  const _SecondsField({
     required this.fieldKey,
     required this.seconds,
+    required this.label,
+    required this.invalid,
+    required this.maximum,
     required this.hint,
   });
 
   final GlobalKey<FormFieldState<String>> fieldKey;
-  final int seconds;
-  final String hint;
+  final int seconds, maximum;
+  final String label, invalid, hint;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -913,16 +933,14 @@ class _FirstContentField extends StatelessWidget {
       keyboardType: const TextInputType.numberWithOptions(signed: true),
       autovalidateMode: AutovalidateMode.onUserInteraction,
       decoration: InputDecoration(
-        labelText: context.strings.firstContentSeconds,
+        labelText: label,
         helperText: hint,
         helperMaxLines: 3,
         border: const OutlineInputBorder(),
       ),
       validator: (text) {
         final value = int.tryParse(text?.trim() ?? '', radix: 10);
-        return value == null || value < -1 || value > 2147483647
-            ? context.strings.invalidFirstContent
-            : null;
+        return value == null || value < -1 || value > maximum ? invalid : null;
       },
     ),
   );
@@ -992,6 +1010,7 @@ class _TunnelEditorState extends State<TunnelEditor> {
 
 class _NetworkEditorState extends State<NetworkEditor> {
   final firstContent = GlobalKey<FormFieldState<String>>();
+  final patience = GlobalKey<FormFieldState<String>>();
   late final origins = TextEditingController(
     text: (widget.config['cors_origins'] as List? ?? []).join('\n'),
   );
@@ -1033,10 +1052,21 @@ class _NetworkEditorState extends State<NetworkEditor> {
               hint: 'https://app.example.com',
               lines: 3,
             ),
-            _FirstContentField(
+            _SecondsField(
               fieldKey: firstContent,
               seconds: widget.config['default_group_first_content'] ?? 0,
+              label: context.strings.firstContentSeconds,
+              invalid: context.strings.invalidFirstContent,
+              maximum: 2147483647,
               hint: context.strings.defaultFirstContentHelp,
+            ),
+            _SecondsField(
+              fieldKey: patience,
+              seconds: widget.config['default_group_patience'] ?? -1,
+              label: context.strings.groupPatienceSeconds,
+              invalid: context.strings.invalidGroupPatience,
+              maximum: 240,
+              hint: context.strings.defaultGroupPatienceHelp,
             ),
           ],
         ),
@@ -1050,13 +1080,15 @@ class _NetworkEditorState extends State<NetworkEditor> {
       FilledButton(
         onPressed: () {
           final field = firstContent.currentState!;
-          if (!field.validate()) return;
+          final wait = patience.currentState!;
+          if (!field.validate() || !wait.validate()) return;
           Navigator.pop(context, <String, dynamic>{
             'listen': listen.text.trim(),
             'peer_listen': peer.text.trim(),
             'allowed_peers': linesOf(allowed.text),
             'cors_origins': linesOf(origins.text),
             'default_group_first_content': int.parse(field.value!.trim()),
+            'default_group_patience': int.parse(wait.value!.trim()),
           });
         },
         child: Text(context.strings.save),

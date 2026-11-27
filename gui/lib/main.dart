@@ -570,6 +570,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         name: id,
         note: settings['group_notes']?[id],
         firstContent: settings['group_first_content']?[id] ?? 0,
+        patience: settings['group_patience']?[id] ?? 0,
         listMembers: settings['group_unlists']?.contains(id) != true,
         off: List<String>.from(settings['group_off']?[id] ?? []),
         pick: groupPicks[id] ?? settings['group_last_picks']?[id],
@@ -626,6 +627,11 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         for (final e in (base['group_first_content'] as JsonMap? ?? {}).entries)
           if (e.key != name) e.key: e.value,
         if (value.firstContent != 0) name: value.firstContent,
+      },
+      'group_patience': {
+        for (final e in (base['group_patience'] as JsonMap? ?? {}).entries)
+          if (e.key != name) e.key: e.value,
+        if (value.patience != 0) name: value.patience,
       },
       'group_off': {...?base['group_off'] as JsonMap?, name: value.off},
       'group_unlists': [
@@ -1256,6 +1262,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                           }..remove(e.key),
                           'group_first_content': {
                             ...?settings['group_first_content'] as JsonMap?,
+                          }..remove(e.key),
+                          'group_patience': {
+                            ...?settings['group_patience'] as JsonMap?,
                           }..remove(e.key),
                           'group_labels': {
                             ...?settings['group_labels'] as JsonMap?,

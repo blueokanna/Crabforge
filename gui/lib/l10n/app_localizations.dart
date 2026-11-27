@@ -1474,6 +1474,30 @@ abstract class AppLocalizations {
   /// **'Enter a whole number from -1 to 2147483647.'**
   String get invalidFirstContent;
 
+  /// No description provided for @groupPatienceSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry patience (seconds)'**
+  String get groupPatienceSeconds;
+
+  /// No description provided for @groupPatienceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Use 0 to inherit, or -1 to disable retries.'**
+  String get groupPatienceHelp;
+
+  /// No description provided for @defaultGroupPatienceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Use 0 for 60 seconds, or -1 to disable retries.'**
+  String get defaultGroupPatienceHelp;
+
+  /// No description provided for @invalidGroupPatience.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number from -1 to 240.'**
+  String get invalidGroupPatience;
+
   /// No description provided for @enableMember.
   ///
   /// In en, this message translates to:

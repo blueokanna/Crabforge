@@ -197,18 +197,25 @@ void main() {
       }
     }
 
-    final saveTimeout = find.widgetWithText(FilledButton, strings.save);
+    final saveRouteLimits = find.widgetWithText(FilledButton, strings.save);
     final timeoutField = find.widgetWithText(
       TextFormField,
       strings.firstContentSeconds,
     );
-    Future<void> saveFirstContent(
-      String input,
+    final patienceField = find.widgetWithText(
+      TextFormField,
+      strings.groupPatienceSeconds,
+    );
+    Future<void> saveLimits(
+      int firstContent,
+      int patience,
       bool Function(Map) persisted,
     ) async {
       await tester.ensureVisible(timeoutField);
-      await tester.enterText(timeoutField, input);
-      await tester.tap(saveTimeout);
+      await tester.enterText(timeoutField, '$firstContent');
+      await tester.ensureVisible(patienceField);
+      await tester.enterText(patienceField, '$patience');
+      await tester.tap(saveRouteLimits);
       final deadline = DateTime.now().add(const Duration(seconds: 10));
       var saved = false;
       while (!saved && DateTime.now().isBefore(deadline)) {
@@ -227,17 +234,25 @@ void main() {
       await tester.tap(find.text('group/review'));
       await tester.pumpAndSettle();
       final seconds = width == 1200 ? 2 : -1;
-      await saveFirstContent(
-        '$seconds',
-        (cfg) => cfg['group_first_content']?['review'] == seconds,
+      final patience = width == 1200 ? 10 : -1;
+      await saveLimits(
+        seconds,
+        patience,
+        (cfg) =>
+            cfg['group_first_content']?['review'] == seconds &&
+            cfg['group_patience']?['review'] == patience,
       );
       await openPage(nav, strings.gateway);
       await tester.tap(find.text(strings.networkSettings));
       await tester.pumpAndSettle();
       final defaultSeconds = width == 1200 ? 3 : 4;
-      await saveFirstContent(
-        '$defaultSeconds',
-        (cfg) => cfg['default_group_first_content'] == defaultSeconds,
+      final defaultPatience = width == 1200 ? 12 : 0;
+      await saveLimits(
+        defaultSeconds,
+        defaultPatience,
+        (cfg) =>
+            cfg['default_group_first_content'] == defaultSeconds &&
+            cfg['default_group_patience'] == defaultPatience,
       );
       expect(tester.takeException(), isNull);
     }

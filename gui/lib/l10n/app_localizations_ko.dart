@@ -753,6 +753,18 @@ class AppLocalizationsKo extends AppLocalizations {
   String get invalidFirstContent => '-1에서 2147483647 사이의 정수를 입력하세요.';
 
   @override
+  String get groupPatienceSeconds => '재시도 제한 시간(초)';
+
+  @override
+  String get groupPatienceHelp => '0은 설정을 상속하고, -1은 재시도를 끕니다.';
+
+  @override
+  String get defaultGroupPatienceHelp => '0은 60초를 적용하고, -1은 재시도를 끕니다.';
+
+  @override
+  String get invalidGroupPatience => '-1에서 240 사이의 정수를 입력하세요.';
+
+  @override
   String get enableMember => '멤버 활성화';
 
   @override

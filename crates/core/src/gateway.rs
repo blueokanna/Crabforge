@@ -23,6 +23,7 @@ use url::Url;
 mod cors;
 mod first_content;
 mod native;
+mod patience;
 pub use native::{NativeProtocols, native_protocols};
 mod ollama;
 mod round;
@@ -336,6 +337,7 @@ enum Api<'a> {
     Gemini(&'a str),
 }
 
+#[derive(Clone)]
 enum Destination<'a> {
     Upstream(Url, Api<'a>, Option<(Format, Format)>),
     Browser(Site),
@@ -788,8 +790,8 @@ async fn forward(
     } else {
         BTreeMap::new()
     };
-    let mut candidates = gw.candidates(*route, api, &picks).peekable();
-    if candidates.peek().is_none() {
+    let mut candidates = patience::Attempts::new(gw.candidates(*route, api, &picks));
+    if !candidates.has_more() {
         return failure(
             StatusCode::BAD_REQUEST,
             "model has no endpoint for this protocol",
@@ -800,6 +802,10 @@ async fn forward(
         let p = &gw.config.providers[candidate.target.provider];
         let model = &p.models[candidate.target.model];
         let record = |status| gw.record(caller, &asked, &p.id, &candidate.via, status);
+        let retry_candidate = (api.format().is_some()
+            && !candidate.patience.is_zero()
+            && matches!(candidate.destination, Destination::Upstream(..)))
+        .then(|| candidate.clone());
         let destination = candidate.destination;
         let (mut url, mut native, mut translation) = match destination {
             Destination::Upstream(url, native, translation) => (url, native, translation),
@@ -851,7 +857,7 @@ async fn forward(
                         native = api;
                         translation = None;
                         None
-                    } else if candidates.peek().is_some() {
+                    } else if candidates.advance().await {
                         continue;
                     } else {
                         return failure(StatusCode::BAD_REQUEST, &e.to_string());
@@ -909,7 +915,7 @@ async fn forward(
         if !p.key_env.is_empty() {
             let Some(key) = std::env::var(&p.key_env).ok().filter(|s| !s.is_empty()) else {
                 record(503);
-                if candidates.peek().is_some() {
+                if candidates.advance().await {
                     continue;
                 }
                 return failure(
@@ -934,7 +940,7 @@ async fn forward(
                 }
                 Err(e) => {
                     record(503);
-                    if candidates.peek().is_some() {
+                    if candidates.advance().await {
                         continue;
                     }
                     return failure(StatusCode::SERVICE_UNAVAILABLE, &e.to_string());
@@ -1002,18 +1008,31 @@ async fn forward(
             Ok(resp) => resp,
             Err(_) => {
                 record(502);
-                if candidates.peek().is_some() {
+                if candidates.advance().await {
                     continue;
                 }
                 return failure(StatusCode::BAD_GATEWAY, "upstream transport failed");
             }
         };
         let status = upstream.status();
-        if (status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error())
-            && candidates.peek().is_some()
+        let mut upstream = upstream;
+        if status == StatusCode::TOO_MANY_REQUESTS
+            || status.is_server_error()
+            || status == StatusCode::REQUEST_TIMEOUT && retry_candidate.is_some()
         {
-            record(status.as_u16());
-            continue;
+            if patience::retryable(status) {
+                upstream = candidates.observe(retry_candidate, upstream).await;
+            }
+            if candidates.has_more() {
+                record(status.as_u16());
+                continue;
+            }
+            if let Some(retry_at) = candidates.replan() {
+                record(status.as_u16());
+                drop(upstream);
+                tokio::time::sleep_until(retry_at).await;
+                continue;
+            }
         }
         let response = if let Some((to, from)) = translation
             && status.is_success()
@@ -1028,7 +1047,7 @@ async fn forward(
         };
         let response = match response {
             Ok(r) => r,
-            Err(_) if candidates.peek().is_some() => {
+            Err(_) if candidates.advance().await => {
                 record(502);
                 continue;
             }

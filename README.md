@@ -27,6 +27,8 @@ On Windows, the configuration, gateway key and P2P identity live under `%LOCALAP
 
 To limit how long a group waits for its first streamed text, reasoning or tool call, set **First content timeout** in the route group editor or add `--first-content <seconds>` to `group set`. Use `0` to inherit the enclosing group's value or the default in **Gateway → Network settings**, and `-1` to override it and wait. If a member times out before any content and a compatible fallback exists, the gateway records HTTP 504 for that attempt and tries the next member. Restart the gateway after changing the timeout.
 
+For temporary upstream overload and rate limits, set **Retry patience** in the route group editor or pass `--patience <seconds>` to `group set`. After the initial failover attempts, the gateway can retry busy members with increasing delays and honor `Retry-After` within each member's budget. Use `0` to inherit, `-1` to disable retries, or `1` to `240` seconds. Set the gateway default in **Gateway → Network settings** or with `group default-patience <seconds>`, where `0` selects 60 seconds. Existing configurations start with retries disabled. Restart the gateway to apply changes.
+
 ## Import providers from Magpie
 
 Use a `.magpie-backup` from `magpie backup`. The CLI prompts for its passphrase without echo. Run the first command to preview, then add `--apply` to save the result. Omit `--provider` to select all providers, or repeat it to select several.
@@ -54,7 +56,7 @@ carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_A
 carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_API_KEY --apply
 ```
 
-Add `--settings` to include the gateway port, allowed browser origins, equivalent model names and default group first-content timeout in the same import. Use `--settings-only` to migrate those fields on their own. The preview shows the imported values under `settings` and lists skipped settings by name in `settings.skipped_fields`. Restart the gateway to listen on the imported port at the current loopback address. A supplied origin list replaces the current list, while equivalent model names merge into the existing map. A conflicting name rejects the entire import.
+Add `--settings` to include the gateway port, allowed browser origins, equivalent model names, default group first-content timeout and default retry patience in the same import. Use `--settings-only` to migrate those fields on their own. The preview shows the imported values under `settings` and lists skipped settings by name in `settings.skipped_fields`. Restart the gateway to listen on the imported port at the current loopback address. A supplied origin list replaces the current list, while equivalent model names merge into the existing map. A conflicting name rejects the entire import.
 
 ```powershell
 carbforge-cli import-magpie .\magpie.magpie-backup --settings-only

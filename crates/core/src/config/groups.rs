@@ -263,6 +263,9 @@ impl Config {
         if let Some(&seconds) = self.group_first_content.get(&from) {
             cfg.group_first_content.insert(id.clone(), seconds);
         }
+        if let Some(&seconds) = self.group_patience.get(&from) {
+            cfg.group_patience.insert(id.clone(), seconds);
+        }
         if let Some(weights) = self.group_weights.get(&from) {
             cfg.group_weights.insert(id.clone(), weights.clone());
         }
@@ -406,6 +409,9 @@ impl Config {
         if let Some(seconds) = cfg.group_first_content.remove(&from) {
             cfg.group_first_content.insert(to.into(), seconds);
         }
+        if let Some(seconds) = cfg.group_patience.remove(&from) {
+            cfg.group_patience.insert(to.into(), seconds);
+        }
         if cfg.rotating_groups.remove(&from) {
             cfg.rotating_groups.insert(to.into());
         }
@@ -445,6 +451,14 @@ impl Config {
             self.group_first_content.remove(id);
         } else {
             self.group_first_content.insert(id.to_owned(), seconds);
+        }
+    }
+
+    pub fn set_group_patience(&mut self, id: &str, seconds: i32) {
+        if seconds == 0 {
+            self.group_patience.remove(id);
+        } else {
+            self.group_patience.insert(id.to_owned(), seconds);
         }
     }
 

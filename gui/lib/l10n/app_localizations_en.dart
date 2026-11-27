@@ -763,6 +763,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'Enter a whole number from -1 to 2147483647.';
 
   @override
+  String get groupPatienceSeconds => 'Retry patience (seconds)';
+
+  @override
+  String get groupPatienceHelp => 'Use 0 to inherit, or -1 to disable retries.';
+
+  @override
+  String get defaultGroupPatienceHelp =>
+      'Use 0 for 60 seconds, or -1 to disable retries.';
+
+  @override
+  String get invalidGroupPatience => 'Enter a whole number from -1 to 240.';
+
+  @override
   String get enableMember => 'Enable member';
 
   @override

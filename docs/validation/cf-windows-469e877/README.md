@@ -405,6 +405,12 @@ The instrumented CLI hashes identify the exact binaries in the paired series. Th
 
 The same host alternated 30 loopback trials each from the `2ec7e74` and `7fd0552` Actions packages. First-event minimum, median and maximum were `1.763/2.481/29.156 ms` and `1.916/2.518/26.263 ms`. All 60 returned HTTP 200 with one upstream request and zero proxy requests. The 46 CPU samples ranged from `38.71%` to `71.53%` and averaged `55.33%`. In the slowest sample for each build, `28.536` and `25.798 ms` elapsed before the upstream finished reading the request headers. The client TCP connect calls accounted for `12.656` and `23.631 ms` of those times. Upstream response preparation took `0.108` and `0.137 ms`. [60 paired samples](forward-h1-windows-actions-pair.csv) · [CPU samples](forward-h1-windows-actions-cpu.csv)
 
+## 繁忙重试时限 / Retry patience
+
+Windows 本机两个 Debug CLI 读取了 Magpie `0.1.4936` 生成的原版加密备份，验证 `patience` 和 `groupPatience` 的预览、应用、编辑、复制、改名和删除。回环夹具在首个 HTTP 503 后返回完整 SSE，关闭重试的对照组保留 HTTP 503、原始错误正文和 `Retry-After`。Rust 网关回归覆盖候选顺序、嵌套组禁用、配额耗尽、超过预算的 HTTP 日期及每次尝试的状态记录。Windows 桌面集成测试通过 Rust 桥接在 1,200 和 560 逻辑像素下保存组级和网关默认值。
+
+Both local Windows Debug CLIs read an encrypted backup produced by Magpie `0.1.4936` and verified preview, apply, edit, copy, rename and removal for `patience` and `groupPatience`. The loopback fixture returned a complete SSE stream after an initial HTTP 503. The group with retries disabled returned HTTP 503 with its original error body and `Retry-After`. The Rust gateway regression covers member order, a nested opt-out, exhausted quota, an HTTP date beyond the retry budget and the status recorded for each attempt. The Windows desktop integration test saved the group and gateway defaults through the Rust bridge at widths of 1,200 and 560 logical pixels. [Gateway test](../../../crates/core/tests/gateway.rs) · [Desktop test](../../../gui/integration_test/console_layout_test.dart)
+
 ## 首段内容超时 / First-content timeout
 
 Windows 本地测试使用 Magpie `0.1.4936` 生成的原版加密备份。两个 Debug CLI 验证只读预览及 `groupFirstToken`、`firstToken` 的导入、复制、改名和删除。回环 Chat 夹具在只有角色元数据时触发 HTTP 504 和回退，随后逐字节保留后备流。在收到首段内容后，流可以超过原时限继续输出。回归同时覆盖最后一个兼容成员、非流式请求、内层等待覆盖、嵌套轮询顺序以及组分享往返。桌面集成测试在 1,200 和 560 逻辑像素下通过 Rust 桥接保存了组级和网关默认值，并运行了九种语言的窄屏导航。

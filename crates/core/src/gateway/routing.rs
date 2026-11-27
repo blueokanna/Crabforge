@@ -38,11 +38,13 @@ impl Route {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct Candidate<'a> {
     pub target: Target,
     pub destination: Destination<'a>,
     pub via: Vec<&'a str>,
     pub first_content: Option<Duration>,
+    pub patience: Duration,
 }
 
 enum Plan<'a> {
@@ -68,6 +70,30 @@ impl Plan<'_> {
 struct Visited {
     models: HashSet<(usize, usize)>,
     groups: HashSet<usize>,
+}
+
+#[derive(Clone, Copy)]
+struct Limits {
+    first_content: Option<i32>,
+    patience: i32,
+}
+
+impl Limits {
+    fn within(self, config: &Config, group: &str) -> Self {
+        let inherit = |values: &BTreeMap<String, i32>, enclosing| {
+            values
+                .get(group)
+                .copied()
+                .filter(|&s| s != 0)
+                .unwrap_or(enclosing)
+        };
+        Self {
+            first_content: self
+                .first_content
+                .map(|seconds| inherit(&config.group_first_content, seconds)),
+            patience: inherit(&config.group_patience, self.patience),
+        }
+    }
 }
 
 impl Gateway {
@@ -125,8 +151,15 @@ impl Gateway {
         });
         let mut roots = std::iter::once((route, None)).chain(backups);
         let mut pending = Vec::new();
-        let first_content =
-            matches!(route, Route::Group { .. }).then_some(self.config.default_group_first_content);
+        let requested_group = matches!(route, Route::Group { .. });
+        let limits = Limits {
+            first_content: requested_group.then_some(self.config.default_group_first_content),
+            patience: if requested_group {
+                self.config.default_group_patience
+            } else {
+                -1
+            },
+        };
         // A direct request keeps its origin even when the primary lacks this protocol.
         let mut unrestricted =
             matches!(route, Route::Model(t) if !self.config.providers[t.provider].no_stand_in);
@@ -135,7 +168,7 @@ impl Gateway {
                 let plan = pending.pop().or_else(|| {
                     roots.find_map(|(root, group)| {
                         let mut via = group.into_iter().collect();
-                        self.expand(root, api, picks, &mut via, &mut seen, first_content)
+                        self.expand(root, api, picks, &mut via, &mut seen, limits)
                     })
                 })?;
                 match plan {
@@ -180,7 +213,7 @@ impl Gateway {
         picks: &BTreeMap<String, usize>,
         via: &mut Vec<&'a str>,
         seen: &mut Visited,
-        first_content: Option<i32>,
+        limits: Limits,
     ) -> Option<Plan<'a>> {
         let index = match route {
             Route::Disabled => return None,
@@ -196,9 +229,14 @@ impl Gateway {
                         target,
                         destination,
                         via: via.clone(),
-                        first_content: first_content
+                        first_content: limits
+                            .first_content
                             .filter(|&seconds| seconds > 0)
                             .map(|seconds| Duration::from_secs(seconds as u64)),
+                        patience: match limits.patience {
+                            0 => Duration::from_secs(60),
+                            seconds => Duration::from_secs(seconds.max(0) as u64),
+                        },
                     })
                     .map(Plan::Model);
             }
@@ -209,14 +247,7 @@ impl Gateway {
         let id = &self.group_ids[index];
         let name = &id["group/".len()..];
         let members = self.live_members(name, picks);
-        let first_content = first_content.map(|inherited| {
-            self.config
-                .group_first_content
-                .get(name)
-                .copied()
-                .filter(|&seconds| seconds != 0)
-                .unwrap_or(inherited)
-        });
+        let limits = limits.within(&self.config, name);
         let mut branches = Vec::new();
         for (i, member) in members.iter().enumerate() {
             let child = self.routes[member];
@@ -224,7 +255,7 @@ impl Gateway {
             if nested {
                 via.push(member);
             }
-            let choices = self.expand(child, api, picks, via, seen, first_content);
+            let choices = self.expand(child, api, picks, via, seen, limits);
             if nested {
                 via.pop();
             }

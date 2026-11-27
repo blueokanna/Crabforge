@@ -445,6 +445,11 @@ enum GroupCommand {
     Restore {
         id: String,
     },
+    /// Set the gateway's default retry patience in seconds. Use -1 to disable or 0 for 60 seconds.
+    DefaultPatience {
+        #[arg(allow_negative_numbers = true)]
+        seconds: i32,
+    },
     /// Create or update a group with explicit IDs, glob patterns, re: expressions or free: rules.
     Set {
         id: String,
@@ -456,6 +461,9 @@ enum GroupCommand {
         /// Wait this many seconds for streamed content before trying another member. Use 0 to inherit or -1 to wait.
         #[arg(long, allow_negative_numbers = true)]
         first_content: Option<i32>,
+        /// Retry temporarily busy members for this many seconds. Use 0 to inherit or -1 to disable.
+        #[arg(long, allow_negative_numbers = true)]
+        patience: Option<i32>,
         /// List the group's direct models in client catalogs (yes or no).
         #[arg(long, value_parser=["yes", "no"])]
         listed: Option<String>,
@@ -810,11 +818,16 @@ async fn dispatch(args: Args) -> Result<()> {
                     ensure!(cfg.hidden_auto_groups.remove(&id), "group is not hidden");
                     config::save(&dir, &previous, &cfg.to_json()?)?;
                 }
+                GroupCommand::DefaultPatience { seconds } => {
+                    cfg.default_group_patience = seconds;
+                    config::save(&dir, &previous, &cfg.to_json()?)?;
+                }
                 GroupCommand::Set {
                     id,
                     members,
                     note,
                     first_content,
+                    patience,
                     listed,
                     rotate,
                     weighted,
@@ -889,6 +902,9 @@ async fn dispatch(args: Args) -> Result<()> {
                     if let Some(seconds) = first_content {
                         cfg.set_group_first_content(&id, seconds);
                     }
+                    if let Some(seconds) = patience {
+                        cfg.set_group_patience(&id, seconds);
+                    }
                     cfg.groups.insert(id, named);
                     cfg.former_groups
                         .retain(|old, _| !cfg.groups.contains_key(old));
@@ -906,6 +922,7 @@ async fn dispatch(args: Args) -> Result<()> {
                     cfg.group_labels.remove(&id);
                     cfg.group_notes.remove(&id);
                     cfg.group_first_content.remove(&id);
+                    cfg.group_patience.remove(&id);
                     cfg.group_off.remove(&id);
                     cfg.group_unlists.remove(&id);
                     cfg.group_display_order.retain(|name| name != &id);

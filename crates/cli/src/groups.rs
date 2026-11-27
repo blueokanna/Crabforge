@@ -44,6 +44,18 @@ pub(super) fn show(config: &Config, id: &str) -> Result<()> {
         0 => (),
         seconds => println!("first-content\t{seconds} s"),
     }
+    match config.group_patience.get(name).copied().unwrap_or(0) {
+        -1 => println!("patience\toff"),
+        0 if config.default_group_patience >= 0 => {
+            let seconds = match config.default_group_patience {
+                0 => 60,
+                seconds => seconds,
+            };
+            println!("patience\t{seconds} s (default)");
+        }
+        0 => (),
+        seconds => println!("patience\t{seconds} s"),
+    }
     let weights = config.group_weights.get(name);
     let pick = config.group_picks.get(name);
     let routing = if pick.is_some() {

@@ -772,6 +772,21 @@ class AppLocalizationsDe extends AppLocalizations {
       'Geben Sie eine ganze Zahl von -1 bis 2147483647 ein.';
 
   @override
+  String get groupPatienceSeconds => 'Wiederholungszeit (Sekunden)';
+
+  @override
+  String get groupPatienceHelp =>
+      '0 übernimmt die Vorgabe, -1 deaktiviert Wiederholungen.';
+
+  @override
+  String get defaultGroupPatienceHelp =>
+      '0 entspricht 60 Sekunden, -1 deaktiviert Wiederholungen.';
+
+  @override
+  String get invalidGroupPatience =>
+      'Geben Sie eine ganze Zahl von -1 bis 240 ein.';
+
+  @override
   String get enableMember => 'Mitglied aktivieren';
 
   @override

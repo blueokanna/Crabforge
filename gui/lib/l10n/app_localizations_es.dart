@@ -770,6 +770,21 @@ class AppLocalizationsEs extends AppLocalizations {
       'Introduce un número entero entre -1 y 2147483647.';
 
   @override
+  String get groupPatienceSeconds => 'Plazo de reintentos (segundos)';
+
+  @override
+  String get groupPatienceHelp =>
+      'Usa 0 para heredar el plazo o -1 para desactivar los reintentos.';
+
+  @override
+  String get defaultGroupPatienceHelp =>
+      'Usa 0 para 60 segundos o -1 para desactivar los reintentos.';
+
+  @override
+  String get invalidGroupPatience =>
+      'Introduce un número entero entre -1 y 240.';
+
+  @override
   String get enableMember => 'Activar miembro';
 
   @override

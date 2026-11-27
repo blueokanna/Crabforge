@@ -19,6 +19,8 @@ struct SharedGroup {
     routing: String,
     #[njson(rename = "firstToken", skip_serializing_if = "crate::config::is_zero")]
     first_content: i32,
+    #[njson(skip_serializing_if = "crate::config::is_zero")]
+    patience: i32,
     #[njson(skip_serializing_if = "String::is_empty")]
     note: String,
     #[njson(skip_serializing_if = "String::is_empty")]
@@ -274,6 +276,7 @@ impl Config {
         );
         self.group_notes.insert(id.to_owned(), group.note);
         self.set_group_first_content(id, group.first_content);
+        self.set_group_patience(id, group.patience);
         if disabled {
             self.disabled_groups.insert(id.to_owned());
         }
@@ -345,6 +348,7 @@ impl Config {
                 .get(&id)
                 .copied()
                 .unwrap_or_default(),
+            patience: self.group_patience.get(&id).copied().unwrap_or_default(),
             unlists: self.group_unlists.contains(&id),
             id,
             ..Default::default()
@@ -480,6 +484,7 @@ impl Config {
         cfg.group_labels.insert(id.clone(), name);
         cfg.group_notes.insert(id.clone(), group.note);
         cfg.set_group_first_content(&id, group.first_content);
+        cfg.set_group_patience(&id, group.patience);
         cfg.group_unlists.remove(&id);
         if group.unlists {
             cfg.group_unlists.insert(id.clone());

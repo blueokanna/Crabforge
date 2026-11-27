@@ -766,6 +766,20 @@ class AppLocalizationsHi extends AppLocalizations {
       '-1 से 2147483647 के बीच की पूर्ण संख्या डालें।';
 
   @override
+  String get groupPatienceSeconds => 'फिर से कोशिश करने की समय सीमा (सेकंड)';
+
+  @override
+  String get groupPatienceHelp =>
+      'पहले से तय समय सीमा के लिए 0 और फिर से कोशिश बंद करने के लिए -1 डालें।';
+
+  @override
+  String get defaultGroupPatienceHelp =>
+      '60 सेकंड के लिए 0 और फिर से कोशिश बंद करने के लिए -1 डालें।';
+
+  @override
+  String get invalidGroupPatience => '-1 से 240 के बीच की पूर्ण संख्या डालें।';
+
+  @override
   String get enableMember => 'सदस्य सक्रिय करें';
 
   @override

@@ -101,6 +101,11 @@ pub struct Config {
     pub group_first_content: BTreeMap<String, i32>,
     #[njson(skip_serializing_if = "is_zero")]
     pub default_group_first_content: i32,
+    /// Seconds to retry temporarily busy members. Zero inherits the enclosing group.
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
+    pub group_patience: BTreeMap<String, i32>,
+    #[njson(skip_serializing_if = "patience_is_off")]
+    pub default_group_patience: i32,
     #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_off: BTreeMap<String, BTreeSet<String>>,
     /// Groups whose direct model members are omitted from client catalogs.
@@ -153,6 +158,8 @@ impl Default for Config {
             group_notes: BTreeMap::new(),
             group_first_content: BTreeMap::new(),
             default_group_first_content: 0,
+            group_patience: BTreeMap::new(),
+            default_group_patience: -1,
             group_off: BTreeMap::new(),
             group_unlists: BTreeSet::new(),
             disabled_groups: BTreeSet::new(),
@@ -175,6 +182,10 @@ impl Default for Config {
 
 fn is_zero(value: &i32) -> bool {
     *value == 0
+}
+
+fn patience_is_off(value: &i32) -> bool {
+    *value == -1
 }
 
 fn valid_id(s: &str) -> bool {
@@ -489,6 +500,20 @@ impl Config {
                 .keys()
                 .all(|id| self.groups.contains_key(id)),
             "first-content timeout references an unknown group"
+        );
+        ensure!(
+            (-1..=240).contains(&self.default_group_patience)
+                && self
+                    .group_patience
+                    .values()
+                    .all(|wait| (-1..=240).contains(wait)),
+            "retry patience must be between -1 and 240 seconds"
+        );
+        ensure!(
+            self.group_patience
+                .keys()
+                .all(|id| self.groups.contains_key(id)),
+            "retry patience references an unknown group"
         );
         let resolved = self.resolved_groups();
         ensure!(

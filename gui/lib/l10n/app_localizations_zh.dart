@@ -746,6 +746,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get invalidFirstContent => '请输入 -1 到 2147483647 之间的整数。';
 
   @override
+  String get groupPatienceSeconds => '繁忙重试时限（秒）';
+
+  @override
+  String get groupPatienceHelp => '0 表示继承，-1 表示关闭重试。';
+
+  @override
+  String get defaultGroupPatienceHelp => '0 表示 60 秒，-1 表示关闭重试。';
+
+  @override
+  String get invalidGroupPatience => '请输入 -1 到 240 之间的整数。';
+
+  @override
   String get enableMember => '启用成员';
 
   @override

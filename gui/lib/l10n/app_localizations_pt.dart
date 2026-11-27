@@ -769,6 +769,20 @@ class AppLocalizationsPt extends AppLocalizations {
       'Digite um número inteiro entre -1 e 2147483647.';
 
   @override
+  String get groupPatienceSeconds => 'Prazo para novas tentativas (segundos)';
+
+  @override
+  String get groupPatienceHelp =>
+      'Use 0 para herdar o prazo ou -1 para desativar novas tentativas.';
+
+  @override
+  String get defaultGroupPatienceHelp =>
+      'Use 0 para 60 segundos ou -1 para desativar novas tentativas.';
+
+  @override
+  String get invalidGroupPatience => 'Digite um número inteiro entre -1 e 240.';
+
+  @override
   String get enableMember => 'Ativar membro';
 
   @override

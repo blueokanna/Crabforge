@@ -483,6 +483,108 @@ async fn group_first_content_deadline_holds_preludes_and_respects_nested_overrid
 }
 
 #[tokio::test]
+async fn group_patience_retries_busy_members_in_order_within_their_budget() -> Result<()> {
+    use std::sync::{Arc, Mutex};
+    use tokio::time::Instant;
+
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let attempts = calls.clone();
+    let mock = Router::new().route(
+        "/v1/chat/completions",
+        post(move |request: Incoming| {
+            let attempts = attempts.clone();
+            async move {
+                let request: Value = nextjson::from_slice(&request.body).unwrap();
+                let model = request["model"].as_str().unwrap();
+                let mut calls = attempts.lock().unwrap();
+                let count = calls.iter().filter(|(name, _)| name == model).count();
+                calls.push((model.to_owned(), Instant::now()));
+                let (status, delay, body) = match (model, count) {
+                    ("first", _) => (StatusCode::TOO_MANY_REQUESTS, "2", "busy"),
+                    ("second", 0 | 1) => (StatusCode::SERVICE_UNAVAILABLE, "0", "busy"),
+                    ("second", _) => (StatusCode::OK, "0", "ready"),
+                    ("quota", _) => (StatusCode::TOO_MANY_REQUESTS, "0", "insufficient_quota"),
+                    ("future", _) => (
+                        StatusCode::SERVICE_UNAVAILABLE,
+                        "Sat, 01 Jan 2050 00:00:00 GMT",
+                        "future retry",
+                    ),
+                    _ => (StatusCode::OK, "0", "ready"),
+                };
+                (status, [("retry-after", delay)], body)
+            }
+        }),
+    );
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let upstream = tokio::spawn(crabforge_test_support::server::serve(listener, mock));
+    let dir = tempdir()?;
+    let cfg = json!({
+        "listen":"127.0.0.1:0",
+        "providers":[{"id":"fixture","models":["first","second","quota","future"],
+            "endpoints":{"chat":format!("http://{addr}/v1")}}],
+        "groups":{
+            "pool":["fixture/first","fixture/second"],
+            "off":["group/no-retry"],
+            "no-retry":["fixture/second"],
+            "quota":["fixture/quota"],
+            "future":["fixture/future"]
+        },
+        "default_group_patience":3,
+        "group_patience":{"no-retry":-1}
+    });
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let service = Service::start(dir.path()).await?;
+    let url = format!("http://{}/v1/chat/completions", service.addr);
+    let token = config::token(dir.path())?;
+    let client = crabforge_test_support::Client::with_timeout(Duration::from_secs(5));
+    let send = |model: &str| {
+        client
+            .post(&url)
+            .bearer_auth(&token)
+            .body(json!({"model":model,"messages":[{"role":"user","content":"hello"}]}).to_string())
+            .send()
+    };
+
+    let off = send("group/off").await?;
+    assert_eq!(off.status(), 503);
+    assert_eq!(off.text().await?, "busy");
+    let exhausted = send("group/quota").await?;
+    assert_eq!(exhausted.status(), 429);
+    assert_eq!(exhausted.text().await?, "insufficient_quota");
+    let future = send("group/future").await?;
+    assert_eq!(future.status(), 503);
+    assert_eq!(future.text().await?, "future retry");
+    let retried = send("group/pool").await?;
+    assert_eq!(retried.status(), 200);
+    assert_eq!(retried.text().await?, "ready");
+    let calls = calls.lock().unwrap().clone();
+    assert_eq!(
+        calls
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "second", "quota", "future", "first", "second", "first", "second"
+        ],
+    );
+    assert!(calls[5].1.duration_since(calls[4].1) >= Duration::from_secs(2));
+    assert_eq!(
+        service
+            .history
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|attempt| attempt.status)
+            .collect::<Vec<_>>(),
+        [503, 429, 503, 429, 503, 429, 200],
+    );
+    service.stop().await;
+    upstream.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn quic_peer_identity_and_gateway_key_are_both_required() -> Result<()> {
     let server_dir = tempdir()?;
     let client_dir = tempdir()?;
