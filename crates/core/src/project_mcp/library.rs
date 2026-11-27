@@ -12,9 +12,12 @@ use std::{
 use toml_edit::{Array, DocumentMut, InlineTable, value};
 use url::Url;
 
+mod magpie;
+pub use magpie::import_magpie;
+
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
 
-#[derive(NsonDeserialize, NsonSerialize)]
+#[derive(PartialEq, Eq, NsonDeserialize, NsonSerialize)]
 struct Config {
     transport: String,
     command: Option<String>,
@@ -274,13 +277,17 @@ impl Store {
         }
     }
 
-    fn save(&self, path: &Path) -> Result<()> {
+    fn contents(&self) -> Result<String> {
         let text = encode(self)?;
         ensure!(
             text.len() <= MAX_LIBRARY,
             "MCP library exceeds its size limit"
         );
-        replace(path, &text)
+        Ok(text)
+    }
+
+    fn save(&self, path: &Path) -> Result<()> {
+        replace(path, &self.contents()?)
     }
 
     fn current(&self, name: &str, expected: &str) -> Result<&Server> {
@@ -415,9 +422,8 @@ impl Store {
     }
 }
 
-pub fn edit(dir: &Path, edit: Edit) -> Result<String> {
-    let library = dir.join("project-mcp");
-    fs::create_dir_all(&library)?;
+fn lock_library(library: &Path) -> Result<File> {
+    fs::create_dir_all(library)?;
     let lock = File::options()
         .create(true)
         .truncate(false)
@@ -425,6 +431,12 @@ pub fn edit(dir: &Path, edit: Edit) -> Result<String> {
         .write(true)
         .open(library.join("library.lock"))?;
     lock.lock()?;
+    Ok(lock)
+}
+
+pub fn edit(dir: &Path, edit: Edit) -> Result<String> {
+    let library = dir.join("project-mcp");
+    let _lock = lock_library(&library)?;
     let path = library.join("library.json");
     let mut store = Store::load(&path)?;
     let sync = !matches!(edit, Edit::Read);

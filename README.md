@@ -219,6 +219,8 @@ carbforge-cli project-mcp library assign diagnostics . gemini --revision '<revis
 carbforge-cli project-mcp library sync
 ```
 
+Run `carbforge-cli project-mcp library import-magpie .\magpie.magpie-backup` to preview portable stdio, HTTP and SSE definitions. Repeat `--name <name>` to select servers. `--apply` writes the whole batch to the library and refuses conflicting names. The preview shows source client names and omits connection details. Review each server and choose its local project and client with `library assign`. Definitions with unsupported access settings such as disabled tools or OAuth require manual migration.
+
 ## Protocols and routing
 
 - Clients can use OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, Gemini and Ollama APIs. The validation record describes which streaming, tool, media and authentication paths have been exercised. Model availability depends on the provider and account.

@@ -219,6 +219,8 @@ carbforge-cli project-mcp library assign diagnostics . gemini --revision '<libra
 carbforge-cli project-mcp library sync
 ```
 
+用 `carbforge-cli project-mcp library import-magpie .\magpie.magpie-backup` 预览可迁移的 stdio、HTTP 和 SSE 服务器定义。重复使用 `--name <名称>` 可选择服务器。加 `--apply` 后会一次写入整批定义，遇到同名冲突则停止写入。预览显示原客户端名称并隐藏连接详情。审核服务器后，用 `library assign` 选择本机项目和客户端。含禁用工具、OAuth 等尚未支持的访问设置的定义需要手动迁移。
+
 ## 协议与路由
 
 - 支持 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Gemini 和 Ollama 客户端。目录、对话流、工具调用、媒体和鉴权的验证范围见验收记录。不同供应商及套餐开放的模型会变化。

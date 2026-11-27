@@ -308,6 +308,10 @@ Magpie 0.1.4936 写出的加密备份包含两条命令和两个子代理。两�
 
 An encrypted backup written by Magpie 0.1.4936 contained two commands and two subagents. Both Windows Debug CLIs passed read-only preview, name selection, wrong-passphrase rejection and byte-for-byte library preservation on conflict. Four processes competed to apply each section. One wrote the definitions and three reported identical entries. Explicit sync preserved an existing Claude command with CRLF line endings, kept Pi's positional argument, wrote `{{args}}` to Gemini TOML, and rendered the supported subagent fields for Codex and Claude. The preview reported the skipped `from` and `fromHash` fields. [Import commands](../../../README.md#manage-client-resources)
 
+Windows Actions `45987998078` 为 `2ec7e74adc15f96fa1b8ee12328d460235a1ed06` 通过 136 项 Rust 测试、依赖门禁、Clippy 和 Flutter 检查。ZIP `15193886613` 为 65,407,847 字节，SHA-256 为 `a84e180183c818dc076f5b4b84f2de44a237bfc4fe48ce0014c7f6f8af329c5b`，670 项逐文件哈希清单的 SHA-256 为 `ff80dd67d9687c8832fe459e6738d3d4eede1192980190e273cf74c6ce9bc932`。六个 PE 均返回 `NotSigned`。下载包的桌面能启动并正常退出，两个 CLI 通过供应商、路由、设置、ConPTY、记忆及资源迁移，分别恢复 Pi 与 Gemini 的 12 轮原生会话。回环 SSE 首事件三次分别为 `18.419`、`36.299`、`11.225 ms`。验包结束时远端 `main` 匹配该完整 SHA。
+
+Windows Actions run `45987998078` built `2ec7e74adc15f96fa1b8ee12328d460235a1ed06`. The dependency gate, Clippy, 136 Rust tests and Flutter checks passed. Artifact `15193886613` was 65,407,847 bytes with SHA-256 `a84e180183c818dc076f5b4b84f2de44a237bfc4fe48ce0014c7f6f8af329c5b`. The extracted manifest covers 670 files and has SHA-256 `ff80dd67d9687c8832fe459e6738d3d4eede1192980190e273cf74c6ce9bc932`. All six PE files reported `NotSigned`. The packaged desktop opened and closed cleanly. The CLIs passed provider, routing, settings, ConPTY, memory and resource migrations, plus 12 rounds of native resume each for Pi and Gemini. Loopback SSE first-event times were `18.419`, `36.299` and `11.225 ms`. Remote `main` matched the full source SHA at the end of verification. [Actions run](https://github.com/blueokanna/Crabforge/actions/runs/45987998078) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/45987998078/artifacts/15193886613)
+
 ## 规则迁移 / Rule migration
 
 Magpie 0.1.4936 生成包含两条规则的原生加密备份。两个 Windows Debug CLI 验证只读预览、按名称选取、错误口令、整批冲突检查和四进程并发。并发时一个进程写入完整规则库，其余三个报告相同条目。显式同步将文件匹配规则写入 Kiro，将全局规则写入 Cline。已有同名 Claude 文件保持原始 CRLF 字节，界面状态数据报告冲突。
@@ -317,6 +321,12 @@ Magpie 0.1.4936 exported an encrypted backup with two rules. Both Windows Debug 
 环境变量回归分别使用 Magpie 0.1.4936 生成的普通备份和 `--no-keys` 备份。双 CLI 验证按名筛选、值遮蔽、空值、UTF-8 多行值和 Claude Code、Codex、Pi 分配。四进程同时应用时只写入一次，冲突批次保留原库字节。显式同步把值写入 Codex 和 Pi，同时保留 Claude Code 已有的值。
 
 Both CLIs tested environment variables from Magpie 0.1.4936 backups with and without values. They verified name filtering, masked reports, empty values, multiline UTF-8, and client assignments. Four competing applies wrote the batch once, and a conflicting batch preserved the original library bytes. Explicit sync published to Codex and Pi while preserving Claude Code's existing value. [Environment importer](../../../crates/core/src/environment/magpie.rs)
+
+## MCP 备份迁移 / MCP backup migration
+
+双 Windows Debug CLI 从 Magpie 0.1.4936 加密备份导入 stdio、HTTP 和 SSE 定义。预览隐藏命令参数、URL、环境变量值和请求头。四进程并发只写入一次，已有不同定义和备份中启用的工具限制均阻止写入。导入后显式分配到含中文及空格的项目目录，Codex、Gemini 和 Claude Code 分别获得对应的原生配置。
+
+Both Windows Debug CLIs imported stdio, HTTP and SSE definitions from a Magpie 0.1.4936 encrypted backup. Reports omit command arguments, URLs, environment values and headers. Four competing processes wrote the library once. Conflicting definitions and active tool restrictions blocked the import. Explicit assignments generated native Codex, Gemini and Claude Code configuration in a project path containing Chinese characters and a space. [MCP importer](../../../crates/core/src/project_mcp/library/magpie.rs)
 
 ## Windows 首事件分段时序 / Windows first-event timing
 
@@ -331,6 +341,15 @@ Thirty-six instrumented samples took over 50 ms. Median intervals were `45.144 m
 `ureq` 在启用解析超时时会为每个地址启动解析线程。网关现在直接处理可解析为 socket 地址的 IPv4 和 IPv6 字面量，域名继续使用带超时的默认解析。以同一 `38ac6ba` 为基础构建两个带探针的 Release 版本，各交替测 24 次。阻塞任务开始到发起上游连接的中位数从 `43.165 ms` 降至 `0.117 ms`。首事件中位数从 `116.626 ms` 降至 `53.222 ms`，最大值分别为 `324.734 ms` 和 `353.668 ms`。改动后最慢样本仍含 `200.676 ms` 的阻塞任务启动等待和 `149.332 ms` 的上游接受至完成读头时间。
 
 With a resolution timeout, `ureq` starts a resolver thread even for a numeric address. The gateway now handles IPv4 and IPv6 socket literals directly while keeping the default timed resolver for hostnames. Two instrumented Release builds based on `38ac6ba` alternated 24 trials each. The median from worker start to the upstream connect call fell from `43.165 ms` to `0.117 ms`. The first-event median went from `116.626 ms` to `53.222 ms`, with maxima of `324.734 ms` and `353.668 ms`. The slowest updated sample still spent `200.676 ms` waiting for the worker to start and `149.332 ms` between upstream accept and request headers. [48 paired samples](forward-h1-windows-address-pair.csv) · [Resolver](../../../crates/core/src/upstream/forward/socket.rs)
+
+两个本地 Release 探针的 CLI SHA-256 如下。采样主机为 Windows 10 19045，Intel Core i7-11850H，8 核 16 线程。
+
+The instrumented CLI hashes identify the exact binaries in the paired series. The host ran Windows 10 build 19045 on an Intel Core i7-11850H with 8 cores and 16 threads.
+
+| Resolver | SHA-256 |
+| --- | --- |
+| Default | `688d29f615f1fdf8e8abfc2e501bdf33cfc7f453bde5181a361d86f999ead4c0` |
+| Numeric literals resolved inline | `bc1463ace11be3730beeb2481f76d848b644075ed0f3099066cc6932096e9ea9` |
 
 ## 签名与许可 / Signing and licenses
 

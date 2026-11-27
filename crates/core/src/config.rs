@@ -780,22 +780,34 @@ fn write_settings(dir: &Path, cfg: &Config) -> Result<()> {
         bytes.len() <= MAX_CONFIG,
         "formatted configuration exceeds 1 MiB"
     );
+    replace_contents(&dir.join("settings.json"), &bytes, None)
+}
+
+pub(crate) fn replace_contents(
+    destination: &Path,
+    bytes: &[u8],
+    permissions: Option<fs::Permissions>,
+) -> Result<()> {
+    let dir = destination.parent().context("missing parent folder")?;
     #[cfg(not(windows))]
     let mut file = NamedTempFile::new_in(dir)?;
     #[cfg(windows)]
     let mut file = tempfile::Builder::new().make_in(dir, |path| {
         File::options().write(true).create_new(true).open(path)
     })?;
-    file.write_all(&bytes)?;
+    if let Some(permissions) = permissions {
+        file.as_file().set_permissions(permissions)?;
+    }
+    file.write_all(bytes)?;
     file.as_file().sync_all()?;
-    let destination = dir.join("settings.json");
     #[cfg(not(windows))]
-    file.persist(&destination)?;
+    file.persist(destination)?;
     #[cfg(windows)]
     {
         let mut staged = file.into_temp_path();
         // std::fs::rename can replace a file held open by a reader that shares delete access.
-        fs::rename(&staged, &destination).context("cannot replace settings.json")?;
+        fs::rename(&staged, destination)
+            .with_context(|| format!("cannot replace {}", destination.display()))?;
         staged.disable_cleanup(true);
     }
     Ok(())

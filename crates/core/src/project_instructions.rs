@@ -6,7 +6,7 @@ use nextjson::{
 use sha2::{Digest, Sha256};
 use std::{
     env, fs,
-    io::{ErrorKind, Read, Write},
+    io::{ErrorKind, Read},
     ops::Range,
     path::{Component, Path, PathBuf},
 };
@@ -362,14 +362,8 @@ fn revision(path: &Path, text: Option<&str>) -> String {
 }
 
 pub(crate) fn replace(path: &Path, text: &str) -> Result<()> {
-    let mut tmp = tempfile::NamedTempFile::new_in(path.parent().context("missing parent folder")?)?;
-    if let Ok(meta) = path.metadata() {
-        tmp.as_file().set_permissions(meta.permissions())?;
-    }
-    tmp.write_all(text.as_bytes())?;
-    tmp.as_file().sync_all()?;
-    tmp.persist(path)?;
-    Ok(())
+    let permissions = path.metadata().ok().map(|meta| meta.permissions());
+    crate::config::replace_contents(path, text.as_bytes(), permissions)
 }
 
 fn history(dir: &Path, path: &Path) -> Result<(PathBuf, Vec<Backup>)> {

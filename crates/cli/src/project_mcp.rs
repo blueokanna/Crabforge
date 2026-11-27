@@ -41,6 +41,16 @@ pub(super) enum Command {
 pub(super) enum LibraryCommand {
     /// List shared servers, revisions, assignments and placement statuses.
     List,
+    /// Preview or restore reusable servers from an encrypted Magpie backup.
+    ImportMagpie {
+        file: PathBuf,
+        /// Repeat to select several names. The default selects all servers.
+        #[arg(long = "name")]
+        names: Vec<String>,
+        /// Save the definitions to the library for explicit project assignment.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Create or update a shared server from a transport JSON object.
     Save {
         name: String,
@@ -72,6 +82,15 @@ pub(super) enum LibraryCommand {
 fn run_library(dir: &Path, command: LibraryCommand) -> Result<()> {
     let edit = match command {
         LibraryCommand::List => library::Edit::Read,
+        LibraryCommand::ImportMagpie { file, names, apply } => {
+            let passphrase = super::backup_passphrase()?;
+            let report = library::import_magpie(dir, &file, &passphrase, &names, apply)?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+            );
+            return Ok(());
+        }
         LibraryCommand::Save {
             name,
             from,
