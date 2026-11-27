@@ -204,7 +204,11 @@ impl BackupProvider {
                         url.set_path(&path);
                         (String::new(), url.to_string())
                     }
-                    Some("generativelanguage.googleapis.com" | "api.cloudflare.com") => {
+                    Some("generativelanguage.googleapis.com") => {
+                        url.set_path("/v1beta/decisions");
+                        (String::new(), url.to_string())
+                    }
+                    Some("api.cloudflare.com") => {
                         bail!(
                             "{} needs a vendor-specific Magpie decision adapter",
                             self.id

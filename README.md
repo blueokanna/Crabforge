@@ -51,6 +51,8 @@ Use `POST /v1/decisions` for OpenAI Decisions or `POST /v1/systemone` for System
 
 A group classifier can use `gpt-6-luna` on Decisions or a decision-only provider. The same native call can classify intent and score reasoning effort. The native classifier defaults to `intentSure: 0.4` and uses the distribution of answer probabilities when available. Set `intentSure: 0` to accept the selected intent at any confidence.
 
+For Gemini Developer API, add `gemini-decision-1` to an AI Studio provider with an API key, or set `systemone` to `https://generativelanguage.googleapis.com/v1beta/decisions`. Both gateway decision routes and group classifiers can use this model. System One accepts text or JSON state and optional `images` and `audio` lists of Base64 data URLs or HTTP(S) URLs. The gateway converts Gemini's content blocks, question criteria, usage counts and blocked-input responses. Vertex AI has no Gemini Decisions endpoint.
+
 Add `"effort":"auto"` beside `classifier` in a group's routing JSON to let the classifier estimate reasoning effort for requests that ask for it. The gateway can ask for intent and effort in one call, reuse the answer on tool continuations in the same named session and carry it into nested groups. A matched rule's `useEffort` takes precedence. Shares and encrypted group backups preserve the setting.
 
 For `intent` rules, supply an object in the same editor or CLI command. `classifier` and `classifierMore` accept configured model and group IDs. `classifyPrompt` is optional.

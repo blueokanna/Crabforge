@@ -21,6 +21,14 @@ async fn plans_without_live_catalogs_use_their_own_model_lists() -> Result<()> {
     assert!(!personal.iter().any(|m| m == "deepseek-v3.2"));
     let team = discover(&endpoints("baidu-qianfan-team"), "UNUSED_KEY").await?;
     assert!(team.iter().any(|m| m == "deepseek-v3.2"));
+    let google_decisions = Endpoints {
+        systemone: "https://generativelanguage.googleapis.com/v1beta/decisions".into(),
+        ..Default::default()
+    };
+    assert_eq!(
+        discover(&google_decisions, "").await?,
+        ["gemini-decision-1"]
+    );
     for (region, count) in [("global", 23), ("eu", 9), ("us", 9), ("us-central1", 3)] {
         let mut vertex: Endpoints = nextjson::from_value(
             nextjson::json!({"vertex":{"project":"sample-project", "location":region}}),

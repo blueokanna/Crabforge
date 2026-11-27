@@ -24,6 +24,7 @@ mod affinity;
 mod classifier;
 mod cors;
 mod decision;
+pub(crate) use decision::{GEMINI_MODEL as GEMINI_DECISION_MODEL, gemini_decision_base};
 mod effort;
 mod first_content;
 mod keepalive;
@@ -381,18 +382,26 @@ impl<'a> Api<'a> {
                 .then_some(Destination::Browser(site));
         }
         if let Self::Chat(path @ (decision::DECISIONS | decision::SYSTEM_ONE)) = self {
-            let decisions = || decision::decisions_url(p, model);
-            let system_one = || decision::system_one_url(p, model);
-            let (url, native) = if path == decision::DECISIONS {
-                decisions()
-                    .map(|url| (url, decision::DECISIONS))
-                    .or_else(|| system_one().map(|url| (url, decision::SYSTEM_ONE)))?
-            } else {
-                system_one()
-                    .map(|url| (url, decision::SYSTEM_ONE))
-                    .or_else(|| decisions().map(|url| (url, decision::DECISIONS)))?
+            let decisions = || {
+                decision::decisions_url(p, model).map(|url| (url, Self::Chat(decision::DECISIONS)))
             };
-            return Some(Destination::Upstream(url, Self::Chat(native), None));
+            let system_one = || {
+                decision::system_one_url(p, model)
+                    .map(|url| (url, Self::Chat(decision::SYSTEM_ONE)))
+                    .or_else(|| {
+                        decision::gemini_url(p, model)
+                            .map(|url| (url, Self::Gemini(decision::DECISIONS)))
+                    })
+            };
+            let (url, native) = if path == decision::DECISIONS {
+                decisions().or_else(system_one)?
+            } else {
+                system_one().or_else(decisions)?
+            };
+            return Some(Destination::Upstream(url, native, None));
+        }
+        if model == decision::GEMINI_MODEL && decision::gemini_url(p, model).is_some() {
+            return None;
         }
         if let Self::Chat(path) = self
             && let Some((url, native)) = dashscope::destination(p, model, path)
@@ -1044,10 +1053,10 @@ async fn forward(
             Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
         };
         let (decision_body, decision_reply) = match (api, native) {
-            (Api::Chat(path @ (decision::DECISIONS | decision::SYSTEM_ONE)), Api::Chat(native))
-                if path != native =>
+            (Api::Chat(path @ (decision::DECISIONS | decision::SYSTEM_ONE)), native) if !matches!(native, Api::Chat(action) if action == path) =>
             {
-                match decision::request(path, model, &bytes, &url) {
+                let gemini = matches!(native, Api::Gemini(decision::DECISIONS));
+                match decision::request(path, model, &bytes, &url, gemini) {
                     Ok((body, reply)) => (Some(body), Some(reply)),
                     Err(_) if candidates.advance().await => continue,
                     Err(error) => return failure(StatusCode::BAD_REQUEST, &format!("{error:#}")),

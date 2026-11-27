@@ -20,13 +20,22 @@ impl NativeProtocols {
         if p.web_site.is_some() {
             return Self::default();
         }
+        if model == decision::GEMINI_MODEL && decision::gemini_url(p, model).is_some() {
+            return Self {
+                system_one: true,
+                decision_classifier: true,
+                ..Self::default()
+            };
+        }
         let chat = Api::Chat("chat/completions").url(p, model).is_some();
         let responses_url = Api::Responses("responses").url(p, model);
         let responses = responses_url.is_some();
         let messages = Api::Messages("messages").url(p, model).is_some();
         let gemini = Api::Gemini("generateContent").url(p, model).is_some();
         let decisions = decision::decisions_url(p, model).is_some();
-        let system_one = decision::system_one_url(p, model).is_some();
+        let system_one = decision::system_one_url(p, model)
+            .or_else(|| decision::gemini_url(p, model))
+            .is_some();
         let leaf = model
             .rsplit('/')
             .next()

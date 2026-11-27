@@ -11,6 +11,10 @@ use nextjson::{Map, Value, json};
 use std::collections::BTreeSet;
 use url::Url;
 
+mod gemini;
+pub(super) use gemini::gemini_url;
+pub(crate) use gemini::{GEMINI_MODEL, gemini_decision_base};
+
 pub(super) const DECISIONS: &str = "decisions";
 pub(super) const SYSTEM_ONE: &str = "systemone";
 pub(super) const LUNA: &str = "gpt-6-luna";
@@ -42,7 +46,7 @@ pub(super) fn system_one_url(provider: &Provider, model: &str) -> Option<Url> {
     }
     let endpoints = &provider.endpoints;
     if !endpoints.systemone.is_empty() {
-        return url(&endpoints.systemone, SYSTEM_ONE);
+        return url(&endpoints.systemone, SYSTEM_ONE).filter(|url| !gemini::host(url));
     }
     let base = match model {
         "decision-model-preview" => [&endpoints.chat, &endpoints.responses]
@@ -130,6 +134,7 @@ pub(super) struct Question {
 pub(super) enum Reply {
     Decisions(Vec<Question>),
     SystemOne(Vec<Question>),
+    Gemini(Option<Vec<Question>>),
 }
 
 pub(super) fn request(
@@ -137,9 +142,18 @@ pub(super) fn request(
     model: &str,
     bytes: &[u8],
     destination: &Url,
+    gemini: bool,
 ) -> Result<(Bytes, Reply)> {
     let value: Value = nextjson::from_slice(bytes).map_err(anyhow::Error::msg)?;
-    let (body, reply) = if path == SYSTEM_ONE {
+    let (body, reply) = if gemini {
+        let (body, questions) = if path == DECISIONS {
+            let (body, questions) = into_system_one(&value, model, destination)?;
+            (body, Some(questions))
+        } else {
+            (value, None)
+        };
+        (gemini::request(body, model)?, Reply::Gemini(questions))
+    } else if path == SYSTEM_ONE {
         let (body, questions) = into_decisions(&value, model)?;
         (body, Reply::SystemOne(questions))
     } else {
@@ -589,12 +603,22 @@ impl Reply {
             .to_bytes();
         let value: Value = nextjson::from_slice(&body)
             .map_err(|_| anyhow::anyhow!("invalid upstream decision JSON"))?;
+        let mut status = parts.status;
         let converted = match self {
             Self::Decisions(questions) => decisions_reply(&value, &questions, asked)?,
             Self::SystemOne(questions) => system_one_reply(&value, &questions, asked)?,
+            Self::Gemini(questions) => {
+                let (code, value) = gemini::reply(&value, asked, status)?;
+                status = code;
+                if let Some(questions) = questions.filter(|_| code.is_success()) {
+                    decisions_reply(&value, &questions, asked)?
+                } else {
+                    value
+                }
+            }
         };
         let mut response = Response::builder()
-            .status(parts.status)
+            .status(status)
             .header(header::CONTENT_TYPE, "application/json");
         for name in ["retry-after", "x-request-id", "request-id"] {
             if let Some(value) = parts.headers.get(name) {
@@ -791,4 +815,95 @@ fn reply_model<'a>(value: &'a Value, asked: &'a str) -> &'a str {
         .and_then(Value::as_str)
         .filter(|model| !model.is_empty())
         .unwrap_or(asked)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::gateway::{Api, Destination};
+    use http::StatusCode;
+
+    #[tokio::test]
+    async fn google_decisions_adapt_both_protocols_before_forwarding() -> Result<()> {
+        let p: Provider = nextjson::from_value(json!({"id":"google", "key_env":"GOOGLE_API_KEY",
+            "models":[GEMINI_MODEL], "endpoints":{"gemini":"https://generativelanguage.googleapis.com/v1beta",
+            "chat":"https://generativelanguage.googleapis.com/v1beta/openai"}})).map_err(anyhow::Error::msg)?;
+        let Some(Destination::Upstream(url, Api::Gemini(DECISIONS), None)) =
+            Api::Chat(SYSTEM_ONE).destination(&p, GEMINI_MODEL)
+        else {
+            panic!("expected Gemini Decisions destination");
+        };
+        assert_eq!(
+            url.as_str(),
+            "https://generativelanguage.googleapis.com/v1beta/decisions"
+        );
+        assert_eq!(
+            config::api_key_headers(&url, "gemini", config::AuthHeader::Both),
+            ["x-goog-api-key"]
+        );
+        assert!(
+            Api::Chat("chat/completions")
+                .destination(&p, GEMINI_MODEL)
+                .is_none()
+        );
+        let bytes = json!({"model":"group/judges", "state":{"receipt":42},
+            "images":["data:image/png;base64,AAAA"],"audio":["https://example.org/report.WAV?download=1"],
+            "questions":{"ok":{"type":"noul","criteria":{"true":"Valid","false":"Incomplete"}},
+            "class":{"type":"choice","criteria":{"invoice":"Invoice","other":null}}}}).to_string();
+        let (body, reply) = request(SYSTEM_ONE, GEMINI_MODEL, bytes.as_bytes(), &url, true)?;
+        let body: Value = nextjson::from_slice(&body).map_err(anyhow::Error::msg)?;
+        assert_eq!(body["model"], json!(GEMINI_MODEL));
+        assert_eq!(
+            body["input"],
+            json!([
+                {"type":"text","text":"{\"receipt\":42}"},
+                {"type":"image","mime_type":"image/png","data":"AAAA"},
+                {"type":"audio","uri":"https://example.org/report.WAV?download=1","mime_type":"audio/wav"},
+            ])
+        );
+        assert_eq!(
+            body.pointer("/questions/ok/criteria/true_description"),
+            Some(&json!("Valid"))
+        );
+        assert_eq!(
+            body.pointer("/questions/class/criteria/other"),
+            Some(&json!(""))
+        );
+        let upstream = Response::new(Body::from(
+            json!({"answers":{"ok":{"type":"noul","noul":0.8}},
+            "usage":{"total_input_tokens":120,"total_output_tokens":0}})
+            .to_string(),
+        ));
+        let reply = reply.convert(upstream, "group/judges").await?;
+        let data = reply.into_body().collect().await.unwrap().to_bytes();
+        let data: Value = nextjson::from_slice(&data).map_err(anyhow::Error::msg)?;
+        assert_eq!(data.pointer("/usage/input_tokens"), Some(&json!(120)));
+        assert_eq!(data.pointer("/answers/ok/noul"), Some(&json!(0.8)));
+
+        let bytes = json!({"model":"google/gemini-decision-1","input":"receipt",
+            "questions":[{"name":"valid","type":"predicate"}]})
+        .to_string();
+        let (_, reply) = request(DECISIONS, GEMINI_MODEL, bytes.as_bytes(), &url, true)?;
+        let upstream = Response::new(Body::from(
+            json!({"answers":{"valid":{"type":"noul","noul":0.8}},
+            "usage":{"total_input_tokens":10,"total_output_tokens":0}})
+            .to_string(),
+        ));
+        let reply = reply.convert(upstream, "google/gemini-decision-1").await?;
+        let data = reply.into_body().collect().await.unwrap().to_bytes();
+        let data: Value = nextjson::from_slice(&data).map_err(anyhow::Error::msg)?;
+        assert_eq!(data.pointer("/answers/0/probability"), Some(&json!(0.8)));
+        assert_eq!(data.pointer("/usage/total_tokens"), Some(&json!(10)));
+
+        let (_, reply) = request(DECISIONS, GEMINI_MODEL, bytes.as_bytes(), &url, true)?;
+        let upstream = Response::new(Body::from(
+            r#"{"answers":{},"prompt_feedback":{"block_reason":"SAFETY","block_reason_message":"Filtered"}}"#,
+        ));
+        let reply = reply.convert(upstream, "google/gemini-decision-1").await?;
+        assert_eq!(reply.status(), StatusCode::BAD_REQUEST);
+        let data = reply.into_body().collect().await.unwrap().to_bytes();
+        let data: Value = nextjson::from_slice(&data).map_err(anyhow::Error::msg)?;
+        assert_eq!(data.pointer("/error/code"), Some(&json!("SAFETY")));
+        Ok(())
+    }
 }

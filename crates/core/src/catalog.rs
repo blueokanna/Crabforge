@@ -112,7 +112,17 @@ fn sources(bases: &Endpoints) -> Result<Vec<Source>> {
         (&bases.systemone, "systemone"),
     ];
     if !bases.models_url.is_empty() {
-        let api = if bases.vertex.is_some() {
+        let api = if bases.vertex.is_some()
+            || crate::gateway::gemini_decision_base(bases).is_some()
+                && [
+                    &bases.chat,
+                    &bases.responses,
+                    &bases.anthropic,
+                    &bases.gemini,
+                ]
+                .into_iter()
+                .all(String::is_empty)
+        {
             "gemini"
         } else {
             protocols
@@ -133,6 +143,7 @@ fn sources(bases: &Endpoints) -> Result<Vec<Source>> {
     let mut sources = Vec::new();
     for (base, api) in protocols {
         if base.is_empty()
+            || api == "systemone" && crate::gateway::gemini_decision_base(bases).is_some()
             || (ai_studio_pair
                 && base.trim_end_matches('/')
                     == "https://generativelanguage.googleapis.com/v1beta/openai")
@@ -246,6 +257,23 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
             ..Default::default()
         });
     }
+    let gemini_decision =
+        bases.models_url.is_empty() && crate::gateway::gemini_decision_base(bases).is_some();
+    if gemini_decision
+        && [
+            &bases.chat,
+            &bases.responses,
+            &bases.anthropic,
+            &bases.gemini,
+        ]
+        .into_iter()
+        .all(String::is_empty)
+    {
+        return Ok(ModelCatalog {
+            models: vec![crate::gateway::GEMINI_DECISION_MODEL.to_owned()],
+            ..Default::default()
+        });
+    }
     let sources = sources(bases)?;
     let key = if key_env.is_empty() {
         None
@@ -296,6 +324,14 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
         }
     }
     ensure!(!catalog.models.is_empty(), "{}", errors.join("; "));
+    if gemini_decision
+        && key.is_some()
+        && seen.insert(crate::gateway::GEMINI_DECISION_MODEL.to_owned())
+    {
+        catalog
+            .models
+            .push(crate::gateway::GEMINI_DECISION_MODEL.to_owned());
+    }
     catalog.learned_auth = auth.learned;
     Ok(catalog)
 }
