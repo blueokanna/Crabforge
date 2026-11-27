@@ -79,6 +79,14 @@ async fn decision_apis_preserve_native_requests_and_translate_group_fallbacks() 
                 "valid":{"type":"boolean","probability":0.95},
                 "category":{"type":"choice","choice":"invoice","probabilities":{"invoice":0.875,"other":0.125}}
             },"usage":{"inputTokens":40,"outputTokens":1}}))
+        }))
+        .route("/client/v4/accounts/team7/ai/run/@cf/cloudflare/clef", post(|Incoming { body, .. }: Incoming| async move {
+            let value: Value = nextjson::from_slice(&body).unwrap();
+            assert_eq!(value.get("model"), Some(&json!("clef")));
+            assert_eq!(value.pointer("/questions/valid/type"), Some(&json!("noul")));
+            assert!(value.get("input").is_none());
+            Json(json!({"success":true,"result":{"answers":{"valid":{"type":"noul","noul":0.95}},
+                "usage":{"input_tokens":20}}}))
         }));
     let server = tokio::spawn(crabforge_test_support::server::serve(listener, app));
     let dir = tempdir()?;
@@ -87,7 +95,9 @@ async fn decision_apis_preserve_native_requests_and_translate_group_fallbacks() 
         {"id":"jev","models":["jev"],"endpoints":{"systemone":format!("http://{addr}/fallback")}},
         {"id":"chat","models":["m"],"endpoints":{"chat":format!("http://{addr}/chat/v1")}},
         {"id":"vercel","models":["typesafe-ai/jev"],"endpoints":{
-            "chat":format!("http://{addr}/chat/v1"),"systemone":format!("http://{addr}/v4/ai/")}}
+            "chat":format!("http://{addr}/chat/v1"),"systemone":format!("http://{addr}/v4/ai/")}},
+        {"id":"workers","models":["@cf/cloudflare/clef"],"endpoints":{
+            "systemone":format!("http://{addr}/client/v4/accounts/team7/")}}
     ],"groups":{"judges":["chat/m","openai/busy","jev/jev"]}});
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
     let gateway = Service::start(dir.path()).await?;
@@ -155,6 +165,22 @@ async fn decision_apis_preserve_native_requests_and_translate_group_fallbacks() 
     );
     assert_eq!(evaluation.pointer("/usage/total_tokens"), Some(&json!(41)));
     assert_eq!(requests.try_recv()?, "/v4/ai/evaluation-model");
+
+    let clef = send(
+        "decisions",
+        json!({"model":"workers/@cf/cloudflare/clef","input":"receipt",
+        "questions":[{"type":"predicate","name":"valid"}]})
+        .to_string(),
+    )
+    .await?
+    .error_for_status()?;
+    let clef: Value = nextjson::from_slice(&clef.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(clef.pointer("/answers/0/probability"), Some(&json!(0.95)));
+    assert_eq!(clef.pointer("/usage/total_tokens"), Some(&json!(20)));
+    assert_eq!(
+        requests.try_recv()?,
+        "/client/v4/accounts/team7/ai/run/@cf/cloudflare/clef"
+    );
 
     let system_one = json!({"model":"openai/luna","state":{"document":123},"images":["https://example.org/receipt.png"],"questions":{
         "z":{"type":"noul","instructions":"Readable?"},"a":{"type":"choice","criteria":{"second":"Corresponding page","first":null}},

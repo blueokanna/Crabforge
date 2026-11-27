@@ -11,6 +11,9 @@ use nextjson::{Map, Value, json};
 use std::collections::BTreeSet;
 use url::Url;
 
+mod cloudflare;
+pub(super) use cloudflare::{AccountCache, workers_ai};
+pub(crate) use cloudflare::{CLOUDFLARE_DECISION_MODELS, cloudflare_decision_base};
 mod gemini;
 mod vercel;
 pub(super) use gemini::gemini_url;
@@ -49,7 +52,9 @@ pub(super) fn system_one_url(provider: &Provider, model: &str) -> Option<Url> {
     }
     let endpoints = &provider.endpoints;
     if !endpoints.systemone.is_empty() {
-        if let Some(url) = vercel_evaluation_base(&endpoints.systemone) {
+        if let Some(url) = vercel_evaluation_base(&endpoints.systemone)
+            .or_else(|| cloudflare_decision_base(&endpoints.systemone))
+        {
             return Some(url);
         }
         return url(&endpoints.systemone, SYSTEM_ONE).filter(|url| !gemini::host(url));
@@ -77,6 +82,9 @@ pub(super) fn only(provider: &Provider, model: &str) -> bool {
         GEMINI_MODEL => gemini_url(provider, model).is_some(),
         VERCEL_EVALUATION_MODEL => {
             system_one_url(provider, model).is_some_and(|url| vercel_evaluation(&url))
+        }
+        model if CLOUDFLARE_DECISION_MODELS.contains(&model) => {
+            system_one_url(provider, model).is_some_and(|url| workers_ai(&url))
         }
         _ => false,
     }
@@ -152,6 +160,7 @@ pub(super) enum Reply {
     SystemOne(Vec<Question>),
     Gemini(Option<Vec<Question>>),
     Vercel(Option<Vec<Question>>),
+    Cloudflare(Option<Vec<Question>>),
 }
 
 pub(super) fn request(
@@ -163,7 +172,8 @@ pub(super) fn request(
 ) -> Result<(Bytes, Reply)> {
     let value: Value = nextjson::from_slice(bytes).map_err(anyhow::Error::msg)?;
     let vercel = vercel_evaluation(destination);
-    let (body, reply) = if gemini || vercel {
+    let cloudflare = workers_ai(destination);
+    let (body, reply) = if gemini || vercel || cloudflare {
         let (body, questions) = if path == DECISIONS {
             let (body, questions) = into_system_one(&value, model, destination)?;
             (body, Some(questions))
@@ -172,8 +182,13 @@ pub(super) fn request(
         };
         if gemini {
             (gemini::request(body, model)?, Reply::Gemini(questions))
-        } else {
+        } else if vercel {
             (vercel::request(body)?, Reply::Vercel(questions))
+        } else {
+            (
+                cloudflare::request(body, model)?,
+                Reply::Cloudflare(questions),
+            )
         }
     } else if path == SYSTEM_ONE {
         let (body, questions) = into_decisions(&value, model)?;
@@ -640,6 +655,13 @@ impl Reply {
             }
             Self::Vercel(questions) => {
                 let value = vercel::reply(value, asked)?;
+                match questions {
+                    Some(questions) => decisions_reply(&value, &questions, asked)?,
+                    None => value,
+                }
+            }
+            Self::Cloudflare(questions) => {
+                let value = cloudflare::reply(value)?;
                 match questions {
                     Some(questions) => decisions_reply(&value, &questions, asked)?,
                     None => value,

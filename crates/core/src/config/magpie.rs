@@ -188,7 +188,9 @@ impl BackupProvider {
             } else {
                 let mut url = super::endpoint(&self.decide)?;
                 let path = url.path().trim_end_matches('/');
-                if let Some(endpoint) = crate::gateway::vercel_evaluation_base(&self.decide) {
+                if let Some(endpoint) = crate::gateway::vercel_evaluation_base(&self.decide)
+                    .or_else(|| crate::gateway::cloudflare_decision_base(&self.decide))
+                {
                     (String::new(), endpoint.to_string())
                 } else {
                     match url.host_str() {
@@ -212,15 +214,12 @@ impl BackupProvider {
                             (String::new(), url.to_string())
                         }
                         Some("api.cloudflare.com") => {
-                            bail!(
-                                "{} needs a vendor-specific Magpie decision adapter",
-                                self.id
-                            );
+                            bail!("{} has an invalid Workers AI decision endpoint", self.id);
                         }
                         _ => {
                             ensure!(
                                 !path.contains("/client/v4"),
-                                "{} needs a vendor-specific Magpie decision adapter",
+                                "{} has an invalid Workers AI decision endpoint",
                                 self.id
                             );
                             if path.is_empty() {
@@ -746,7 +745,7 @@ mod tests {
         seal(
             &file,
             json!({
-                "version": 2, "order": ["backup", "lab", "google", "evaluation"], "groups": [{"id": "example"}],
+                "version": 2, "order": ["backup", "lab", "google", "evaluation", "workers"], "groups": [{"id": "example"}],
                 "providers": [
                     {"id":"lab", "was":["previous"], "key":"fixture-api-key", "models":["m"],
                      "anthropic":"http://127.0.0.1:1", "authHeader":"bearer", "noStandIn":true,
@@ -756,7 +755,8 @@ mod tests {
                      "decide":"http://127.0.0.1:1/v1"},
                      {"id":"off", "off":true, "chat":"http://127.0.0.1:1/v1", "models":["m"]},
                      {"id":"google", "models":["gemini-decision-1"], "decide":"https://generativelanguage.googleapis.com/v1beta"},
-                     {"id":"evaluation", "models":["typesafe-ai/jev"], "decide":"https://ai-gateway.vercel.sh/v4/ai"}
+                     {"id":"evaluation", "models":["typesafe-ai/jev"], "decide":"https://ai-gateway.vercel.sh/v4/ai"},
+                     {"id":"workers", "models":["@cf/cloudflare/clef"], "decide":"https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/ai/run"}
                 ]
             }),
         );
@@ -765,6 +765,7 @@ mod tests {
             "backup".into(),
             "google".into(),
             "evaluation".into(),
+            "workers".into(),
         ];
         let keys = BTreeMap::from([("lab".into(), "LAB_API_KEY".into())]);
         let run = |pass, selected: &[String], apply| {
@@ -774,7 +775,10 @@ mod tests {
         assert!(run(PASSPHRASE, &[], true).is_err());
         assert!(run(PASSPHRASE, &selected[..1], true).is_err());
         let preview = run(PASSPHRASE, &selected, false)?;
-        assert_eq!(preview.providers, ["backup", "lab", "google", "evaluation"]);
+        assert_eq!(
+            preview.providers,
+            ["backup", "lab", "google", "evaluation", "workers"]
+        );
         assert_eq!(preview.other_sections, ["groups"]);
         assert!(!preview.applied);
         assert!(!settings.exists());
@@ -801,6 +805,10 @@ mod tests {
         assert_eq!(
             cfg.providers[3].endpoints.systemone,
             "https://ai-gateway.vercel.sh/v4/ai/evaluation-model"
+        );
+        assert_eq!(
+            cfg.providers[4].endpoints.systemone,
+            "https://api.cloudflare.com/client/v4/accounts"
         );
         assert!(run(PASSPHRASE, &selected, true).is_err());
         let tampered = fs::read_to_string(&file)?.replace("100000", "100001");

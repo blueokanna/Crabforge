@@ -55,6 +55,8 @@ For Gemini Developer API, add `gemini-decision-1` to an AI Studio provider with 
 
 For Vercel AI Gateway Evaluation, set `systemone` to `https://ai-gateway.vercel.sh/v4/ai`, add `typesafe-ai/jev`, and supply the provider key. The gateway sends the model in the evaluation headers and converts Boolean answers, confidence, and token counts. For the TypeSafe System One API, use `https://ai-gateway.vercel.sh/typesafe/v1`.
 
+For Cloudflare Workers AI, set `systemone` to `https://api.cloudflare.com/client/v4/accounts/<account-id>/ai/run` and set the provider key to a Workers AI API token. Add `typesafe/jev`, `@cf/cloudflare/clef`, or `@cf/cloudflare/clef-flash` to the provider. If you configure the shorter `https://api.cloudflare.com/client/v4` base, the token must also be able to list accounts. The gateway selects the first account returned and caches it for ten minutes for that token.
+
 Add `"effort":"auto"` beside `classifier` in a group's routing JSON to let the classifier estimate reasoning effort for requests that ask for it. The gateway can ask for intent and effort in one call, reuse the answer on tool continuations in the same named session and carry it into nested groups. A matched rule's `useEffort` takes precedence. Shares and encrypted group backups preserve the setting.
 
 For `intent` rules, supply an object in the same editor or CLI command. `classifier` and `classifierMore` accept configured model and group IDs. `classifyPrompt` is optional.

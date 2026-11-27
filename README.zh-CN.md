@@ -55,6 +55,8 @@ DashScope `qwen-audio` TTS 模型通过 `/v1/audio/speech` 默认返回完整 MP
 
 使用 Vercel AI Gateway Evaluation 时，将 `systemone` 设为 `https://ai-gateway.vercel.sh/v4/ai`，加入 `typesafe-ai/jev`，并配置供应商密钥。网关在 Evaluation 请求头中发送模型 ID，同时转换布尔答案、置信度和 token 用量。TypeSafe System One API 使用 `https://ai-gateway.vercel.sh/typesafe/v1`。
 
+使用 Cloudflare Workers AI 时，将 `systemone` 设为 `https://api.cloudflare.com/client/v4/accounts/<account-id>/ai/run`，为供应商配置 Workers AI API token，并加入 `typesafe/jev`、`@cf/cloudflare/clef` 或 `@cf/cloudflare/clef-flash`。若使用较短的 `https://api.cloudflare.com/client/v4` 基址，token 还需要列出账户的权限。网关选择返回的第一个账户，并按 token 缓存十分钟。
+
 在路由组 JSON 的 `classifier` 同级加入 `"effort":"auto"`，由分类器为已请求推理的请求评估等级。网关可在一次调用中判定意图与等级，并在同一命名会话的工具续轮中复用结果、传给嵌套组。命中规则的 `useEffort` 优先。路由组分享和加密备份均保留该设置。
 
 配置 `intent` 规则时，在同一编辑器或 CLI 命令中传入 JSON 对象。`classifier` 和 `classifierMore` 接受已配置的模型和路由组 ID，`classifyPrompt` 可选。

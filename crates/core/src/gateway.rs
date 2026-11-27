@@ -24,6 +24,7 @@ mod affinity;
 mod classifier;
 mod cors;
 mod decision;
+pub(crate) use decision::{CLOUDFLARE_DECISION_MODELS, cloudflare_decision_base};
 pub(crate) use decision::{GEMINI_MODEL as GEMINI_DECISION_MODEL, gemini_decision_base};
 pub(crate) use decision::{VERCEL_EVALUATION_MODEL, vercel_evaluation_base};
 mod effort;
@@ -80,6 +81,7 @@ pub struct Gateway {
     group_ids: Vec<String>,
     manual_members: BTreeMap<String, Vec<String>>,
     anthropic_auth: Vec<std::sync::OnceLock<crate::config::AuthHeader>>,
+    workers_accounts: Vec<decision::AccountCache>,
     // IDs already listed in group order, or hidden aliases of public IDs.
     skip_in_sorted_catalog: std::collections::BTreeSet<String>,
     ordered_group_refs: Vec<String>,
@@ -316,6 +318,9 @@ fn router_with_client(
         manual_members,
         anthropic_auth: (0..config.providers.len())
             .map(|_| Default::default())
+            .collect(),
+        workers_accounts: (0..config.providers.len())
+            .map(|_| decision::AccountCache::default())
             .collect(),
         vertex_tokens: config
             .providers
@@ -1055,9 +1060,13 @@ async fn forward(
         };
         let vercel_evaluation =
             matches!(native, Api::Chat(decision::SYSTEM_ONE)) && decision::vercel_evaluation(&url);
+        let workers_ai =
+            matches!(native, Api::Chat(decision::SYSTEM_ONE)) && decision::workers_ai(&url);
         let (decision_body, decision_reply) = match (api, native) {
             (Api::Chat(path @ (decision::DECISIONS | decision::SYSTEM_ONE)), native)
-                if vercel_evaluation || !matches!(native, Api::Chat(action) if action == path) =>
+                if vercel_evaluation
+                    || workers_ai
+                    || !matches!(native, Api::Chat(action) if action == path) =>
             {
                 let gemini = matches!(native, Api::Gemini(decision::DECISIONS));
                 match decision::request(path, model, &bytes, &url, gemini) {
@@ -1140,7 +1149,9 @@ async fn forward(
         {
             request = request.header("anthropic-version", "2023-06-01");
         }
-        if !p.key_env.is_empty() {
+        let key = if p.key_env.is_empty() {
+            None
+        } else {
             let Some(key) = std::env::var(&p.key_env).ok().filter(|s| !s.is_empty()) else {
                 record(503);
                 if candidates.advance().await {
@@ -1151,6 +1162,27 @@ async fn forward(
                     "provider key environment variable is missing or empty",
                 );
             };
+            Some(key)
+        };
+        if workers_ai {
+            match gw.workers_accounts[candidate.target.provider]
+                .run_url(&url, model, &gw.client, key.as_deref())
+                .await
+            {
+                Ok(run_url) => {
+                    url = run_url;
+                    request = request.uri(url.as_str());
+                }
+                Err(error) => {
+                    record(502);
+                    if candidates.advance().await {
+                        continue;
+                    }
+                    return failure(StatusCode::BAD_GATEWAY, &error.to_string());
+                }
+            }
+        }
+        if let Some(key) = key {
             let protocol = match native {
                 Api::Gemini(_) => "gemini",
                 Api::Messages(_) => "anthropic",

@@ -122,6 +122,7 @@ fn decision_only(bases: &Endpoints) -> bool {
 fn sources(bases: &Endpoints) -> Result<Vec<Source>> {
     let gemini_decision = crate::gateway::gemini_decision_base(bases).is_some();
     let vercel_evaluation = crate::gateway::vercel_evaluation_base(&bases.systemone).is_some();
+    let workers_ai = crate::gateway::cloudflare_decision_base(&bases.systemone).is_some();
     let protocols = protocol_bases(bases);
     if !bases.models_url.is_empty() {
         let api = if bases.vertex.is_some() || gemini_decision && decision_only(bases) {
@@ -145,7 +146,7 @@ fn sources(bases: &Endpoints) -> Result<Vec<Source>> {
     let mut sources = Vec::new();
     for (base, api) in protocols {
         if base.is_empty()
-            || api == "systemone" && (gemini_decision || vercel_evaluation)
+            || api == "systemone" && (gemini_decision || vercel_evaluation || workers_ai)
             || (ai_studio_pair
                 && base.trim_end_matches('/')
                     == "https://generativelanguage.googleapis.com/v1beta/openai")
@@ -259,22 +260,24 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
             ..Default::default()
         });
     }
-    let builtin_decision = bases
+    let builtin_decisions = bases
         .models_url
         .is_empty()
         .then(|| {
             if crate::gateway::gemini_decision_base(bases).is_some() {
-                Some(crate::gateway::GEMINI_DECISION_MODEL)
+                Some([crate::gateway::GEMINI_DECISION_MODEL].as_slice())
             } else if crate::gateway::vercel_evaluation_base(&bases.systemone).is_some() {
-                Some(crate::gateway::VERCEL_EVALUATION_MODEL)
+                Some([crate::gateway::VERCEL_EVALUATION_MODEL].as_slice())
+            } else if crate::gateway::cloudflare_decision_base(&bases.systemone).is_some() {
+                Some(crate::gateway::CLOUDFLARE_DECISION_MODELS)
             } else {
                 None
             }
         })
         .flatten();
-    if let Some(model) = builtin_decision.filter(|_| decision_only(bases)) {
+    if let Some(models) = builtin_decisions.filter(|_| decision_only(bases)) {
         return Ok(ModelCatalog {
-            models: vec![model.to_owned()],
+            models: models.iter().map(|model| (*model).to_owned()).collect(),
             ..Default::default()
         });
     }
@@ -328,10 +331,13 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
         }
     }
     ensure!(!catalog.models.is_empty(), "{}", errors.join("; "));
-    if let Some(model) = builtin_decision.filter(|_| key.is_some())
-        && !seen.contains(model)
-    {
-        catalog.models.push(model.to_owned());
+    if let Some(models) = builtin_decisions.filter(|_| key.is_some()) {
+        catalog.models.extend(
+            models
+                .iter()
+                .filter(|model| !seen.contains(**model))
+                .map(|model| (*model).to_owned()),
+        );
     }
     catalog.learned_auth = auth.learned;
     Ok(catalog)

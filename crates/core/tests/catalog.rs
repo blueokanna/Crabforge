@@ -34,6 +34,18 @@ async fn plans_without_live_catalogs_use_their_own_model_lists() -> Result<()> {
         ..Default::default()
     };
     assert_eq!(discover(&vercel_evaluation, "").await?, ["typesafe-ai/jev"]);
+    let workers_ai = Endpoints {
+        systemone: "https://api.cloudflare.com/client/v4".into(),
+        ..Default::default()
+    };
+    assert_eq!(
+        discover(&workers_ai, "").await?,
+        [
+            "typesafe/jev",
+            "@cf/cloudflare/clef",
+            "@cf/cloudflare/clef-flash"
+        ]
+    );
     for (region, count) in [("global", 23), ("eu", 9), ("us", 9), ("us-central1", 3)] {
         let mut vertex: Endpoints = nextjson::from_value(
             nextjson::json!({"vertex":{"project":"sample-project", "location":region}}),
