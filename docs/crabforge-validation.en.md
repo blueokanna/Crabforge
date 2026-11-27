@@ -28,7 +28,9 @@ The frozen Hooks revision `18a3d431f284c021d9e99e72bcb65d801634550e` passed all 
 
 ## Shared plugin library
 
-The Windows Debug test browsed a local marketplace, selected a bundle in a 560 px list, reviewed and copied a subagent in a 1,280 px grid, updated the bundle, then removed and reimported it from TAR. The test created the TAR through the Rust bridge and imported it through the interface. The native save file dialog is outside this test's coverage. [Windows integration](validation/shared-plugin-library/plugin-bundles-windows.log)
+The Windows Debug test browsed a local marketplace, selected a bundle in a 560 px list, reviewed and copied a subagent in a 1,280 px grid, updated the bundle, then removed and reimported it from TAR. The test created the TAR through the Rust bridge and imported it through the interface. [Windows integration](validation/shared-plugin-library/plugin-bundles-windows.log)
+
+The Rust Windows runner registers Flutter's file selector in `688ea1a`. A standalone Release process exported a TAR through the native Save dialog, removed the saved bundle and reimported it through the native Open dialog. The snapshot hash matched after reimport and the attachment retained the bytes `00 7F FF`. The unpacked CLI from `3f09795` seeded and checked the fixture. [Native file dialogs](validation/shared-plugin-library/plugin-bundle-dialogs.csv)
 
 The localhost smart HTTPS Git fixture used `feature/review` to browse multiple candidates, reject a path outside the marketplace, and reopen the selected source. It exported the snapshot to TAR and reimported the binary attachment without fetching from Git. A subagent copied from the bundle was published to Claude Code and Codex project files. Its prompt still synchronized after bundle removal, and withdrawal preserved the externally edited Codex file. [Git fixture](validation/shared-plugin-library/plugin-bundles-https.csv)
 

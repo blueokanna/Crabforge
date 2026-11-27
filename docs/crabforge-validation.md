@@ -28,7 +28,9 @@ Grok Build 1.0.92 在用户和项目作用域执行 `Stop` 钩子，写入本机
 
 ### 共享插件库
 
-Windows Debug 集成在 560 像素列表中浏览本地市场并选择插件包，在 1,280 像素网格中审核并复制子代理，随后更新、移除并从 TAR 重新导入插件包。测试通过 Rust 桥接创建 TAR，再经桌面界面导入。原生保存对话框待单独验收。[Windows 集成](validation/shared-plugin-library/plugin-bundles-windows.log)
+Windows Debug 集成在 560 像素列表中浏览本地市场并选择插件包，在 1,280 像素网格中审核并复制子代理，随后更新、移除并从 TAR 重新导入插件包。测试通过 Rust 桥接创建 TAR，再经桌面界面导入。[Windows 集成](validation/shared-plugin-library/plugin-bundles-windows.log)
+
+Windows Release 的 Rust 运行器在 `688ea1a` 注册了 Flutter 文件选择器。独立桌面进程通过原生保存对话框导出 TAR，移除库中的快照，再通过原生打开对话框导回。导回后快照哈希一致，附件保留 `00 7F FF` 三个字节。夹具由 `3f09795` 的解压 CLI 建立和核对。[原生文件对话框](validation/shared-plugin-library/plugin-bundle-dialogs.csv)
 
 本机智能 HTTPS Git 夹具使用 `feature/review` 浏览多个候选，拒绝越出市场目录的路径，并重新打开选中的来源。TAR 往返保留二进制附件，导入过程无需请求 Git。复制的子代理发布到 Claude Code 和 Codex 项目文件。移除插件包后仍可同步该子代理的提示词，撤销时保留了外部编辑的 Codex 文件。[Git 夹具](validation/shared-plugin-library/plugin-bundles-https.csv)
 
