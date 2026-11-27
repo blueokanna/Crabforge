@@ -1,0 +1,16 @@
+Process,Round,Workload,Processes,Models,WorkingSetMiB,PrivateMiB
+Crabforge,1,Desktop,1,,159.78,235.66
+Crabforge,2,Desktop,1,,159.59,232.24
+Crabforge,3,Desktop,1,,159.19,232.96
+Crabforge,1,Catalog,,0,8.18,1.64
+Magpie,1,Catalog,,0,61.23,95.34
+Magpie,2,Catalog,,0,47.29,79.64
+Crabforge,2,Catalog,,0,8.18,1.66
+Crabforge,3,Catalog,,0,8.18,1.62
+Magpie,3,Catalog,,0,61.14,94.46
+Crabforge,1,Chat,,2,9.50,2.05
+Magpie,1,Chat,,1,71.66,99.22
+Magpie,2,Chat,,1,69.42,97.25
+Crabforge,2,Chat,,2,9.52,2.05
+Crabforge,3,Chat,,2,9.53,2.06
+Magpie,3,Chat,,1,69.11,97.73

@@ -1,0 +1,13 @@
+Turn,CLI,Gateway generation,Cumulative upstream requests,Prompt markers in request,CLI duration ms
+1,crabforge-cli.exe,1,1,1,2573.9
+2,carbforge-cli.exe,1,2,2,3133.0
+3,crabforge-cli.exe,1,3,3,2018.3
+4,carbforge-cli.exe,1,4,4,1973.4
+5,crabforge-cli.exe,1,5,5,3013.6
+6,carbforge-cli.exe,1,6,6,2774.2
+7,crabforge-cli.exe,2,7,7,2588.4
+8,carbforge-cli.exe,2,8,8,1914.3
+9,crabforge-cli.exe,2,9,9,1843.8
+10,carbforge-cli.exe,2,10,10,2172.5
+11,crabforge-cli.exe,2,11,11,3615.0
+12,carbforge-cli.exe,2,12,12,4466.9
