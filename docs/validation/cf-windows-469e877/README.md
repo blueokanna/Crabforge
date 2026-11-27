@@ -387,6 +387,16 @@ The instrumented CLI hashes identify the exact binaries in the paired series. Th
 | Default | `688d29f615f1fdf8e8abfc2e501bdf33cfc7f453bde5181a361d86f999ead4c0` |
 | Numeric literals resolved inline | `bc1463ace11be3730beeb2481f76d848b644075ed0f3099066cc6932096e9ea9` |
 
+同一主机对 `2ec7e74` 和 `7fd0552` 的下载包各做 30 次交替回环探针。首事件最小／中位／最大值分别为 `1.763/2.481/29.156 ms` 和 `1.916/2.518/26.263 ms`。60 次均为 HTTP 200、一次上游请求、零代理请求。46 个 CPU 样本为 `38.71–71.53%`，均值 `55.33%`。两版最慢样本分别在上游读完请求头前用时 `28.536` 和 `25.798 ms`，其中客户端 TCP 连接调用为 `12.656` 和 `23.631 ms`。对应的上游响应准备只用 `0.108` 和 `0.137 ms`。
+
+The same host alternated 30 loopback trials each from the `2ec7e74` and `7fd0552` Actions packages. First-event minimum, median and maximum were `1.763/2.481/29.156 ms` and `1.916/2.518/26.263 ms`. All 60 returned HTTP 200 with one upstream request and zero proxy requests. The 46 CPU samples ranged from `38.71%` to `71.53%` and averaged `55.33%`. In the slowest sample for each build, `28.536` and `25.798 ms` elapsed before the upstream finished reading the request headers. The client TCP connect calls accounted for `12.656` and `23.631 ms` of those times. Upstream response preparation took `0.108` and `0.137 ms`. [60 paired samples](forward-h1-windows-actions-pair.csv) · [CPU samples](forward-h1-windows-actions-cpu.csv)
+
+## 首段内容超时 / First-content timeout
+
+Windows 本地测试使用 Magpie `0.1.4936` 生成的原版加密备份。两个 Debug CLI 验证只读预览及 `groupFirstToken`、`firstToken` 的导入、复制、改名和删除。回环 Chat 夹具在只有角色元数据时触发 HTTP 504 和回退，随后逐字节保留后备流。在收到首段内容后，流可以超过原时限继续输出。回归同时覆盖最后一个兼容成员、非流式请求、内层等待覆盖、嵌套轮询顺序以及组分享往返。桌面集成测试在 1,200 和 560 逻辑像素下通过 Rust 桥接保存了组级和网关默认值，并运行了九种语言的窄屏导航。
+
+Local Windows testing used an encrypted backup produced by Magpie `0.1.4936`. Both Debug CLIs verified the read-only preview, imported `groupFirstToken` and `firstToken`, and exercised group copy, rename and removal. The loopback Chat fixture recorded HTTP 504 after receiving only role metadata, then preserved the fallback stream byte for byte. Once content arrived, the stream could continue beyond the original deadline. The regression also covered the last compatible member, non-streaming requests, a nested wait override, nested rotation order and group-share round trips. The desktop integration test saved group and gateway values through the Rust bridge at widths of 1,200 and 560 logical pixels, and exercised narrow navigation in all nine languages. [Gateway regression](../../../crates/core/tests/gateway.rs) · [Windows layouts](../../../gui/integration_test/console_layout_test.dart)
+
 ## 签名与许可 / Signing and licenses
 
 本地隔离测试使用临时自签名证书。SignTool 添加了 RFC 3161 时间戳，随后因证书链不受信任拒绝该文件。签名脚本清除了临时密钥，发布目录未创建。正式发布需要受信任的发布者密钥。

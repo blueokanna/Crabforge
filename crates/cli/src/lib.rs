@@ -53,7 +53,7 @@ enum Command {
         /// Read this provider's API key from the specified environment variable.
         #[arg(long = "key-env", value_parser = parse_key_env, value_name = "PROVIDER=VARIABLE")]
         key_envs: Vec<(String, String)>,
-        /// Include the gateway port, browser origins and equivalent model names from the backup.
+        /// Include gateway port, browser origins, equivalent models and the default first-content timeout.
         #[arg(long)]
         settings: bool,
         /// Import those settings without loading the backup's providers or groups.
@@ -451,6 +451,9 @@ enum GroupCommand {
         /// Set the group's one-line note (up to 200 characters). Use --note= to clear it.
         #[arg(long)]
         note: Option<String>,
+        /// Wait this many seconds for streamed content before trying another member. Use 0 to inherit or -1 to wait.
+        #[arg(long, allow_negative_numbers = true)]
+        first_content: Option<i32>,
         /// List the group's direct models in client catalogs (yes or no).
         #[arg(long, value_parser=["yes", "no"])]
         listed: Option<String>,
@@ -809,6 +812,7 @@ async fn dispatch(args: Args) -> Result<()> {
                     id,
                     members,
                     note,
+                    first_content,
                     listed,
                     rotate,
                     weighted,
@@ -880,6 +884,9 @@ async fn dispatch(args: Args) -> Result<()> {
                     if let Some(note) = note {
                         cfg.group_notes.insert(id.clone(), note);
                     }
+                    if let Some(seconds) = first_content {
+                        cfg.set_group_first_content(&id, seconds);
+                    }
                     cfg.groups.insert(id, named);
                     cfg.former_groups
                         .retain(|old, _| !cfg.groups.contains_key(old));
@@ -896,6 +903,7 @@ async fn dispatch(args: Args) -> Result<()> {
                     cfg.group_placed.remove(&id);
                     cfg.group_labels.remove(&id);
                     cfg.group_notes.remove(&id);
+                    cfg.group_first_content.remove(&id);
                     cfg.group_off.remove(&id);
                     cfg.group_unlists.remove(&id);
                     cfg.group_display_order.retain(|name| name != &id);

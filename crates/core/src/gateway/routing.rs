@@ -1,5 +1,8 @@
 use super::{Api, Config, Destination, Gateway, NativeProtocols, Round, Target};
-use std::collections::{BTreeMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashSet},
+    time::Duration,
+};
 
 #[derive(Clone, Copy)]
 pub(super) enum Route {
@@ -39,6 +42,7 @@ pub(super) struct Candidate<'a> {
     pub target: Target,
     pub destination: Destination<'a>,
     pub via: Vec<&'a str>,
+    pub first_content: Option<Duration>,
 }
 
 enum Plan<'a> {
@@ -47,6 +51,17 @@ enum Plan<'a> {
         round: Option<&'a Round>,
         branches: Vec<(usize, Plan<'a>)>,
     },
+}
+
+impl Plan<'_> {
+    fn has_unrestricted_model(&self, config: &Config) -> bool {
+        match self {
+            Self::Model(candidate) => !config.providers[candidate.target.provider].no_stand_in,
+            Self::Group { branches, .. } => branches
+                .iter()
+                .any(|(_, plan)| plan.has_unrestricted_model(config)),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -110,6 +125,8 @@ impl Gateway {
         });
         let mut roots = std::iter::once((route, None)).chain(backups);
         let mut pending = Vec::new();
+        let first_content =
+            matches!(route, Route::Group { .. }).then_some(self.config.default_group_first_content);
         // A direct request keeps its origin even when the primary lacks this protocol.
         let mut unrestricted =
             matches!(route, Route::Model(t) if !self.config.providers[t.provider].no_stand_in);
@@ -118,17 +135,27 @@ impl Gateway {
                 let plan = pending.pop().or_else(|| {
                     roots.find_map(|(root, group)| {
                         let mut via = group.into_iter().collect();
-                        self.expand(root, api, picks, &mut via, &mut seen)
+                        self.expand(root, api, picks, &mut via, &mut seen, first_content)
                     })
                 })?;
                 match plan {
-                    Plan::Model(candidate) => {
+                    Plan::Model(mut candidate) => {
                         let restricted =
                             self.config.providers[candidate.target.provider].no_stand_in;
                         if restricted && unrestricted {
                             continue;
                         }
                         unrestricted |= !restricted;
+                        // Check for a viable fallback without spending a nested group's turn.
+                        if candidate.first_content.is_some()
+                            && (pending.is_empty()
+                                || unrestricted
+                                    && !pending
+                                        .iter()
+                                        .any(|p| p.has_unrestricted_model(&self.config)))
+                        {
+                            candidate.first_content = None;
+                        }
                         return Some(candidate);
                     }
                     Plan::Group {
@@ -153,6 +180,7 @@ impl Gateway {
         picks: &BTreeMap<String, usize>,
         via: &mut Vec<&'a str>,
         seen: &mut Visited,
+        first_content: Option<i32>,
     ) -> Option<Plan<'a>> {
         let index = match route {
             Route::Disabled => return None,
@@ -168,6 +196,9 @@ impl Gateway {
                         target,
                         destination,
                         via: via.clone(),
+                        first_content: first_content
+                            .filter(|&seconds| seconds > 0)
+                            .map(|seconds| Duration::from_secs(seconds as u64)),
                     })
                     .map(Plan::Model);
             }
@@ -176,7 +207,16 @@ impl Gateway {
             return None;
         }
         let id = &self.group_ids[index];
-        let members = self.live_members(&id["group/".len()..], picks);
+        let name = &id["group/".len()..];
+        let members = self.live_members(name, picks);
+        let first_content = first_content.map(|inherited| {
+            self.config
+                .group_first_content
+                .get(name)
+                .copied()
+                .filter(|&seconds| seconds != 0)
+                .unwrap_or(inherited)
+        });
         let mut branches = Vec::new();
         for (i, member) in members.iter().enumerate() {
             let child = self.routes[member];
@@ -184,7 +224,7 @@ impl Gateway {
             if nested {
                 via.push(member);
             }
-            let choices = self.expand(child, api, picks, via, seen);
+            let choices = self.expand(child, api, picks, via, seen, first_content);
             if nested {
                 via.pop();
             }

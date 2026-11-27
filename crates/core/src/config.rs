@@ -96,6 +96,11 @@ pub struct Config {
     pub group_labels: BTreeMap<String, String>,
     #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_notes: BTreeMap<String, String>,
+    /// Seconds to wait for streamed content, or -1 to override the default with no deadline.
+    #[njson(skip_serializing_if = "BTreeMap::is_empty")]
+    pub group_first_content: BTreeMap<String, i32>,
+    #[njson(skip_serializing_if = "is_zero")]
+    pub default_group_first_content: i32,
     #[njson(skip_serializing_if = "BTreeMap::is_empty")]
     pub group_off: BTreeMap<String, BTreeSet<String>>,
     /// Groups whose direct model members are omitted from client catalogs.
@@ -146,6 +151,8 @@ impl Default for Config {
             group_placed: BTreeMap::new(),
             group_labels: BTreeMap::new(),
             group_notes: BTreeMap::new(),
+            group_first_content: BTreeMap::new(),
+            default_group_first_content: 0,
             group_off: BTreeMap::new(),
             group_unlists: BTreeSet::new(),
             disabled_groups: BTreeSet::new(),
@@ -164,6 +171,10 @@ impl Default for Config {
             allowed_peers: vec![],
         }
     }
+}
+
+fn is_zero(value: &i32) -> bool {
+    *value == 0
 }
 
 fn valid_id(s: &str) -> bool {
@@ -467,6 +478,17 @@ impl Config {
                 .iter()
                 .all(|id| self.groups.contains_key(id)),
             "rotation references an unknown group"
+        );
+        ensure!(
+            self.default_group_first_content >= -1
+                && self.group_first_content.values().all(|&wait| wait >= -1),
+            "first-content timeout must be -1, 0 or positive seconds"
+        );
+        ensure!(
+            self.group_first_content
+                .keys()
+                .all(|id| self.groups.contains_key(id)),
+            "first-content timeout references an unknown group"
         );
         let resolved = self.resolved_groups();
         ensure!(

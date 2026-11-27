@@ -25,6 +25,8 @@ carbforge-cli agent claude group/work
 
 Windows 默认将配置、网关密钥和 P2P 身份保存在 `%LOCALAPPDATA%\com.blue.crabforge`。设置绝对路径 `CRABFORGE_HOME` 或传入 `--data-dir` 可以使用独立配置。客户端访问网关时使用 `carbforge-cli key` 输出的密钥。
 
+可在路由组编辑器设置「首段内容超时」，或在 `group set` 中传入 `--first-content <秒>`。`0` 继承外层组或「网关 → 网络设置」中的默认值，`-1` 表示单独指定等待。若成员在时限内没有流式输出文本、推理或工具调用，且还有兼容的候选，网关会为本次尝试记录 HTTP 504 并切到下一成员。修改后重启网关。
+
 ## 从 Magpie 导入供应商
 
 使用 `magpie backup` 生成的 `.magpie-backup` 文件。CLI 会提示输入备份口令，输入内容不可见。先运行第一条命令预览，再加 `--apply` 保存。省略 `--provider` 可选择全部供应商，重复此选项可选择多个。
@@ -52,7 +54,7 @@ carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_A
 carbforge-cli import-magpie .\magpie.magpie-backup --key-env deepseek=DEEPSEEK_API_KEY --apply
 ```
 
-加 `--settings` 可同时导入网关端口、允许的浏览器来源和等价模型名。仅迁移这些设置时使用 `--settings-only`。预览在 `settings` 中显示导入值，并在 `settings.skipped_fields` 中列出跳过的字段名。重启网关后会在现有回环地址上监听导入的端口。备份中的来源列表替换现有列表，等价模型名合并到现有映射。同一模型的等价名称发生冲突时，整批导入会被拒绝。
+加 `--settings` 可同时导入网关端口、允许的浏览器来源、等价模型名和路由组的默认首段内容超时。仅迁移这些设置时使用 `--settings-only`。预览在 `settings` 中显示导入值，并在 `settings.skipped_fields` 中列出跳过的字段名。重启网关后会在现有回环地址上监听导入的端口。备份中的来源列表替换现有列表，等价模型名合并到现有映射。同一模型的等价名称发生冲突时，整批导入会被拒绝。
 
 ```powershell
 carbforge-cli import-magpie .\magpie.magpie-backup --settings-only

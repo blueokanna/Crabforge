@@ -740,6 +740,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get groupNote => 'グループのメモ（任意）';
 
   @override
+  String get firstContentSeconds => '最初のコンテンツの待機時間（秒）';
+
+  @override
+  String get groupFirstContentHelp => '0 は上位の設定を引き継ぎ、-1 はメンバーの応答を待ちます。';
+
+  @override
+  String get defaultFirstContentHelp =>
+      'ルーティンググループの既定値です。0 または -1 は各メンバーの応答を待ちます。';
+
+  @override
+  String get invalidFirstContent => '-1 から 2147483647 までの整数を入力してください。';
+
+  @override
   String get enableMember => 'メンバーを有効にする';
 
   @override

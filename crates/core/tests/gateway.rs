@@ -312,6 +312,177 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
 }
 
 #[tokio::test]
+async fn group_first_content_deadline_holds_preludes_and_respects_nested_overrides() -> Result<()> {
+    const SLOW_PRELUDE: &str = "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\"}}]}\n\n";
+    const FAST_PRELUDE: &str =
+        ": ready\r\n\r\ndata: {\"choices\":[{\"delta\":{\"content\":\"你好\"}}]}\r\n\r\n";
+    const DONE: &str = "data: [DONE]\n\n";
+    const JSON_REPLY: &str = r#"{"choices":[{"message":{"content":"complete"}}]}"#;
+    let (release_slow, slow) = watch::channel(false);
+    let (release_fast, fast) = watch::channel(false);
+    let mock = Router::new()
+        .route(
+            "/slow/chat/completions",
+            post(move |_| {
+                let mut slow = slow.clone();
+                async move {
+                    let prelude = stream::once(async {
+                        Ok::<_, Infallible>(Bytes::from_static(SLOW_PRELUDE.as_bytes()))
+                    });
+                    let done = stream::once(async move {
+                        slow.wait_for(|v| *v).await.unwrap();
+                        Ok(Bytes::from_static(DONE.as_bytes()))
+                    });
+                    (
+                        [("content-type", "text/event-stream")],
+                        Body::from_stream(prelude.chain(done)),
+                    )
+                }
+            }),
+        )
+        .route(
+            "/ready/chat/completions",
+            post(move |_| {
+                let mut fast = fast.clone();
+                async move {
+                    let bytes = FAST_PRELUDE.as_bytes();
+                    let split = FAST_PRELUDE.find('你').unwrap() + 1;
+                    let chunks = stream::iter([
+                        Ok::<_, Infallible>(Bytes::from_static(&bytes[..split])),
+                        Ok(Bytes::from_static(&bytes[split..])),
+                    ]);
+                    let done = stream::once(async move {
+                        fast.wait_for(|v| *v).await.unwrap();
+                        Ok(Bytes::from_static(DONE.as_bytes()))
+                    });
+                    (
+                        [("content-type", "text/event-stream; charset=utf-8")],
+                        Body::from_stream(chunks.chain(done)),
+                    )
+                }
+            }),
+        )
+        .route(
+            "/busy/chat/completions",
+            post(|_| async { StatusCode::SERVICE_UNAVAILABLE }),
+        )
+        .route(
+            "/json/chat/completions",
+            post(|_| async {
+                tokio::time::sleep(Duration::from_millis(1100)).await;
+                ([("content-type", "application/json")], JSON_REPLY)
+            }),
+        );
+    let listener = TcpListener::bind(ephemeral()).await?;
+    let addr = listener.local_addr()?;
+    let upstream = tokio::spawn(crabforge_test_support::server::serve(listener, mock));
+    let dir = tempdir()?;
+    let cfg = json!({
+        "listen":"127.0.0.1:0",
+        "providers":[
+            {"id":"slow","models":["m"],"endpoints":{"chat":format!("http://{addr}/slow")}},
+            {"id":"ready","models":["m"],"endpoints":{"chat":format!("http://{addr}/ready")}},
+            {"id":"busy","models":["m"],"endpoints":{"chat":format!("http://{addr}/busy")}},
+            {"id":"other","models":["m"],"endpoints":{"chat":format!("http://{addr}/ready")}},
+            {"id":"json","models":["m"],"endpoints":{"chat":format!("http://{addr}/json")}}
+        ],
+        "groups":{
+            "timed":["group/inherits","ready/m","group/rotating"],
+            "inherits":["slow/m"],
+            "wait":["group/untimed","ready/m"],
+            "untimed":["slow/m"],
+            "last":["busy/m","slow/m"],
+            "rotating":["busy/m","other/m"],
+            "json":["json/m","ready/m"]
+        },
+        "rotating_groups":["rotating"],
+        "default_group_first_content":1,
+        "group_first_content":{"untimed":-1}
+    });
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let service = Service::start(dir.path()).await?;
+    let client = crabforge_test_support::Client::default();
+    let url = format!("http://{}/v1/chat/completions", service.addr);
+    let token = config::token(dir.path())?;
+    let send = |group: &str, streaming: bool| {
+        client
+            .post(&url)
+            .bearer_auth(&token)
+            .body(
+                json!({
+                    "model":group,"messages":[{"role":"user","content":"hello"}],"stream":streaming
+                })
+                .to_string(),
+            )
+            .send()
+    };
+    let mut response = timeout(Duration::from_secs(5), send("group/timed", true)).await??;
+    assert_eq!(response.status(), 200);
+    assert_eq!(
+        timeout(Duration::from_secs(3), response.chunk())
+            .await??
+            .unwrap(),
+        FAST_PRELUDE
+    );
+    let json = timeout(Duration::from_secs(5), send("group/json", false)).await??;
+    assert_eq!(json.status(), 200);
+    assert_eq!(json.text().await?, JSON_REPLY);
+    release_fast.send(true)?;
+    assert_eq!(
+        timeout(Duration::from_secs(3), response.bytes()).await??,
+        DONE
+    );
+
+    // Inspecting the nested fallback must leave its first turn intact.
+    let rotated = timeout(Duration::from_secs(5), send("group/rotating", true)).await??;
+    assert_eq!(rotated.status(), 200);
+    assert_eq!(rotated.text().await?, format!("{FAST_PRELUDE}{DONE}"));
+
+    // Both requests expose their prelude while the slow upstream is still waiting.
+    let mut waits = Vec::new();
+    for group in ["group/wait", "group/last"] {
+        let mut response = timeout(Duration::from_secs(5), send(group, true)).await??;
+        assert_eq!(response.status(), 200);
+        assert_eq!(
+            timeout(Duration::from_secs(3), response.chunk())
+                .await??
+                .unwrap(),
+            SLOW_PRELUDE
+        );
+        waits.push(response);
+    }
+    release_slow.send(true)?;
+    for response in waits {
+        assert_eq!(
+            timeout(Duration::from_secs(3), response.bytes()).await??,
+            DONE
+        );
+    }
+    assert_eq!(
+        service
+            .history
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|a| (a.provider.as_str(), a.status))
+            .collect::<Vec<_>>(),
+        [
+            ("slow", 504),
+            ("ready", 200),
+            ("json", 200),
+            ("busy", 503),
+            ("other", 200),
+            ("slow", 200),
+            ("busy", 503),
+            ("slow", 200)
+        ]
+    );
+    service.stop().await;
+    upstream.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn quic_peer_identity_and_gateway_key_are_both_required() -> Result<()> {
     let server_dir = tempdir()?;
     let client_dir = tempdir()?;

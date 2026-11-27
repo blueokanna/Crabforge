@@ -17,6 +17,8 @@ struct SharedGroup {
     #[njson(skip_serializing)]
     matched: Vec<String>,
     routing: String,
+    #[njson(rename = "firstToken", skip_serializing_if = "crate::config::is_zero")]
+    first_content: i32,
     #[njson(skip_serializing_if = "String::is_empty")]
     note: String,
     #[njson(skip_serializing_if = "String::is_empty")]
@@ -271,6 +273,7 @@ impl Config {
             },
         );
         self.group_notes.insert(id.to_owned(), group.note);
+        self.set_group_first_content(id, group.first_content);
         if disabled {
             self.disabled_groups.insert(id.to_owned());
         }
@@ -337,6 +340,11 @@ impl Config {
                 .unwrap_or_default(),
             pick: pick.cloned().unwrap_or_default(),
             routing: routing.into(),
+            first_content: self
+                .group_first_content
+                .get(&id)
+                .copied()
+                .unwrap_or_default(),
             unlists: self.group_unlists.contains(&id),
             id,
             ..Default::default()
@@ -471,6 +479,7 @@ impl Config {
         }
         cfg.group_labels.insert(id.clone(), name);
         cfg.group_notes.insert(id.clone(), group.note);
+        cfg.set_group_first_content(&id, group.first_content);
         cfg.group_unlists.remove(&id);
         if group.unlists {
             cfg.group_unlists.insert(id.clone());

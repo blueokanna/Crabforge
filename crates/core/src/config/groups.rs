@@ -260,6 +260,9 @@ impl Config {
         if let Some(note) = self.group_notes.get(&from) {
             cfg.group_notes.insert(id.clone(), note.clone());
         }
+        if let Some(&seconds) = self.group_first_content.get(&from) {
+            cfg.group_first_content.insert(id.clone(), seconds);
+        }
         if let Some(weights) = self.group_weights.get(&from) {
             cfg.group_weights.insert(id.clone(), weights.clone());
         }
@@ -400,6 +403,9 @@ impl Config {
         if let Some(note) = cfg.group_notes.remove(&from) {
             cfg.group_notes.insert(to.into(), note);
         }
+        if let Some(seconds) = cfg.group_first_content.remove(&from) {
+            cfg.group_first_content.insert(to.into(), seconds);
+        }
         if cfg.rotating_groups.remove(&from) {
             cfg.rotating_groups.insert(to.into());
         }
@@ -432,6 +438,14 @@ impl Config {
         cfg.former_groups.insert(from, to.into());
         cfg.validate()?;
         Ok(cfg)
+    }
+
+    pub fn set_group_first_content(&mut self, id: &str, seconds: i32) {
+        if seconds == 0 {
+            self.group_first_content.remove(id);
+        } else {
+            self.group_first_content.insert(id.to_owned(), seconds);
+        }
     }
 
     pub fn group_name(&self, reference: &str) -> String {

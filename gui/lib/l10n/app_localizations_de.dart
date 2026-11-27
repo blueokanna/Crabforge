@@ -756,6 +756,22 @@ class AppLocalizationsDe extends AppLocalizations {
   String get groupNote => 'Gruppennotiz (optional)';
 
   @override
+  String get firstContentSeconds =>
+      'Zeitlimit bis zum ersten Inhalt (Sekunden)';
+
+  @override
+  String get groupFirstContentHelp =>
+      '0 übernimmt die übergeordnete Einstellung. Bei -1 wird auf das Mitglied gewartet.';
+
+  @override
+  String get defaultFirstContentHelp =>
+      'Vorgabe für Routinggruppen. Bei 0 oder -1 wird auf jedes Mitglied gewartet.';
+
+  @override
+  String get invalidFirstContent =>
+      'Geben Sie eine ganze Zahl von -1 bis 2147483647 ein.';
+
+  @override
   String get enableMember => 'Mitglied aktivieren';
 
   @override

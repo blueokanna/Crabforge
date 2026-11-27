@@ -21,6 +21,7 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use url::Url;
 
 mod cors;
+mod first_content;
 mod native;
 pub use native::{NativeProtocols, native_protocols};
 mod ollama;
@@ -794,6 +795,7 @@ async fn forward(
             "model has no endpoint for this protocol",
         );
     }
+    let mut requested_stream = None;
     while let Some(candidate) = candidates.next() {
         let p = &gw.config.providers[candidate.target.provider];
         let model = &p.models[candidate.target.model];
@@ -960,9 +962,12 @@ async fn forward(
             }
         };
         let length: usize = parts.iter().map(Bytes::len).sum();
-        let result = async {
+        let first_content = candidate.first_content.zip(native.format()).filter(|_| {
+            *requested_stream.get_or_insert_with(|| first_content::requested(api, &bytes))
+        });
+        let send = async {
             let mut request = request.header(header::CONTENT_LENGTH, length).body(parts)?;
-            if matches!(native, Api::Messages(_))
+            let upstream = if matches!(native, Api::Messages(_))
                 && !p.key_env.is_empty()
                 && p.endpoints.vertex.is_none()
             {
@@ -976,9 +981,23 @@ async fn forward(
             } else {
                 crate::bedrock::authenticate(&mut request, &url, &p.key_env)?;
                 gw.client.send(request).await
+            }?;
+            match first_content {
+                Some((_, format)) => first_content::wait(upstream, format).await,
+                None => Ok(upstream),
             }
-        }
-        .await;
+        };
+        let result = if let Some((wait, _)) = first_content {
+            match tokio::time::timeout(wait, send).await {
+                Ok(result) => result,
+                Err(_) => {
+                    record(StatusCode::GATEWAY_TIMEOUT.as_u16());
+                    continue;
+                }
+            }
+        } else {
+            send.await
+        };
         let upstream = match result {
             Ok(resp) => resp,
             Err(_) => {

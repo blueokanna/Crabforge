@@ -758,6 +758,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String get groupNote => 'Note du groupe (facultatif)';
 
   @override
+  String get firstContentSeconds => 'Délai avant le premier contenu (secondes)';
+
+  @override
+  String get groupFirstContentHelp =>
+      'Utilisez 0 pour hériter du réglage ou -1 pour attendre le membre.';
+
+  @override
+  String get defaultFirstContentHelp =>
+      'Réglage par défaut des groupes. Utilisez 0 ou -1 pour attendre chaque membre.';
+
+  @override
+  String get invalidFirstContent =>
+      'Saisissez un nombre entier entre -1 et 2147483647.';
+
+  @override
   String get enableMember => 'Activer le membre';
 
   @override

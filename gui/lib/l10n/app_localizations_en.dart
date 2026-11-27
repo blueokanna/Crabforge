@@ -748,6 +748,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupNote => 'Group note (optional)';
 
   @override
+  String get firstContentSeconds => 'First content timeout (seconds)';
+
+  @override
+  String get groupFirstContentHelp =>
+      'Use 0 to inherit or -1 to wait for the member.';
+
+  @override
+  String get defaultFirstContentHelp =>
+      'Default for route groups. Use 0 or -1 to wait for each member.';
+
+  @override
+  String get invalidFirstContent =>
+      'Enter a whole number from -1 to 2147483647.';
+
+  @override
   String get enableMember => 'Enable member';
 
   @override

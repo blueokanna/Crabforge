@@ -751,6 +751,21 @@ class AppLocalizationsHi extends AppLocalizations {
   String get groupNote => 'समूह का नोट (वैकल्पिक)';
 
   @override
+  String get firstContentSeconds => 'पहली सामग्री की समय सीमा (सेकंड)';
+
+  @override
+  String get groupFirstContentHelp =>
+      'ऊपरी स्तर की सेटिंग अपनाने के लिए 0 या सदस्य की प्रतीक्षा के लिए -1 डालें।';
+
+  @override
+  String get defaultFirstContentHelp =>
+      'रूटिंग समूहों की डिफ़ॉल्ट सेटिंग। हर सदस्य की प्रतीक्षा के लिए 0 या -1 डालें।';
+
+  @override
+  String get invalidFirstContent =>
+      '-1 से 2147483647 के बीच की पूर्ण संख्या डालें।';
+
+  @override
   String get enableMember => 'सदस्य सक्रिय करें';
 
   @override

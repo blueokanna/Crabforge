@@ -33,6 +33,17 @@ pub(super) fn show(config: &Config, id: &str) -> Result<()> {
     if let Some(note) = config.group_notes.get(name) {
         println!("note\t{note}");
     }
+    match config.group_first_content.get(name).copied().unwrap_or(0) {
+        -1 => println!("first-content\twait"),
+        0 if config.default_group_first_content > 0 => {
+            println!(
+                "first-content\t{} s (default)",
+                config.default_group_first_content
+            );
+        }
+        0 => (),
+        seconds => println!("first-content\t{seconds} s"),
+    }
     let weights = config.group_weights.get(name);
     let pick = config.group_picks.get(name);
     let routing = if pick.is_some() {

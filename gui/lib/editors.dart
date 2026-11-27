@@ -536,6 +536,7 @@ enum GroupStrategy { order, rotate, weight, manual }
 typedef GroupSelection = ({
   String name,
   String note,
+  int firstContent,
   bool listMembers,
   List<String> off,
   List<String> members,
@@ -558,12 +559,14 @@ class GroupEditor extends StatefulWidget {
     required this.weights,
     required this.off,
     required this.listMembers,
+    required this.firstContent,
     this.pick,
     this.name,
     this.note,
   });
   final String? name, note;
   final bool listMembers;
+  final int firstContent;
   final GroupStrategy strategy;
   final Map<String, int> weights;
   final String? pick;
@@ -576,6 +579,7 @@ class GroupEditor extends StatefulWidget {
 class _GroupEditorState extends State<GroupEditor> {
   late final name = TextEditingController(text: widget.name);
   late final note = TextEditingController(text: widget.note);
+  final firstContent = GlobalKey<FormFieldState<String>>();
   late bool listMembers = widget.listMembers;
   late final named = [...widget.members];
   late final patterns = TextEditingController(text: widget.patterns.join('\n'));
@@ -660,6 +664,11 @@ class _GroupEditorState extends State<GroupEditor> {
             children: [
               field(context, name, context.strings.groupId),
               field(context, note, context.strings.groupNote),
+              _FirstContentField(
+                fieldKey: firstContent,
+                seconds: widget.firstContent,
+                hint: context.strings.groupFirstContentHelp,
+              ),
               Padding(
                 padding: const EdgeInsets.only(top: 14),
                 child: TextField(
@@ -851,22 +860,27 @@ class _GroupEditorState extends State<GroupEditor> {
                   (strategy == GroupStrategy.weight &&
                       members.any((m) => weights[m] == 0))
               ? null
-              : () => Navigator.pop<GroupSelection>(context, (
-                  name: name.text.trim(),
-                  note: note.text,
-                  listMembers: listMembers,
-                  off: members.where(off.contains).toList(),
-                  members: members.where(named.contains).toList(),
-                  patterns: rules,
-                  placed: rules.isEmpty ? [] : placed,
-                  strategy: strategy,
-                  pick:
-                      strategy == GroupStrategy.manual ||
-                          memberSet.contains(pick)
-                      ? selected
-                      : null,
-                  weights: {for (final m in members) m: weights[m] ?? 1},
-                )),
+              : () {
+                  final field = firstContent.currentState!;
+                  if (!field.validate()) return;
+                  Navigator.pop<GroupSelection>(context, (
+                    name: name.text.trim(),
+                    note: note.text,
+                    firstContent: int.parse(field.value!.trim()),
+                    listMembers: listMembers,
+                    off: members.where(off.contains).toList(),
+                    members: members.where(named.contains).toList(),
+                    patterns: rules,
+                    placed: rules.isEmpty ? [] : placed,
+                    strategy: strategy,
+                    pick:
+                        strategy == GroupStrategy.manual ||
+                            memberSet.contains(pick)
+                        ? selected
+                        : null,
+                    weights: {for (final m in members) m: weights[m] ?? 1},
+                  ));
+                },
           child: Text(context.strings.save),
         ),
       ],
@@ -877,6 +891,41 @@ class _GroupEditorState extends State<GroupEditor> {
     final value = int.tryParse(text ?? '');
     return value != null && value > 0 && value <= 1000;
   }
+}
+
+class _FirstContentField extends StatelessWidget {
+  const _FirstContentField({
+    required this.fieldKey,
+    required this.seconds,
+    required this.hint,
+  });
+
+  final GlobalKey<FormFieldState<String>> fieldKey;
+  final int seconds;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 14),
+    child: TextFormField(
+      key: fieldKey,
+      initialValue: '$seconds',
+      keyboardType: const TextInputType.numberWithOptions(signed: true),
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      decoration: InputDecoration(
+        labelText: context.strings.firstContentSeconds,
+        helperText: hint,
+        helperMaxLines: 3,
+        border: const OutlineInputBorder(),
+      ),
+      validator: (text) {
+        final value = int.tryParse(text?.trim() ?? '', radix: 10);
+        return value == null || value < -1 || value > 2147483647
+            ? context.strings.invalidFirstContent
+            : null;
+      },
+    ),
+  );
 }
 
 class NetworkEditor extends StatefulWidget {
@@ -942,6 +991,7 @@ class _TunnelEditorState extends State<TunnelEditor> {
 }
 
 class _NetworkEditorState extends State<NetworkEditor> {
+  final firstContent = GlobalKey<FormFieldState<String>>();
   late final origins = TextEditingController(
     text: (widget.config['cors_origins'] as List? ?? []).join('\n'),
   );
@@ -983,6 +1033,11 @@ class _NetworkEditorState extends State<NetworkEditor> {
               hint: 'https://app.example.com',
               lines: 3,
             ),
+            _FirstContentField(
+              fieldKey: firstContent,
+              seconds: widget.config['default_group_first_content'] ?? 0,
+              hint: context.strings.defaultFirstContentHelp,
+            ),
           ],
         ),
       ),
@@ -993,12 +1048,17 @@ class _NetworkEditorState extends State<NetworkEditor> {
         child: Text(context.strings.cancel),
       ),
       FilledButton(
-        onPressed: () => Navigator.pop(context, <String, dynamic>{
-          'listen': listen.text.trim(),
-          'peer_listen': peer.text.trim(),
-          'allowed_peers': linesOf(allowed.text),
-          'cors_origins': linesOf(origins.text),
-        }),
+        onPressed: () {
+          final field = firstContent.currentState!;
+          if (!field.validate()) return;
+          Navigator.pop(context, <String, dynamic>{
+            'listen': listen.text.trim(),
+            'peer_listen': peer.text.trim(),
+            'allowed_peers': linesOf(allowed.text),
+            'cors_origins': linesOf(origins.text),
+            'default_group_first_content': int.parse(field.value!.trim()),
+          });
+        },
         child: Text(context.strings.save),
       ),
     ],

@@ -1450,6 +1450,30 @@ abstract class AppLocalizations {
   /// **'Group note (optional)'**
   String get groupNote;
 
+  /// No description provided for @firstContentSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'First content timeout (seconds)'**
+  String get firstContentSeconds;
+
+  /// No description provided for @groupFirstContentHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Use 0 to inherit or -1 to wait for the member.'**
+  String get groupFirstContentHelp;
+
+  /// No description provided for @defaultFirstContentHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Default for route groups. Use 0 or -1 to wait for each member.'**
+  String get defaultFirstContentHelp;
+
+  /// No description provided for @invalidFirstContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number from -1 to 2147483647.'**
+  String get invalidFirstContent;
+
   /// No description provided for @enableMember.
   ///
   /// In en, this message translates to:

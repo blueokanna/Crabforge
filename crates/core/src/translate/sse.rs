@@ -1,9 +1,69 @@
 use anyhow::{Result, anyhow};
 use async_stream::try_stream;
 use futures_util::{Stream, StreamExt};
+use http::{HeaderMap, header::CONTENT_TYPE};
 
-/// The frame budget also bounds an unterminated line. Split before decoding so
-/// a multibyte code point can span two HTTP chunks.
+pub(crate) fn is_event_stream(headers: &HeaderMap) -> bool {
+    headers
+        .get(CONTENT_TYPE)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.split(';').next())
+        .is_some_and(|h| h.trim().eq_ignore_ascii_case("text/event-stream"))
+}
+
+#[derive(Default)]
+pub(crate) struct Parser {
+    line: Vec<u8>,
+    name: String,
+    data: String,
+    after_cr: bool,
+}
+
+impl Parser {
+    /// Split before decoding so a multibyte code point can span HTTP chunks.
+    pub(crate) fn push(&mut self, byte: u8) -> Result<Option<(String, String)>> {
+        if self.after_cr && byte == b'\n' {
+            self.after_cr = false;
+            return Ok(None);
+        }
+        self.after_cr = byte == b'\r';
+        if !matches!(byte, b'\r' | b'\n') {
+            if self.line.len() + self.data.len() >= 2 * 1024 * 1024 {
+                return Err(anyhow!("SSE frame exceeds 2 MiB"));
+            }
+            self.line.push(byte);
+            return Ok(None);
+        }
+        if self.line.is_empty() {
+            let name = std::mem::take(&mut self.name);
+            return Ok(self
+                .data
+                .pop()
+                .map(|_| (name, std::mem::take(&mut self.data))));
+        }
+        if self.line == b"data" {
+            self.data.push('\n');
+        } else if let Some(value) = self.line.strip_prefix(b"data:") {
+            self.data.push_str(std::str::from_utf8(
+                value.strip_prefix(b" ").unwrap_or(value),
+            )?);
+            self.data.push('\n');
+        } else if let Some(value) = self.line.strip_prefix(b"event:") {
+            self.name =
+                String::from_utf8_lossy(value.strip_prefix(b" ").unwrap_or(value)).into_owned();
+        }
+        self.line.clear();
+        Ok(None)
+    }
+
+    fn finish(self) -> Result<()> {
+        if !self.line.is_empty() || !self.data.is_empty() {
+            return Err(anyhow!("incomplete SSE frame"));
+        }
+        Ok(())
+    }
+}
+
 pub(crate) fn data<E>(
     mut chunks: impl Stream<Item = Result<bytes::Bytes, E>> + Unpin,
 ) -> impl Stream<Item = Result<String>>
@@ -11,31 +71,15 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     try_stream! {
-        let mut line = Vec::new();
-        let mut data = String::new();
-        let mut after_cr = false;
+        let mut parser = Parser::default();
         while let Some(chunk) = chunks.next().await {
             let chunk = chunk?;
             for &byte in &chunk {
-                if after_cr && byte == b'\n' { after_cr = false; continue; }
-                after_cr = byte == b'\r';
-                if !matches!(byte, b'\r' | b'\n') {
-                    if line.len() + data.len() >= 2 * 1024 * 1024 { Err(anyhow!("SSE frame exceeds 2 MiB"))?; }
-                    line.push(byte);
-                    continue;
+                if let Some((_, data)) = parser.push(byte)? {
+                    yield data;
                 }
-                if line.is_empty() && !data.is_empty() {
-                    data.pop();
-                    yield std::mem::take(&mut data);
-                } else if line == b"data" {
-                    data.push('\n');
-                } else if let Some(value) = line.strip_prefix(b"data:") {
-                    data.push_str(std::str::from_utf8(value.strip_prefix(b" ").unwrap_or(value))?);
-                    data.push('\n');
-                }
-                line.clear();
             }
         }
-        if !line.is_empty() || !data.is_empty() { Err(anyhow!("incomplete SSE frame"))?; }
+        parser.finish()?;
     }
 }

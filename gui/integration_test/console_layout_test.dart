@@ -197,6 +197,51 @@ void main() {
       }
     }
 
+    final saveTimeout = find.widgetWithText(FilledButton, strings.save);
+    final timeoutField = find.widgetWithText(
+      TextFormField,
+      strings.firstContentSeconds,
+    );
+    Future<void> saveFirstContent(
+      String input,
+      bool Function(Map) persisted,
+    ) async {
+      await tester.ensureVisible(timeoutField);
+      await tester.enterText(timeoutField, input);
+      await tester.tap(saveTimeout);
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      var saved = false;
+      while (!saved && DateTime.now().isBefore(deadline)) {
+        await tester.pump(const Duration(milliseconds: 50));
+        saved = persisted(jsonDecode(settings.readAsStringSync()) as Map);
+      }
+      expect(saved, isTrue);
+      await tester.pumpAndSettle();
+    }
+
+    for (final width in [1200, 560]) {
+      tester.view.physicalSize = Size(width.toDouble(), 800);
+      await tester.pumpAndSettle();
+      final nav = navigation(width);
+      await openPage(nav, strings.groups);
+      await tester.tap(find.text('group/review'));
+      await tester.pumpAndSettle();
+      final seconds = width == 1200 ? 2 : -1;
+      await saveFirstContent(
+        '$seconds',
+        (cfg) => cfg['group_first_content']?['review'] == seconds,
+      );
+      await openPage(nav, strings.gateway);
+      await tester.tap(find.text(strings.networkSettings));
+      await tester.pumpAndSettle();
+      final defaultSeconds = width == 1200 ? 3 : 4;
+      await saveFirstContent(
+        '$defaultSeconds',
+        (cfg) => cfg['default_group_first_content'] == defaultSeconds,
+      );
+      expect(tester.takeException(), isNull);
+    }
+
     final narrowNav = navigation(560);
     for (final code in languageNames.keys) {
       final locale = Locale(code);

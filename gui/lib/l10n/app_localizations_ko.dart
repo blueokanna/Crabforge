@@ -740,6 +740,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get groupNote => '그룹 메모(선택 사항)';
 
   @override
+  String get firstContentSeconds => '첫 콘텐츠 대기 시간(초)';
+
+  @override
+  String get groupFirstContentHelp => '0은 상위 설정을 따르고, -1은 멤버의 응답을 기다립니다.';
+
+  @override
+  String get defaultFirstContentHelp =>
+      '라우팅 그룹의 기본값입니다. 0 또는 -1이면 각 멤버의 응답을 기다립니다.';
+
+  @override
+  String get invalidFirstContent => '-1에서 2147483647 사이의 정수를 입력하세요.';
+
+  @override
   String get enableMember => '멤버 활성화';
 
   @override

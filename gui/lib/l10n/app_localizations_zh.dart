@@ -734,6 +734,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groupNote => '路由组备注（可选）';
 
   @override
+  String get firstContentSeconds => '首段内容超时（秒）';
+
+  @override
+  String get groupFirstContentHelp => '0 继承设置，-1 等待当前成员。';
+
+  @override
+  String get defaultFirstContentHelp => '路由组的默认设置。0 或 -1 表示等待每个成员。';
+
+  @override
+  String get invalidFirstContent => '请输入 -1 到 2147483647 之间的整数。';
+
+  @override
   String get enableMember => '启用成员';
 
   @override

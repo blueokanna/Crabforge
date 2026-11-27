@@ -199,16 +199,7 @@ pub async fn convert_reply(
     permit: std::sync::Arc<OwnedSemaphorePermit>,
 ) -> Result<Response> {
     const SSE_HEADERS: [(&str, &str); 1] = [("content-type", "text/event-stream")];
-    let is_sse = upstream
-        .headers()
-        .get("content-type")
-        .and_then(|h| h.to_str().ok())
-        .is_some_and(|s| {
-            s.split(';')
-                .next()
-                .is_some_and(|s| s.trim().eq_ignore_ascii_case("text/event-stream"))
-        });
-    if stream && is_sse {
+    if stream && super::sse::is_event_stream(upstream.headers()) {
         let mut frames = Box::pin(live(upstream, from, Encoder::new(to, model)?, permit));
         let first = frames
             .next()

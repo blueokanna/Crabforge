@@ -753,6 +753,22 @@ class AppLocalizationsPt extends AppLocalizations {
   String get groupNote => 'Nota do grupo (opcional)';
 
   @override
+  String get firstContentSeconds =>
+      'Tempo limite para o primeiro conteúdo (segundos)';
+
+  @override
+  String get groupFirstContentHelp =>
+      'Use 0 para herdar o valor ou -1 para aguardar o membro.';
+
+  @override
+  String get defaultFirstContentHelp =>
+      'Padrão dos grupos de roteamento. Use 0 ou -1 para aguardar cada membro.';
+
+  @override
+  String get invalidFirstContent =>
+      'Digite um número inteiro entre -1 e 2147483647.';
+
+  @override
   String get enableMember => 'Ativar membro';
 
   @override

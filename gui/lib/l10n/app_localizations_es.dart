@@ -754,6 +754,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String get groupNote => 'Nota del grupo (opcional)';
 
   @override
+  String get firstContentSeconds =>
+      'Límite de espera del primer contenido (segundos)';
+
+  @override
+  String get groupFirstContentHelp =>
+      'Usa 0 para heredar el valor o -1 para esperar al miembro.';
+
+  @override
+  String get defaultFirstContentHelp =>
+      'Valor predeterminado para los grupos. Usa 0 o -1 para esperar a cada miembro.';
+
+  @override
+  String get invalidFirstContent =>
+      'Introduce un número entero entre -1 y 2147483647.';
+
+  @override
   String get enableMember => 'Activar miembro';
 
   @override
