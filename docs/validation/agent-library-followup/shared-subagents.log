@@ -1,0 +1,9 @@
+Formatted integration_test/agent_files_test.dart
+Formatted 1 file (1 changed) in 0.03 seconds.
+00:00 +0: loading D:/RustProject/Crabforge-agent-files/gui/integration_test/agent_files_test.dart
+Building Windows application...                                    32.0s
+√ Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: Publish commands and subagents in both layouts
+00:48 +1: (tearDownAll)
+00:48 +1: All tests passed!

@@ -1,0 +1,14 @@
+Because l10n.yaml exists, the options defined there will be used instead.
+To use the command line arguments, delete the l10n.yaml file in the Flutter project.
+
+
+Formatted 2 files (0 changed) in 0.08 seconds.
+Analyzing gui...
+No issues found! (ran in 6.9s)
+00:00 +0: loading D:/RustProject/Crabforge-command-import/gui/integration_test/agent_files_test.dart
+Building Windows application...                                    62.8s
+√ Built build\windows\x64\runner\Debug\crabforge.exe
+00:00 +0: (setUpAll)
+00:00 +0: Publish commands and subagents in both layouts
+00:55 +1: (tearDownAll)
+00:55 +1: All tests passed!

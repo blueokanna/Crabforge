@@ -33,7 +33,11 @@ fn compatible(store: &Store, entry: &Entry) -> Result<bool> {
     Ok(definition(saved)? == definition(entry)?)
 }
 
-pub(super) fn list(profiles: &Profiles, store: &Store) -> Result<String> {
+pub(super) fn list(
+    profiles: &Profiles,
+    store: &Store,
+    assigned: &BTreeMap<String, Entry>,
+) -> Result<String> {
     let mut candidates = BTreeMap::new();
     let mut truncated = false;
     'profiles: for &agent in profiles.agents {
@@ -79,11 +83,12 @@ pub(super) fn list(profiles: &Profiles, store: &Store) -> Result<String> {
                             return Ok(None);
                         }
                         let entry = parse(profiles, &target, &text)?;
-                        let status = if compatible(store, &entry)? {
-                            "available"
-                        } else {
-                            "conflict"
-                        };
+                        let status =
+                            if !assigned.contains_key(&entry.name) && compatible(store, &entry)? {
+                                "available"
+                            } else {
+                                "conflict"
+                            };
                         Ok(Some((checksum, entry.description, status)))
                     })();
                     let (revision, description, status, error) = match data {
@@ -122,6 +127,7 @@ pub(super) fn list(profiles: &Profiles, store: &Store) -> Result<String> {
 pub(super) fn adopt(
     profiles: &Profiles,
     store: &mut Store,
+    assigned: &BTreeMap<String, Entry>,
     agent: &str,
     path: &str,
     revision: &str,
@@ -155,7 +161,10 @@ pub(super) fn adopt(
         "resource file changed; scan again"
     );
     let entry = parse(profiles, &target, &original)?;
-    ensure!(compatible(store, &entry)?, "another resource has that name");
+    ensure!(
+        !assigned.contains_key(&entry.name) && compatible(store, &entry)?,
+        "another resource has that name"
+    );
     let definition = definition(&entry)?;
     let saved = store.entries.entry(entry.name.clone()).or_insert(entry);
     if !saved.agents.iter().any(|id| id == agent) {

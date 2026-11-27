@@ -20,6 +20,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get commandChooseFile => 'कमांड फ़ाइल चुनें';
 
   @override
+  String get sharedSubagents => 'साझा सबएजेंट';
+
+  @override
   String get importSubagents => 'सबएजेंट आयात करें';
 
   @override
@@ -121,6 +124,24 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get installedHooks => 'क्लाइंट सेटिंग में हुक';
+
+  @override
+  String get removeInstalledHook => 'इंस्टॉल किया गया हुक हटाएँ';
+
+  @override
+  String get hookBackups => 'हुक बैकअप';
+
+  @override
+  String get restoreHookBackup => 'हुक बैकअप बहाल करें';
+
+  @override
+  String get hookBackupRestored => 'बहाल किया गया';
+
+  @override
+  String get hookBackupChanged => 'क्लाइंट सेटिंग बदल गई हैं';
+
+  @override
+  String get hookBackupUnavailable => 'मूल प्रोफ़ाइल या फ़ाइल उपलब्ध नहीं है';
 
   @override
   String get hookName => 'हुक का नाम';

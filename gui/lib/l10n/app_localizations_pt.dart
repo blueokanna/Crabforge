@@ -20,6 +20,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get commandChooseFile => 'Escolher arquivo de comando';
 
   @override
+  String get sharedSubagents => 'Subagentes compartilhados';
+
+  @override
   String get importSubagents => 'Importar subagentes';
 
   @override
@@ -121,6 +124,24 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get installedHooks => 'Hooks nas configurações dos clientes';
+
+  @override
+  String get removeInstalledHook => 'Remover hook instalado';
+
+  @override
+  String get hookBackups => 'Backups de hooks';
+
+  @override
+  String get restoreHookBackup => 'Restaurar backup do hook';
+
+  @override
+  String get hookBackupRestored => 'Restaurado';
+
+  @override
+  String get hookBackupChanged => 'As configurações do cliente mudaram';
+
+  @override
+  String get hookBackupUnavailable => 'Perfil ou arquivo original indisponível';
 
   @override
   String get hookName => 'Nome do hook';

@@ -19,6 +19,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get commandChooseFile => 'コマンドファイルを選択';
 
   @override
+  String get sharedSubagents => '共有サブエージェント';
+
+  @override
   String get importSubagents => 'サブエージェントをインポート';
 
   @override
@@ -118,6 +121,24 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get installedHooks => 'クライアント設定のフック';
+
+  @override
+  String get removeInstalledHook => 'インストール済みフックを削除';
+
+  @override
+  String get hookBackups => 'フックのバックアップ';
+
+  @override
+  String get restoreHookBackup => 'フックのバックアップを復元';
+
+  @override
+  String get hookBackupRestored => '復元済み';
+
+  @override
+  String get hookBackupChanged => 'クライアント設定が変更されています';
+
+  @override
+  String get hookBackupUnavailable => '元のプロファイルまたはファイルを利用できません';
 
   @override
   String get hookName => 'フック名';

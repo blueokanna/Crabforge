@@ -1,0 +1,5 @@
+Check,Result
+Stale discovery key,Rejected
+Codex removal,Group 0 cleared; group 1 kept
+Restore after native edit,Rejected; external edit kept
+Restore unchanged snapshot,Exact bytes including UTF-8 BOM and CRLF

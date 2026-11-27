@@ -130,6 +130,12 @@ abstract class AppLocalizations {
   /// **'Choose command file'**
   String get commandChooseFile;
 
+  /// No description provided for @sharedSubagents.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared subagents'**
+  String get sharedSubagents;
+
   /// No description provided for @importSubagents.
   ///
   /// In en, this message translates to:
@@ -309,6 +315,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hooks in client settings'**
   String get installedHooks;
+
+  /// No description provided for @removeInstalledHook.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove installed hook'**
+  String get removeInstalledHook;
+
+  /// No description provided for @hookBackups.
+  ///
+  /// In en, this message translates to:
+  /// **'Hook backups'**
+  String get hookBackups;
+
+  /// No description provided for @restoreHookBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore hook backup'**
+  String get restoreHookBackup;
+
+  /// No description provided for @hookBackupRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored'**
+  String get hookBackupRestored;
+
+  /// No description provided for @hookBackupChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Client settings have changed'**
+  String get hookBackupChanged;
+
+  /// No description provided for @hookBackupUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Original profile or file unavailable'**
+  String get hookBackupUnavailable;
 
   /// No description provided for @hookName.
   ///

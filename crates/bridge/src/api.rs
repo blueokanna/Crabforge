@@ -306,6 +306,16 @@ pub fn remove_agent_hook(name: String, revision: String) -> Result<String> {
     hooks::edit(&config::data_dir()?, Edit::Remove { name, revision })
 }
 
+pub fn recover_agent_hook(key: String, restore: bool) -> Result<String> {
+    use crabforge_core::hooks::{self, Edit};
+    let edit = if restore {
+        Edit::Restore { id: key }
+    } else {
+        Edit::RemoveInstalled { key }
+    };
+    hooks::edit(&config::data_dir()?, edit)
+}
+
 pub fn sync_agent_hooks() -> Result<String> {
     use crabforge_core::hooks::{self, Edit};
     hooks::edit(&config::data_dir()?, Edit::Sync)
@@ -319,7 +329,7 @@ pub fn agent_files(
     name: Option<String>,
     revision: Option<String>,
 ) -> Result<String> {
-    use crabforge_core::agent_files::{self, Edit, Entry, ImportRequest, Kind};
+    use crabforge_core::agent_files::{self, Edit, Entry, ImportRequest, Kind, ProjectAssignment};
     let kind = if subagents {
         Kind::Subagent
     } else {
@@ -336,6 +346,12 @@ pub fn agent_files(
                 source.as_deref().context("missing import request")?,
             )?,
         },
+        "assign" => Edit::Assign(ProjectAssignment {
+            name: name.context("missing subagent name")?,
+            revision: revision.context("missing assignment revision")?,
+            agents: nextjson::from_str(source.as_deref().context("missing assigned clients")?)
+                .map_err(anyhow::Error::msg)?,
+        }),
         "adopt" => Edit::Adopt {
             agent: name.context("missing client ID")?,
             path: source.context("missing native resource path")?,
