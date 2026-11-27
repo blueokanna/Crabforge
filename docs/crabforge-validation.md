@@ -26,6 +26,14 @@ Grok Build 1.0.92 在用户和项目作用域执行 `Stop` 钩子，写入本机
 
 冻结钩子版本 `18a3d431f284c021d9e99e72bcb65d801634550e` 在加载原生客户端夹具后通过全部 153 项 Rust 测试，包含默认忽略的集成测试。审计的 28 棵依赖树均未启用 Serde、Hyper 或 Reqwest。[回归日志](validation/agent-library-followup/native-hooks-regression.log) · [依赖审计](validation/agent-library-followup/native-hooks-dependencies.csv)
 
+### Windows x64 Claude Code 插件（`ad2088c`）
+
+从 `ad2088c9daefc5548683f629f8d53a3a412c88ed` 离线构建的 ZIP 为 64,547,641 字节，SHA-256 为 `D3DD84828CB96B773C6E669FB28488C43940C78FCE4A4877D5331B90FE90ADC1`。核验 353 项构建输入、671 项包内文件、126 项资产及两个 CLI 各 97 项相同预设。三个入口的 Authenticode 状态均为 `NotSigned`。冻结版通过 154 项 Rust 测试、全目标 Clippy、Flutter 分析和两项组件测试。审计的 28 棵依赖树均未启用 Serde、Hyper 或 Reqwest。[构建输入](validation/cf-windows-ad2088c/build-inputs.sha256) · [解压清单](validation/cf-windows-ad2088c/SHA256SUMS) · [回归日志](validation/cf-windows-ad2088c/regression.log) · [依赖审计](validation/cf-windows-ad2088c/dependency-audit.csv)
+
+解压后的 CLI 调用 Claude Code 2.1.332 添加、浏览、刷新和移除本地市场，安装、禁用、更新插件至 1.1.0，再卸载并保留插件数据。隔离项目在用户配置禁用时成功启用插件。撤销逐字节保留外部写入的 `false`，过期修订被拒绝。CLI 完成带固定 ref 的 GitHub 市场声明及启用 ID 的导入导出。Windows 插件界面通过 560 和 1,280 像素的列表、网格、浏览安装、项目分配及设置导入导出测试。[Claude Code 进程](validation/cf-windows-ad2088c/claude-plugin-process.csv)
+
+三轮解压 Release 启动中，工作集／私有字节中位数为 Crabforge 133.44/195.92 MiB、Magpie 主进程 77.44/93.76 MiB、含七个 WebView2 子进程的 Magpie 441.67/390.72 MiB。上游等待 700 ms 时，本机 SSE 首事件为 24、5、3 ms，末事件为 734、712、704 ms。同机 IPv6 回环、网卡全局 IPv6 和 Kubo 回退均以无效密钥收到 HTTP 401，以有效密钥收到 HTTP 200。[桌面内存](validation/cf-windows-ad2088c/desktop-comparison.csv) · [SSE 延迟](validation/cf-windows-ad2088c/forward-h1.csv) · [IPv6 和回退](validation/cf-windows-ad2088c/ipv6.csv)
+
 ### Windows x64 子代理与斜杠命令（`5b905b3`）
 
 从 `5b905b39d790a4eae9625b7995714373f72230ec` 离线构建的 ZIP 为 63,745,300 字节，SHA-256 为 `8C405A7762C8D1D8EFF01E75BDD83FBBF7754FB7622B9412725020A6975E4B7B`。核对 340 项构建输入、671 项解压清单、126 项资产及两个 CLI 各 97 项相同预设。28 组依赖树无启用的 Serde、Hyper 或 Reqwest。Clippy、Flutter 分析及两项组件测试通过。三个入口的 Authenticode 状态均为 `NotSigned`。[构建输入](validation/cf-windows-5b905b3/build-inputs.sha256) · [解压清单](validation/cf-windows-5b905b3/SHA256SUMS) · [依赖审计](validation/cf-windows-5b905b3/dependency-audit.csv)
