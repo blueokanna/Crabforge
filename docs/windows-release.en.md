@@ -22,8 +22,12 @@ Keep `Cargo.toml`, `gui/pubspec.yaml`, and `assets/pubspec.yaml` on the same pro
 
 Download the ZIP and its `.sha256` file from [GitHub Releases](https://github.com/blueokanna/Crabforge/releases). Compare the result of `Get-FileHash -Algorithm SHA256 <downloaded.zip>` with the published hash. Extract the ZIP and launch `desktop/crabforge.exe`. Keep its neighboring DLLs and `data` directory together. The two CLI executables are at the archive root.
 
+The desktop and CLI require the Microsoft Visual C++ x64 runtime. Install the current redistributable on a Windows PC that does not already have it. [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
+
 ## Desktop appearance
 
 Windows' DWM accent seeds Flutter's Material 3 Expressive light, dark, and high-contrast schemes. A bundled copper seed is used when Windows supplies no accent. Crabforge uses Google's Material Symbols Rounded for its UI actions and navigation. The application mark and provider and client logos retain their branding.
 
 Use the app bar's font menu to choose Google Sans or HarmonyOS Sans SC. With Google Sans selected, Latin text uses Google Sans and Han characters use HarmonyOS Sans SC. HarmonyOS Sans SC handles both directly when selected. Noto Sans KR provides Hangul fallback. The preference is saved in the Crabforge data directory and applies as soon as the choice is saved. [Font provenance and checksums](../assets/fonts/manifest.json)
+
+[Windows build and desktop appearance validation](validation/cf-windows-469e877/README.md)

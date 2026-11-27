@@ -28,27 +28,30 @@ void main() {
       throw StateError('Use an isolated crabforge-gui-test-* data directory');
     }
     final settings = File('${home.path}/settings.json');
-    expect(settings.existsSync(), isFalse);
-    home.createSync(recursive: true);
-    settings.writeAsStringSync(
-      jsonEncode({
-        'listen': '127.0.0.1:0',
-        'providers': [
-          for (final (id, model) in [
-            ('openai', 'gpt-4.1'),
-            ('anthropic', 'claude-sonnet-4'),
-          ])
-            {
-              'id': id,
-              'models': [model],
-              'endpoints': {'chat': 'http://127.0.0.1:1/v1'},
-            },
-        ],
-        'groups': {
-          'review': ['openai/gpt-4.1', 'anthropic/claude-sonnet-4'],
-        },
-      }),
-    );
+    final restart = Platform.environment['CRABFORGE_RESTART_CHECK'] == '1';
+    expect(settings.existsSync(), restart);
+    if (!restart) {
+      home.createSync(recursive: true);
+      settings.writeAsStringSync(
+        jsonEncode({
+          'listen': '127.0.0.1:0',
+          'providers': [
+            for (final (id, model) in [
+              ('openai', 'gpt-4.1'),
+              ('anthropic', 'claude-sonnet-4'),
+            ])
+              {
+                'id': id,
+                'models': [model],
+                'endpoints': {'chat': 'http://127.0.0.1:1/v1'},
+              },
+          ],
+          'groups': {
+            'review': ['openai/gpt-4.1', 'anthropic/claude-sonnet-4'],
+          },
+        }),
+      );
+    }
     final output = Platform.environment['CRABFORGE_LAYOUT_CAPTURES'];
     final capture = GlobalKey();
     tester.binding.platformDispatcher.localesTestValue = [const Locale('en')];
@@ -66,6 +69,24 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(find.text('Add provider'), findsOneWidget);
+    final fontMenu = find.byKey(const ValueKey('font-picker'));
+    ThemeData activeTheme() => Theme.of(tester.element(fontMenu));
+    Future<void> expectFont(WorkspaceFont font) async {
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (activeTheme().textTheme.bodyMedium!.fontFamily != font.family &&
+          DateTime.now().isBefore(deadline)) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(activeTheme().textTheme.bodyMedium!.fontFamily, font.family);
+      expect(await native.uiFont(), font.preference);
+      await tester.pumpAndSettle();
+    }
+
+    if (restart) {
+      await expectFont(WorkspaceFont.harmonyOs);
+      return;
+    }
+
     final strings = lookupAppLocalizations(const Locale('en'));
     List<String> labels(AppLocalizations strings) => [
       strings.providers,
@@ -133,6 +154,7 @@ void main() {
       for (final width in [1200, 560]) {
         tester.view.physicalSize = Size(width.toDouble(), 800);
         await tester.pumpAndSettle();
+        expect(activeTheme().brightness, brightness);
         final nav = navigation(width);
         expect(nav, findsOneWidget);
         for (final label in pages) {
@@ -196,42 +218,35 @@ void main() {
       ),
     );
     expect(accent, isNotNull);
-    final materialApp = find.byType(MaterialApp);
-    expect(
-      tester.widget<MaterialApp>(materialApp).theme!.colorScheme,
-      workspaceTheme(
-        Brightness.light,
-        WorkspaceFont.googleSans,
-        accent: accent,
-      ).colorScheme,
+    final dispatcher = tester.binding.platformDispatcher;
+    addTearDown(dispatcher.clearAccessibilityFeaturesTestValue);
+    dispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(
+      highContrast: true,
     );
-    final fontMenu = find.byKey(const ValueKey('font-picker'));
-    for (final font in [WorkspaceFont.harmonyOs, WorkspaceFont.googleSans]) {
+    for (final brightness in Brightness.values) {
+      dispatcher.platformBrightnessTestValue = brightness;
+      await tester.pumpAndSettle();
+      expect(
+        activeTheme().colorScheme,
+        workspaceTheme(
+          brightness,
+          WorkspaceFont.googleSans,
+          accent: accent,
+          highContrast: true,
+        ).colorScheme,
+      );
+    }
+    dispatcher.clearAccessibilityFeaturesTestValue();
+    await tester.pumpAndSettle();
+    for (final font in [
+      WorkspaceFont.harmonyOs,
+      WorkspaceFont.googleSans,
+      WorkspaceFont.harmonyOs,
+    ]) {
       await tester.tap(fontMenu);
       await tester.pumpAndSettle();
       await tester.tap(find.text(font.label));
-      final deadline = DateTime.now().add(const Duration(seconds: 10));
-      while (tester
-                  .widget<MaterialApp>(materialApp)
-                  .theme!
-                  .textTheme
-                  .bodyMedium!
-                  .fontFamily !=
-              font.family &&
-          DateTime.now().isBefore(deadline)) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-      expect(
-        tester
-            .widget<MaterialApp>(materialApp)
-            .theme!
-            .textTheme
-            .bodyMedium!
-            .fontFamily,
-        font.family,
-      );
-      expect(await native.uiFont(), font.preference);
-      await tester.pumpAndSettle();
+      await expectFont(font);
     }
 
     final project = Directory('${home.path}/layout-project')..createSync();

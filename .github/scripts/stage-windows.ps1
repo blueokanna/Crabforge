@@ -49,6 +49,7 @@ try {
                 Set-Content -LiteralPath (Join-Path $dir.FullName 'Cargo-license.txt') -Encoding utf8NoBOM
         }
     }
+    Copy-Item -LiteralPath 'licenses/rust-upstream.txt' -Destination (Split-Path -Parent $licenses)
 
     $catalogs = foreach ($name in 'carbforge-cli.exe', 'crabforge-cli.exe') {
         & (Join-Path $Destination $name) catalog | Out-String

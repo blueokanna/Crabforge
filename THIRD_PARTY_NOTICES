@@ -4,6 +4,8 @@ Crabforge uses Google Sans and Noto Sans KR under the SIL Open Font License and 
 
 Crabforge uses Google's Material Symbols Rounded under Apache License 2.0. The upstream font and license are recorded in assets/fonts/manifest.json. The license is also available from About Crabforge.
 
+Windows distributions include Cargo registry license notices in licenses/rust and additional license texts in licenses/rust-upstream.txt. The latter cites the publishing commits for packages whose registry archives omitted those texts.
+
 Crabforge incorporates provider catalog data and brand assets from Magpie. Brand marks identify their owners and services. Certain vector assets originate in Lobe Icons.
 
 magpie

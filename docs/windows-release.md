@@ -22,8 +22,12 @@
 
 从 [GitHub Releases](https://github.com/blueokanna/Crabforge/releases)下载 ZIP 和 `.sha256`。使用 `Get-FileHash -Algorithm SHA256 <下载的ZIP>` 核对摘要。解压后运行 `desktop/crabforge.exe`，保持同目录的 DLL 和 `data` 目录完整。两个 CLI 位于解压根目录。
 
+桌面和 CLI 需要 Microsoft Visual C++ x64 运行库。若 Windows 尚未安装，请安装当前版本。[Microsoft Visual C++ Redistributable](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)
+
 ## 桌面外观
 
 Windows DWM 强调色用于生成 Flutter Material 3 Expressive 的浅色、深色和高对比度配色。系统未提供强调色时使用内置铜色。应用操作和导航使用 Google 官方 Material Symbols Rounded。Crabforge 图标以及供应商和客户端标志保留各自品牌图案。
 
 在顶栏的字体菜单选择 Google Sans 或 HarmonyOS Sans SC。Google Sans 模式下，拉丁字符使用 Google Sans，汉字使用 HarmonyOS Sans SC。HarmonyOS Sans SC 模式下，两类字符均直接使用该字体。韩文缺字由 Noto Sans KR 补齐。字体偏好保存在 Crabforge 数据目录，保存后立即生效。[字体来源与校验值](../assets/fonts/manifest.json)
+
+[Windows 构建与桌面外观验收](validation/cf-windows-469e877/README.md)
