@@ -131,6 +131,32 @@ impl Config {
     }
 }
 
+pub(crate) fn bundle_config(server_name: &str, source: &nextjson::Value) -> Result<String> {
+    use nextjson::Value;
+    name(server_name)?;
+    let object = source
+        .as_object()
+        .context("expected an MCP server object")?;
+    ensure!(
+        object
+            .keys()
+            .all(|key| matches!(key, "type" | "command" | "args" | "env" | "url" | "headers")),
+        "the MCP server uses unsupported fields"
+    );
+    let transport = match object.get("type") {
+        Some(value) => value.as_str().context("expected an MCP transport string")?,
+        None if object.get("url").is_some() => "http",
+        None => "stdio",
+    };
+    let mut converted = object.clone();
+    converted.remove("type");
+    converted.insert("transport".into(), json!(transport));
+    let config: Config =
+        nextjson::from_value(Value::Object(converted)).map_err(anyhow::Error::msg)?;
+    config.validate()?;
+    encode(&config)
+}
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, NsonDeserialize, NsonSerialize)]
 struct Assignment {
     project: String,

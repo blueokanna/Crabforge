@@ -568,6 +568,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get memberPatterns => '模型匹配规则，每行一条';
 
   @override
+  String get pluginBundles => '共享插件库';
+
+  @override
+  String get importPluginBundle => '导入插件包';
+
+  @override
+  String get previewPluginBundle => '预览插件包';
+
+  @override
+  String get pluginBundleSource => '插件目录、清单文件或 Git URL';
+
+  @override
+  String get noPluginBundles => '尚未保存插件包。';
+
+  @override
+  String get otherPluginEntries => '其他清单条目';
+
+  @override
+  String get noBundleResources => '此文件中没有资源。';
+
+  @override
+  String get copyBundleResource => '复制到资源库';
+
+  @override
+  String get bundleResourceCopied => '已复制到资源库';
+
+  @override
+  String get openPluginArchive => '打开 TAR 归档';
+
+  @override
+  String get exportPluginArchive => '导出插件归档';
+
+  @override
+  String get pluginArchiveSaved => '插件归档已保存';
+
+  @override
   String get pluginCatalog => '浏览插件';
 
   @override

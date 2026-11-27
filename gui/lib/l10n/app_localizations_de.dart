@@ -584,6 +584,42 @@ class AppLocalizationsDe extends AppLocalizations {
   String get memberPatterns => 'Modellmuster, eines pro Zeile';
 
   @override
+  String get pluginBundles => 'Gemeinsame Plug-in-Bibliothek';
+
+  @override
+  String get importPluginBundle => 'Plug-in-Paket importieren';
+
+  @override
+  String get previewPluginBundle => 'Paketvorschau';
+
+  @override
+  String get pluginBundleSource => 'Plug-in-Ordner, Manifest oder Git-URL';
+
+  @override
+  String get noPluginBundles => 'Keine Plug-in-Pakete gespeichert.';
+
+  @override
+  String get otherPluginEntries => 'Weitere Manifesteinträge';
+
+  @override
+  String get noBundleResources => 'Diese Datei enthält keine Ressourcen.';
+
+  @override
+  String get copyBundleResource => 'In Bibliothek kopieren';
+
+  @override
+  String get bundleResourceCopied => 'In Bibliothek kopiert';
+
+  @override
+  String get openPluginArchive => 'TAR-Archiv öffnen';
+
+  @override
+  String get exportPluginArchive => 'Plugin-Archiv exportieren';
+
+  @override
+  String get pluginArchiveSaved => 'Plugin-Archiv gespeichert';
+
+  @override
   String get pluginCatalog => 'Plug-ins durchsuchen';
 
   @override

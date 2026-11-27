@@ -581,6 +581,42 @@ class AppLocalizationsHi extends AppLocalizations {
   String get memberPatterns => 'मॉडल पैटर्न, हर पंक्ति में एक';
 
   @override
+  String get pluginBundles => 'साझा प्लगइन लाइब्रेरी';
+
+  @override
+  String get importPluginBundle => 'प्लगइन बंडल आयात करें';
+
+  @override
+  String get previewPluginBundle => 'बंडल का पूर्वावलोकन';
+
+  @override
+  String get pluginBundleSource => 'प्लगइन फ़ोल्डर, मैनिफ़ेस्ट या Git URL';
+
+  @override
+  String get noPluginBundles => 'कोई प्लगइन बंडल सहेजा नहीं गया है।';
+
+  @override
+  String get otherPluginEntries => 'अन्य मैनिफ़ेस्ट प्रविष्टियाँ';
+
+  @override
+  String get noBundleResources => 'इस फ़ाइल में कोई संसाधन नहीं है।';
+
+  @override
+  String get copyBundleResource => 'लाइब्रेरी में कॉपी करें';
+
+  @override
+  String get bundleResourceCopied => 'लाइब्रेरी में कॉपी किया गया';
+
+  @override
+  String get openPluginArchive => 'TAR संग्रह खोलें';
+
+  @override
+  String get exportPluginArchive => 'प्लगइन संग्रह निर्यात करें';
+
+  @override
+  String get pluginArchiveSaved => 'प्लगइन संग्रह सहेजा गया';
+
+  @override
   String get pluginCatalog => 'प्लगइन ब्राउज़ करें';
 
   @override

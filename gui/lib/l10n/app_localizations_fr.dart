@@ -585,6 +585,42 @@ class AppLocalizationsFr extends AppLocalizations {
   String get memberPatterns => 'Motifs de modèles, un par ligne';
 
   @override
+  String get pluginBundles => 'Bibliothèque d’extensions partagée';
+
+  @override
+  String get importPluginBundle => 'Importer un paquet d’extension';
+
+  @override
+  String get previewPluginBundle => 'Prévisualiser le paquet';
+
+  @override
+  String get pluginBundleSource => 'Dossier, manifeste ou URL Git';
+
+  @override
+  String get noPluginBundles => 'Aucun paquet d’extension enregistré.';
+
+  @override
+  String get otherPluginEntries => 'Autres entrées du manifeste';
+
+  @override
+  String get noBundleResources => 'Ce fichier ne contient aucune ressource.';
+
+  @override
+  String get copyBundleResource => 'Copier dans la bibliothèque';
+
+  @override
+  String get bundleResourceCopied => 'Copié dans la bibliothèque';
+
+  @override
+  String get openPluginArchive => 'Ouvrir une archive TAR';
+
+  @override
+  String get exportPluginArchive => 'Exporter l’archive de l’extension';
+
+  @override
+  String get pluginArchiveSaved => 'Archive de l’extension enregistrée';
+
+  @override
   String get pluginCatalog => 'Parcourir les extensions';
 
   @override

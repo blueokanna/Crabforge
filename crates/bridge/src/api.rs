@@ -400,6 +400,81 @@ pub fn import_claude_plugin_settings(source: String) -> Result<String> {
     claude_plugins::edit(&dir, None, Edit::Read)
 }
 
+pub fn plugin_bundles() -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit};
+    plugin_bundles::edit(&config::data_dir()?, Edit::Read)
+}
+
+pub fn preview_plugin_bundle(source: String) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit};
+    plugin_bundles::edit(&config::data_dir()?, Edit::Preview { source: &source })
+}
+
+pub fn browse_plugin_bundle_marketplace(source: String) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit};
+    plugin_bundles::edit(&config::data_dir()?, Edit::Marketplace { source: &source })
+}
+
+pub fn save_plugin_bundle(
+    source: String,
+    content: String,
+    revision: Option<String>,
+) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit};
+    plugin_bundles::edit(
+        &config::data_dir()?,
+        Edit::Save {
+            source: &source,
+            content: &content,
+            revision: revision.as_deref(),
+        },
+    )
+}
+
+pub fn remove_plugin_bundle(name: String, revision: String) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit};
+    plugin_bundles::edit(
+        &config::data_dir()?,
+        Edit::Remove {
+            name: &name,
+            revision: &revision,
+        },
+    )
+}
+
+pub fn export_plugin_bundle(name: String, revision: String, output: String) -> Result<()> {
+    use crabforge_core::plugin_bundles::{self, Edit};
+    plugin_bundles::edit(
+        &config::data_dir()?,
+        Edit::Export {
+            name: &name,
+            revision: &revision,
+            output: std::path::Path::new(&output),
+        },
+    )?;
+    Ok(())
+}
+
+pub fn plugin_bundle_resources(
+    name: String,
+    revision: String,
+    kind: String,
+    path: String,
+    copy: Option<String>,
+) -> Result<String> {
+    use crabforge_core::plugin_bundles::{self, Edit};
+    plugin_bundles::edit(
+        &config::data_dir()?,
+        Edit::Resources {
+            name: &name,
+            revision: &revision,
+            kind: &kind,
+            path: &path,
+            copy: copy.as_deref(),
+        },
+    )
+}
+
 pub fn agent_files(
     subagents: bool,
     project: Option<String>,

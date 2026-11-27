@@ -16,8 +16,11 @@ use std::{
 
 mod catalog;
 mod remote;
-mod tree;
-pub(crate) use remote::{is_repository_url, visit_repository_documents};
+pub(crate) mod tree;
+pub(crate) use remote::{
+    is_repository_url, load_repository_document, load_repository_tree, read_plugin_archive,
+    visit_repository_documents,
+};
 use tree::Tree;
 pub(crate) use tree::is_link;
 
@@ -165,7 +168,7 @@ fn normalize_agents(mut agents: Vec<String>) -> Result<Vec<String>> {
     Ok(agents)
 }
 
-fn details(tree: &Tree) -> Result<(String, String)> {
+pub(crate) fn details(tree: &Tree) -> Result<(String, String)> {
     document_details(tree.document()?)
 }
 
@@ -664,6 +667,32 @@ fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
         Edit::Import { source, .. } => Some(load_source(source)?),
         _ => None,
     };
+    library_with_source(dir, homes, edit, imported)
+}
+
+pub(crate) fn copy_from_bundle(dir: &Path, source: PathBuf, tree: Tree) -> Result<String> {
+    let origin = source
+        .to_str()
+        .context("plugin skill path must be UTF-8")?
+        .to_owned();
+    library_with_source(
+        dir,
+        &homes(dir)?,
+        Edit::Import {
+            source,
+            agents: Vec::new(),
+            expected: None,
+        },
+        Some((origin, tree)),
+    )
+}
+
+fn library_with_source(
+    dir: &Path,
+    homes: &Homes,
+    edit: Edit,
+    imported: Option<(String, Tree)>,
+) -> Result<String> {
     let library = dir.join("skills");
     let _lock = lock_library(&library)?;
     let path = library.join("library.json");

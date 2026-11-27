@@ -116,6 +116,16 @@ DeepSeek Harness 的用户分配覆盖 `$DSH_HOME/profiles`（默认为 `~/.dsh/
 
 插件菜单支持以 JSON 导出和导入设置。CLI 可保存 `claude-plugins export-settings` 的输出，再用 `claude-plugins import-settings <文件>` 导入。JSON 携带 GitHub 或普通 HTTPS 市场声明及已启用的插件 ID，也包括官方市场中已启用的插件。本机路径和含凭据、请求头或 URL 查询参数的来源保留在原配置中。导入补充缺失的声明和启用项，保留本地选择，由 Claude Code 负责安装。
 
+在 **客户端连接 → 共享插件库** 中，从目录、清单或 Git URL 预览 Claude Code、Codex 或 Antigravity 插件。保存时核对来源仍与预览一致，并记录包含附件的完整快照。更新操作重新预览来源，再按库中的当前修订保存。
+
+对于兼容 Claude 的市场，输入目录、`.claude-plugin/marketplace.json` 或 Git URL，再选择 **浏览插件**。CLI 对应命令为 `plugin-bundles marketplace <来源>`。选择列表中的来源，预览清单和文件后即可保存。
+
+打开已保存的插件包并选择资源文件，即可审核并复制单个技能、子代理、斜杠命令、MCP 服务或命令钩子。客户端和项目分配、更新与撤销由各资源库管理。复制后，资源独立于插件包存在。子代理、斜杠命令、MCP 服务和钩子中引用原生插件环境的定义需要原插件运行环境，界面会显示无法复制的原因。
+
+CLI 用 `carbforge-cli plugin-bundles preview <来源>` 获取内容哈希，再用 `plugin-bundles save <来源> --content <哈希>` 保存。更新时附上 `plugin-bundles list` 返回的 `--revision <修订>`。用 `plugin-bundles resources <名称> <类型> <路径> --revision <修订>` 查看单个资源文件，再附上 `--copy <键>` 将选中的定义复制到对应的库。
+
+要将已保存的快照带到另一个 Crabforge 配置，可选择 **导出插件归档**，或执行 `plugin-bundles export <名称> <文件.tar> --revision <修订>`。在目标配置的导入窗口打开 TAR，或用 `plugin-bundles preview` 和 `save` 导入。归档包含原插件文件和附件，分配和资源库中的修改由目标配置管理。
+
 `carbforge-cli subagents` 和 `carbforge-cli commands` 均支持 `list`、`save`、`remove` 和 `sync`。用 `subagents --project <文件夹>` 选择项目库。`save` 从标准输入读取 UTF-8 JSON，字段包括 `name`、`prompt` 和 `agents`。子代理还要求 `description`，可选字段为 `model`、`effort`、`skills` 和 `mcp`。将以下内容保存为 `check.json`，在 Windows 执行 `cmd.exe /d /c "carbforge-cli commands save < check.json"` 即可发布。
 
 ```json

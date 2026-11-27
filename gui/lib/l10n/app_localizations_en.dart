@@ -578,6 +578,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memberPatterns => 'Model patterns, one per line';
 
   @override
+  String get pluginBundles => 'Shared plugin library';
+
+  @override
+  String get importPluginBundle => 'Import plugin bundle';
+
+  @override
+  String get previewPluginBundle => 'Preview bundle';
+
+  @override
+  String get pluginBundleSource => 'Plugin folder, manifest, or Git URL';
+
+  @override
+  String get noPluginBundles => 'No plugin bundles saved.';
+
+  @override
+  String get otherPluginEntries => 'Other manifest entries';
+
+  @override
+  String get noBundleResources => 'No resources in this file.';
+
+  @override
+  String get copyBundleResource => 'Copy to library';
+
+  @override
+  String get bundleResourceCopied => 'Copied to library';
+
+  @override
+  String get openPluginArchive => 'Open TAR archive';
+
+  @override
+  String get exportPluginArchive => 'Export plugin archive';
+
+  @override
+  String get pluginArchiveSaved => 'Plugin archive saved';
+
+  @override
   String get pluginCatalog => 'Browse plugins';
 
   @override

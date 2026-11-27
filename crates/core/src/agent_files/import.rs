@@ -188,6 +188,17 @@ fn document_file(kind: Kind, path: &str) -> bool {
     })
 }
 
+pub(crate) fn bundle_entry(kind: Kind, path: &str, raw: &str) -> Result<Entry> {
+    ensure!(raw.len() <= MAX_DOCUMENT, "resource document exceeds 1 MiB");
+    let mut entry = match kind {
+        Kind::Subagent => subagent(path, Some("agents"), raw),
+        Kind::Command => command(path, &format!(".claude/{path}"), true, raw),
+    }
+    .context("the bundle file could not be read as a resource")?;
+    entry.validate(kind, &[])?;
+    Ok(entry)
+}
+
 impl Scan {
     pub(super) fn open(kind: Kind, source: &str) -> Result<Self> {
         let source = source.trim();

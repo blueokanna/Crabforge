@@ -582,6 +582,42 @@ class AppLocalizationsPt extends AppLocalizations {
   String get memberPatterns => 'Padrões de modelos, um por linha';
 
   @override
+  String get pluginBundles => 'Biblioteca de plugins compartilhada';
+
+  @override
+  String get importPluginBundle => 'Importar pacote de plugin';
+
+  @override
+  String get previewPluginBundle => 'Visualizar pacote';
+
+  @override
+  String get pluginBundleSource => 'Pasta do plugin, manifesto ou URL Git';
+
+  @override
+  String get noPluginBundles => 'Nenhum pacote de plugin salvo.';
+
+  @override
+  String get otherPluginEntries => 'Outras entradas do manifesto';
+
+  @override
+  String get noBundleResources => 'Este arquivo não contém recursos.';
+
+  @override
+  String get copyBundleResource => 'Copiar para a biblioteca';
+
+  @override
+  String get bundleResourceCopied => 'Copiado para a biblioteca';
+
+  @override
+  String get openPluginArchive => 'Abrir arquivo TAR';
+
+  @override
+  String get exportPluginArchive => 'Exportar arquivo do plug-in';
+
+  @override
+  String get pluginArchiveSaved => 'Arquivo do plug-in salvo';
+
+  @override
   String get pluginCatalog => 'Explorar plugins';
 
   @override

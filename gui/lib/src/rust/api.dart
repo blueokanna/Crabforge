@@ -257,6 +257,56 @@ Future<String> availableClaudePlugins() =>
 Future<String> importClaudePluginSettings({required String source}) =>
     RustLib.instance.api.crateApiImportClaudePluginSettings(source: source);
 
+Future<String> pluginBundles() => RustLib.instance.api.crateApiPluginBundles();
+
+Future<String> previewPluginBundle({required String source}) =>
+    RustLib.instance.api.crateApiPreviewPluginBundle(source: source);
+
+Future<String> browsePluginBundleMarketplace({required String source}) =>
+    RustLib.instance.api.crateApiBrowsePluginBundleMarketplace(source: source);
+
+Future<String> savePluginBundle({
+  required String source,
+  required String content,
+  String? revision,
+}) => RustLib.instance.api.crateApiSavePluginBundle(
+  source: source,
+  content: content,
+  revision: revision,
+);
+
+Future<String> removePluginBundle({
+  required String name,
+  required String revision,
+}) => RustLib.instance.api.crateApiRemovePluginBundle(
+  name: name,
+  revision: revision,
+);
+
+Future<void> exportPluginBundle({
+  required String name,
+  required String revision,
+  required String output,
+}) => RustLib.instance.api.crateApiExportPluginBundle(
+  name: name,
+  revision: revision,
+  output: output,
+);
+
+Future<String> pluginBundleResources({
+  required String name,
+  required String revision,
+  required String kind,
+  required String path,
+  String? copy,
+}) => RustLib.instance.api.crateApiPluginBundleResources(
+  name: name,
+  revision: revision,
+  kind: kind,
+  path: path,
+  copy: copy,
+);
+
 Future<String> agentFiles({
   required bool subagents,
   String? project,

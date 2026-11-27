@@ -10,6 +10,7 @@ import 'agent_environment.dart';
 import 'agent_files.dart';
 import 'agent_hooks.dart';
 import 'claude_plugins.dart';
+import 'plugin_bundles.dart';
 import 'agent_rules.dart';
 import 'agent_sessions.dart';
 import 'agent_skills.dart';
@@ -1511,6 +1512,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                       ),
                       icon: const Icon(Icons.extension_outlined),
                       label: Text(context.strings.claudePlugins),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => const PluginBundles(),
+                      ),
+                      icon: const Icon(Icons.inventory_2_outlined),
+                      label: Text(context.strings.pluginBundles),
                     ),
                     TextButton.icon(
                       onPressed: () => showDialog<void>(
