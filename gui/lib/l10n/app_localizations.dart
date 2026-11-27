@@ -112,6 +112,12 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @interfaceFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface font'**
+  String get interfaceFont;
+
   /// No description provided for @importSlashCommands.
   ///
   /// In en, this message translates to:

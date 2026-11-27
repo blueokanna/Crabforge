@@ -127,12 +127,12 @@ class _ProjectMcpLibraryState extends State<_ProjectMcpLibrary> {
                 children: [
                   TextButton.icon(
                     onPressed: _busy ? null : _edit,
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(CrabforgeSymbols.add),
                     label: Text(strings.addMcpServer),
                   ),
                   TextButton.icon(
                     onPressed: _busy ? null : () => _load(api.syncMcpLibrary),
-                    icon: const Icon(Icons.sync),
+                    icon: const Icon(CrabforgeSymbols.sync),
                     label: Text(strings.syncMcpLibrary),
                   ),
                 ],
@@ -161,7 +161,7 @@ class _ProjectMcpLibraryState extends State<_ProjectMcpLibrary> {
                           key: ValueKey(name),
                           grid: grid,
                           title: Text(name),
-                          leading: const Icon(Icons.dns_outlined),
+                          leading: const Icon(CrabforgeSymbols.dns),
                           onTap: _busy ? null : () => _edit(entry),
                           detail: placement == null
                               ? null
@@ -187,18 +187,20 @@ class _ProjectMcpLibraryState extends State<_ProjectMcpLibrary> {
                                   ? strings.unassignMcpServer
                                   : strings.assignMcpServer,
                               icon: Icon(
-                                assigned ? Icons.link_off : Icons.link,
+                                assigned
+                                    ? CrabforgeSymbols.linkOff
+                                    : CrabforgeSymbols.link,
                               ),
                             ),
                             IconButton(
                               onPressed: _busy ? null : () => _edit(entry),
                               tooltip: strings.editMcpServer,
-                              icon: const Icon(Icons.edit_outlined),
+                              icon: const Icon(CrabforgeSymbols.edit),
                             ),
                             IconButton(
                               onPressed: _busy ? null : () => _remove(entry),
                               tooltip: strings.remove,
-                              icon: const Icon(Icons.delete_outline),
+                              icon: const Icon(CrabforgeSymbols.delete),
                             ),
                           ],
                         );

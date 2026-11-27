@@ -2,6 +2,8 @@ Crabforge third-party notices
 
 Crabforge uses Google Sans and Noto Sans KR under the SIL Open Font License and uses HarmonyOS Sans SC under the HarmonyOS Sans Fonts License Agreement. The license texts are bundled with the application under desktop/data/flutter_assets/packages/crabforge_assets/fonts and can be viewed from About Crabforge.
 
+Crabforge uses Google's Material Symbols Rounded under Apache License 2.0. The upstream font and license are recorded in assets/fonts/manifest.json. The license is also available from About Crabforge.
+
 Crabforge incorporates provider catalog data and brand assets from Magpie. Brand marks identify their owners and services. Certain vector assets originate in Lobe Icons.
 
 magpie

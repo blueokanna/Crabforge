@@ -10,6 +10,9 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get interfaceFont => 'Schriftart';
+
+  @override
   String get importSlashCommands => 'Slash-Befehle importieren';
 
   @override

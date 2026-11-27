@@ -1,6 +1,6 @@
 # Crabforge
 
-[English](README.md) · [操作手册](CRABFORGE.md) · [兼容性与验收记录](docs/crabforge-validation.md)
+[English](README.md) · [操作手册](CRABFORGE.md) · [Windows 发布](docs/windows-release.md) · [兼容性与验收记录](docs/crabforge-validation.md)
 
 Crabforge 在本机提供带鉴权的模型网关。桌面控制台和命令行共用 Rust 核心，可以为不同模型配置供应商、协议和回退顺序。Agent 使用稳定的本地地址和网关密钥，供应商密钥由网关进程从环境变量读取。
 

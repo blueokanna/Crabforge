@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
@@ -187,7 +188,7 @@ class _ProjectMcpState extends State<ProjectMcp> {
                   suffixIcon: IconButton(
                     onPressed: _busy ? null : _browse,
                     tooltip: strings.projectFolder,
-                    icon: const Icon(Icons.folder_open_outlined),
+                    icon: const Icon(CrabforgeSymbols.folderOpen),
                   ),
                 ),
               ),
@@ -199,20 +200,22 @@ class _ProjectMcpState extends State<ProjectMcp> {
                         ? null
                         : _open,
                     icon: Icon(
-                      loaded ? Icons.refresh : Icons.folder_open_outlined,
+                      loaded
+                          ? CrabforgeSymbols.refresh
+                          : CrabforgeSymbols.folderOpen,
                     ),
                     label: Text(loaded ? strings.reload : strings.openProject),
                   ),
                   if (loaded)
                     TextButton.icon(
                       onPressed: editable ? () => _edit() : null,
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(CrabforgeSymbols.add),
                       label: Text(strings.addMcpServer),
                     ),
                   if (loaded)
                     TextButton.icon(
                       onPressed: editable ? _library : null,
-                      icon: const Icon(Icons.dns_outlined),
+                      icon: const Icon(CrabforgeSymbols.dns),
                       label: Text(strings.mcpLibrary),
                     ),
                 ],
@@ -242,7 +245,7 @@ class _ProjectMcpState extends State<ProjectMcp> {
                             key: ValueKey(server.key),
                             grid: grid,
                             title: Text(server.key),
-                            leading: const Icon(Icons.dns_outlined),
+                            leading: const Icon(CrabforgeSymbols.dns),
                             onTap: editable
                                 ? () => _edit(
                                     name: server.key,
@@ -258,14 +261,14 @@ class _ProjectMcpState extends State<ProjectMcp> {
                                       )
                                     : null,
                                 tooltip: strings.editMcpServer,
-                                icon: const Icon(Icons.edit_outlined),
+                                icon: const Icon(CrabforgeSymbols.edit),
                               ),
                               IconButton(
                                 onPressed: editable
                                     ? () => _remove(server.key)
                                     : null,
                                 tooltip: strings.remove,
-                                icon: const Icon(Icons.delete_outline),
+                                icon: const Icon(CrabforgeSymbols.delete),
                               ),
                             ],
                           );

@@ -1,3 +1,5 @@
+import 'package:crabforge/material_symbols.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -121,7 +123,7 @@ void main() {
       await waitFor(
         find.descendant(
           of: find.widgetWithText(ListTile, checked),
-          matching: find.byIcon(Icons.check),
+          matching: find.byIcon(CrabforgeSymbols.check),
         ),
       );
       await tap(find.widgetWithText(ListTile, pick));

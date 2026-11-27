@@ -1,4 +1,5 @@
 {
+  "interfaceFont": "??????",
   "importSlashCommands": "スラッシュコマンドをインポート",
   "commandImportSource": "Markdown または TOML ファイル、ローカルフォルダー、Git URL",
   "commandChooseFile": "コマンドファイルを選択",

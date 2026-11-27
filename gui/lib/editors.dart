@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'brand_icon.dart';
 import 'collection_view.dart';
 import 'language.dart';
@@ -281,6 +282,10 @@ class _ProviderEditorState extends State<ProviderEditor> {
             children: [
               if (widget.provider == null)
                 DropdownMenu<JsonMap>(
+                  trailingIcon: const Icon(CrabforgeSymbols.arrowDropDown),
+                  selectedTrailingIcon: const Icon(
+                    CrabforgeSymbols.arrowDropUp,
+                  ),
                   label: Text(context.strings.searchPresets),
                   expandedInsets: EdgeInsets.zero,
                   enableFilter: true,
@@ -390,6 +395,12 @@ class _ProviderEditorState extends State<ProviderEditor> {
                       : Padding(
                           padding: const EdgeInsets.only(top: 14),
                           child: DropdownMenu<String>(
+                            trailingIcon: const Icon(
+                              CrabforgeSymbols.arrowDropDown,
+                            ),
+                            selectedTrailingIcon: const Icon(
+                              CrabforgeSymbols.arrowDropUp,
+                            ),
                             key: ValueKey(authHeader),
                             label: Text(context.strings.anthropicAuthHeader),
                             initialSelection: authHeader,
@@ -430,7 +441,7 @@ class _ProviderEditorState extends State<ProviderEditor> {
               ),
               TextButton.icon(
                 onPressed: loading ? null : discover,
-                icon: const Icon(Icons.sync),
+                icon: const Icon(CrabforgeSymbols.sync),
                 label: Text(
                   loading
                       ? context.strings.readingModels
@@ -671,6 +682,7 @@ class _GroupEditorState extends State<GroupEditor> {
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<GroupStrategy>(
+                icon: const Icon(CrabforgeSymbols.arrowDropDown),
                 decoration: InputDecoration(
                   labelText: context.strings.routingStrategy,
                 ),
@@ -741,9 +753,11 @@ class _GroupEditorState extends State<GroupEditor> {
                         ? IconButton(
                             isSelected: selected == m,
                             tooltip: context.strings.selectMember,
-                            icon: const Icon(Icons.radio_button_unchecked),
+                            icon: const Icon(
+                              CrabforgeSymbols.radioButtonUnchecked,
+                            ),
                             selectedIcon: const Icon(
-                              Icons.radio_button_checked,
+                              CrabforgeSymbols.radioButtonChecked,
                             ),
                             onPressed: () => setState(() => pick = m),
                           )
@@ -756,8 +770,8 @@ class _GroupEditorState extends State<GroupEditor> {
                               : context.strings.disableMember,
                           icon: Icon(
                             off.contains(m)
-                                ? Icons.toggle_off_outlined
-                                : Icons.toggle_on,
+                                ? CrabforgeSymbols.toggleOff
+                                : CrabforgeSymbols.toggleOn,
                           ),
                           onPressed: () => setState(() {
                             if (!off.remove(m)) off.add(m);
@@ -782,7 +796,7 @@ class _GroupEditorState extends State<GroupEditor> {
                                   }
                                 });
                               },
-                        icon: const Icon(Icons.arrow_upward),
+                        icon: const Icon(CrabforgeSymbols.arrowUpward),
                       ),
                       IconButton(
                         tooltip: context.strings.removeMember,
@@ -792,13 +806,15 @@ class _GroupEditorState extends State<GroupEditor> {
                                 named.remove(m);
                                 off.remove(m);
                               }),
-                        icon: const Icon(Icons.remove_circle_outline),
+                        icon: const Icon(CrabforgeSymbols.removeCircle),
                       ),
                     ],
                   );
                 },
               ),
               DropdownMenu<String>(
+                trailingIcon: const Icon(CrabforgeSymbols.arrowDropDown),
+                selectedTrailingIcon: const Icon(CrabforgeSymbols.arrowDropUp),
                 key: ValueKey(('choices', members.join('\n'))),
                 label: Text(context.strings.addCandidate),
                 expandedInsets: EdgeInsets.zero,

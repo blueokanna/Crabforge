@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'language.dart';
 
 class CollectionLayout extends InheritedWidget {
@@ -93,7 +94,7 @@ class LayoutToggle extends StatelessWidget {
   Widget build(BuildContext context) => IconButton(
     isSelected: grid,
     tooltip: grid ? context.strings.listView : context.strings.gridView,
-    icon: Icon(grid ? Icons.view_list_outlined : Icons.grid_view_outlined),
+    icon: Icon(grid ? CrabforgeSymbols.viewList : CrabforgeSymbols.gridView),
     onPressed: onPressed,
   );
 }

@@ -10,6 +10,9 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get interfaceFont => '????? ??';
+
+  @override
   String get importSlashCommands => '슬래시 명령 가져오기';
 
   @override

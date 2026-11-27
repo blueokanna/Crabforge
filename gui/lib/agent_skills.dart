@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
@@ -155,23 +156,23 @@ class _AgentSkillsState extends State<AgentSkills> {
                 children: [
                   TextButton.icon(
                     onPressed: _busy ? null : () => _edit(null),
-                    icon: const Icon(Icons.create_new_folder_outlined),
+                    icon: const Icon(CrabforgeSymbols.createNewFolder),
                     label: Text(strings.importSkill),
                   ),
                   TextButton.icon(
                     onPressed: _busy ? null : _discover,
-                    icon: const Icon(Icons.folder_open_outlined),
+                    icon: const Icon(CrabforgeSymbols.folderOpen),
                     label: Text(strings.installedSkills),
                   ),
                   TextButton.icon(
                     onPressed: _busy ? null : () => _load(api.syncAgentSkills),
-                    icon: const Icon(Icons.sync),
+                    icon: const Icon(CrabforgeSymbols.sync),
                     label: Text(strings.applySkills),
                   ),
                   IconButton(
                     onPressed: _busy ? null : () => _load(api.agentSkills),
                     tooltip: strings.reload,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(CrabforgeSymbols.refresh),
                   ),
                 ],
               ),
@@ -195,7 +196,7 @@ class _AgentSkillsState extends State<AgentSkills> {
                           key: ValueKey(name),
                           grid: grid,
                           title: Text(name),
-                          leading: const Icon(Icons.extension_outlined),
+                          leading: const Icon(CrabforgeSymbols.extension),
                           onTap: _busy ? null : () => _edit(entry),
                           detail: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +213,7 @@ class _AgentSkillsState extends State<AgentSkills> {
                             IconButton(
                               onPressed: _busy ? null : () => _edit(entry),
                               tooltip: strings.editSkill,
-                              icon: const Icon(Icons.edit_outlined),
+                              icon: const Icon(CrabforgeSymbols.edit),
                             ),
                             IconButton(
                               onPressed: _busy
@@ -222,7 +223,7 @@ class _AgentSkillsState extends State<AgentSkills> {
                                       entry['revision'] as String,
                                     ),
                               tooltip: strings.remove,
-                              icon: const Icon(Icons.delete_outline),
+                              icon: const Icon(CrabforgeSymbols.delete),
                             ),
                           ],
                         );
@@ -400,7 +401,7 @@ class _SkillEditorState extends State<_SkillEditor> {
                   suffixIcon: IconButton(
                     onPressed: _working ? null : _chooseFolder,
                     tooltip: strings.skillSourceFolder,
-                    icon: const Icon(Icons.folder_open_outlined),
+                    icon: const Icon(CrabforgeSymbols.folderOpen),
                   ),
                 ),
               ),
@@ -432,12 +433,12 @@ class _SkillEditorState extends State<_SkillEditor> {
                     if (canCheck)
                       TextButton.icon(
                         onPressed: _working ? null : _checkUpdate,
-                        icon: const Icon(Icons.update_outlined),
+                        icon: const Icon(CrabforgeSymbols.update),
                         label: Text(strings.checkSkillUpdate),
                       ),
                     TextButton.icon(
                       onPressed: _working ? null : _browseRepository,
-                      icon: const Icon(Icons.folder_open_outlined),
+                      icon: const Icon(CrabforgeSymbols.folderOpen),
                       label: Text(strings.browseRepositorySkills),
                     ),
                   ],

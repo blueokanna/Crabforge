@@ -1,0 +1,134 @@
+name: Signed Windows release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: signed-windows-release
+  cancel-in-progress: false
+
+jobs:
+  identify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.version.outputs.commit }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate the release version and source
+        id: version
+        shell: pwsh
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and $env:GITHUB_REF -cne "refs/heads/$env:DEFAULT_BRANCH") {
+            throw 'Run a manual release from the default branch.'
+          }
+          $commit = git rev-parse HEAD
+          git merge-base --is-ancestor $commit "refs/remotes/origin/$env:DEFAULT_BRANCH"
+          $versionPattern = '(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)'
+          $flutter = [regex]::Match((Get-Content gui/pubspec.yaml -Raw), "(?m)^version: ($versionPattern)\+([1-9][0-9]*)$")
+          if (!$flutter.Success) { throw 'Expected a stable version and positive build number in gui/pubspec.yaml.' }
+          $version, $build = $flutter.Groups[1].Value, $flutter.Groups[2].Value
+          $rust = [regex]::Match((Get-Content Cargo.toml -Raw), '(?m)^\[workspace\.package\]\n(?:[^\[\n].*\n)*?version = "([^"]+)"$')
+          $assets = [regex]::Match((Get-Content assets/pubspec.yaml -Raw), '(?m)^version: (\S+)$')
+          if ($rust.Groups[1].Value -cne $version -or $assets.Groups[1].Value -cne $version) {
+            throw 'Flutter, Rust, and asset package versions must agree.'
+          }
+          $tag = if ($build -eq '1') { "v$version" } else { "v$version+$build" }
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -cne $tag) {
+            throw "The release tag must match $tag."
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "commit=$commit" >> $env:GITHUB_OUTPUT
+
+  build:
+    needs: identify
+    uses: ./.github/workflows/windows-build.yml
+    with:
+      revision: ${{ needs.identify.outputs.commit }}
+
+  sign:
+    needs: [identify, build]
+    runs-on: windows-2025
+    timeout-minutes: 25
+    environment: windows-release
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ needs.identify.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: crabforge-windows-x64-ci
+          path: ${{ runner.temp }}/crabforge-unsigned
+      - name: Sign, timestamp, and verify the Windows binaries
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.identify.outputs.tag }}
+          WINDOWS_SIGNING_PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          WINDOWS_SIGNING_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+          WINDOWS_SIGNING_CERT_THUMBPRINT: ${{ vars.WINDOWS_SIGNING_CERT_THUMBPRINT }}
+        run: |
+          ./.github/scripts/sign-windows.ps1 `
+            -Package (Join-Path $env:RUNNER_TEMP 'crabforge-unsigned') `
+            -Output (Join-Path $env:RUNNER_TEMP 'crabforge-release') `
+            -Tag $env:RELEASE_TAG
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: crabforge-windows-x64-signed
+          path: ${{ runner.temp }}/crabforge-release
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  publish:
+    needs: [identify, sign]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: crabforge-windows-x64-signed
+          path: ${{ runner.temp }}/crabforge-release
+      - name: Publish the verified archive to GitHub Releases
+        shell: bash
+        working-directory: ${{ runner.temp }}/crabforge-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.identify.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.identify.outputs.commit }}
+        run: |
+          set -euo pipefail
+          archive="crabforge-${RELEASE_TAG#v}-windows-x64.zip"
+          sha256sum --check --strict "$archive.sha256"
+          if ! gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --silent; then
+            gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$RELEASE_TAG" -f sha="$RELEASE_COMMIT" --silent
+          fi
+          test "$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq .sha)" = "$RELEASE_COMMIT"
+
+          marker="<!-- crabforge-release-run:$GITHUB_RUN_ID commit:$RELEASE_COMMIT -->"
+          if state=$(gh release view "$RELEASE_TAG" --json isDraft,body); then
+            jq -e --arg marker "$marker" '.isDraft and (.body | contains($marker))' <<<"$state" >/dev/null
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --generate-notes --title "Crabforge $RELEASE_TAG" \
+              --notes "Windows x64 portable package with timestamped Authenticode signatures. Verify the download with the attached SHA-256 file.
+
+          $marker"
+          fi
+          gh release upload "$RELEASE_TAG" "$archive" "$archive.sha256" --clobber
+          gh release edit "$RELEASE_TAG" --draft=false

@@ -5,6 +5,17 @@ use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 pub type Handle = *mut c_void;
 
 #[repr(C)]
+pub struct Message {
+    pub struct_size: usize,
+    pub channel: *const c_char,
+    pub message: *const u8,
+    pub message_size: usize,
+    pub response_handle: *const c_void,
+}
+
+type MessageCallback = unsafe extern "C" fn(Handle, *const Message, Handle);
+
+#[repr(C)]
 #[derive(Default)]
 pub struct Properties {
     pub assets_path: *const u16,
@@ -35,6 +46,25 @@ unsafe extern "C" {
         result: &mut LRESULT,
     ) -> bool;
     pub fn FlutterDesktopEngineReloadSystemFonts(engine: Handle);
+    pub fn FlutterDesktopEngineGetMessenger(engine: Handle) -> Handle;
+    pub fn FlutterDesktopMessengerSetCallback(
+        messenger: Handle,
+        channel: *const c_char,
+        callback: Option<MessageCallback>,
+        user_data: Handle,
+    );
+    pub fn FlutterDesktopMessengerSend(
+        messenger: Handle,
+        channel: *const c_char,
+        message: *const u8,
+        message_size: usize,
+    ) -> bool;
+    pub fn FlutterDesktopMessengerSendResponse(
+        messenger: Handle,
+        response_handle: *const c_void,
+        data: *const u8,
+        data_length: usize,
+    );
     pub fn FlutterDesktopEngineGetPluginRegistrar(
         engine: Handle,
         plugin_name: *const c_char,

@@ -145,6 +145,18 @@ pub fn set_ui_layout(grid: bool) -> Result<()> {
     write_preference("ui-layout", if grid { "grid" } else { "list" })
 }
 
+pub fn ui_font() -> Result<String> {
+    read_preference("ui-font")
+}
+
+pub fn set_ui_font(font: String) -> Result<()> {
+    ensure!(
+        matches!(font.as_str(), "google-sans" | "harmonyos-sans-sc"),
+        "unsupported UI font"
+    );
+    write_preference("ui-font", &font)
+}
+
 fn write_preference(name: &str, value: &str) -> Result<()> {
     use std::io::Write;
     let dir = config::data_dir()?;

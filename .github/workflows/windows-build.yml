@@ -1,0 +1,95 @@
+name: Windows x64 build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      revision:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 75
+    env:
+      FLUTTER_VERSION: '3.47.9'
+      FLUTTER_ZIP_SHA256: d8e2b5977e09082c6440f89dc1aa887b94c8fbcc3b39222797046295a3f68a9e
+      RUST_TOOLCHAIN: '1.99.1'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.revision || github.sha }}
+          persist-credentials: false
+
+      - name: Install Flutter and Rust
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $sdk = Join-Path $env:RUNNER_TEMP 'crabforge-flutter'
+          $archive = "$sdk.zip"
+          $uri = "https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_$env:FLUTTER_VERSION-stable.zip"
+          curl.exe --fail --silent --show-error --location --retry 3 --output $archive $uri
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $env:FLUTTER_ZIP_SHA256) {
+            throw 'Flutter SDK checksum mismatch.'
+          }
+          New-Item -ItemType Directory -Path $sdk | Out-Null
+          tar.exe -xf $archive -C $sdk
+          Remove-Item -LiteralPath $archive
+          Join-Path $sdk 'flutter/bin' >> $env:GITHUB_PATH
+          rustup toolchain install "$env:RUST_TOOLCHAIN-x86_64-pc-windows-msvc" --profile minimal --component rustfmt,clippy
+          "RUSTUP_TOOLCHAIN=$env:RUST_TOOLCHAIN-x86_64-pc-windows-msvc" >> $env:GITHUB_ENV
+          "CARGO_TARGET_DIR=$(Join-Path $env:RUNNER_TEMP 'crabforge-cargo')" >> $env:GITHUB_ENV
+
+      - name: Check Rust and enabled dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          cargo fmt --all -- --check
+          $graph = cargo tree --locked --workspace --target all --edges normal,build,dev --prefix none --format '{p}'
+          $blocked = $graph | Where-Object { $_ -match '^\S*serde\S* v|^(hyper(?:-[\w-]+)?|reqwest(?:-[\w-]+)?) v' }
+          if ($blocked) { throw "Prohibited enabled dependencies: $($blocked -join ', ')" }
+          cargo clippy --locked --workspace --all-targets -- -D warnings
+          cargo test --locked --workspace --no-fail-fast
+
+      - name: Check Flutter and build the desktop
+        working-directory: gui
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          flutter --version
+          flutter config --no-analytics
+          flutter pub get --enforce-lockfile
+          flutter gen-l10n
+          git diff --exit-code -- lib/l10n pubspec.lock
+          flutter analyze --no-pub
+          flutter test --no-pub
+          flutter build windows --release --no-pub
+
+      - name: Build and stage the Windows distribution
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          cargo build --locked --release --target x86_64-pc-windows-msvc --package crabforge-cli
+          ./.github/scripts/stage-windows.ps1 -Destination (Join-Path $env:RUNNER_TEMP 'crabforge-windows-x64')
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: crabforge-windows-x64-ci
+          path: ${{ runner.temp }}/crabforge-windows-x64
+          if-no-files-found: error
+          retention-days: 7

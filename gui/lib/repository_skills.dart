@@ -94,7 +94,7 @@ class _RepositorySkillsState extends State<_RepositorySkills> {
                           key: ValueKey(source),
                           grid: grid,
                           title: Text(skill['name'] as String),
-                          leading: const Icon(Icons.extension_outlined),
+                          leading: const Icon(CrabforgeSymbols.extension),
                           onTap: _dismissing ? null : select,
                           detail: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,12 +114,12 @@ class _RepositorySkillsState extends State<_RepositorySkills> {
                           ),
                           actions: [
                             IconButton(
-                              icon: const Icon(Icons.playlist_add_outlined),
+                              icon: const Icon(CrabforgeSymbols.playlistAdd),
                               onPressed: _dismissing ? null : select,
                               tooltip: strings.importSkill,
                             ),
                             IconButton(
-                              icon: const Icon(Icons.visibility_off_outlined),
+                              icon: const Icon(CrabforgeSymbols.visibilityOff),
                               onPressed: _dismissing
                                   ? null
                                   : () => _dismiss(source),

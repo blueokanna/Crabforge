@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'project_picker.dart';
@@ -156,7 +157,7 @@ class _ClaudePluginsState extends State<ClaudePlugins> {
                           IconButton(
                             tooltip: context.strings.installPlugin,
                             onPressed: () => Navigator.pop(context, id),
-                            icon: const Icon(Icons.download_outlined),
+                            icon: const Icon(CrabforgeSymbols.download),
                           ),
                         ],
                       );
@@ -257,13 +258,13 @@ class _ClaudePluginsState extends State<ClaudePlugins> {
                         : (_) => _select(null),
                   ),
                   ActionChip(
-                    avatar: const Icon(Icons.folder_open_outlined),
+                    avatar: const Icon(CrabforgeSymbols.folderOpen),
                     label: Text(strings.openProject),
                     onPressed: _busy ? null : _chooseProject,
                   ),
                   IconButton(
                     onPressed: _busy ? null : _reload,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(CrabforgeSymbols.refresh),
                     tooltip: strings.reload,
                   ),
                 ],
@@ -288,7 +289,7 @@ class _ClaudePluginsState extends State<ClaudePlugins> {
                               'name@marketplace',
                               (id) => _manage('install', id),
                             ),
-                      icon: const Icon(Icons.download_outlined),
+                      icon: const Icon(CrabforgeSymbols.download),
                       label: Text(strings.installPlugin),
                     ),
                     TextButton.icon(
@@ -299,12 +300,12 @@ class _ClaudePluginsState extends State<ClaudePlugins> {
                               strings.pluginSource,
                               (source) => _manage('add-marketplace', source),
                             ),
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(CrabforgeSymbols.add),
                       label: Text(strings.addPluginMarketplace),
                     ),
                     TextButton.icon(
                       onPressed: _busy ? null : _browse,
-                      icon: const Icon(Icons.storefront_outlined),
+                      icon: const Icon(CrabforgeSymbols.storefront),
                       label: Text(strings.pluginCatalog),
                     ),
                     PopupMenuButton<String>(
@@ -365,7 +366,7 @@ class _ClaudePluginsState extends State<ClaudePlugins> {
                         return CollectionTile(
                           key: ValueKey(id),
                           grid: grid,
-                          leading: const Icon(Icons.extension_outlined),
+                          leading: const Icon(CrabforgeSymbols.extension),
                           title: Text(
                             id,
                             maxLines: 2,
@@ -376,13 +377,13 @@ class _ClaudePluginsState extends State<ClaudePlugins> {
                             if (plugin['can_enable'] == true)
                               IconButton(
                                 onPressed: _busy ? null : () => _set(id, true),
-                                icon: const Icon(Icons.add_circle_outline),
+                                icon: const Icon(CrabforgeSymbols.addCircle),
                                 tooltip: strings.enablePlugin,
                               ),
                             if (plugin['can_disable'] == true)
                               IconButton(
                                 onPressed: _busy ? null : () => _set(id, false),
-                                icon: const Icon(Icons.remove_circle_outline),
+                                icon: const Icon(CrabforgeSymbols.removeCircle),
                                 tooltip: project == null
                                     ? strings.disablePlugin
                                     : strings.remove,
@@ -392,14 +393,14 @@ class _ClaudePluginsState extends State<ClaudePlugins> {
                                 onPressed: _busy
                                     ? null
                                     : () => _manage('update', id),
-                                icon: const Icon(Icons.update_outlined),
+                                icon: const Icon(CrabforgeSymbols.update),
                                 tooltip: strings.updatePlugin,
                               ),
                               IconButton(
                                 onPressed: _busy
                                     ? null
                                     : () => _remove('uninstall', id),
-                                icon: const Icon(Icons.delete_outline),
+                                icon: const Icon(CrabforgeSymbols.delete),
                                 tooltip: strings.remove,
                               ),
                             ],
@@ -425,7 +426,7 @@ class _ClaudePluginsState extends State<ClaudePlugins> {
                           final name = marketplaces[index];
                           return CollectionTile(
                             grid: grid,
-                            leading: const Icon(Icons.storefront_outlined),
+                            leading: const Icon(CrabforgeSymbols.storefront),
                             title: Text(
                               name,
                               maxLines: 2,
@@ -436,14 +437,14 @@ class _ClaudePluginsState extends State<ClaudePlugins> {
                                 onPressed: _busy
                                     ? null
                                     : () => _manage('update-marketplace', name),
-                                icon: const Icon(Icons.refresh),
+                                icon: const Icon(CrabforgeSymbols.refresh),
                                 tooltip: strings.reload,
                               ),
                               IconButton(
                                 onPressed: _busy
                                     ? null
                                     : () => _remove('remove-marketplace', name),
-                                icon: const Icon(Icons.delete_outline),
+                                icon: const Icon(CrabforgeSymbols.delete),
                                 tooltip: strings.remove,
                               ),
                             ],

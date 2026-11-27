@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
 
@@ -231,7 +232,7 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
                   suffixIcon: current == null
                       ? IconButton(
                           tooltip: strings.projectFolder,
-                          icon: const Icon(Icons.folder_open_outlined),
+                          icon: const Icon(CrabforgeSymbols.folderOpen),
                           onPressed: busy
                               ? null
                               : () => perform(() async {
@@ -264,7 +265,7 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
                     onPressed: busy || current.text != value.text
                         ? null
                         : previewMemory,
-                    icon: const Icon(Icons.psychology_outlined),
+                    icon: const Icon(CrabforgeSymbols.psychology),
                     label: Text(
                       widget.userInstructions
                           ? strings.agentMemoryDigest

@@ -223,7 +223,7 @@ class _ProjectPackagesState extends State<_ProjectPackages> {
                 suffixIcon: IconButton(
                   onPressed: _busy ? null : _browse,
                   tooltip: strings.projectFolder,
-                  icon: const Icon(Icons.folder_open_outlined),
+                  icon: const Icon(CrabforgeSymbols.folderOpen),
                 ),
               ),
             ),
@@ -267,7 +267,7 @@ class _ProjectPackagesState extends State<_ProjectPackages> {
                       return CollectionTile(
                         key: ValueKey(name),
                         grid: grid,
-                        leading: const Icon(Icons.inventory_2_outlined),
+                        leading: const Icon(CrabforgeSymbols.inventory2),
                         title: Text(
                           name,
                           maxLines: 1,
@@ -290,15 +290,15 @@ class _ProjectPackagesState extends State<_ProjectPackages> {
                                   : strings.assignMcpServer,
                               icon: Icon(
                                 assigned
-                                    ? Icons.sync
-                                    : Icons.add_circle_outline,
+                                    ? CrabforgeSymbols.sync
+                                    : CrabforgeSymbols.addCircle,
                               ),
                             ),
                           if (row['can_export_snapshot'] == true)
                             IconButton(
                               onPressed: _busy ? null : () => _archive(name),
                               tooltip: strings.exportPluginArchive,
-                              icon: const Icon(Icons.ios_share_outlined),
+                              icon: const Icon(CrabforgeSymbols.iosShare),
                             ),
                           if (assigned)
                             IconButton(
@@ -306,7 +306,7 @@ class _ProjectPackagesState extends State<_ProjectPackages> {
                                   ? null
                                   : () => _set(row, assign: false),
                               tooltip: strings.unassignMcpServer,
-                              icon: const Icon(Icons.remove_circle_outline),
+                              icon: const Icon(CrabforgeSymbols.removeCircle),
                             ),
                         ],
                       );

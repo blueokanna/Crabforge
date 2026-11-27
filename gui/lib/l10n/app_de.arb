@@ -1,4 +1,5 @@
 {
+  "interfaceFont": "Schriftart",
   "importSlashCommands": "Slash-Befehle importieren",
   "commandImportSource": "Markdown- oder TOML-Datei, lokaler Ordner oder Git-URL",
   "commandChooseFile": "Befehlsdatei auswählen",

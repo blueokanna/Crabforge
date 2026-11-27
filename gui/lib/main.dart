@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'material_symbols.dart';
+import 'appearance.dart';
 import 'brand_icon.dart';
 import 'agent_environment.dart';
 import 'agent_files.dart';
@@ -40,15 +42,32 @@ class CrabforgeApp extends StatefulWidget {
 class _CrabforgeAppState extends State<CrabforgeApp> {
   String language = '';
   bool grid = false, writingLayout = false;
+  WorkspaceFont font = WorkspaceFont.googleSans;
+  Color? accent;
   final messenger = GlobalKey<ScaffoldMessengerState>();
+  bool get hasSystemAccent =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  BinaryMessenger get platformMessenger =>
+      ServicesBinding.instance.defaultBinaryMessenger;
+
+  late ThemeData lightTheme, darkTheme, highContrastLight, highContrastDark;
 
   @override
   void initState() {
     super.initState();
+    refreshThemes();
+    if (hasSystemAccent) {
+      platformMessenger.setMessageHandler(systemAccentChannel, (message) async {
+        restoreAccent(message);
+        return null;
+      });
+      unawaited(loadAccent());
+    }
     for (final (family, file) in const [
       ('Google Sans', 'GoogleSans-OFL.txt'),
       ('HarmonyOS Sans SC', 'HarmonyOS-Sans-LICENSE.txt'),
       ('Noto Sans KR', 'NotoSansKR-OFL.txt'),
+      ('Material Symbols Rounded', 'MaterialSymbols-LICENSE.txt'),
     ]) {
       LicenseRegistry.addLicense(() async* {
         yield LicenseEntryWithLineBreaks(
@@ -57,6 +76,52 @@ class _CrabforgeAppState extends State<CrabforgeApp> {
         );
       });
     }
+  }
+
+  @override
+  void dispose() {
+    if (hasSystemAccent) {
+      platformMessenger.setMessageHandler(systemAccentChannel, null);
+    }
+    super.dispose();
+  }
+
+  Future<void> loadAccent() async {
+    restoreAccent(await platformMessenger.send(systemAccentChannel, null));
+  }
+
+  void restoreAccent(ByteData? bytes) {
+    final next = decodeSystemAccent(bytes);
+    if (!mounted || accent == next) return;
+    setState(() {
+      accent = next;
+      refreshThemes();
+    });
+  }
+
+  void restoreFont(WorkspaceFont next) {
+    if (font == next) return;
+    setState(() {
+      font = next;
+      refreshThemes();
+    });
+  }
+
+  void refreshThemes() {
+    lightTheme = workspaceTheme(Brightness.light, font, accent: accent);
+    darkTheme = workspaceTheme(Brightness.dark, font, accent: accent);
+    highContrastLight = workspaceTheme(
+      Brightness.light,
+      font,
+      accent: accent,
+      highContrast: true,
+    );
+    highContrastDark = workspaceTheme(
+      Brightness.dark,
+      font,
+      accent: accent,
+      highContrast: true,
+    );
   }
 
   void restoreLayout(bool value) {
@@ -82,9 +147,6 @@ class _CrabforgeAppState extends State<CrabforgeApp> {
     if (selected != language) setState(() => language = selected);
   }
 
-  static final lightTheme = workspaceTheme(Brightness.light);
-  static final darkTheme = workspaceTheme(Brightness.dark);
-
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -97,6 +159,9 @@ class _CrabforgeAppState extends State<CrabforgeApp> {
     ),
     theme: lightTheme,
     darkTheme: darkTheme,
+    highContrastTheme: highContrastLight,
+    highContrastDarkTheme: highContrastDark,
+    themeAnimationDuration: Duration.zero,
     locale: language.isEmpty ? null : Locale(language),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
@@ -112,6 +177,8 @@ class _CrabforgeAppState extends State<CrabforgeApp> {
       language: language,
       onLanguage: selectLanguage,
       onLayoutLoaded: restoreLayout,
+      font: font,
+      onFont: restoreFont,
     ),
   );
 }
@@ -122,10 +189,14 @@ class Console extends StatefulWidget {
     required this.language,
     required this.onLanguage,
     required this.onLayoutLoaded,
+    required this.font,
+    required this.onFont,
   });
   final String language;
   final ValueChanged<String> onLanguage;
   final ValueChanged<bool> onLayoutLoaded;
+  final WorkspaceFont font;
+  final ValueChanged<WorkspaceFont> onFont;
   @override
   State<Console> createState() => _ConsoleState();
 }
@@ -253,6 +324,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         api.agents(),
         api.uiLanguage(),
         api.uiLayout(),
+        api.uiFont(),
       ]);
       final resolved = jsonDecode(
         await api.routeGroups(configuration: values[0]),
@@ -261,6 +333,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       if (!mounted) return;
       widget.onLanguage(values[5]);
       widget.onLayoutLoaded(values[6] == 'grid');
+      widget.onFont(WorkspaceFont.fromPreference(values[7]));
       setState(() {
         applyConfiguration(values[0], resolved);
         presets = (jsonDecode(values[1]) as List).cast<JsonMap>();
@@ -604,12 +677,12 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      (context.strings.providers, Icons.vpn_key_outlined, Icons.vpn_key),
-      (context.strings.routes, Icons.alt_route_outlined, Icons.alt_route),
-      (context.strings.groups, Icons.account_tree_outlined, Icons.account_tree),
-      (context.strings.gateway, Icons.dns_outlined, Icons.dns),
-      (context.strings.models, Icons.view_list_outlined, Icons.view_list),
-      (context.strings.clients, Icons.devices_outlined, Icons.devices),
+      (context.strings.providers, CrabforgeSymbols.vpnKey),
+      (context.strings.routes, CrabforgeSymbols.altRoute),
+      (context.strings.groups, CrabforgeSymbols.accountTree),
+      (context.strings.gateway, CrabforgeSymbols.dns),
+      (context.strings.models, CrabforgeSymbols.viewList),
+      (context.strings.clients, CrabforgeSymbols.devices),
     ];
     final wide = MediaQuery.sizeOf(context).width >= 820;
     final ready = snapshot != null && error == null;
@@ -668,7 +741,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                                           group();
                                         }
                                       },
-                                icon: const Icon(Icons.add),
+                                icon: const Icon(CrabforgeSymbols.add),
                                 label: Text(
                                   page == 0
                                       ? context.strings.addProvider
@@ -679,7 +752,10 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                           ],
                         ),
                         if (running && (page == 0 || page == 2))
-                          note(context.strings.stopToEdit, Icons.lock_outline),
+                          note(
+                            context.strings.stopToEdit,
+                            CrabforgeSymbols.lock,
+                          ),
                       ],
                     ),
                     ...switch (page) {
@@ -716,7 +792,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       enabled: initialized && !busy,
       tooltip: context.strings.language,
       initialValue: widget.language,
-      icon: const Icon(Icons.language),
+      icon: const Icon(CrabforgeSymbols.language),
       onSelected: (code) => act(() async {
         await api.setUiLanguage(language: code);
         if (mounted) widget.onLanguage(code);
@@ -758,11 +834,33 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               onPressed: () => navigate(3),
             ),
           languageMenu,
+          PopupMenuButton<WorkspaceFont>(
+            key: const ValueKey('font-picker'),
+            enabled: initialized && !busy,
+            tooltip: context.strings.interfaceFont,
+            initialValue: widget.font,
+            icon: const Icon(CrabforgeSymbols.formatSize),
+            onSelected: (font) => act(() async {
+              await api.setUiFont(font: font.preference);
+              if (mounted) widget.onFont(font);
+            }),
+            itemBuilder: (_) => [
+              for (final font in WorkspaceFont.values)
+                CheckedPopupMenuItem(
+                  value: font,
+                  checked: widget.font == font,
+                  child: Text(
+                    font.label,
+                    style: TextStyle(fontFamily: font.family),
+                  ),
+                ),
+            ],
+          ),
           if (ready)
             IconButton(
               tooltip: context.strings.reloadConfig,
               onPressed: busy ? null : load,
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(CrabforgeSymbols.refresh),
             ),
           const SizedBox(width: 12),
         ],
@@ -776,7 +874,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                 for (final p in pages)
                   NavigationDestination(
                     icon: Icon(p.$2),
-                    selectedIcon: Icon(p.$3),
+                    selectedIcon: Icon(p.$2, fill: 1),
                     label: p.$1,
                   ),
               ],
@@ -800,7 +898,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                       for (final p in pages)
                         NavigationRailDestination(
                           icon: Icon(p.$2),
-                          selectedIcon: Icon(p.$3),
+                          selectedIcon: Icon(p.$2, fill: 1),
                           label: Text(p.$1),
                         ),
                     ],
@@ -879,7 +977,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
 
   List<Widget> providerPage() => [
     if (providers.isEmpty)
-      SliverToBoxAdapter(child: note(context.strings.providerHelp, Icons.link)),
+      SliverToBoxAdapter(
+        child: note(context.strings.providerHelp, CrabforgeSymbols.link),
+      ),
     CollectionSliver.builder(
       grid: grid,
       height: 118,
@@ -900,7 +1000,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           actions: [
             IconButton(
               tooltip: context.strings.renameProvider,
-              icon: const Icon(Icons.drive_file_rename_outline),
+              icon: const Icon(CrabforgeSymbols.editSquare),
               onPressed: busy || running ? null : () => renameProvider(p['id']),
             ),
             IconButton(
@@ -915,7 +1015,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         });
                       }
                     },
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(CrabforgeSymbols.delete),
             ),
           ],
         );
@@ -961,7 +1061,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           alignment: AlignmentDirectional.centerStart,
           child: TextButton.icon(
             onPressed: busy || running ? null : importGroup,
-            icon: const Icon(Icons.file_download_outlined),
+            icon: const Icon(CrabforgeSymbols.fileDownload),
             label: Text(context.strings.importGroup),
           ),
         ),
@@ -1001,7 +1101,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           providers.isEmpty
               ? context.strings.groupNeedsProvider
               : context.strings.groupHelp,
-          Icons.account_tree_outlined,
+          CrabforgeSymbols.accountTree,
         ),
       ),
     CollectionSliver.builder(
@@ -1026,6 +1126,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                 Text(note),
               if (groupPicks.containsKey(e.key))
                 DropdownButton<String>(
+                  icon: const Icon(CrabforgeSymbols.arrowDropDown),
                   isExpanded: true,
                   hint: Text(context.strings.selectMember),
                   value: displayMembers(e.key).contains(groupPicks[e.key])
@@ -1067,8 +1168,8 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                       : context.strings.disableGroup,
                   icon: Icon(
                     disabledGroups.contains(e.key)
-                        ? Icons.toggle_off_outlined
-                        : Icons.toggle_on,
+                        ? CrabforgeSymbols.toggleOff
+                        : CrabforgeSymbols.toggleOn,
                   ),
                   onPressed: busy || running
                       ? null
@@ -1080,7 +1181,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                           ],
                         }),
                 )
-              : const Icon(Icons.account_tree),
+              : const Icon(CrabforgeSymbols.accountTree),
           onTap: busy || running ? null : () => group(e.key),
           actions: [
             IconButton(
@@ -1088,14 +1189,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               onPressed: busy || running || e.key == groups.keys.first
                   ? null
                   : () => moveGroup(e.key, -1),
-              icon: const Icon(Icons.arrow_upward),
+              icon: const Icon(CrabforgeSymbols.arrowUpward),
             ),
             IconButton(
               tooltip: WidgetsLocalizations.of(context).reorderItemDown,
               onPressed: busy || running || e.key == groups.keys.last
                   ? null
                   : () => moveGroup(e.key, 1),
-              icon: const Icon(Icons.arrow_downward),
+              icon: const Icon(CrabforgeSymbols.arrowDownward),
             ),
             IconButton(
               tooltip: context.strings.copyGroup,
@@ -1109,12 +1210,12 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                       );
                       await persist(previous, text);
                     }),
-              icon: const Icon(Icons.copy_outlined),
+              icon: const Icon(CrabforgeSymbols.contentCopy),
             ),
             IconButton(
               tooltip: context.strings.shareGroup,
               onPressed: busy ? null : () => act(() => shareGroup(e.key)),
-              icon: const Icon(Icons.share_outlined),
+              icon: const Icon(CrabforgeSymbols.share),
             ),
             IconButton(
               tooltip: context.strings.removeGroup,
@@ -1172,7 +1273,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         });
                       }
                     },
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(CrabforgeSymbols.delete),
             ),
           ],
         );
@@ -1259,14 +1360,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           if (attempts.isEmpty)
             note(
               running ? context.strings.waiting : context.strings.historyHelp,
-              Icons.timeline,
+              CrabforgeSymbols.timeline,
             )
           else ...[
             TextFormField(
               initialValue: routeQuery,
               decoration: InputDecoration(
                 labelText: MaterialLocalizations.of(context).searchFieldLabel,
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(CrabforgeSymbols.search),
               ),
               onChanged: (value) {
                 final query = value.trim().toLowerCase();
@@ -1287,8 +1388,8 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
             grid: grid,
             leading: Icon(
               a['status'] < 400
-                  ? Icons.check_circle_outline
-                  : Icons.error_outline,
+                  ? CrabforgeSymbols.checkCircle
+                  : CrabforgeSymbols.error,
               color: a['status'] < 400 ? colors.primary : colors.error,
             ),
             title: collectionTitle(
@@ -1321,7 +1422,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       SliverList.list(
         children: [
           summaryPanel(
-            Icons.dns,
+            CrabforgeSymbols.dns,
             running ? context.strings.running : context.strings.stopped,
             'http://$addr/v1',
           ),
@@ -1338,7 +1439,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         final s = await api.status();
                         if (mounted) setState(() => applyStatus(s));
                       }),
-                icon: Icon(running ? Icons.stop : Icons.play_arrow),
+                icon: Icon(
+                  running ? CrabforgeSymbols.stop : CrabforgeSymbols.playArrow,
+                ),
                 label: Text(
                   running ? context.strings.stop : context.strings.start,
                 ),
@@ -1350,12 +1453,12 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         final key = await api.gatewayKey();
                         if (mounted) await copy(key, context.strings.keyCopied);
                       }),
-                icon: const Icon(Icons.key),
+                icon: const Icon(CrabforgeSymbols.key),
                 label: Text(context.strings.copyKey),
               ),
               TextButton.icon(
                 onPressed: busy || running ? null : network,
-                icon: const Icon(Icons.tune),
+                icon: const Icon(CrabforgeSymbols.tune),
                 label: Text(context.strings.networkSettings),
               ),
             ],
@@ -1375,7 +1478,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               IconButton(
                 tooltip: context.strings.copyPeer,
                 onPressed: () => copy(peerId, context.strings.peerCopied),
-                icon: const Icon(Icons.copy),
+                icon: const Icon(CrabforgeSymbols.contentCopy),
               ),
             ],
           ),
@@ -1396,9 +1499,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           ),
           Card.filled(
             child: ListTile(
-              leading: const Icon(Icons.devices),
+              leading: const Icon(CrabforgeSymbols.devices),
               title: Text(context.strings.clients),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: const Icon(CrabforgeSymbols.chevronRight),
               onTap: () => navigate(5),
             ),
           ),
@@ -1428,6 +1531,10 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 DropdownMenu<String>(
+                  trailingIcon: const Icon(CrabforgeSymbols.arrowDropDown),
+                  selectedTrailingIcon: const Icon(
+                    CrabforgeSymbols.arrowDropUp,
+                  ),
                   label: const Text('Agent'),
                   expandedInsets: EdgeInsets.zero,
                   enableFilter: true,
@@ -1452,7 +1559,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                   subtitle: SelectableText('http://$addr/agent/$selectedAgent'),
                   trailing: IconButton(
                     tooltip: context.strings.copyRoot,
-                    icon: const Icon(Icons.copy),
+                    icon: const Icon(CrabforgeSymbols.contentCopy),
                     onPressed: () => copy(
                       'http://$addr/agent/$selectedAgent',
                       context.strings.rootCopied,
@@ -1470,7 +1577,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         context: context,
                         builder: (_) => const MemoryLibrary(),
                       ),
-                      icon: const Icon(Icons.bookmarks_outlined),
+                      icon: const Icon(CrabforgeSymbols.bookmarks),
                       label: Text(context.strings.memoryLibrary),
                     ),
                     TextButton.icon(
@@ -1478,7 +1585,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         context: context,
                         builder: (_) => const AgentRules(),
                       ),
-                      icon: const Icon(Icons.rule_outlined),
+                      icon: const Icon(CrabforgeSymbols.rule),
                       label: Text(context.strings.agentRules),
                     ),
                     TextButton.icon(
@@ -1486,7 +1593,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         context: context,
                         builder: (_) => const AgentSkills(),
                       ),
-                      icon: const Icon(Icons.extension_outlined),
+                      icon: const Icon(CrabforgeSymbols.extension),
                       label: Text(context.strings.agentSkills),
                     ),
                     TextButton.icon(
@@ -1494,7 +1601,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         context: context,
                         builder: (_) => const AgentEnvironment(),
                       ),
-                      icon: const Icon(Icons.terminal_outlined),
+                      icon: const Icon(CrabforgeSymbols.terminal),
                       label: Text(context.strings.agentEnvironment),
                     ),
                     TextButton.icon(
@@ -1502,7 +1609,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         context: context,
                         builder: (_) => const AgentHooks(),
                       ),
-                      icon: const Icon(Icons.bolt_outlined),
+                      icon: const Icon(CrabforgeSymbols.bolt),
                       label: Text(context.strings.agentHooks),
                     ),
                     TextButton.icon(
@@ -1510,7 +1617,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         context: context,
                         builder: (_) => const ClaudePlugins(),
                       ),
-                      icon: const Icon(Icons.extension_outlined),
+                      icon: const Icon(CrabforgeSymbols.extension),
                       label: Text(context.strings.claudePlugins),
                     ),
                     TextButton.icon(
@@ -1518,7 +1625,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         context: context,
                         builder: (_) => const PluginBundles(),
                       ),
-                      icon: const Icon(Icons.inventory_2_outlined),
+                      icon: const Icon(CrabforgeSymbols.inventory2),
                       label: Text(context.strings.pluginBundles),
                     ),
                     TextButton.icon(
@@ -1526,7 +1633,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         context: context,
                         builder: (_) => const AgentFiles(subagents: true),
                       ),
-                      icon: const Icon(Icons.group_work_outlined),
+                      icon: const Icon(CrabforgeSymbols.groupWork),
                       label: Text(context.strings.agentSubagents),
                     ),
                     TextButton.icon(
@@ -1534,7 +1641,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         context: context,
                         builder: (_) => const AgentFiles(subagents: false),
                       ),
-                      icon: const Icon(Icons.shortcut_outlined),
+                      icon: const Icon(CrabforgeSymbols.shortcut),
                       label: Text(context.strings.agentCommands),
                     ),
                     if (projectAgents.contains(selectedAgent))
@@ -1545,7 +1652,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                           builder: (_) =>
                               ProjectInstructionsEditor(agent: selectedAgent),
                         ),
-                        icon: const Icon(Icons.description_outlined),
+                        icon: const Icon(CrabforgeSymbols.description),
                         label: Text(context.strings.projectInstructions),
                       ),
                     if (projectMcpAgents.contains(selectedAgent))
@@ -1554,7 +1661,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                           context: context,
                           builder: (_) => ProjectMcp(agent: selectedAgent),
                         ),
-                        icon: const Icon(Icons.dns_outlined),
+                        icon: const Icon(CrabforgeSymbols.dns),
                         label: Text(context.strings.projectMcp),
                       ),
                     if (selectedAgent == 'claude' || selectedAgent == 'codex')
@@ -1567,7 +1674,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                             userInstructions: true,
                           ),
                         ),
-                        icon: const Icon(Icons.person_outline),
+                        icon: const Icon(CrabforgeSymbols.person),
                         label: Text(context.strings.agentInstructions),
                       ),
                     TextButton.icon(
@@ -1582,7 +1689,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                           }.toList()..sort(),
                         ),
                       ),
-                      icon: const Icon(Icons.history_outlined),
+                      icon: const Icon(CrabforgeSymbols.history),
                       label: Text(context.strings.agentSessions),
                     ),
                   ],
@@ -1592,14 +1699,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                     onPressed: busy
                         ? null
                         : () => act(() => chooseOmpProtocol(context)),
-                    icon: const Icon(Icons.settings_ethernet),
+                    icon: const Icon(CrabforgeSymbols.settingsEthernet),
                     label: Text(context.strings.gatewayProtocol),
                   ),
                   TextButton.icon(
                     onPressed: busy
                         ? null
                         : () => act(() => editOmpRole(context)),
-                    icon: const Icon(Icons.assignment_ind_outlined),
+                    icon: const Icon(CrabforgeSymbols.assignmentInd),
                     label: Text(context.strings.roleModels),
                   ),
                   TextButton.icon(
@@ -1617,7 +1724,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                               );
                             }
                           }),
-                    icon: const Icon(Icons.sync),
+                    icon: const Icon(CrabforgeSymbols.sync),
                     label: Text(context.strings.syncModelCatalog),
                   ),
                   TextButton.icon(
@@ -1626,7 +1733,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         : () => act(
                             () => editOmpSettings(context, OmpEditor.advisor),
                           ),
-                    icon: const Icon(Icons.settings_outlined),
+                    icon: const Icon(CrabforgeSymbols.settings),
                     label: Text(context.strings.advisorSettings),
                   ),
                   TextButton.icon(
@@ -1635,7 +1742,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         : () => act(
                             () => editOmpSettings(context, OmpEditor.thinking),
                           ),
-                    icon: const Icon(Icons.psychology_outlined),
+                    icon: const Icon(CrabforgeSymbols.psychology),
                     label: Text(context.strings.thinkingLevels),
                   ),
                 ],
@@ -1721,7 +1828,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         trailing: IconButton(
           tooltip: context.strings.copyBase,
           onPressed: () => copy('http://$addr/v1', context.strings.baseCopied),
-          icon: const Icon(Icons.copy),
+          icon: const Icon(CrabforgeSymbols.contentCopy),
         ),
       ),
     ),
@@ -1817,7 +1924,7 @@ class _ModelCatalogState extends State<ModelCatalog> {
           TextField(
             decoration: InputDecoration(
               labelText: material.searchFieldLabel,
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(CrabforgeSymbols.search),
             ),
             onChanged: (value) {
               final query = value.trim().toLowerCase();
@@ -1843,7 +1950,7 @@ class _ModelCatalogState extends State<ModelCatalog> {
                   final group = row.group;
                   final provider = row.provider;
                   final brand = group != null
-                      ? const Icon(Icons.account_tree_outlined)
+                      ? const Icon(CrabforgeSymbols.accountTree)
                       : BrandIcon.model(row.id);
                   final actions = [
                     if (group != null ||
@@ -1857,7 +1964,7 @@ class _ModelCatalogState extends State<ModelCatalog> {
                                   ? widget.onGroup(group)
                                   : widget.onEdit(provider!)
                             : null,
-                        icon: const Icon(Icons.edit_outlined),
+                        icon: const Icon(CrabforgeSymbols.edit),
                       ),
                     IconButton(
                       tooltip: material.copyButtonLabel,
@@ -1869,7 +1976,7 @@ class _ModelCatalogState extends State<ModelCatalog> {
                           );
                         }
                       },
-                      icon: const Icon(Icons.copy),
+                      icon: const Icon(CrabforgeSymbols.contentCopy),
                     ),
                   ];
                   return CollectionTile(
@@ -1924,7 +2031,7 @@ class _EmptyCatalog extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card.filled(
     child: ListTile(
-      leading: const Icon(Icons.search_off_outlined),
+      leading: const Icon(CrabforgeSymbols.searchOff),
       title: Text(message),
     ),
   );

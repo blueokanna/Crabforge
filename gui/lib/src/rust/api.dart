@@ -96,6 +96,11 @@ Future<String> uiLayout() => RustLib.instance.api.crateApiUiLayout();
 Future<void> setUiLayout({required bool grid}) =>
     RustLib.instance.api.crateApiSetUiLayout(grid: grid);
 
+Future<String> uiFont() => RustLib.instance.api.crateApiUiFont();
+
+Future<void> setUiFont({required String font}) =>
+    RustLib.instance.api.crateApiSetUiFont(font: font);
+
 Future<String> presets() => RustLib.instance.api.crateApiPresets();
 
 Future<String> agents() => RustLib.instance.api.crateApiAgents();

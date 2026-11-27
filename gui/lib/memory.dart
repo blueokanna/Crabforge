@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
@@ -98,7 +99,7 @@ class _MemoryLibraryState extends State<MemoryLibrary> {
                   suffixIcon: IconButton(
                     onPressed: refresh,
                     tooltip: strings.searchMemories,
-                    icon: const Icon(Icons.search),
+                    icon: const Icon(CrabforgeSymbols.search),
                   ),
                 ),
               ),
@@ -106,6 +107,7 @@ class _MemoryLibraryState extends State<MemoryLibrary> {
               Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: DropdownButton<String>(
+                  icon: const Icon(CrabforgeSymbols.arrowDropDown),
                   value: status,
                   items: [
                     for (final value in ['', ..._states])
@@ -162,7 +164,7 @@ class _MemoryLibraryState extends State<MemoryLibrary> {
                                       child: ListTile(
                                         leading: item['pinned'] == true
                                             ? const Icon(
-                                                Icons.push_pin_outlined,
+                                                CrabforgeSymbols.pushPin,
                                               )
                                             : null,
                                         title: Text(
@@ -191,7 +193,7 @@ class _MemoryLibraryState extends State<MemoryLibrary> {
                                 onPressed: offset == 0
                                     ? null
                                     : () => refresh(offset - pageSize),
-                                icon: const Icon(Icons.chevron_left),
+                                icon: const Icon(CrabforgeSymbols.chevronLeft),
                               ),
                               Text(
                                 '${total == 0 ? 0 : offset + 1}–${offset + entries.length} / $total',
@@ -202,7 +204,7 @@ class _MemoryLibraryState extends State<MemoryLibrary> {
                                 onPressed: offset + pageSize >= total
                                     ? null
                                     : () => refresh(offset + pageSize),
-                                icon: const Icon(Icons.chevron_right),
+                                icon: const Icon(CrabforgeSymbols.chevronRight),
                               ),
                             ],
                           ),
@@ -224,7 +226,7 @@ class _MemoryLibraryState extends State<MemoryLibrary> {
                   ),
                   FilledButton.icon(
                     onPressed: edit,
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(CrabforgeSymbols.add),
                     label: Text(strings.addMemory),
                   ),
                 ],
@@ -347,7 +349,7 @@ class _MemoryEditorState extends State<_MemoryEditor> {
                 suffixIcon: IconButton(
                   tooltip: strings.projectFolder,
                   onPressed: saving ? null : chooseProject,
-                  icon: const Icon(Icons.folder_open_outlined),
+                  icon: const Icon(CrabforgeSymbols.folderOpen),
                 ),
               ),
             ),
@@ -374,6 +376,7 @@ class _MemoryEditorState extends State<_MemoryEditor> {
             ],
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
+              icon: const Icon(CrabforgeSymbols.arrowDropDown),
               initialValue: kind,
               decoration: InputDecoration(labelText: strings.memoryKindLabel),
               items: [
@@ -387,6 +390,7 @@ class _MemoryEditorState extends State<_MemoryEditor> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
+              icon: const Icon(CrabforgeSymbols.arrowDropDown),
               initialValue: status,
               decoration: InputDecoration(labelText: strings.memoryStateLabel),
               items: [

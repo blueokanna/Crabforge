@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
@@ -141,18 +142,18 @@ class _AgentRulesState extends State<AgentRules> {
                 children: [
                   TextButton.icon(
                     onPressed: busy ? null : () => edit(null),
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(CrabforgeSymbols.add),
                     label: Text(strings.addRule),
                   ),
                   TextButton.icon(
                     onPressed: busy ? null : () => load(api.syncAgentRules),
-                    icon: const Icon(Icons.sync),
+                    icon: const Icon(CrabforgeSymbols.sync),
                     label: Text(strings.syncRules),
                   ),
                   IconButton(
                     onPressed: busy ? null : () => load(api.agentRules),
                     tooltip: strings.reload,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(CrabforgeSymbols.refresh),
                   ),
                 ],
               ),
@@ -177,7 +178,7 @@ class _AgentRulesState extends State<AgentRules> {
                           key: ValueKey(name),
                           grid: grid,
                           title: Text(name),
-                          leading: const Icon(Icons.rule_outlined),
+                          leading: const Icon(CrabforgeSymbols.rule),
                           onTap: busy ? null : () => edit(entry),
                           detail: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,12 +201,12 @@ class _AgentRulesState extends State<AgentRules> {
                             IconButton(
                               onPressed: busy ? null : () => edit(entry),
                               tooltip: strings.editRule,
-                              icon: const Icon(Icons.edit_outlined),
+                              icon: const Icon(CrabforgeSymbols.edit),
                             ),
                             IconButton(
                               onPressed: busy ? null : () => remove(entry),
                               tooltip: strings.remove,
-                              icon: const Icon(Icons.delete_outline),
+                              icon: const Icon(CrabforgeSymbols.delete),
                             ),
                           ],
                         );

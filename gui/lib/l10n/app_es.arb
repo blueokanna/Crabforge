@@ -1,4 +1,5 @@
 {
+  "interfaceFont": "Fuente de la interfaz",
   "importSlashCommands": "Importar comandos de barra",
   "commandImportSource": "Archivo Markdown o TOML, carpeta local o URL de Git",
   "commandChooseFile": "Elegir archivo de comando",

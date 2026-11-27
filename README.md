@@ -1,6 +1,6 @@
 # Crabforge
 
-[简体中文](README.zh-CN.md) · [Operator guide (Chinese)](CRABFORGE.md) · [Windows validation](docs/crabforge-validation.en.md)
+[简体中文](README.zh-CN.md) · [Operator guide (Chinese)](CRABFORGE.md) · [Windows releases](docs/windows-release.en.md) · [Windows validation](docs/crabforge-validation.en.md)
 
 Crabforge runs an authenticated model gateway on your computer. Its Flutter desktop console and CLI share a Rust core. Agents can keep one API address and gateway key while you switch providers or route a request through several models. The gateway reads upstream credentials from the environment.
 

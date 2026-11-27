@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'material_symbols.dart';
 import 'brand_assets.dart';
 
 class BrandIcon extends StatelessWidget {
   const BrandIcon._(this.asset, this.fallback, this.size);
 
   factory BrandIcon.provider(String id, {double size = 24}) =>
-      BrandIcon._(providerBrandAssets[id], Icons.hub_outlined, size);
+      BrandIcon._(providerBrandAssets[id], CrabforgeSymbols.hub, size);
 
   factory BrandIcon.agent(String id) =>
-      BrandIcon._(agentBrandAssets[id], Icons.terminal, 24);
+      BrandIcon._(agentBrandAssets[id], CrabforgeSymbols.terminal, 24);
 
   factory BrandIcon.model(String id) {
     final name = id.split('/').last.toLowerCase();
     for (final (pattern, asset) in _labs) {
       if (pattern.hasMatch(name)) {
-        return BrandIcon._('$asset.svg', Icons.memory, 24);
+        return BrandIcon._('$asset.svg', CrabforgeSymbols.memory, 24);
       }
     }
-    return BrandIcon._(null, Icons.memory_outlined, 24);
+    return BrandIcon._(null, CrabforgeSymbols.memory, 24);
   }
 
   static final _labs = [

@@ -10,6 +10,9 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get interfaceFont => '????';
+
+  @override
   String get importSlashCommands => '导入斜杠命令';
 
   @override

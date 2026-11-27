@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1886585631;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1676402803;
 
 // Section: executor
 
@@ -3427,6 +3427,41 @@ fn wire__crate__api__set_running_impl(
         },
     )
 }
+fn wire__crate__api__set_ui_font_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_ui_font",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_font = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::set_ui_font(api_font)?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__set_ui_language_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -3857,6 +3892,40 @@ fn wire__crate__api__transfer_project_plugin_bundles_impl(
         },
     )
 }
+fn wire__crate__api__ui_font_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ui_font",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let output_ok = crate::api::ui_font()?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__ui_language_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -4225,32 +4294,34 @@ fn pde_ffi_dispatcher_primary_impl(
         }
         89 => wire__crate__api__set_project_plugin_bundle_impl(port, ptr, rust_vec_len, data_len),
         90 => wire__crate__api__set_running_impl(port, ptr, rust_vec_len, data_len),
-        91 => wire__crate__api__set_ui_language_impl(port, ptr, rust_vec_len, data_len),
-        92 => wire__crate__api__set_ui_layout_impl(port, ptr, rust_vec_len, data_len),
-        93 => wire__crate__api__shared_group_impl(port, ptr, rust_vec_len, data_len),
-        94 => wire__crate__api__status_impl(port, ptr, rust_vec_len, data_len),
-        95 => wire__crate__api__sync_agent_environment_impl(port, ptr, rust_vec_len, data_len),
-        96 => wire__crate__api__sync_agent_hooks_impl(port, ptr, rust_vec_len, data_len),
-        97 => wire__crate__api__sync_agent_rules_impl(port, ptr, rust_vec_len, data_len),
-        98 => wire__crate__api__sync_agent_skills_impl(port, ptr, rust_vec_len, data_len),
-        99 => wire__crate__api__sync_mcp_library_impl(port, ptr, rust_vec_len, data_len),
-        100 => wire__crate__api__sync_omp_catalog_impl(port, ptr, rust_vec_len, data_len),
-        101 => wire__crate__api__transfer_pi_project_plugin_bundles_impl(
+        91 => wire__crate__api__set_ui_font_impl(port, ptr, rust_vec_len, data_len),
+        92 => wire__crate__api__set_ui_language_impl(port, ptr, rust_vec_len, data_len),
+        93 => wire__crate__api__set_ui_layout_impl(port, ptr, rust_vec_len, data_len),
+        94 => wire__crate__api__shared_group_impl(port, ptr, rust_vec_len, data_len),
+        95 => wire__crate__api__status_impl(port, ptr, rust_vec_len, data_len),
+        96 => wire__crate__api__sync_agent_environment_impl(port, ptr, rust_vec_len, data_len),
+        97 => wire__crate__api__sync_agent_hooks_impl(port, ptr, rust_vec_len, data_len),
+        98 => wire__crate__api__sync_agent_rules_impl(port, ptr, rust_vec_len, data_len),
+        99 => wire__crate__api__sync_agent_skills_impl(port, ptr, rust_vec_len, data_len),
+        100 => wire__crate__api__sync_mcp_library_impl(port, ptr, rust_vec_len, data_len),
+        101 => wire__crate__api__sync_omp_catalog_impl(port, ptr, rust_vec_len, data_len),
+        102 => wire__crate__api__transfer_pi_project_plugin_bundles_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__transfer_project_plugin_bundles_impl(
+        103 => wire__crate__api__transfer_project_plugin_bundles_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__ui_language_impl(port, ptr, rust_vec_len, data_len),
-        104 => wire__crate__api__ui_layout_impl(port, ptr, rust_vec_len, data_len),
-        105 => wire__crate__api__visit_web_impl(port, ptr, rust_vec_len, data_len),
-        106 => wire__crate__api__web_login_impl(port, ptr, rust_vec_len, data_len),
+        104 => wire__crate__api__ui_font_impl(port, ptr, rust_vec_len, data_len),
+        105 => wire__crate__api__ui_language_impl(port, ptr, rust_vec_len, data_len),
+        106 => wire__crate__api__ui_layout_impl(port, ptr, rust_vec_len, data_len),
+        107 => wire__crate__api__visit_web_impl(port, ptr, rust_vec_len, data_len),
+        108 => wire__crate__api__web_login_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

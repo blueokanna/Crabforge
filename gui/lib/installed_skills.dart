@@ -118,7 +118,7 @@ class _InstalledSkillsState extends State<_InstalledSkills> {
                           key: ValueKey(skill['path'] as String),
                           grid: grid,
                           title: Text(skill['name'] as String),
-                          leading: const Icon(Icons.extension_outlined),
+                          leading: const Icon(CrabforgeSymbols.extension),
                           detail: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -139,7 +139,7 @@ class _InstalledSkillsState extends State<_InstalledSkills> {
                             IconButton(
                               onPressed: _busy ? null : () => _adopt(skill),
                               tooltip: strings.adoptSkill,
-                              icon: const Icon(Icons.playlist_add_outlined),
+                              icon: const Icon(CrabforgeSymbols.playlistAdd),
                             ),
                           ],
                         );
@@ -154,7 +154,7 @@ class _InstalledSkillsState extends State<_InstalledSkills> {
                   IconButton(
                     onPressed: _busy ? null : _scan,
                     tooltip: strings.reload,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(CrabforgeSymbols.refresh),
                   ),
                   TextButton(
                     onPressed: _busy ? null : () => Navigator.pop(context),

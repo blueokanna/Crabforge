@@ -10,6 +10,9 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get interfaceFont => '??????';
+
+  @override
   String get importSlashCommands => 'スラッシュコマンドをインポート';
 
   @override

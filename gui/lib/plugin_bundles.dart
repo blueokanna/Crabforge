@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
@@ -398,7 +399,7 @@ class _PluginBundlesState extends State<PluginBundles> {
                 children: [
                   TextButton.icon(
                     onPressed: _busy ? null : () => _import(),
-                    icon: const Icon(Icons.download_outlined),
+                    icon: const Icon(CrabforgeSymbols.download),
                     label: Text(strings.importPluginBundle),
                   ),
                   for (final agent in api.ProjectPluginAgent.values)
@@ -409,12 +410,12 @@ class _PluginBundlesState extends State<PluginBundles> {
                               context: context,
                               builder: (_) => _ProjectPackages(agent),
                             ),
-                      icon: const Icon(Icons.folder_outlined),
+                      icon: const Icon(CrabforgeSymbols.folder),
                       label: Text(_projectPackagesTitle(context, agent)),
                     ),
                   IconButton(
                     onPressed: _busy ? null : () => _refresh(api.pluginBundles),
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(CrabforgeSymbols.refresh),
                     tooltip: strings.reload,
                   ),
                 ],
@@ -445,7 +446,7 @@ class _PluginBundlesState extends State<PluginBundles> {
                             folder: entry['folder'] as String,
                             revision: entry['revision'] as String,
                           ),
-                          leading: const Icon(Icons.inventory_2_outlined),
+                          leading: const Icon(CrabforgeSymbols.inventory2),
                           title: Text(
                             name,
                             maxLines: 1,
@@ -462,17 +463,17 @@ class _PluginBundlesState extends State<PluginBundles> {
                           actions: [
                             IconButton(
                               onPressed: _busy ? null : () => _export(entry),
-                              icon: const Icon(Icons.ios_share_outlined),
+                              icon: const Icon(CrabforgeSymbols.iosShare),
                               tooltip: strings.exportPluginArchive,
                             ),
                             IconButton(
                               onPressed: _busy ? null : () => _import(entry),
-                              icon: const Icon(Icons.update_outlined),
+                              icon: const Icon(CrabforgeSymbols.update),
                               tooltip: strings.updatePlugin,
                             ),
                             IconButton(
                               onPressed: _busy ? null : () => _remove(entry),
-                              icon: const Icon(Icons.delete_outline),
+                              icon: const Icon(CrabforgeSymbols.delete),
                               tooltip: strings.remove,
                             ),
                           ],

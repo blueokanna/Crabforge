@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'project_picker.dart';
@@ -300,7 +301,7 @@ class _AgentHooksState extends State<AgentHooks> {
                         : (_) => _scope(null),
                   ),
                   ActionChip(
-                    avatar: const Icon(Icons.folder_open_outlined),
+                    avatar: const Icon(CrabforgeSymbols.folderOpen),
                     label: Text(strings.openProject),
                     onPressed: _busy ? null : _chooseProject,
                   ),
@@ -313,17 +314,17 @@ class _AgentHooksState extends State<AgentHooks> {
                   if (project == null)
                     TextButton.icon(
                       onPressed: _busy ? null : () => _edit(),
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(CrabforgeSymbols.add),
                       label: Text(strings.addHook),
                     ),
                   TextButton.icon(
                     onPressed: _busy ? null : () => _load(_sync),
-                    icon: const Icon(Icons.sync),
+                    icon: const Icon(CrabforgeSymbols.sync),
                     label: Text(strings.syncMcpLibrary),
                   ),
                   IconButton(
                     onPressed: _busy ? null : () => _load(_read),
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(CrabforgeSymbols.refresh),
                     tooltip: strings.reload,
                   ),
                 ],
@@ -363,7 +364,7 @@ class _AgentHooksState extends State<AgentHooks> {
                         return CollectionTile(
                           key: ValueKey(name),
                           grid: grid,
-                          leading: const Icon(Icons.bolt_outlined),
+                          leading: const Icon(CrabforgeSymbols.bolt),
                           title: _line(name),
                           detail: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,7 +395,7 @@ class _AgentHooksState extends State<AgentHooks> {
                                 (entry['compatible'] as List).isNotEmpty)
                               IconButton(
                                 onPressed: _busy ? null : () => _assign(entry),
-                                icon: const Icon(Icons.group_add_outlined),
+                                icon: const Icon(CrabforgeSymbols.groupAdd),
                                 tooltip: strings.projectHookAssignment,
                               ),
                             if (entry != null && project == null) ...[
@@ -402,7 +403,7 @@ class _AgentHooksState extends State<AgentHooks> {
                                 onPressed: _busy
                                     ? null
                                     : () => _edit(saved: entry),
-                                icon: const Icon(Icons.edit_outlined),
+                                icon: const Icon(CrabforgeSymbols.edit),
                                 tooltip: strings.editHook,
                               ),
                               IconButton(
@@ -412,7 +413,7 @@ class _AgentHooksState extends State<AgentHooks> {
                                         name,
                                         entry['revision'] as String,
                                       ),
-                                icon: const Icon(Icons.delete_outline),
+                                icon: const Icon(CrabforgeSymbols.delete),
                                 tooltip: strings.remove,
                               ),
                             ],
@@ -441,7 +442,7 @@ class _AgentHooksState extends State<AgentHooks> {
                           return CollectionTile(
                             key: ValueKey(row['key']),
                             grid: grid,
-                            leading: const Icon(Icons.article_outlined),
+                            leading: const Icon(CrabforgeSymbols.article),
                             title: _line(
                               [
                                 _agents[target['agent']],
@@ -463,7 +464,9 @@ class _AgentHooksState extends State<AgentHooks> {
                                   onPressed: _busy
                                       ? null
                                       : () => _edit(found: row),
-                                  icon: const Icon(Icons.bookmark_add_outlined),
+                                  icon: const Icon(
+                                    CrabforgeSymbols.bookmarkAdd,
+                                  ),
                                   tooltip: strings.adoptHook,
                                 ),
                               if (row['removable'] == true)
@@ -474,7 +477,7 @@ class _AgentHooksState extends State<AgentHooks> {
                                           row,
                                           restore: false,
                                         ),
-                                  icon: const Icon(Icons.delete_outline),
+                                  icon: const Icon(CrabforgeSymbols.delete),
                                   tooltip: strings.removeInstalledHook,
                                 ),
                             ],
@@ -509,7 +512,7 @@ class _AgentHooksState extends State<AgentHooks> {
                             key: ValueKey(row['id']),
                             grid: grid,
                             leading: const Icon(
-                              Icons.settings_backup_restore_outlined,
+                              CrabforgeSymbols.settingsBackupRestore,
                             ),
                             title: _line(
                               '${_agents[target['agent']]} · ${row['event']}',
@@ -527,7 +530,7 @@ class _AgentHooksState extends State<AgentHooks> {
                                           row,
                                           restore: true,
                                         ),
-                                  icon: const Icon(Icons.restore_outlined),
+                                  icon: const Icon(CrabforgeSymbols.restore),
                                   tooltip: strings.restoreHookBackup,
                                 ),
                             ],
@@ -726,6 +729,7 @@ class _HookEditorState extends State<_HookEditor> {
                 Text(_eventName(context, _event))
               else
                 DropdownButtonFormField<String>(
+                  icon: const Icon(CrabforgeSymbols.arrowDropDown),
                   initialValue: _event,
                   isExpanded: true,
                   decoration: InputDecoration(labelText: strings.hookEvent),
@@ -749,6 +753,7 @@ class _HookEditorState extends State<_HookEditor> {
                 ),
               if (_matchTools)
                 DropdownButtonFormField<String>(
+                  icon: const Icon(CrabforgeSymbols.arrowDropDown),
                   key: ValueKey(_event),
                   initialValue: _matcher.text,
                   decoration: InputDecoration(labelText: strings.hookMatcher),

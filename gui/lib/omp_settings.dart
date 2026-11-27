@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
@@ -207,7 +208,7 @@ Future<String?> chooseOmpProfile(BuildContext context) async {
                     ),
                   ),
                   trailing: row['active'] == true
-                      ? const Icon(Icons.check)
+                      ? const Icon(CrabforgeSymbols.check)
                       : null,
                   onTap: () => Navigator.pop(context, row['name'] as String),
                 ),
@@ -236,7 +237,9 @@ Future<void> chooseOmpProtocol(BuildContext context) async {
         for (final option in options.entries)
           ListTile(
             title: Text(option.value),
-            trailing: option.key == previous ? const Icon(Icons.check) : null,
+            trailing: option.key == previous
+                ? const Icon(CrabforgeSymbols.check)
+                : null,
             onTap: () => Navigator.pop(context, option.key),
           ),
       ],
@@ -335,6 +338,7 @@ class _EditorState extends State<_Editor> {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: DropdownButtonFormField<String>(
+        icon: const Icon(CrabforgeSymbols.arrowDropDown),
         key: ValueKey('omp-${widget.editor.name}-$key'),
         initialValue: selected,
         decoration: InputDecoration(labelText: title),

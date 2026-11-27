@@ -1,3 +1,4 @@
+import 'package:crabforge/material_symbols.dart';
 import 'package:crabforge/brand_assets.dart';
 import 'package:crabforge/l10n/app_localizations.dart';
 import 'package:crabforge/main.dart';
@@ -45,7 +46,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'GROUP/PARENT');
     await tester.pumpAndSettle();
     expect(find.text('group/parent'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.tap(find.byIcon(CrabforgeSymbols.edit));
     expect(edited, 'parent');
     await tester.binding.setSurfaceSize(const Size(1200, 750));
     await tester.tap(find.byTooltip('List view'));

@@ -10,6 +10,9 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get interfaceFont => 'Police de l?interface';
+
+  @override
   String get importSlashCommands => 'Importer des commandes slash';
 
   @override

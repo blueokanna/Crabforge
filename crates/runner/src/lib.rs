@@ -1,6 +1,7 @@
 #![cfg(windows)]
 
 mod flutter;
+mod system_accent;
 
 use flutter::*;
 use std::{
@@ -26,6 +27,7 @@ struct Window {
     engine: Handle,
     controller: Handle,
     child: HWND,
+    accent_messenger: Handle,
 }
 
 unsafe fn update_theme(hwnd: HWND) {
@@ -61,7 +63,11 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPAR
                 controller,
                 engine,
                 child,
+                accent_messenger,
             } = *state;
+            if msg == WM_DWMCOLORIZATIONCOLORCHANGED {
+                system_accent::notify(accent_messenger);
+            }
             let mut result = 0;
             if !controller.is_null()
                 && FlutterDesktopViewControllerHandleTopLevelWindowProc(
@@ -185,6 +191,7 @@ unsafe fn run(instance: HINSTANCE) -> i32 {
             engine,
             controller,
             child,
+            accent_messenger: system_accent::register(engine),
         };
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, (&raw const state) as isize);
         SetParent(child, hwnd);

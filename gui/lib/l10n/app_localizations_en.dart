@@ -10,6 +10,9 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get interfaceFont => 'Interface font';
+
+  @override
   String get importSlashCommands => 'Import slash commands';
 
   @override

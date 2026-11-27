@@ -10,6 +10,9 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get interfaceFont => 'Fonte da interface';
+
+  @override
   String get importSlashCommands => 'Importar comandos de barra';
 
   @override

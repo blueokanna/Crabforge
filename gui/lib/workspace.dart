@@ -1,129 +1,6 @@
 import 'package:flutter/material.dart';
 
-ThemeData workspaceTheme(Brightness brightness) {
-  final dark = brightness == Brightness.dark;
-  final colors =
-      ColorScheme.fromSeed(
-        seedColor: const Color(0xffb45032),
-        brightness: brightness,
-        dynamicSchemeVariant: DynamicSchemeVariant.expressive,
-      ).copyWith(
-        primary: dark ? const Color(0xffffb59a) : const Color(0xff963c24),
-        onPrimary: dark ? const Color(0xff502010) : Colors.white,
-        primaryContainer: dark
-            ? const Color(0xff532d23)
-            : const Color(0xfff8ded3),
-        onPrimaryContainer: dark
-            ? const Color(0xffffdacc)
-            : const Color(0xff602416),
-        surface: dark ? const Color(0xff171819) : const Color(0xfffaf9f6),
-        onSurface: dark ? const Color(0xfff1eeee) : const Color(0xff232121),
-        onSurfaceVariant: dark
-            ? const Color(0xffbbb5b1)
-            : const Color(0xff655c57),
-        surfaceContainerLowest: dark ? const Color(0xff141516) : Colors.white,
-        surfaceContainerLow: dark
-            ? const Color(0xff1e2021)
-            : const Color(0xfff2f0ec),
-        surfaceContainer: dark
-            ? const Color(0xff242627)
-            : const Color(0xffeeebe6),
-        surfaceContainerHigh: dark
-            ? const Color(0xff2b2d2e)
-            : const Color(0xffe9e5df),
-        outlineVariant: dark
-            ? const Color(0xff393b3c)
-            : const Color(0xffded9d2),
-      );
-  final border = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(12),
-    borderSide: BorderSide(color: colors.outlineVariant),
-  );
-  final base = ThemeData(
-    useMaterial3: true,
-    fontFamily: 'packages/crabforge_assets/Google Sans',
-    fontFamilyFallback: const [
-      'packages/crabforge_assets/HarmonyOS Sans SC',
-      'packages/crabforge_assets/Noto Sans KR',
-    ],
-    colorScheme: colors,
-    scaffoldBackgroundColor: colors.surface,
-    splashFactory: InkRipple.splashFactory,
-    appBarTheme: AppBarThemeData(
-      backgroundColor: colors.surface,
-      scrolledUnderElevation: 0,
-    ),
-    cardTheme: CardThemeData(
-      margin: EdgeInsets.zero,
-      elevation: 0,
-      color: colors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    ),
-    inputDecorationTheme: InputDecorationThemeData(
-      filled: true,
-      fillColor: colors.surfaceContainerLowest,
-      border: border,
-      enabledBorder: border,
-      focusedBorder: border.copyWith(
-        borderSide: BorderSide(color: colors.primary, width: 2),
-      ),
-    ),
-    navigationRailTheme: NavigationRailThemeData(
-      groupAlignment: -1,
-      indicatorColor: colors.primaryContainer,
-      indicatorShape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      selectedIconTheme: IconThemeData(
-        color: colors.onPrimaryContainer,
-        size: 21,
-      ),
-      unselectedIconTheme: IconThemeData(
-        color: colors.onSurfaceVariant,
-        size: 21,
-      ),
-      selectedLabelTextStyle: TextStyle(
-        color: colors.onPrimaryContainer,
-        fontWeight: FontWeight.w700,
-      ),
-      unselectedLabelTextStyle: TextStyle(
-        color: colors.onSurfaceVariant,
-        fontWeight: FontWeight.w500,
-      ),
-    ),
-    navigationBarTheme: NavigationBarThemeData(
-      height: 68,
-      backgroundColor: colors.surfaceContainerLow,
-      indicatorColor: colors.primaryContainer,
-      indicatorShape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      labelTextStyle: const WidgetStatePropertyAll(
-        TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-      ),
-    ),
-    tooltipTheme: TooltipThemeData(
-      waitDuration: const Duration(milliseconds: 400),
-      preferBelow: false,
-      decoration: BoxDecoration(
-        color: colors.inverseSurface,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      textStyle: TextStyle(color: colors.onInverseSurface, fontSize: 12),
-    ),
-  );
-  return base.copyWith(
-    textTheme: base.textTheme.copyWith(
-      headlineLarge: base.textTheme.headlineLarge?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: -1.15,
-      ),
-      titleMedium: base.textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
-}
+import 'material_symbols.dart';
 
 class WorkspaceBrand extends StatelessWidget {
   const WorkspaceBrand({super.key});
@@ -267,15 +144,14 @@ class WorkspaceStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final statusColor = running
-        ? theme.brightness == Brightness.dark
-              ? const Color(0xff88d4aa)
-              : const Color(0xff276747)
+        ? theme.colorScheme.tertiary
         : theme.colorScheme.onSurfaceVariant;
     return TextButton.icon(
       onPressed: onPressed,
       icon: Icon(
-        running ? Icons.circle : Icons.circle_outlined,
-        size: 9,
+        CrabforgeSymbols.circle,
+        fill: running ? 1 : 0,
+        size: 12,
         color: statusColor,
       ),
       label: Text(label, style: TextStyle(color: statusColor)),

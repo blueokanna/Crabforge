@@ -1,3 +1,5 @@
+import 'package:crabforge/material_symbols.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -324,7 +326,7 @@ void main() {
     );
     final up = find.descendant(
       of: desktopGroup,
-      matching: find.byIcon(Icons.arrow_upward),
+      matching: find.byIcon(CrabforgeSymbols.arrowUpward),
     );
     await tester.ensureVisible(up);
     await tester.tap(up);

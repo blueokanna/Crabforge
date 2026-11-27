@@ -10,6 +10,9 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get interfaceFont => '???????? ??????';
+
+  @override
   String get importSlashCommands => 'स्लैश कमांड इंपोर्ट करें';
 
   @override

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
@@ -131,20 +132,20 @@ class _AgentEnvironmentState extends State<AgentEnvironment> {
                 children: [
                   TextButton.icon(
                     onPressed: _busy ? null : () => _edit(null),
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(CrabforgeSymbols.add),
                     label: Text(strings.addVariable),
                   ),
                   TextButton.icon(
                     onPressed: _busy
                         ? null
                         : () => _load(api.syncAgentEnvironment),
-                    icon: const Icon(Icons.sync),
+                    icon: const Icon(CrabforgeSymbols.sync),
                     label: Text(strings.syncMcpLibrary),
                   ),
                   IconButton(
                     onPressed: _busy ? null : () => _load(api.agentEnvironment),
                     tooltip: strings.reload,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(CrabforgeSymbols.refresh),
                   ),
                 ],
               ),
@@ -169,7 +170,7 @@ class _AgentEnvironmentState extends State<AgentEnvironment> {
                         return CollectionTile(
                           key: ValueKey(name),
                           grid: grid,
-                          leading: const Icon(Icons.terminal_outlined),
+                          leading: const Icon(CrabforgeSymbols.terminal),
                           title: Text(
                             name,
                             maxLines: 2,
@@ -192,14 +193,14 @@ class _AgentEnvironmentState extends State<AgentEnvironment> {
                                     onPressed: _busy
                                         ? null
                                         : () => _edit(entry),
-                                    icon: const Icon(Icons.edit_outlined),
+                                    icon: const Icon(CrabforgeSymbols.edit),
                                     tooltip: strings.editVariable,
                                   ),
                                   IconButton(
                                     onPressed: _busy
                                         ? null
                                         : () => _remove(entry),
-                                    icon: const Icon(Icons.delete_outline),
+                                    icon: const Icon(CrabforgeSymbols.delete),
                                     tooltip: strings.remove,
                                   ),
                                 ],
@@ -315,8 +316,8 @@ class _VariableEditorState extends State<_VariableEditor> {
                     onPressed: () => setState(() => _visible = !_visible),
                     icon: Icon(
                       _visible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
+                          ? CrabforgeSymbols.visibilityOff
+                          : CrabforgeSymbols.visibility,
                     ),
                     tooltip: _visible
                         ? strings.hideVariableValue

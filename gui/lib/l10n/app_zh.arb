@@ -1,4 +1,5 @@
 {
+  "interfaceFont": "????",
   "importSlashCommands": "导入斜杠命令",
   "commandImportSource": "Markdown 或 TOML 文件、本地文件夹或 Git URL",
   "commandChooseFile": "选择命令文件",

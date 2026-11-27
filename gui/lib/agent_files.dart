@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'project_picker.dart';
@@ -351,7 +352,7 @@ class _AgentFilesState extends State<AgentFiles> {
                           : null,
                     ),
                     ActionChip(
-                      avatar: const Icon(Icons.folder_open_outlined),
+                      avatar: const Icon(CrabforgeSymbols.folderOpen),
                       label: Text(strings.openProject),
                       onPressed: _busy ? null : _chooseProject,
                     ),
@@ -363,20 +364,20 @@ class _AgentFilesState extends State<AgentFiles> {
                 children: [
                   TextButton.icon(
                     onPressed: available ? _edit : null,
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(CrabforgeSymbols.add),
                     label: Text(
                       subagents ? strings.addSubagent : strings.addSlashCommand,
                     ),
                   ),
                   TextButton.icon(
                     onPressed: available ? _discover : null,
-                    icon: const Icon(Icons.folder_copy_outlined),
+                    icon: const Icon(CrabforgeSymbols.folderCopy),
                     label: Text(strings.findNativeResources),
                   ),
                   if (_project == null)
                     TextButton.icon(
                       onPressed: available ? _import : null,
-                      icon: const Icon(Icons.file_download_outlined),
+                      icon: const Icon(CrabforgeSymbols.fileDownload),
                       label: Text(
                         subagents
                             ? strings.importSubagents
@@ -386,17 +387,17 @@ class _AgentFilesState extends State<AgentFiles> {
                   if (_project != null)
                     TextButton.icon(
                       onPressed: available ? () => _assignShared(shared) : null,
-                      icon: const Icon(Icons.group_add_outlined),
+                      icon: const Icon(CrabforgeSymbols.groupAdd),
                       label: Text(strings.sharedSubagents),
                     ),
                   TextButton.icon(
                     onPressed: available ? () => _load('sync') : null,
-                    icon: const Icon(Icons.sync),
+                    icon: const Icon(CrabforgeSymbols.sync),
                     label: Text(strings.syncMcpLibrary),
                   ),
                   IconButton(
                     onPressed: _busy ? null : () => _load('list'),
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(CrabforgeSymbols.refresh),
                     tooltip: strings.reload,
                   ),
                 ],
@@ -445,8 +446,8 @@ class _AgentFilesState extends State<AgentFiles> {
                           grid: grid,
                           leading: Icon(
                             subagents
-                                ? Icons.group_work_outlined
-                                : Icons.shortcut_outlined,
+                                ? CrabforgeSymbols.groupWork
+                                : CrabforgeSymbols.shortcut,
                           ),
                           title: _line(subagents ? name : '/$name'),
                           detail: Column(
@@ -478,13 +479,13 @@ class _AgentFilesState extends State<AgentFiles> {
                                 onPressed: available
                                     ? () => _import(source)
                                     : null,
-                                icon: const Icon(Icons.update_outlined),
+                                icon: const Icon(CrabforgeSymbols.update),
                                 tooltip: strings.checkSkillUpdate,
                               ),
                             if (status.isNotEmpty)
                               IconButton(
                                 onPressed: () => _placements(name, status),
-                                icon: const Icon(Icons.info_outline),
+                                icon: const Icon(CrabforgeSymbols.info),
                                 tooltip: strings.resourcePlacements,
                               ),
                             if (row != null)
@@ -495,7 +496,7 @@ class _AgentFilesState extends State<AgentFiles> {
                                         row['revision'] as String,
                                       )
                                     : null,
-                                icon: const Icon(Icons.delete_outline),
+                                icon: const Icon(CrabforgeSymbols.delete),
                                 tooltip: strings.remove,
                               ),
                           ],
@@ -750,14 +751,14 @@ class _ImportResourcesState extends State<_ImportResources> {
                   IconButton(
                     onPressed: _busy ? null : () => _pick(folder: true),
                     tooltip: strings.subagentChooseFolder,
-                    icon: const Icon(Icons.folder_open_outlined),
+                    icon: const Icon(CrabforgeSymbols.folderOpen),
                   ),
                   IconButton(
                     onPressed: _busy ? null : () => _pick(folder: false),
                     tooltip: subagents
                         ? strings.subagentChooseFile
                         : strings.commandChooseFile,
-                    icon: const Icon(Icons.insert_drive_file_outlined),
+                    icon: const Icon(CrabforgeSymbols.insertDriveFile),
                   ),
                   OutlinedButton(
                     onPressed: _busy || _source.text.trim().isEmpty
@@ -910,7 +911,7 @@ class _NativeResources extends StatelessWidget {
                         final status = row['status'] as String;
                         return CollectionTile(
                           grid: grid,
-                          leading: const Icon(Icons.description_outlined),
+                          leading: const Icon(CrabforgeSymbols.description),
                           title: _line(row['name'] as String),
                           detail: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -934,7 +935,7 @@ class _NativeResources extends StatelessWidget {
                               IconButton(
                                 onPressed: () => Navigator.pop(context, row),
                                 tooltip: strings.adoptSkill,
-                                icon: const Icon(Icons.add_link_outlined),
+                                icon: const Icon(CrabforgeSymbols.addLink),
                               ),
                           ],
                         );
@@ -1119,6 +1120,7 @@ class _EntryEditorState extends State<_EntryEditor> {
                 if (subagents) ...[
                   field(_model, 'Codex · ${strings.roleModelId}'),
                   DropdownButtonFormField<String>(
+                    icon: const Icon(CrabforgeSymbols.arrowDropDown),
                     initialValue: _effort ?? '',
                     isExpanded: true,
                     decoration: InputDecoration(

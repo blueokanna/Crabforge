@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'memory.dart';
@@ -76,7 +77,7 @@ class _AgentSessionsState extends State<AgentSessions> {
               await Clipboard.setData(ClipboardData(text: id));
               if (context.mounted) Navigator.pop(context);
             },
-            icon: const Icon(Icons.copy_outlined),
+            icon: const Icon(CrabforgeSymbols.contentCopy),
             label: Text(context.strings.copySessionId),
           ),
           TextButton(
@@ -122,6 +123,7 @@ class _AgentSessionsState extends State<AgentSessions> {
                 children: [
                   Expanded(
                     child: DropdownButton<String>(
+                      icon: const Icon(CrabforgeSymbols.arrowDropDown),
                       value: agent,
                       isExpanded: true,
                       items: [
@@ -144,7 +146,7 @@ class _AgentSessionsState extends State<AgentSessions> {
                   ),
                   IconButton(
                     onPressed: refresh,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(CrabforgeSymbols.refresh),
                     tooltip: strings.reload,
                   ),
                 ],
@@ -301,6 +303,7 @@ class _SessionMemoryPreviewState extends State<_SessionMemoryPreview> {
                     Text(strings.distillPreview),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
+                      icon: const Icon(CrabforgeSymbols.arrowDropDown),
                       initialValue: model,
                       isExpanded: true,
                       menuMaxHeight: 360,

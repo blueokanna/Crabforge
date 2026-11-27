@@ -1,4 +1,5 @@
 {
+  "interfaceFont": "Interface font",
   "importSlashCommands": "Import slash commands",
   "commandImportSource": "Markdown or TOML file, local folder, or Git URL",
   "commandChooseFile": "Choose command file",

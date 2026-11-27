@@ -1,6 +1,7 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import 'material_symbols.dart';
 import 'language.dart';
 
 Future<String?> openProjectFolder(BuildContext context, String? current) {
@@ -25,7 +26,7 @@ Future<String?> openProjectFolder(BuildContext context, String? current) {
             labelText: strings.projectFolder,
             suffixIcon: IconButton(
               tooltip: strings.projectFolder,
-              icon: const Icon(Icons.folder_open_outlined),
+              icon: const Icon(CrabforgeSymbols.folderOpen),
               onPressed: () async {
                 final path = await getDirectoryPath(initialDirectory: current);
                 if (dialogContext.mounted && path != null) {
