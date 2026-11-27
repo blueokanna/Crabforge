@@ -1,4 +1,4 @@
-use std::{io, sync::Arc};
+use std::{io, net::SocketAddr, sync::Arc};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
@@ -9,7 +9,7 @@ use ureq::{
     Agent, Error,
     config::Config,
     unversioned::{
-        resolver::Resolver,
+        resolver::{DefaultResolver, ResolvedSocketAddrs, Resolver},
         transport::{
             Buffers, ConnectProxyConnector, ConnectionDetails, Connector, Either, LazyBuffers,
             NextTimeout, RustlsConnector, ShutdownHandle, Transport, time::Duration,
@@ -22,6 +22,27 @@ pub(super) fn agent(config: Config, resolver: impl Resolver) -> Agent {
         .chain(SocketConnector)
         .chain(RustlsConnector::default());
     Agent::with_parts(config, chain, resolver)
+}
+
+#[derive(Debug, Default)]
+pub(super) struct UpstreamResolver(DefaultResolver);
+
+impl Resolver for UpstreamResolver {
+    fn resolve(
+        &self,
+        uri: &http::Uri,
+        config: &Config,
+        mut timeout: NextTimeout,
+    ) -> Result<ResolvedSocketAddrs, Error> {
+        if let (Some(scheme), Some(authority)) = (uri.scheme(), uri.authority())
+            && DefaultResolver::host_and_port(scheme, authority)
+                .is_some_and(|address| address.parse::<SocketAddr>().is_ok())
+        {
+            // A numeric address needs no DNS lookup or timeout thread.
+            timeout.after = Duration::NotHappening;
+        }
+        self.0.resolve(uri, config, timeout)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -123,5 +144,31 @@ impl Transport for Socket {
 
     fn is_open(&mut self) -> bool {
         matches!(self.tcp.try_read(&mut [0]), Err(e) if e.kind() == io::ErrorKind::WouldBlock)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ureq::config::IpFamily;
+
+    #[test]
+    fn resolver_keeps_default_ports_and_address_family() -> anyhow::Result<()> {
+        let resolver = UpstreamResolver::default();
+        let config = Agent::config_builder().build();
+        for (uri, address) in [
+            ("http://127.0.0.1/", "127.0.0.1:80"),
+            ("https://[::1]/", "[::1]:443"),
+            ("http://[::1]:8080/", "[::1]:8080"),
+        ] {
+            let resolved = resolver.resolve(&uri.parse()?, &config, NextTimeout::default())?;
+            assert_eq!(&resolved[..], &[address.parse::<SocketAddr>()?]);
+        }
+        let ipv4 = Agent::config_builder()
+            .ip_family(IpFamily::Ipv4Only)
+            .build();
+        let result = resolver.resolve(&"http://[::1]/".parse()?, &ipv4, NextTimeout::default());
+        assert!(matches!(result, Err(Error::HostNotFound)));
+        Ok(())
     }
 }

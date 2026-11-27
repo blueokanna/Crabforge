@@ -10,6 +10,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod magpie;
+pub use magpie::import_magpie;
+
 const AGENTS: [&str; 3] = ["claude", "cline", "kiro-cli"];
 const MAX_BODY: usize = 100_000;
 const MAX_RULE_FILE: usize = 256 * 1024;
@@ -260,13 +263,17 @@ impl Store {
         }
     }
 
-    fn persist(&self, path: &Path) -> Result<()> {
+    fn contents(&self) -> Result<String> {
         let contents = encode(self)?;
         ensure!(
             contents.len() <= MAX_STORE,
             "rule library exceeds the storage limit"
         );
-        replace(path, &contents)
+        Ok(contents)
+    }
+
+    fn persist(&self, path: &Path) -> Result<()> {
+        replace(path, &self.contents()?)
     }
 
     fn applied_hash(&self, target: &Destination) -> Option<&str> {
@@ -421,9 +428,8 @@ pub fn library(dir: &Path, edit: Edit) -> Result<String> {
     library_in(dir, &rule_homes()?, edit)
 }
 
-fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
-    let folder = dir.join("rules");
-    fs::create_dir_all(&folder)?;
+fn lock_library(folder: &Path) -> Result<File> {
+    fs::create_dir_all(folder)?;
     let lock = File::options()
         .read(true)
         .write(true)
@@ -431,6 +437,12 @@ fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
         .truncate(false)
         .open(folder.join("library.lock"))?;
     lock.lock()?;
+    Ok(lock)
+}
+
+fn library_in(dir: &Path, homes: &Homes, edit: Edit) -> Result<String> {
+    let folder = dir.join("rules");
+    let _lock = lock_library(&folder)?;
     let path = folder.join("library.json");
     let mut store = Store::load(&path)?;
     let sync = !matches!(edit, Edit::Read);

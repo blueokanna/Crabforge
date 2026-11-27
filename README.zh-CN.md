@@ -114,6 +114,8 @@ carbforge-cli rules list
 
 使用 `--old <名称>` 编辑现有规则或改名，可加 `--revision <修订>` 核对 `rules list` 中读取的版本。`rules remove <名称>` 删除规则及内容未变化的托管副本。
 
+运行 `carbforge-cli rules import-magpie .\magpie.magpie-backup` 可预览 Magpie 加密备份中的规则。重复使用 `--name <名称>` 可选择多条规则。加上 `--apply` 会在一次写入中保存 Markdown、文件匹配模式和客户端分配。同名冲突会阻止整批写入，相同规则会跳过。用 `rules list` 审核，用 `rules sync` 发布。
+
 在 **客户端连接** 的 **技能** 中导入本地文件夹，包括 `SKILL.md` 和附属文件。选择 Claude Code、Codex、Gemini CLI、OpenCode 或 Pi，可将副本发布到当前配置。选择 Gemini CLI 或 Pi 时，Crabforge 也会向 `carbforge-cli agent` 使用的配置发布副本。**重新导入文件** 会再次读取来源。**应用技能** 可重试待处理的更改。原生目录已有同名技能，或已发布的副本在本地被修改时，Crabforge 会保留目录并显示冲突。
 
 ```powershell
@@ -196,6 +198,8 @@ CLI 用 `carbforge-cli plugin-bundles preview <来源>` 获取内容哈希，再
 运行 `carbforge-cli subagents probe-source <路径或地址>` 获取候选的相对路径 `path` 与修订 `revision`。将选中的文件作为 UTF-8 JSON 传给 `carbforge-cli subagents import-source` 的标准输入。请求包含 `source` 字符串、由 `{ "path": "…", "revision": "…" }` 对象组成的 `files` 数组，以及可选的 `agents` 客户端 ID 数组，用于分配新条目。
 
 `environment save <名称> --agent <claude|codex|pi>` 从标准输入读取原始 UTF-8 值。重复 `--agent` 可分配多个客户端。编辑时传入 `environment list` 返回的修订，改名另加 `--rename-from <旧名称>`。`environment remove <名称> --revision <修订>` 移除变量，`environment sync` 重试同步，`environment list --show-values` 显示变量值。
+
+用 `carbforge-cli environment import-magpie .\magpie.magpie-backup` 预览变量名、客户端分配及备份是否含值。重复使用 `--name <名称>` 可选择变量。加 `--apply` 会在一次库写入中保存定义及备份中的值。已有不同内容的同名定义会阻止整批写入。审核后用 `environment sync` 发布。Magpie 用 `--no-keys` 创建的备份仅携带空值，可用 `environment save` 补填。
 
 在 **客户端连接** 选择支持的客户端，打开 **项目 MCP** 并选择项目文件夹。添加服务器时使用客户端的原生 JSON 配置，Codex 使用 TOML 表正文。编辑器显示将写入的文件，保存和删除前会核对文件修订。客户端打开项目时读取配置并启动服务器。
 

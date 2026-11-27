@@ -12,6 +12,27 @@ use zeroize::Zeroizing;
 
 const MAX_BACKUP: usize = 64 * 1024 * 1024;
 
+pub(crate) fn library_section(
+    file: &Path,
+    passphrase: &str,
+    section: &str,
+) -> Result<(Vec<Value>, Vec<String>)> {
+    let mut backup = open_backup(file, passphrase)?;
+    let mut library: BTreeMap<String, Value> = nextjson::from_value(
+        backup
+            .remove("library")
+            .filter(|value| !value.is_null())
+            .context("Magpie backup has no library section")?,
+    )
+    .map_err(|_| anyhow::anyhow!("invalid Magpie library section"))?;
+    let entries = match library.remove(section) {
+        Some(Value::Array(entries)) => entries,
+        None | Some(Value::Null) => anyhow::bail!("Magpie library has no {section} list"),
+        Some(_) => anyhow::bail!("invalid Magpie library {section} list"),
+    };
+    Ok((entries, library.into_keys().collect()))
+}
+
 #[derive(NsonDeserialize)]
 struct Envelope {
     format: String,
@@ -982,6 +1003,49 @@ mod tests {
         assert_eq!(preview["resources"][1]["action"], json!("conflict"));
         assert!(import_magpie(&store, Kind::Command, &file, PASSPHRASE, &selected, true).is_err());
         assert_eq!(std::fs::read(&library)?, before);
+        Ok(())
+    }
+
+    #[test]
+    fn environment_backup_masks_values_and_rejects_a_conflicting_batch() -> Result<()> {
+        use crate::environment::import_magpie;
+
+        let dir = tempfile::tempdir()?;
+        let file = dir.path().join("environment.magpie-backup");
+        let store = dir.path().join("crabforge");
+        let value = "fixture-value-原文\nsecond line";
+        let variable = json!({"name":"EXISTING","value":value,"agents":["claude","pi"]});
+        seal(&file, json!({"version":2,"library":{"env":[variable]}}));
+        let report = |apply| -> Result<Value> {
+            let report = import_magpie(&store, &file, PASSPHRASE, &[], apply)?;
+            nextjson::to_value(&report).map_err(anyhow::Error::msg)
+        };
+        let preview = report(false)?;
+        assert_eq!(preview["variables"][0]["has_value"], json!(true));
+        assert!(preview.pointer("/variables/0/value").is_none());
+        assert!(!store.exists());
+
+        let applied = report(true)?;
+        assert!(applied.pointer("/variables/0/value").is_none());
+        let library = store.join("environment/library.json");
+        let before = std::fs::read(&library)?;
+        let stored: Value = nextjson::from_slice(&before).map_err(anyhow::Error::msg)?;
+        assert_eq!(stored["variables"]["EXISTING"]["value"], json!(value));
+        assert_eq!(report(true)?["variables"][0]["action"], json!("identical"));
+
+        seal(
+            &file,
+            json!({"version":2,"library":{"env":[
+                {"name":"AHEAD","value":"","agents":null},
+                {"name":"EXISTING","value":"different","agents":["claude","pi"]}
+            ]}}),
+        );
+        let preview = report(false)?;
+        assert_eq!(preview["variables"][0]["action"], json!("create"));
+        assert_eq!(preview["variables"][0]["has_value"], json!(false));
+        assert_eq!(preview["variables"][1]["action"], json!("conflict"));
+        assert!(report(true).is_err());
+        assert_eq!(std::fs::read(library)?, before);
         Ok(())
     }
 }

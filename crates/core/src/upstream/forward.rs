@@ -13,7 +13,7 @@ use ureq::{
     Agent, Proxy, RequestExt, SendBody,
     config::{AutoHeaderValue, Config},
     tls::{RootCerts, TlsConfig},
-    unversioned::resolver::{DefaultResolver, Resolver},
+    unversioned::resolver::Resolver,
 };
 use url::Url;
 
@@ -50,7 +50,7 @@ impl ForwardClient {
         Self::with_resolver(
             Some(Self::environment_bypass()),
             config,
-            DefaultResolver::default,
+            socket::UpstreamResolver::default,
         )
     }
 

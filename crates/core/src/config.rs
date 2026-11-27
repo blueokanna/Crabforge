@@ -18,10 +18,12 @@ mod origins;
 mod rename;
 pub use crate::anthropic_auth::AuthHeader;
 pub use groups::{ImportedGroup, MemberPattern, ResolvedGroups};
-pub(crate) use magpie::open_backup as open_magpie_backup;
 pub use magpie::{
     MagpieImportOptions, MagpieSettingsMode, import_magpie_backup, import_magpie_groups,
     import_magpie_providers, import_magpie_routing,
+};
+pub(crate) use magpie::{
+    library_section as magpie_library_section, open_backup as open_magpie_backup,
 };
 pub use rename::rename_provider;
 
@@ -778,10 +780,24 @@ fn write_settings(dir: &Path, cfg: &Config) -> Result<()> {
         bytes.len() <= MAX_CONFIG,
         "formatted configuration exceeds 1 MiB"
     );
+    #[cfg(not(windows))]
     let mut file = NamedTempFile::new_in(dir)?;
+    #[cfg(windows)]
+    let mut file = tempfile::Builder::new().make_in(dir, |path| {
+        File::options().write(true).create_new(true).open(path)
+    })?;
     file.write_all(&bytes)?;
     file.as_file().sync_all()?;
-    file.persist(dir.join("settings.json"))?;
+    let destination = dir.join("settings.json");
+    #[cfg(not(windows))]
+    file.persist(&destination)?;
+    #[cfg(windows)]
+    {
+        let mut staged = file.into_temp_path();
+        // std::fs::rename can replace a file held open by a reader that shares delete access.
+        fs::rename(&staged, &destination).context("cannot replace settings.json")?;
+        staged.disable_cleanup(true);
+    }
     Ok(())
 }
 
@@ -833,6 +849,27 @@ pub fn open_web(site: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn settings_remain_readable_during_atomic_replacement() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("settings.json");
+        let original = r#"{"listen":"127.0.0.1:3425"}"#;
+        let updated = r#"{"listen":"127.0.0.1:3426"}"#;
+        fs::write(&path, original)?;
+        let previous = snapshot(dir.path())?;
+        let mut reader = File::open(&path)?;
+
+        save(dir.path(), &previous, updated)?;
+
+        let mut old_contents = String::new();
+        reader.read_to_string(&mut old_contents)?;
+        assert_eq!(old_contents, original);
+        assert_eq!(load(dir.path())?.listen.port(), 3426);
+        assert!(save(dir.path(), &previous, original).is_err());
+        Ok(())
+    }
 
     #[test]
     fn legacy_settings_keep_defaults_wire_names_and_snapshot_equality() -> Result<()> {

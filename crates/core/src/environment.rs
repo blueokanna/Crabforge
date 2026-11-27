@@ -14,14 +14,16 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod magpie;
 mod native;
+pub use magpie::import_magpie;
 
 const AGENTS: &[&str] = &["claude", "codex", "pi"];
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
 pub const MAX_VALUE: usize = 8192;
 type Values = BTreeMap<String, String>;
 
-#[derive(NsonDeserialize, NsonSerialize)]
+#[derive(PartialEq, Eq, NsonDeserialize, NsonSerialize)]
 struct Variable {
     name: String,
     value: String,
@@ -180,13 +182,17 @@ impl Store {
         }
     }
 
-    fn save(&self, path: &Path) -> Result<()> {
+    fn contents(&self) -> Result<String> {
         let text = encode(self)?;
         ensure!(
             text.len() <= MAX_LIBRARY,
             "environment library exceeds 4 MiB"
         );
-        replace(path, &text)
+        Ok(text)
+    }
+
+    fn save(&self, path: &Path) -> Result<()> {
+        replace(path, &self.contents()?)
     }
 
     fn check(&self, name: &str, revision: &str) -> Result<()> {

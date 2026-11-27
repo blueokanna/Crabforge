@@ -10,6 +10,16 @@ use std::path::{Path, PathBuf};
 pub enum Command {
     /// List rules, revisions and native file statuses as JSON.
     List,
+    /// Preview or restore Markdown rules from an encrypted Magpie backup.
+    ImportMagpie {
+        file: PathBuf,
+        /// Repeat to select several names. The default selects all rules.
+        #[arg(long = "name")]
+        names: Vec<String>,
+        /// Save the rules to Crabforge's library.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Add, edit or rename a rule and apply it to the selected agents.
     Save {
         name: String,
@@ -42,6 +52,15 @@ pub enum Command {
 pub fn run(dir: &Path, command: Command) -> Result<()> {
     let edit = match command {
         Command::List => Edit::Read,
+        Command::ImportMagpie { file, names, apply } => {
+            let passphrase = super::backup_passphrase()?;
+            let report = rules::import_magpie(dir, &file, &passphrase, &names, apply)?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+            );
+            return Ok(());
+        }
         Command::Sync => Edit::Sync,
         Command::Save {
             name,

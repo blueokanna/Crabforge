@@ -3,7 +3,7 @@ use clap::Subcommand;
 use crabforge_core::environment::{self, Edit};
 use std::{
     io::{self, Read},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 #[derive(Subcommand)]
@@ -12,6 +12,16 @@ pub(super) enum Command {
     List {
         #[arg(long)]
         show_values: bool,
+    },
+    /// Preview or restore environment variables from an encrypted Magpie backup.
+    ImportMagpie {
+        file: PathBuf,
+        /// Repeat to select several names. The default selects all variables.
+        #[arg(long = "name")]
+        names: Vec<String>,
+        /// Save the definitions to Crabforge's local library.
+        #[arg(long)]
+        apply: bool,
     },
     /// Read a UTF-8 value from standard input and set its complete agent assignment.
     Save {
@@ -36,6 +46,15 @@ pub(super) enum Command {
 pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
     let (edit, reveal) = match command {
         Command::List { show_values } => (Edit::Read, show_values),
+        Command::ImportMagpie { file, names, apply } => {
+            let passphrase = super::backup_passphrase()?;
+            let report = environment::import_magpie(dir, &file, &passphrase, &names, apply)?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
+            );
+            return Ok(());
+        }
         Command::Save {
             name,
             agents,

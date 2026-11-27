@@ -1,5 +1,5 @@
 use super::{Entry, Kind, Store, native, revision};
-use crate::{config::open_magpie_backup, native_settings};
+use crate::{config::magpie_library_section, native_settings};
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value};
 use std::{
@@ -48,19 +48,7 @@ pub fn import_magpie(
     apply: bool,
 ) -> Result<ImportReport> {
     let section = kind.folder();
-    let mut backup = open_magpie_backup(file, passphrase)?;
-    let mut library: BTreeMap<String, Value> = nextjson::from_value(
-        backup
-            .remove("library")
-            .filter(|value| !value.is_null())
-            .context("Magpie backup has no library section")?,
-    )
-    .map_err(|_| anyhow::anyhow!("invalid Magpie library section"))?;
-    let resources = match library.remove(section) {
-        Some(Value::Array(entries)) => entries,
-        None | Some(Value::Null) => anyhow::bail!("Magpie library has no {section} list"),
-        Some(_) => anyhow::bail!("invalid Magpie library {section} list"),
-    };
+    let (resources, other_library_sections) = magpie_library_section(file, passphrase, section)?;
     let selected: BTreeSet<_> = selected.iter().map(String::as_str).collect();
     let mut imported = BTreeMap::new();
     for resource in resources {
@@ -123,7 +111,7 @@ pub fn import_magpie(
     Ok(ImportReport {
         section,
         resources: plan,
-        other_library_sections: library.into_keys().collect(),
+        other_library_sections,
         applied: apply,
     })
 }

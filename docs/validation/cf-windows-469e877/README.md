@@ -294,15 +294,43 @@ Magpie 0.1.4936 从隔离的便携配置生成采用中文文件名和中文口�
 
 Magpie 0.1.4936 wrote an encrypted backup from an isolated portable profile using a Unicode filename and Chinese passphrase. Both Windows Debug CLIs previewed without creating the destination directory, and a wrong passphrase produced no files. One of four competing applies created all four memories, and the other three found identical files. The import preserved the active, candidate, archived and superseded states along with scope, timestamps, tags, pinning and source quotes. The digest included only active project memory, and the project's `AGENTS.md` kept its original BOM and CRLF. A conflicting ID blocked the batch and preserved the existing file bytes. The Rust regression also checked a deletion recorded in the backup and an invalid filename. [Import command](../../../README.md#manage-client-resources)
 
-Windows Actions `45984372547` 从 `38ac6ba98ec0f13317b58060feeff2648cd4c73a` 构建，通过依赖门禁、Clippy、133 项 Rust 测试和 Flutter 检查。归档 `15192330345` 为 65,317,859 字节，SHA-256 为 `38fcaa9c3e6b7ab6dff5babd169a73f04e0d5ea97057b51a41f0d29f5d6090ae`。下载并逐项校验了 670 个文件、313 个 Rust 许可目录、产品资源和双 CLI。六个 PE 均为 `NotSigned`。下载包的两个 CLI 通过四种记忆状态、原始证据、项目摘要和并发应用回归。
+Windows Actions `45984372547` 从 `38ac6ba98ec0f13317b58060feeff2648cd4c73a` 构建，通过依赖门禁、Clippy、133 项 Rust 测试和 Flutter 检查。归档 `15192330345` 为 65,317,859 字节，SHA-256 为 `38fcaa9c3e6b7ab6dff5babd169a73f04e0d5ea97057b51a41f0d29f5d6090ae`。下载并逐项校验了 670 个文件、313 个 Rust 许可目录、产品资源和双 CLI。六个 PE 均为 `NotSigned`。下载包中的 Release 桌面窗口正常响应并退出，两个 CLI 通过四种记忆状态、原始证据、项目摘要和并发应用回归。验包结束时远端 `main` 匹配上述完整 SHA。
 
-Windows Actions run `45984372547` built `38ac6ba98ec0f13317b58060feeff2648cd4c73a`. The dependency gate, Clippy, 133 Rust tests and Flutter checks passed. Artifact `15192330345` was 65,317,859 bytes with SHA-256 `38fcaa9c3e6b7ab6dff5babd169a73f04e0d5ea97057b51a41f0d29f5d6090ae`. Download verification covered all 670 files, 313 Rust license directories, product resources and both CLIs. All six PE files reported `NotSigned`. Both packaged CLIs passed the four memory states, original evidence, project digest and concurrent apply regression. [Actions run](https://github.com/blueokanna/Crabforge/actions/runs/45984372547) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/45984372547/artifacts/15192330345)
+Windows Actions run `45984372547` built `38ac6ba98ec0f13317b58060feeff2648cd4c73a`. The dependency gate, Clippy, 133 Rust tests and Flutter checks passed. Artifact `15192330345` was 65,317,859 bytes with SHA-256 `38fcaa9c3e6b7ab6dff5babd169a73f04e0d5ea97057b51a41f0d29f5d6090ae`. Download verification covered all 670 files, 313 Rust license directories, product resources and both CLIs. All six PE files reported `NotSigned`. The unpacked Release desktop opened a responsive window and exited cleanly. Both CLIs passed the four memory states, original evidence, project digest and concurrent apply regression. Remote `main` matched the full build SHA at the end of verification. [Actions run](https://github.com/blueokanna/Crabforge/actions/runs/45984372547) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/45984372547/artifacts/15192330345)
+
+同一归档首次执行四进程联合路由导入时，Windows 偶发拒绝替换 `settings.json`，返回 `os error 5`。重复测试记录了完整错误。固定复现用例持有一个设置读句柄并同时保存。修复后的测试验证原读句柄仍读到旧内容，新读句柄读到完整的新配置，使用旧快照的写入被拒绝。修复后的 Debug CLI 连续通过六轮原版备份回归，每轮分别对供应商、路由组和联合导入做四进程竞争。
+
+The first four-process combined routing import on that archive intermittently failed to replace `settings.json` with Windows `os error 5`. A repeated run captured the full error. A deterministic regression holds a settings reader open during a save. With the fix, the open handle still reads the previous bytes, a new reader gets the complete updated settings, and a save based on the old snapshot is rejected. The updated Debug CLIs completed six consecutive native-backup runs, each exercising four competing processes for the provider, group and combined imports. [Windows regression](../../../crates/core/src/config.rs)
 
 ## 子代理与斜杠命令迁移 / Subagent and slash command migration
 
 Magpie 0.1.4936 写出的加密备份包含两条命令和两个子代理。两个 Windows Debug CLI 通过只读预览、按名称选择、拒绝错误口令，以及冲突时保留资源库原始字节。每个区段分别由四个进程竞争应用，一次写入、三次报告相同定义。显式同步保留已有 Claude 命令的 CRLF 文件，Pi 模板保留位置参数，Gemini TOML 使用 `{{args}}`，Codex 和 Claude 读取到各自支持的子代理字段。预览列出未迁移的 `from` 和 `fromHash` 字段。
 
 An encrypted backup written by Magpie 0.1.4936 contained two commands and two subagents. Both Windows Debug CLIs passed read-only preview, name selection, wrong-passphrase rejection and byte-for-byte library preservation on conflict. Four processes competed to apply each section. One wrote the definitions and three reported identical entries. Explicit sync preserved an existing Claude command with CRLF line endings, kept Pi's positional argument, wrote `{{args}}` to Gemini TOML, and rendered the supported subagent fields for Codex and Claude. The preview reported the skipped `from` and `fromHash` fields. [Import commands](../../../README.md#manage-client-resources)
+
+## 规则迁移 / Rule migration
+
+Magpie 0.1.4936 生成包含两条规则的原生加密备份。两个 Windows Debug CLI 验证只读预览、按名称选取、错误口令、整批冲突检查和四进程并发。并发时一个进程写入完整规则库，其余三个报告相同条目。显式同步将文件匹配规则写入 Kiro，将全局规则写入 Cline。已有同名 Claude 文件保持原始 CRLF 字节，界面状态数据报告冲突。
+
+Magpie 0.1.4936 exported an encrypted backup with two rules. Both Windows Debug CLIs passed read-only preview, name selection, wrong-passphrase rejection, whole-batch conflict checks and four competing applies. One process wrote the complete library and three reported identical entries. Explicit sync published scoped guidance to Kiro and global guidance to Cline. It reported a conflict for an existing Claude file and preserved its original CRLF bytes. [Rules importer](../../../crates/core/src/rules/magpie.rs)
+
+环境变量回归分别使用 Magpie 0.1.4936 生成的普通备份和 `--no-keys` 备份。双 CLI 验证按名筛选、值遮蔽、空值、UTF-8 多行值和 Claude Code、Codex、Pi 分配。四进程同时应用时只写入一次，冲突批次保留原库字节。显式同步把值写入 Codex 和 Pi，同时保留 Claude Code 已有的值。
+
+Both CLIs tested environment variables from Magpie 0.1.4936 backups with and without values. They verified name filtering, masked reports, empty values, multiline UTF-8, and client assignments. Four competing applies wrote the batch once, and a conflicting batch preserved the original library bytes. Explicit sync published to Codex and Pi while preserving Claude Code's existing value. [Environment importer](../../../crates/core/src/environment/magpie.rs)
+
+## Windows 首事件分段时序 / Windows first-event timing
+
+同一 Windows 10 主机在开发构建期间交替采样。`5cc51ab575b27a333aa007188c636f4b70508d93` 的 Actions 包和基于 `38ac6ba98ec0f13317b58060feeff2648cd4c73a` 加入 QPC 探针的本地 Release 各测 45 次。每次启动新网关进程，均返回 HTTP 200、调用上游一次、代理流量为零。首事件最小／中位／最大值分别为 `14.454/90.838/286.718 ms` 和 `14.601/102.876/290.461 ms`。
+
+The Windows 10 host alternated 45 samples each from the `5cc51ab575b27a333aa007188c636f4b70508d93` Actions package and a local Release build of `38ac6ba98ec0f13317b58060feeff2648cd4c73a` with QPC markers. Development builds were running on the host. Every sample started a fresh gateway process, returned HTTP 200, made one upstream request and sent no proxy traffic. First-event minimum, median and maximum were `14.454/90.838/286.718 ms` and `14.601/102.876/290.461 ms`, respectively. [90 raw samples](forward-h1-windows-qpc.csv)
+
+36 个带探针的样本超过 50 ms。阻塞任务从提交到开始的中位数为 `45.144 ms`，从开始到发起上游连接为 `39.561 ms`，TCP 连接调用为 `0.814 ms`，从 Python 接受连接到读完请求头为 `21.892 ms`。从网关首次读到上游字节到客户端收到完整首事件的中位数为 `0.479 ms`。采样定位了这些等待区间，各区间的线程调度与计算耗时仍需单独区分。
+
+Thirty-six instrumented samples took over 50 ms. Median intervals were `45.144 ms` from submitting the blocking task to its start, `39.561 ms` from task start to the upstream connect call, `0.814 ms` for the connect call, and `21.892 ms` from Python accepting the socket to reading the request headers. The median from the gateway's first upstream read to the complete client event was `0.479 ms`. These timestamps locate the waits. Distinguishing thread scheduling from execution within those intervals requires further measurement.
+
+`ureq` 在启用解析超时时会为每个地址启动解析线程。网关现在直接处理可解析为 socket 地址的 IPv4 和 IPv6 字面量，域名继续使用带超时的默认解析。以同一 `38ac6ba` 为基础构建两个带探针的 Release 版本，各交替测 24 次。阻塞任务开始到发起上游连接的中位数从 `43.165 ms` 降至 `0.117 ms`。首事件中位数从 `116.626 ms` 降至 `53.222 ms`，最大值分别为 `324.734 ms` 和 `353.668 ms`。改动后最慢样本仍含 `200.676 ms` 的阻塞任务启动等待和 `149.332 ms` 的上游接受至完成读头时间。
+
+With a resolution timeout, `ureq` starts a resolver thread even for a numeric address. The gateway now handles IPv4 and IPv6 socket literals directly while keeping the default timed resolver for hostnames. Two instrumented Release builds based on `38ac6ba` alternated 24 trials each. The median from worker start to the upstream connect call fell from `43.165 ms` to `0.117 ms`. The first-event median went from `116.626 ms` to `53.222 ms`, with maxima of `324.734 ms` and `353.668 ms`. The slowest updated sample still spent `200.676 ms` waiting for the worker to start and `149.332 ms` between upstream accept and request headers. [48 paired samples](forward-h1-windows-address-pair.csv) · [Resolver](../../../crates/core/src/upstream/forward/socket.rs)
 
 ## 签名与许可 / Signing and licenses
 

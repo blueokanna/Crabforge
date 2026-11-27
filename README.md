@@ -114,6 +114,8 @@ carbforge-cli rules list
 
 Pass `--old <name>` to edit an existing rule or rename it. Add `--revision <revision>` from `rules list` to require the same version. `rules remove <name>` removes the library entry and its unchanged managed copies.
 
+Run `carbforge-cli rules import-magpie .\magpie.magpie-backup` to preview rules from an encrypted Magpie backup. Repeat `--name <name>` to select individual rules. With `--apply`, Crabforge saves the Markdown, path patterns and client assignments in one library write. A conflicting name blocks the batch and identical rules are skipped. Review the rules with `rules list` and publish with `rules sync`.
+
 Open **Skills** under **Client connections** to import a local folder with `SKILL.md` and its supporting files. Select Claude Code, Codex, Gemini CLI, OpenCode or Pi to publish a copy to the current profile. For Gemini CLI and Pi, Crabforge also publishes to the profile used by `carbforge-cli agent`. **Reimport files** reads the source again. **Apply skills** retries pending changes. An existing native folder or a locally edited copy stays in place and appears as a conflict.
 
 ```powershell
@@ -196,6 +198,8 @@ In the user subagent library, select **Import subagents** to scan a Markdown fil
 Use `carbforge-cli subagents probe-source <path-or-url>` to get the relative `path` and `revision` for each candidate. Pass those pairs in a UTF-8 JSON request to `carbforge-cli subagents import-source` on standard input. The request has a `source` string, a `files` array of `{ "path": "…", "revision": "…" }` objects, and an optional `agents` array of client IDs for new entries.
 
 The CLI reads the exact UTF-8 value from standard input with `environment save <name> --agent <claude|codex|pi>`. Repeat `--agent` to assign several clients. For edits, pass the revision from `environment list`. Add `--rename-from <old-name>` to rename, use `environment remove <name> --revision <revision>` to remove, and `environment sync` to retry publication. Use `environment list --show-values` to reveal values.
+
+Run `carbforge-cli environment import-magpie .\magpie.magpie-backup` to preview variable names, client assignments and whether each definition has a value. Repeat `--name <name>` to select variables. `--apply` saves the definitions and any values present in the backup in one library write. An existing definition with different contents blocks the batch. Use `environment sync` to publish the reviewed assignments. Magpie backups created with `--no-keys` carry empty values, which you can fill in with `environment save`.
 
 For a supported client, open **Project MCP** under **Client connections** and select the project folder. Add a server using the client's native JSON format or a TOML table body for Codex. The editor shows the file it will update and checks its revision before saving or removing an entry. The client loads and runs the server when it opens the project.
 
