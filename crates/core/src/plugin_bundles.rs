@@ -19,11 +19,13 @@ use std::{
 const CLAUDE: &str = ".claude-plugin/plugin.json";
 const CODEX: &str = ".codex-plugin/plugin.json";
 const ANTIGRAVITY: &str = ".antigravity-plugin/plugin.json";
+const PI: &str = "package.json";
 const MARKET: &str = ".claude-plugin/marketplace.json";
 const MAX_INDEX: usize = 8 * 1024 * 1024;
 const MAX_MANIFEST: usize = 256 * 1024;
 
 mod marketplace;
+mod pi;
 mod resources;
 
 pub enum Edit<'a> {
@@ -96,7 +98,9 @@ fn valid_name(name: &str) -> bool {
 
 fn local_root(source: &str) -> Result<PathBuf> {
     let path = Path::new(source);
-    let root = if path.is_file()
+    let root = if path.is_file() && path.file_name().is_some_and(|name| name == PI) {
+        path.parent().context("Pi package needs a folder")?
+    } else if path.is_file()
         && path
             .file_name()
             .is_some_and(|name| name == "plugin.json" || name == "marketplace.json")
@@ -131,7 +135,7 @@ fn load(source: &str) -> Result<(Bundle, Tree)> {
     let source = source.trim();
     ensure!(!source.is_empty(), "choose a plugin folder or Git URL");
     let (source, tree) = if is_repository_url(source) {
-        load_repository_tree(source, &[CLAUDE, CODEX, ANTIGRAVITY])?
+        load_repository_tree(source, &[CLAUDE, CODEX, ANTIGRAVITY, PI])?
     } else {
         let path = Path::new(source);
         let (path, tree) = if path
@@ -196,10 +200,10 @@ fn inspect(tree: &Tree, source: String) -> Result<Bundle> {
             docs.push((path, doc));
         }
     }
-    let primary = &docs
-        .first()
-        .context("no Claude Code, Codex or Antigravity plugin manifest in the selected folder")?
-        .1;
+    if docs.is_empty() {
+        return pi::inspect(tree, source);
+    }
+    let primary = &docs[0].1;
     let str_field = |field: &str| {
         primary
             .get(field)
@@ -280,27 +284,30 @@ fn inspect(tree: &Tree, source: String) -> Result<Bundle> {
 fn collect(files: &[&Path], kind: &str, root: &Path, entries: &mut BTreeSet<String>) -> bool {
     let mut has_entries = false;
     for &file in files.iter().filter(|file| file.starts_with(root)) {
-        let matches = match kind {
-            "skills" => file.file_name().is_some_and(|name| name == "SKILL.md"),
-            "subagents" | "commands" => {
-                !file
-                    .file_stem()
-                    .is_some_and(|stem| stem.eq_ignore_ascii_case("readme"))
-                    && file.extension().is_some_and(|ext| {
-                        ext.eq_ignore_ascii_case("md")
-                            || kind == "commands" && ext.eq_ignore_ascii_case("toml")
-                    })
-            }
-            _ => file
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("json")),
-        };
-        if matches {
+        if component_file(kind, file) {
             entries.insert(display(file));
             has_entries = true;
         }
     }
     has_entries
+}
+
+fn component_file(kind: &str, file: &Path) -> bool {
+    match kind {
+        "skills" => file.file_name().is_some_and(|name| name == "SKILL.md"),
+        "subagents" | "commands" => {
+            !file
+                .file_stem()
+                .is_some_and(|stem| stem.eq_ignore_ascii_case("readme"))
+                && file.extension().is_some_and(|ext| {
+                    ext.eq_ignore_ascii_case("md")
+                        || kind == "commands" && ext.eq_ignore_ascii_case("toml")
+                })
+        }
+        _ => file
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json")),
+    }
 }
 
 fn check_revision<'a>(

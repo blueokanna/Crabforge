@@ -63,6 +63,11 @@ void main() {
 
     Finder below(Finder parent, Finder child) =>
         find.descendant(of: parent, matching: child);
+    Future<void> settle() => tester.pumpAndSettle(
+      const Duration(milliseconds: 50),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 30),
+    );
 
     Future<void> waitFor(Finder target) async {
       final deadline = DateTime.now().add(const Duration(seconds: 30));
@@ -70,15 +75,15 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(target, findsOneWidget);
-      await tester.pumpAndSettle();
+      await settle();
     }
 
     Future<void> tap(Finder target) async {
       await waitFor(target);
       await tester.ensureVisible(target);
-      await tester.pumpAndSettle();
+      await settle();
       await tester.tap(target);
-      await tester.pumpAndSettle();
+      await settle();
     }
 
     await tap(
@@ -106,7 +111,7 @@ void main() {
     expect(below(page, find.byType(SliverList)), findsOneWidget);
 
     tester.view.physicalSize = const Size(1280, 900);
-    await tester.pumpAndSettle();
+    await settle();
     await tap(below(page, find.byTooltip('Grid view')));
     expect(below(page, find.byType(SliverGrid)), findsOneWidget);
     await tap(below(bundle, find.text('desktop-reviewer')));

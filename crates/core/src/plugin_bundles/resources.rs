@@ -1,4 +1,4 @@
-use super::{ANTIGRAVITY, Bundle, CLAUDE, CODEX, MAX_MANIFEST, Tree, encode};
+use super::{ANTIGRAVITY, Bundle, CLAUDE, CODEX, MAX_MANIFEST, PI, Tree, encode};
 use crate::{agent_files, hooks, project_mcp::library as mcp, skills};
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonSerialize, Value, json};
@@ -41,20 +41,25 @@ fn read(tree: &Tree, path: &str) -> Result<Value> {
     parse(source)
 }
 
+fn check_text(text: &str) -> Result<()> {
+    ensure!(
+        ![
+            "${CLAUDE_PLUGIN_",
+            "${CODEX_PLUGIN_",
+            "${ANTIGRAVITY_PLUGIN_",
+            "${PLUGIN_ROOT}",
+            "${PLUGIN_DATA}"
+        ]
+        .iter()
+        .any(|marker| text.contains(marker)),
+        "this definition depends on the native plugin environment"
+    );
+    Ok(())
+}
+
 fn check_variables(value: &Value) -> Result<()> {
     match value {
-        Value::String(text) => ensure!(
-            ![
-                "${CLAUDE_PLUGIN_",
-                "${CODEX_PLUGIN_",
-                "${ANTIGRAVITY_PLUGIN_",
-                "${PLUGIN_ROOT}",
-                "${PLUGIN_DATA}"
-            ]
-            .iter()
-            .any(|marker| text.contains(marker)),
-            "this definition depends on the native plugin environment"
-        ),
+        Value::String(text) => check_text(text)?,
         Value::Array(list) => list.iter().try_for_each(check_variables)?,
         Value::Object(object) => object.values().try_for_each(check_variables)?,
         _ => {}
@@ -237,9 +242,15 @@ pub(super) fn edit(
                 .context("missing skill directory")?;
             let subtree = tree.subtree(parent);
             let (name, description) = skills::details(&subtree)?;
-            let definition = json!({"name":name,"description":description,"source":path});
+            let raw = tree
+                .text(Path::new(path))?
+                .context("bundle skill is missing")?;
+            let definition = check_text(raw).map(|()| {
+                let end = raw.floor_char_boundary(raw.len().min(48 * 1024));
+                json!({"name":name,"description":description,"source":path,"document":&raw[..end],"truncated":end < raw.len()})
+            });
             skill = Some((folder.join(parent), subtree));
-            vec![Resource::new(path.into(), name, Ok(definition))]
+            vec![Resource::new(path.into(), name, definition)]
         }
         "subagents" | "commands" => {
             let kind = if kind == "subagents" {
@@ -250,12 +261,15 @@ pub(super) fn edit(
             let raw = tree
                 .text(Path::new(path))?
                 .context("bundle document is missing")?;
-            let entry = agent_files::bundle_entry(kind, path, raw)?;
-            let definition = parse(&encode(&entry)?)?;
-            check_variables(&definition)?;
+            let pi = bundle.manifests.iter().any(|manifest| manifest == PI);
+            let entry = agent_files::bundle_entry(kind, path, raw, pi)?;
+            let definition = parse(&encode(&entry)?).and_then(|value| {
+                check_variables(&value)?;
+                Ok(value)
+            });
             let name = entry.name.clone();
             agent_file = Some((kind, entry));
-            vec![Resource::new(path.into(), name, Ok(definition))]
+            vec![Resource::new(path.into(), name, definition)]
         }
         "mcp" | "hooks" => structured_rows(&tree, bundle, kind, path)?,
         _ => anyhow::bail!("unknown plugin resource kind"),

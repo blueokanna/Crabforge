@@ -93,6 +93,7 @@ class _PluginBundlesState extends State<PluginBundles> {
       await api.browsePluginBundleMarketplace(source: source),
     ) as _Json;
     if (!mounted) return null;
+    setState(() => _busy = false);
     final rows = (market['candidates'] as List).cast<_Json>();
     final name = market['name'] as String;
     return showDialog<String>(
@@ -172,11 +173,12 @@ class _PluginBundlesState extends State<PluginBundles> {
           ? await _browse(choice.source)
           : choice.source;
       if (!mounted || source == null) return;
+      setState(() => _busy = true);
       final bundle =
           jsonDecode(await api.previewPluginBundle(source: source)) as _Json;
-      if (!mounted || !await _details(bundle) || !mounted) {
-        return;
-      }
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (!await _details(bundle) || !mounted) return;
       await _refresh(
         () => api.savePluginBundle(
           source: source,
