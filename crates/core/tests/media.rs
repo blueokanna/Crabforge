@@ -410,3 +410,183 @@ async fn dashscope_images_use_native_generation_and_edits_with_group_fallback() 
     server.abort();
     Ok(())
 }
+
+#[tokio::test]
+async fn dashscope_audio_synthesizes_and_transcribes_through_native_endpoints() -> Result<()> {
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    use crabforge_test_support::server::get;
+    const TTS: &str = "qwen-audio-3.0-tts-plus";
+    const ASR: &str = "qwen-audio-3.0-asr-flash";
+    const MP3: &[u8] = b"ID3\x04\0\0\0\0\0\0";
+    const PCM: &[u8] = b"\x34\x12\x78\x56";
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
+    let (paths, mut calls) = tokio::sync::mpsc::unbounded_channel();
+    let app = Router::new()
+        .observe(paths)
+        .route(
+            "/api/v1/services/audio/tts/SpeechSynthesizer",
+            post(move |Incoming { body, headers, .. }: Incoming| async move {
+                assert_eq!(headers["content-type"], "application/json");
+                let value: Value = nextjson::from_slice(&body).unwrap();
+                assert_eq!(value["model"], json!(TTS));
+                let input = &value["input"];
+                assert_eq!(input["text"], json!("示例语音"));
+                let audio = match input["format"].as_str().unwrap() {
+                    "mp3" => {
+                        assert_eq!(input["voice"], json!("longanlingxin"));
+                        assert_eq!(input["instruction"], json!("轻声"));
+                        assert_eq!(input["rate"].as_f64(), Some(2.0));
+                        json!({"url":format!("http://{addr}/sample.mp3?signature=fixture"),"data":""})
+                    }
+                    "pcm" => {
+                        assert_eq!(input["voice"], json!("longanlufeng"));
+                        json!({"data":STANDARD.encode(PCM)})
+                    }
+                    "wav" => json!({"data":"invalid!"}),
+                    other => panic!("unexpected format {other}"),
+                };
+                ([("request-id", "dashscope-audio")], Json(json!({"output":{"audio":audio}})))
+            }),
+        )
+        .route("/sample.mp3", get(|Incoming { headers, uri, .. }: Incoming| async move {
+            assert!(!headers.contains_key("authorization"));
+            assert_eq!(uri.query(), Some("signature=fixture"));
+            MP3
+        }))
+        .route("/v1/audio/speech", post(|Incoming { body, .. }: Incoming| async move {
+            let value: Value = nextjson::from_slice(&body).unwrap();
+            assert_eq!(value["model"], json!(TTS));
+            ([("content-type", "audio/wav")], "relay fallback")
+        }))
+        .route(
+            "/api/v1/services/aigc/multimodal-generation/generation",
+            post(|Incoming { body, headers, .. }: Incoming| async move {
+                assert_eq!(headers["content-type"], "application/json");
+                let value: Value = nextjson::from_slice(&body).unwrap();
+                assert_eq!(value["model"], json!(ASR));
+                assert_eq!(value.pointer("/parameters/format"), Some(&json!("mp3")));
+                assert_eq!(value.pointer("/parameters/language_hints"), Some(&json!(["zh"])));
+                assert_eq!(value.pointer("/input/messages/0/content/0/input_audio/data"),
+                    Some(&json!(format!("data:audio/mpeg;base64,{}", STANDARD.encode(MP3)))));
+                Json(json!({"output":{"choices":[{"message":{"content":[{"text":"识别"},{"text":"成功"}]}}]},"usage":{"duration":1.25}}))
+            }),
+        );
+    let server = tokio::spawn(crabforge_test_support::server::serve(listener, app));
+    let dir = tempfile::tempdir()?;
+    let config = json!({"listen":"127.0.0.1:0","providers":[
+        {"id":"qwen","models":[TTS,ASR],"endpoints":{"chat":format!("http://{addr}/compatible-mode/v1")}},
+        {"id":"relay","models":[TTS],"endpoints":{"chat":format!("http://{addr}/v1")}}
+    ],"groups":{"speech":[format!("qwen/{TTS}"),format!("relay/{TTS}")]}});
+    config::save(
+        dir.path(),
+        &config::snapshot(dir.path())?,
+        &config.to_string(),
+    )?;
+    let service = Service::start(dir.path()).await?;
+    let key = config::token(dir.path())?;
+    let root = format!("http://{}/v1/audio", service.addr);
+    let client = crabforge_test_support::Client::default();
+    let send = |model: &str, format: &str, voice: &str, stream: &str| {
+        client.post(format!("{root}/speech")).bearer_auth(&key).body(json!({
+            "model":model,"input":"示例语音","voice":voice,"instructions":"轻声","response_format":format,"speed":3,"stream_format":stream
+        }).to_string()).send()
+    };
+    let model = format!("qwen/{TTS}");
+    let mp3 = send(&model, "", "alloy", "audio")
+        .await?
+        .error_for_status()?;
+    assert_eq!(mp3.headers()["content-type"], "audio/mpeg");
+    assert_eq!(mp3.headers()["request-id"], "dashscope-audio");
+    assert_eq!(mp3.bytes().await?.as_ref(), MP3);
+    assert_eq!(
+        calls.try_recv()?,
+        "/api/v1/services/audio/tts/SpeechSynthesizer"
+    );
+    assert_eq!(calls.try_recv()?, "/sample.mp3");
+    let pcm = send(&model, "pcm", "longanlufeng", "")
+        .await?
+        .error_for_status()?;
+    assert_eq!(pcm.headers()["content-type"], "audio/pcm");
+    assert_eq!(pcm.bytes().await?.as_ref(), PCM);
+    assert_eq!(
+        calls.try_recv()?,
+        "/api/v1/services/audio/tts/SpeechSynthesizer"
+    );
+    let fallback = send("group/speech", "wav", "", "")
+        .await?
+        .error_for_status()?;
+    assert_eq!(fallback.text().await?, "relay fallback");
+    assert_eq!(
+        calls.try_recv()?,
+        "/api/v1/services/audio/tts/SpeechSynthesizer"
+    );
+    assert_eq!(calls.try_recv()?, "/v1/audio/speech");
+    for (format, stream) in [("flac", ""), ("mp3", "sse")] {
+        assert_eq!(send(&model, format, "", stream).await?.status(), 400);
+    }
+    for (path, format) in [
+        ("transcriptions", "json"),
+        ("transcriptions", "text"),
+        ("transcriptions", "verbose_json"),
+        ("transcriptions", "srt"),
+        ("translations", "json"),
+    ] {
+        let url = format!("{root}/{path}");
+        let auth = format!("Bearer {key}");
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            use courierust::{
+                courierust_body::Body,
+                courierust_http::{header::HeaderValue, request::Request},
+            };
+            let form = Multipart::new()?
+                .text("model", format!("qwen/{ASR}"))
+                .text("language", "zh")
+                .text("response_format", format)
+                .text("prompt", "术语提示")
+                .file("file", "speech.MP3", None, MP3);
+            let mut request = Request::post("/").with_body(Body::from(form.encode()?));
+            request.headers.insert(
+                "content-type".into(),
+                HeaderValue::from_bytes(form.content_type().as_bytes())?,
+            );
+            request.headers.insert(
+                "authorization".into(),
+                HeaderValue::from_bytes(auth.as_bytes())?,
+            );
+            let response = Client::new().execute(&url, request)?;
+            let rejected = path == "translations" || format == "srt";
+            assert_eq!(response.status.as_u16(), if rejected { 400 } else { 200 });
+            if !rejected {
+                let body = response.body.as_bytes().unwrap();
+                match format {
+                    "text" => assert_eq!(body, "识别成功".as_bytes()),
+                    "verbose_json" => {
+                        let value: Value = nextjson::from_slice(body).unwrap();
+                        assert_eq!(value["text"], json!("识别成功"));
+                        assert_eq!(value["task"], json!("transcribe"));
+                        assert_eq!(value["language"], json!("zh"));
+                        assert_eq!(value["duration"], json!(1.25));
+                    }
+                    _ => assert_eq!(
+                        nextjson::from_slice::<Value>(body).unwrap(),
+                        json!({"text":"识别成功"})
+                    ),
+                }
+            }
+            Ok(())
+        })
+        .await??;
+        if path == "transcriptions" && format != "srt" {
+            assert_eq!(
+                calls.try_recv()?,
+                "/api/v1/services/aigc/multimodal-generation/generation"
+            );
+        }
+    }
+    assert!(calls.try_recv().is_err());
+    service.stop().await;
+    server.abort();
+    Ok(())
+}

@@ -86,6 +86,25 @@ impl Speech {
     }
 }
 
+pub(super) fn openai_voice(requested: &str) -> Option<&'static str> {
+    Some(match requested {
+        "alloy" => "Kore",
+        "ash" => "Charon",
+        "ballad" => "Algieba",
+        "coral" => "Sulafat",
+        "echo" => "Iapetus",
+        "fable" => "Puck",
+        "onyx" => "Algenib",
+        "nova" => "Zephyr",
+        "sage" => "Vindemiatrix",
+        "shimmer" => "Achernar",
+        "verse" => "Rasalgethi",
+        "marin" => "Aoede",
+        "cedar" => "Schedar",
+        _ => return None,
+    })
+}
+
 fn voice(requested: &str) -> &'static str {
     const VOICES: &[&str] = &[
         "Zephyr",
@@ -119,26 +138,14 @@ fn voice(requested: &str) -> &'static str {
         "Sadaltager",
         "Sulafat",
     ];
-    match requested.trim().to_ascii_lowercase().as_str() {
-        "alloy" => "Kore",
-        "ash" => "Charon",
-        "ballad" => "Algieba",
-        "coral" => "Sulafat",
-        "echo" => "Iapetus",
-        "fable" => "Puck",
-        "onyx" => "Algenib",
-        "nova" => "Zephyr",
-        "sage" => "Vindemiatrix",
-        "shimmer" => "Achernar",
-        "verse" => "Rasalgethi",
-        "marin" => "Aoede",
-        "cedar" => "Schedar",
-        _ => VOICES
-            .iter()
-            .copied()
-            .find(|voice| voice.eq_ignore_ascii_case(requested.trim()))
-            .unwrap_or("Kore"),
-    }
+    openai_voice(&requested.trim().to_ascii_lowercase())
+        .or_else(|| {
+            VOICES
+                .iter()
+                .copied()
+                .find(|voice| voice.eq_ignore_ascii_case(requested.trim()))
+        })
+        .unwrap_or("Kore")
 }
 
 impl AudioFormat {

@@ -442,6 +442,12 @@ Windows Debug 通过 161 项 Rust 测试和全目标 Clippy，33 项忽略。回
 
 Windows Debug passed 161 Rust tests and all-target Clippy, with 33 tests ignored. The loopback fixture verified that both CLIs selected the native DashScope path from an Anthropic-compatible base, sent Bearer authentication, returned the generated URL, and converted a multipart file to native input. The `b64_json` PNG matched the fixture bytes. The download carried no provider credential. Rust coverage also included a Chat-compatible base, image order, mask rejection, download origin and redirect checks, and group fallback when the upstream returned no image. Live DashScope acceptance requires provider credentials. [Media regression](../../../crates/core/tests/media.rs)
 
+### DashScope 语音合成与转写 / DashScope speech synthesis and transcription
+
+Windows Debug 通过 162 项 Rust 测试和全目标 Clippy，33 项忽略。两个 CLI 通过回环验证默认音色、朗读指令、语速下限、MP3 下载字节和 multipart WAV 转写，并核对 `verbose_json` 的语言、时长和正文。Rust 回归还覆盖语速上限、内联 PCM、畸形 Base64 触发组回退、普通 JSON 和纯文本转写，以及 SSE、FLAC、SRT 和翻译请求的 400 响应。实际语音模型验收需要 DashScope 凭据。 [媒体回归](../../../crates/core/tests/media.rs)
+
+Windows Debug passed 162 Rust tests and all-target Clippy, with 33 tests ignored. Both CLIs verified the default voice, speech instructions, lower rate bound, downloaded MP3 bytes, and multipart WAV transcription on loopback. The `verbose_json` response preserved the language hint, duration, and text. Rust coverage also included the upper rate bound, inline PCM, group fallback after malformed Base64, JSON and plain text transcripts, and HTTP 400 for SSE, FLAC, SRT, and translation requests. Live speech model acceptance requires DashScope credentials. [Media regression](../../../crates/core/tests/media.rs)
+
 ### 推理设置之前的下载验收 / Download acceptance before reasoning controls
 
 提交 `76db05fd973171dce234a1152927ececb2f245fa` 的 Windows Run `46031034848` 通过 153 项 Rust 测试，33 项忽略。ZIP 为 66,957,505 字节，SHA-256 为 `79074f67d989ddb5f18056bbe12607b176b66316f56685ba5483d6b96e0680fc`。676 项逐文件清单的 SHA-256 为 `228ee3af7d4d47fc7d7e82d772b1893eb84e7d690a4b2e8d92b9b451815fe710`。六个 PE 均为 `NotSigned`。Release 桌面正常启动及退出，双 CLI 通过路由、重试、分类恢复、SSE 保活和原版备份导入，Pi、Gemini、Grok 和 Oh My Pi 各通过 12 轮。验后经代理核对远端 `main` 匹配完整构建 SHA，再推送后继。 [Job 140614575279](https://github.com/blueokanna/Crabforge/actions/runs/46031034848/job/140614575279) · [Artifact 15216770297](https://github.com/blueokanna/Crabforge/actions/runs/46031034848/artifacts/15216770297)

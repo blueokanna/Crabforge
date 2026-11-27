@@ -36,7 +36,7 @@ mod routing;
 mod session;
 
 use crate::config::{Config, Provider};
-use crate::media::{dashscope, speech};
+use crate::media::{self, dashscope, speech};
 use crate::translate::{self, Format};
 use crate::webchat::{Site, WebPrompt};
 use round::Round;
@@ -379,14 +379,10 @@ impl<'a> Api<'a> {
             return matches!(self, Self::Chat("chat/completions"))
                 .then_some(Destination::Browser(site));
         }
-        if matches!(self, Self::Chat("images/generations" | "images/edits"))
-            && let Some(url) = dashscope::image_endpoint(p, model)
+        if let Self::Chat(path) = self
+            && let Some((url, native)) = dashscope::destination(p, model, path)
         {
-            return Some(Destination::Upstream(
-                url,
-                Self::Chat(dashscope::IMAGE_PATH),
-                None,
-            ));
+            return Some(Destination::Upstream(url, Self::Chat(native), None));
         }
         if matches!(self, Self::Chat("audio/speech"))
             && speech::gemini_model(model)
@@ -980,28 +976,45 @@ async fn forward(
         } else {
             None
         };
-        let speech = if matches!((api, native), (Api::Chat("audio/speech"), Api::Gemini(_))) {
-            match speech::Speech::gemini(&bytes) {
-                Ok(speech) => Some(speech),
-                Err(_) if candidates.advance().await => continue,
-                Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
-            }
-        } else {
-            None
-        };
-        let image = if matches!(native, Api::Chat(dashscope::IMAGE_PATH)) {
-            match dashscope::ImageRequest::read(
+        let media = match (api, native) {
+            (Api::Chat("audio/speech"), Api::Gemini(_)) => speech::Speech::gemini(&bytes)
+                .map(|speech| Some((speech.body, media::Reply::GeminiSpeech(speech.format)))),
+            (
+                Api::Chat(path @ ("images/generations" | "images/edits")),
+                Api::Chat(dashscope::MULTIMODAL),
+            ) => dashscope::ImageRequest::read(
                 model,
                 &bytes,
                 upload.as_ref(),
-                matches!(api, Api::Chat("images/edits")),
-            ) {
-                Ok(image) => Some(image),
-                Err(_) if candidates.advance().await => continue,
-                Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
+                path == "images/edits",
+            )
+            .map(|image| {
+                Some((
+                    image.body,
+                    media::Reply::DashScopeImage {
+                        inline: image.inline,
+                    },
+                ))
+            }),
+            (Api::Chat("audio/speech"), Api::Chat(dashscope::SPEECH)) => {
+                dashscope::audio::speech(model, &bytes)
+                    .map(|(body, format)| Some((body, media::Reply::DashScopeAudio(format))))
             }
-        } else {
-            None
+            (
+                Api::Chat(path @ ("audio/transcriptions" | "audio/translations")),
+                Api::Chat(dashscope::MULTIMODAL),
+            ) => dashscope::audio::transcription(
+                model,
+                upload.as_ref(),
+                path == "audio/translations",
+            )
+            .map(|(body, format)| Some((body, media::Reply::DashScopeAudio(format)))),
+            _ => Ok(None),
+        };
+        let (media_body, media_reply) = match media {
+            Ok(media) => media.unzip(),
+            Err(_) if candidates.advance().await => continue,
+            Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
         };
         let rewritten = candidate
             .effort
@@ -1042,7 +1055,7 @@ async fn forward(
                 .or(caller.session);
             request = crate::opencode::conversation(request, seed, &bytes, &gw.token);
         }
-        if upload.is_none() || image.is_some() {
+        if upload.is_none() || media_body.is_some() {
             request = request.header(header::CONTENT_TYPE, "application/json");
         }
         for h in [
@@ -1052,8 +1065,7 @@ async fn forward(
             "openai-beta",
         ] {
             if translation.is_none()
-                && speech.is_none()
-                && image.is_none()
+                && media_body.is_none()
                 && ollama.is_none()
                 && let Some(value) = headers.get(h)
             {
@@ -1101,12 +1113,10 @@ async fn forward(
             }
         }
         let stream = converted.as_ref().is_some_and(|body| body.stream);
-        let speech_format = speech.as_ref().map(|speech| speech.format);
-        let image_inline = image.as_ref().map(|image| image.inline);
         let parts = if let Some(body) = vertex_body {
             vec![body.into()]
-        } else if let Some(image) = image {
-            vec![image.body]
+        } else if let Some(body) = media_body {
+            vec![body]
         } else if let Some(upload) = &upload {
             request = request.header(header::CONTENT_TYPE, &upload.content_type);
             match upload.body(model) {
@@ -1115,8 +1125,6 @@ async fn forward(
             }
         } else if let Some(converted) = converted {
             vec![converted.body.into()]
-        } else if let Some(speech) = speech {
-            vec![speech.body]
         } else if let Some(rewritten) = rewritten {
             vec![rewritten]
         } else {
@@ -1199,14 +1207,10 @@ async fn forward(
             && status.is_success()
         {
             translate::convert_reply(upstream, from, to, &asked, stream, permit.clone()).await
-        } else if let Some(format) = speech_format
+        } else if let Some(reply) = media_reply
             && status.is_success()
         {
-            format.reply(upstream).await
-        } else if let Some(inline) = image_inline
-            && status.is_success()
-        {
-            dashscope::image_reply(upstream, inline, &url, &gw.client).await
+            reply.convert(upstream, &url, &gw.client).await
         } else {
             Ok(upstream_response(upstream, permit.clone()))
         };

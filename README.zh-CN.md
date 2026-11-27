@@ -45,6 +45,8 @@ OpenAI Chat Completions、Responses 和 Anthropic Messages 的 SSE 响应开启�
 
 使用 DashScope 的 Qwen-Image 或 Wan 2.7 图像模型时，向 `POST /v1/images/generations` 或 `POST /v1/images/edits` 发送 `model` 和 `prompt`。编辑接口还接受图片 URL、Base64 数据 URL，以及 `image` 或 `image[]` 字段中的 multipart 文件。`size` 使用 `宽x高`，省略时采用模型默认尺寸。将 `watermark` 设为 `true` 可请求水印。在提示词中描述要修改的区域。默认返回 DashScope 的图片 URL。将 `response_format` 设为 `b64_json` 可获取图片字节，网关从阿里云 OSS 公网 URL 下载，合计上限为 16 MiB。 [Qwen-Image API](https://www.alibabacloud.com/help/en/model-studio/qwen-image-api) · [Qwen-Image 编辑 API](https://www.alibabacloud.com/help/en/model-studio/qwen-image-edit-api)
 
+DashScope `qwen-audio` TTS 模型通过 `/v1/audio/speech` 默认返回完整 MP3。可将 `response_format` 设为 `wav`、`pcm` 或 `opus`。`voice` 可填写模型专用音色，填写 OpenAI 音色名时使用 DashScope 模型的默认音色。用 `instructions` 描述朗读方式，`speed` 限在 0.5–2 倍。使用 `qwen-audio` ASR 模型时，向 `/v1/audio/transcriptions` 发送包含 `model` 和 `file` 的 multipart 请求。可用 `language` 提示识别语言，并选择 `json`、`text` 或 `verbose_json`。原生转写路径忽略 OpenAI 的 `prompt` 字段。 [Qwen-Audio 语音合成](https://help.aliyun.com/zh/model-studio/qwen-audio-tts-http-api) · [Qwen-Audio 语音识别](https://help.aliyun.com/zh/model-studio/qwen-audio-asr-http-api)
+
 在路由组 JSON 的 `classifier` 同级加入 `"effort":"auto"`，由分类器为已请求推理的请求评估等级。网关可在一次调用中判定意图与等级，并在同一命名会话的工具续轮中复用结果、传给嵌套组。命中规则的 `useEffort` 优先。路由组分享和加密备份均保留该设置。
 
 配置 `intent` 规则时，在同一编辑器或 CLI 命令中传入 JSON 对象。`classifier` 和 `classifierMore` 接受已配置的模型和路由组 ID，`classifyPrompt` 可选。

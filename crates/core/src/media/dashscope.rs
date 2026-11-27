@@ -10,14 +10,33 @@ use nextjson::{Value, json};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use url::{Host, Url};
 
-pub(crate) const IMAGE_PATH: &str = "api/v1/services/aigc/multimodal-generation/generation";
-const MAX_IMAGES: usize = 4;
+pub(crate) mod audio;
 
-pub(crate) fn image_endpoint(provider: &Provider, model: &str) -> Option<Url> {
+pub(crate) const MULTIMODAL: &str = "api/v1/services/aigc/multimodal-generation/generation";
+pub(crate) const SPEECH: &str = "api/v1/services/audio/tts/SpeechSynthesizer";
+const MAX_IMAGES: usize = 4;
+const MAX_ASSET_BYTES: usize = 16 * 1024 * 1024;
+
+pub(crate) fn destination(
+    provider: &Provider,
+    model: &str,
+    path: &str,
+) -> Option<(Url, &'static str)> {
     let model = model.to_ascii_lowercase();
-    if !(model.starts_with("qwen-image") || model.starts_with("wan2.7-image")) {
-        return None;
-    }
+    let native = match path {
+        "images/generations" | "images/edits"
+            if model.starts_with("qwen-image") || model.starts_with("wan2.7-image") =>
+        {
+            MULTIMODAL
+        }
+        "audio/speech" if model.starts_with("qwen-audio") && model.contains("-tts") => SPEECH,
+        "audio/transcriptions" | "audio/translations"
+            if model.starts_with("qwen-audio") && model.contains("-asr") =>
+        {
+            MULTIMODAL
+        }
+        _ => return None,
+    };
     let mut url = [&provider.endpoints.chat, &provider.endpoints.anthropic]
         .into_iter()
         .filter_map(|base| crate::config::endpoint(base).ok())
@@ -39,8 +58,8 @@ pub(crate) fn image_endpoint(provider: &Provider, model: &str) -> Option<Url> {
                         "/compatible-mode/v1" | "/apps/anthropic"
                     ))
         })?;
-    url.set_path(IMAGE_PATH);
-    Some(url)
+    url.set_path(native);
+    Some((url, native))
 }
 
 pub(crate) struct ImageRequest {
@@ -62,7 +81,7 @@ impl ImageRequest {
                 let name = field.name.as_str();
                 match name {
                     "image" | "image[]" | "images" => {
-                        let part = if field.file
+                        let part = if field.filename.is_some()
                             || field
                                 .mime
                                 .as_deref()
@@ -78,7 +97,7 @@ impl ImageRequest {
                     }
                     "mask" | "markup" => bail!("DashScope image edits accept no {name}"),
                     _ => {
-                        ensure!(!field.file, "unexpected file field {name}");
+                        ensure!(field.filename.is_none(), "unexpected file field {name}");
                         let value = std::str::from_utf8(&field.value)?.trim();
                         let value = match name {
                             "n" => json!(value.parse::<u64>().context("invalid image count")?),
@@ -204,12 +223,12 @@ fn image_source(raw: &str) -> Result<&str> {
             "invalid data URL image type"
         );
     } else {
-        image_url(raw).context("invalid image URL")?;
+        asset_url(raw).context("invalid image URL")?;
     }
     Ok(raw)
 }
 
-fn image_url(raw: &str) -> Option<Url> {
+fn asset_url(raw: &str) -> Option<Url> {
     let url = Url::parse(raw).ok()?;
     (matches!(url.scheme(), "http" | "https")
         && url.has_host()
@@ -244,13 +263,9 @@ fn loopback(url: &Url) -> bool {
     }
 }
 
-fn can_download(url: &Url, upstream: &Url) -> bool {
-    if loopback(upstream) && url.origin() == upstream.origin() {
-        return true;
-    }
+fn public_oss(url: &Url) -> bool {
     // Signed DashScope image URLs use public Alibaba Cloud OSS bucket hosts.
-    url.scheme() == "https"
-        && url.port().is_none()
+    url.port().is_none()
         && url
             .host_str()
             .and_then(|host| host.strip_suffix(".aliyuncs.com"))
@@ -282,7 +297,7 @@ pub(crate) async fn image_reply(
         if let Some(content) = choice.pointer("/message/content").and_then(Value::as_array) {
             for part in content {
                 if let Some(raw) = part.get("image").and_then(Value::as_str) {
-                    let url = image_url(raw).context("DashScope returned an invalid image URL")?;
+                    let url = asset_url(raw).context("DashScope returned an invalid image URL")?;
                     ensure!(
                         links.len() < MAX_IMAGES,
                         "DashScope returned too many images"
@@ -293,45 +308,15 @@ pub(crate) async fn image_reply(
         }
     }
     ensure!(!links.is_empty(), "DashScope returned no images");
-    let mut remaining = 16 * 1024 * 1024;
+    let mut remaining = MAX_ASSET_BYTES;
     let mut data = Vec::with_capacity(links.len());
     for (raw, url) in links {
         let image = if inline {
+            let image = download(client, source, &url, remaining).await?;
             ensure!(
-                can_download(&url, source),
-                "DashScope image download requires a public Alibaba Cloud OSS URL"
+                image_type(&image).is_some(),
+                "downloaded DashScope result is not an image"
             );
-            let download = async {
-                // Use a new request without credentials. The forwarding client disables redirects.
-                let response = client
-                    .send(
-                        Request::get(url.as_str())
-                            .header(header::CONTENT_LENGTH, 0)
-                            .body(Vec::new())?,
-                    )
-                    .await
-                    .map_err(|_| anyhow::anyhow!("DashScope image download failed"))?;
-                ensure!(
-                    response.status().is_success(),
-                    "DashScope image download returned HTTP {}",
-                    response.status().as_u16()
-                );
-                let image = Limited::new(response.into_body(), remaining)
-                    .collect()
-                    .await
-                    .map_err(|_| {
-                        anyhow::anyhow!("could not read image within the 16 MiB response limit")
-                    })?
-                    .to_bytes();
-                ensure!(
-                    image_type(&image).is_some(),
-                    "downloaded DashScope result is not an image"
-                );
-                Ok::<_, anyhow::Error>(image)
-            };
-            let image = tokio::time::timeout(Duration::from_secs(60), download)
-                .await
-                .context("DashScope image download timed out")??;
             remaining -= image.len();
             json!({"b64_json":STANDARD.encode(image)})
         } else {
@@ -351,4 +336,44 @@ pub(crate) async fn image_reply(
         }
     }
     Ok(response)
+}
+
+async fn download(client: &ForwardClient, source: &Url, url: &Url, limit: usize) -> Result<Bytes> {
+    let mut url = url.clone();
+    if public_oss(&url) {
+        // DashScope sometimes returns an HTTP signed URL. OSS also serves it over TLS.
+        url.set_scheme("https")
+            .map_err(|()| anyhow::anyhow!("invalid DashScope OSS URL"))?;
+    } else {
+        ensure!(
+            loopback(source) && url.origin() == source.origin(),
+            "DashScope result download requires a public Alibaba Cloud OSS URL"
+        );
+    }
+    let download = async {
+        // Use a new request without credentials. The forwarding client disables redirects.
+        let response = client
+            .send(
+                Request::get(url.as_str())
+                    .header(header::CONTENT_LENGTH, 0)
+                    .body(Vec::new())?,
+            )
+            .await
+            .map_err(|_| anyhow::anyhow!("DashScope result download failed"))?;
+        ensure!(
+            response.status().is_success(),
+            "DashScope result download returned HTTP {}",
+            response.status().as_u16()
+        );
+        Ok(Limited::new(response.into_body(), limit)
+            .collect()
+            .await
+            .map_err(|_| {
+                anyhow::anyhow!("could not read DashScope result within the 16 MiB response limit")
+            })?
+            .to_bytes())
+    };
+    tokio::time::timeout(Duration::from_secs(60), download)
+        .await
+        .context("DashScope result download timed out")?
 }
