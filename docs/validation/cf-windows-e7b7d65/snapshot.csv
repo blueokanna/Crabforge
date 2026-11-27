@@ -1,0 +1,10 @@
+Field,Value
+Release revision,e7b7d659ce2f2440bcca2db8c82910cbfe559526
+Archive,crabforge-0.1.0-windows-x64.zip
+Bytes,65087619
+SHA-256,D9B49F8EBC6D34A6D95D83CEC1586B83D6A6A3D38C330C551E75AE6A3C24340B
+Build inputs,362
+Hashed package files,671
+Default Rust tests passed,125
+Ignored Rust tests,33
+Dependency trees,28

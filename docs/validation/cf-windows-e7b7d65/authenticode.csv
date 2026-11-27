@@ -1,0 +1,4 @@
+"Entry","Authenticode"
+"desktop/crabforge.exe","NotSigned"
+"carbforge-cli.exe","NotSigned"
+"crabforge-cli.exe","NotSigned"

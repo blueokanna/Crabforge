@@ -1,0 +1,3 @@
+Snapshot,Client,Version,Format,Exit,Upstream requests,Fixture reply,Seconds
+cf-windows-688ea1a,MiMo Code,0.1.17,json,0,2,True,9.78
+cf-windows-e7b7d65,MiMo Code,0.1.17,json,0,2,True,12.908

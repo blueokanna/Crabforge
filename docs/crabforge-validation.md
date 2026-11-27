@@ -40,9 +40,23 @@ Windows Release 的 Rust 运行器在 `688ea1a` 注册了 Flutter 文件选择�
 
 Rust 依赖审计覆盖 Windows x64 与 Cargo 全目标的常规、构建及测试依赖。`Cargo.lock` 中还有可选的 `hyper`、`hyper-util`、`serde`、`serde_core` 和 `serde_derive` 记录，当前启用的依赖树均未使用这些包。
 
-Pi 项目包通过 CLI 和九语桌面支持整包分配、同步、撤销及携带。Pi 1.6.0 发现了夹具的技能和主题，展开提示模板参数，并执行快照中的 `session_start` 扩展。四轮均收到本机模型响应。显式同步前项目继续使用 1.0.0，同步后切换到 2.0.0，撤销后原有项目设置逐字节恢复。CLI 将分配携带到独立项目及 Crabforge 配置，拒绝缺失的快照，导入匹配的 TAR 后应用同一份 JSON，并撤销目标的所有权。[Pi 原生往返](validation/shared-plugin-library/pi-project-native.csv)
+Claude Code、Codex 和 Antigravity 的整包项目分配及携带待实现。隔离配置下，Claude Code 2.1.332 用原生 `local` 作用域登记市场并安装包，随后在本机模型回合执行了包内钩子。Codex 0.172.0 在用户配置中安装包，仅在打开了项目启用项的受信任项目内报告已启用。Antigravity 1.5.18 在隔离用户配置中验证、安装、列出并卸载了含一项技能的包。[原生客户端试验](validation/shared-plugin-library/native-project-probes.csv)
 
-Claude Code、Codex 和 Antigravity 的整包项目分配及携带待实现。各资源库与 Claude Code 原生插件入口分别记录其配置位置和所有权。
+### Windows x64 Pi 项目包（`e7b7d65`）
+
+从 `e7b7d659ce2f2440bcca2db8c82910cbfe559526` 离线构建的 Windows x64 ZIP 为 65,087,619 字节，SHA-256 为 `D9B49F8EBC6D34A6D95D83CEC1586B83D6A6A3D38C330C551E75AE6A3C24340B`。核对了 362 项构建输入、671 个包内及解压文件哈希、126 项资产和两个 CLI 各 97 项相同预设。三个入口的 Authenticode 状态均为 `NotSigned`。全目标 Clippy、Flutter 分析、两项组件测试及 28 棵启用依赖树审计均通过。[发布信息](validation/cf-windows-e7b7d65/snapshot.csv) · [构建输入](validation/cf-windows-e7b7d65/build-inputs.sha256) · [包文件清单](validation/cf-windows-e7b7d65/SHA256SUMS) · [签名检查](validation/cf-windows-e7b7d65/authenticode.csv) · [依赖审计](validation/cf-windows-e7b7d65/dependency-audit.csv)
+
+解压后的 CLI 与 Pi 1.6.0 完成项目包分配、同步、撤销和跨项目携带。原生客户端发现夹具的技能和主题、展开提示模板参数，并运行快照中的 `session_start` 扩展。五轮均收到本机模型响应。库保存 2.0.0 后，原项目仍能使用和归档固定的 1.0.0 快照。显式同步才切换到 2.0.0，撤销后原项目设置逐字节恢复。独立 Crabforge 配置在缺少快照时拒绝应用，导入匹配的 TAR 后应用 JSON、运行 2.0.0 并撤销本地分配。[Pi 原生往返](validation/cf-windows-e7b7d65/pi-project-native.csv)
+
+Windows Debug 集成在 560 和 1,280 像素的列表和网格布局下通过。解压版 Release 通过 Windows 原生对话框保存分配 JSON 和固定快照的 TAR，在第二个项目中打开并确认 JSON，随后撤销分配。125 项默认 Rust 测试通过，Cargo 默认跳过的用例有 33 项。工作区扫描 72,686 个目录，发现 0 个 `vendor` 目录和 0 个遍历错误。包中含 311 个 Rust 许可目录，九个 ARB 文件共享 331 个消息键，五个锁定依赖版本均一致。[Debug 集成](validation/cf-windows-e7b7d65/plugin-bundles-windows.log) · [Release 原生对话框](validation/cf-windows-e7b7d65/pi-project-dialogs.csv) · [默认 Rust 测试](validation/cf-windows-e7b7d65/workspace-tests.log) · [源码和许可检查](validation/cf-windows-e7b7d65/source-checks.csv)
+
+冻结源码的 33 项默认跳过用例逐项通过，覆盖 MiMo Code、Oh My Pi 原生线协议、真实本地模型、官方 Ollama 客户端、浏览器夹具，以及 Kubo 和 Magpie 互通。较早的合并客户端回归记录一次 MiMo Code 失败，随后在 Oh My Pi 协议用例中达到整轮超时。MiMo Code 首次隔离重试也超时。用两个解压 CLI 实测 MiMo Code 0.1.17，各有两次请求到达本机上游。`e7b7d65` 的格式化输出未显示夹具响应，JSON 事件模式下两版均返回夹具响应。[逐项回归](validation/cf-windows-e7b7d65/ignored-tests.log) · [初次客户端回归](validation/cf-windows-e7b7d65/client-regression-initial.log) · [MiMo Code 首次重试](validation/cf-windows-e7b7d65/mimocode-isolated-initial.log) · [格式化输出](validation/cf-windows-e7b7d65/mimocode-release.csv) · [JSON 事件](validation/cf-windows-e7b7d65/mimocode-release-json.csv)
+
+SSE 夹具把末事件延后 700 ms，三轮首个完整事件分别在 8、16 和 3 ms 到达，末事件分别在 716、727 和 717 ms 到达。每轮上游收到一次请求，代理收到零次 CONNECT。同一主机上的 IPv6 回环、网卡全局 IPv6 QUIC 直连和直连失败后的 Kubo Circuit Relay v2 回退均通过无效密钥 401 和有效密钥 200 检查。[SSE 样本](validation/cf-windows-e7b7d65/forward-h1.csv) · [IPv6 与回退](validation/cf-windows-e7b7d65/ipv6.csv)
+
+三轮桌面采样的工作集与私有字节中位数为解压版 Crabforge 134.71 / 194.85 MiB，Magpie 主进程 78.11 / 94.96 MiB，Magpie 及七个 WebView2 子进程合计 427.60 / 382.32 MiB。Windows Graphics Capture 在 24 次页面切换中记录了 337 次局部画面变化，点击到首个变化为 19.445–52.986 ms，中位数为 31.861 ms。[桌面内存](validation/cf-windows-e7b7d65/desktop-comparison.csv) · [窗口采样](validation/cf-windows-e7b7d65/window-capture-frames.csv)
+
+空目录负载下，Crabforge 与 Magpie 网关的工作集和私有字节中位数分别为 8.11 / 1.59 MiB 和 57.77 / 91.59 MiB。两者使用同一个本机 Chat 夹具时分别为 9.47 / 2.04 MiB 和 68.30 / 97.66 MiB，Chat 目录分别列出两项和一项。[空目录](validation/cf-windows-e7b7d65/gateway-catalog-memory.csv) · [Chat](validation/cf-windows-e7b7d65/gateway-chat-memory.csv)
 
 ### Windows x64 共享插件库（`688ea1a`）
 

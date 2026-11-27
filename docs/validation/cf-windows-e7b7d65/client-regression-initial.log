@@ -1,0 +1,47 @@
+Compiling crabforge-core v0.1.0 (D:\RustProject\Crabforge\crates\core)
+   Compiling crabforge-cli v0.1.0 (D:\RustProject\Crabforge\crates\cli)
+   Compiling crabforge-bridge v0.1.0 (D:\RustProject\Crabforge\crates\bridge)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 18s
+     Running unittests src\lib.rs (target\skill-profiles\debug\deps\crabforge_bridge-1934399a4520f1be.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\skill-profiles\debug\deps\crabforge_cli-ba2f2d413e721787.exe)
+
+running 1 test
+test agent::pi::tests::personal_api_keeps_its_url_and_compat_until_removed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src\bin\carbforge-cli.rs (target\skill-profiles\debug\deps\carbforge_cli-4be388a6d83ab15f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\skill-profiles\debug\deps\crabforge_cli-94ae401f267e5044.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\agents.rs (target\skill-profiles\debug\deps\agents-81cd3d75974b57a6.exe)
+
+running 28 tests
+test claude_receives_text_through_the_gateway ... ok
+test codex_exec_receives_assistant_text_through_the_gateway ... ok
+test copilot_uses_the_gateway_in_offline_mode ... ok
+test crush_receives_text_through_the_gateway ... ok
+test deveco_loads_the_selected_model_and_authenticated_agent_endpoint ... ok
+test every_advertised_agent_root_forwards_and_records_its_own_name ... ok
+test gemini_receives_text_through_the_gateway ... ok
+test goose_receives_text_through_the_gateway ... ok
+test kimi_receives_text_through_the_gateway ... ok
+test mimocode_receives_text_through_the_gateway ... FAILED
+test mu_receives_text_through_the_gateway ... ok
+test nanobot_receives_text_through_the_gateway ... ok
+test omo_receives_text_through_the_gateway ... ok
+test omp_discovers_profiles_and_writes_the_directory_selected_by_native_flags ... ok
+test omp_protocol_picker_changes_the_native_wire_request ...

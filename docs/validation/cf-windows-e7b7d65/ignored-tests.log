@@ -1,0 +1,271 @@
+agents-81cd3d75974b57a6.exe claude_receives_text_through_the_gateway
+
+running 1 test
+test claude_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 2.15s
+
+
+agents-81cd3d75974b57a6.exe codex_exec_receives_assistant_text_through_the_gateway
+
+running 1 test
+test codex_exec_receives_assistant_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 3.67s
+
+
+agents-81cd3d75974b57a6.exe copilot_uses_the_gateway_in_offline_mode
+
+running 1 test
+test copilot_uses_the_gateway_in_offline_mode ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 11.16s
+
+
+agents-81cd3d75974b57a6.exe crush_receives_text_through_the_gateway
+
+running 1 test
+test crush_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 1.64s
+
+
+agents-81cd3d75974b57a6.exe deveco_loads_the_selected_model_and_authenticated_agent_endpoint
+
+running 1 test
+test deveco_loads_the_selected_model_and_authenticated_agent_endpoint ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 3.78s
+
+
+agents-81cd3d75974b57a6.exe gemini_receives_text_through_the_gateway
+
+running 1 test
+test gemini_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 4.90s
+
+
+agents-81cd3d75974b57a6.exe goose_receives_text_through_the_gateway
+
+running 1 test
+test goose_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 1.83s
+
+
+agents-81cd3d75974b57a6.exe kimi_receives_text_through_the_gateway
+
+running 1 test
+test kimi_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 6.53s
+
+
+agents-81cd3d75974b57a6.exe mimocode_receives_text_through_the_gateway
+
+running 1 test
+test mimocode_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 10.14s
+
+
+agents-81cd3d75974b57a6.exe mu_receives_text_through_the_gateway
+
+running 1 test
+test mu_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 6.49s
+
+
+agents-81cd3d75974b57a6.exe nanobot_receives_text_through_the_gateway
+
+running 1 test
+test nanobot_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 9.02s
+
+
+agents-81cd3d75974b57a6.exe omo_receives_text_through_the_gateway
+
+running 1 test
+test omo_receives_text_through_the_gateway has been running for over 60 seconds
+test omo_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 131.12s
+
+
+agents-81cd3d75974b57a6.exe omp_discovers_profiles_and_writes_the_directory_selected_by_native_flags
+
+running 1 test
+test omp_discovers_profiles_and_writes_the_directory_selected_by_native_flags ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 11.34s
+
+
+agents-81cd3d75974b57a6.exe omp_protocol_picker_changes_the_native_wire_request
+
+running 1 test
+test omp_protocol_picker_changes_the_native_wire_request ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 46.43s
+
+
+agents-81cd3d75974b57a6.exe omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses
+
+running 1 test
+test omp_provider_rename_updates_profiles_and_keeps_old_gateway_addresses ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 7.29s
+
+
+agents-81cd3d75974b57a6.exe omp_reads_advisor_choices_and_resets_from_the_named_profile
+
+running 1 test
+test omp_reads_advisor_choices_and_resets_from_the_named_profile ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 8.15s
+
+
+agents-81cd3d75974b57a6.exe omp_reads_thinking_levels_without_changing_fallback_roles
+
+running 1 test
+test omp_reads_thinking_levels_without_changing_fallback_roles ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 5.97s
+
+
+agents-81cd3d75974b57a6.exe omp_receives_text_through_the_gateway
+
+running 1 test
+test omp_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 17.71s
+
+
+agents-81cd3d75974b57a6.exe omp_starts_on_the_saved_role_and_restores_the_original_fallback
+
+running 1 test
+test omp_starts_on_the_saved_role_and_restores_the_original_fallback ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 7.79s
+
+
+agents-81cd3d75974b57a6.exe omp_sync_restores_available_models_to_the_effective_scope
+
+running 1 test
+test omp_sync_restores_available_models_to_the_effective_scope ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 7.55s
+
+
+agents-81cd3d75974b57a6.exe opencode_receives_text_through_the_gateway
+
+running 1 test
+test opencode_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 3.35s
+
+
+agents-81cd3d75974b57a6.exe pi_receives_text_through_the_gateway
+
+running 1 test
+test pi_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 2.84s
+
+
+agents-81cd3d75974b57a6.exe pi_returns_the_result_of_a_streamed_read_call
+
+running 1 test
+test pi_returns_the_result_of_a_streamed_read_call ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.70s
+
+
+agents-81cd3d75974b57a6.exe prime_agent_receives_text_through_the_gateway
+
+running 1 test
+test prime_agent_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 1.92s
+
+
+agents-81cd3d75974b57a6.exe qwen_receives_text_through_the_gateway
+
+running 1 test
+test qwen_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 4.86s
+
+
+agents-81cd3d75974b57a6.exe vibe_receives_text_through_the_gateway
+
+running 1 test
+test vibe_receives_text_through_the_gateway ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 10.76s
+
+
+magpie-45c55da351ea6d2f.exe quic_client_reaches_a_native_magpie_upstream
+
+running 1 test
+test quic_client_reaches_a_native_magpie_upstream ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 2.03s
+
+
+magpie-45c55da351ea6d2f.exe quic_client_receives_real_model_output_via_magpie
+
+running 1 test
+QUIC via Magpie: 6 output tokens, "The sky is cloudy."
+test quic_client_receives_real_model_output_via_magpie ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 6.86s
+
+
+crabforge_core-3d29e5f9a13cca6a.exe webchat::tests::browser_reads_session_headers_only_from_a_listed_origin
+
+running 1 test
+test webchat::tests::browser_reads_session_headers_only_from_a_listed_origin ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 83 filtered out; finished in 1.44s
+
+
+crabforge_core-3d29e5f9a13cca6a.exe webchat::tests::browser_submits_text_and_waits_for_the_completed_turn
+
+running 1 test
+test webchat::tests::browser_submits_text_and_waits_for_the_completed_turn ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 83 filtered out; finished in 4.03s
+
+
+kubo-6e211f223c2912c4.exe go_and_rust_peers_exchange_authenticated_http_in_both_directions
+
+running 1 test
+test go_and_rust_peers_exchange_authenticated_http_in_both_directions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+
+
+llama-2f3b054ec146f8fb.exe local_weights_generate_text_for_each_client_protocol
+
+running 1 test
+/api/chat: 6 output tokens, "The sky is cloudy."
+/api/generate: 6 output tokens, "The sky is cloudy."
+/v1/chat/completions: 6 output tokens, "The sky is cloudy."
+/v1/responses: 6 output tokens, "The sky is cloudy."
+/v1/messages: 6 output tokens, "The sky is cloudy."
+/v1beta/models/llama/smollm2:generateContent: 6 output tokens, "The sky is cloudy."
+test local_weights_generate_text_for_each_client_protocol ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.27s
+
+
+llama-2f3b054ec146f8fb.exe official_ollama_client_lists_models_and_streams_real_tokens
+
+running 1 test
+ollama 0.6.3 'The sky is cloudy.' 6 tokens
+test official_ollama_client_lists_models_and_streams_real_tokens ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 2.16s
