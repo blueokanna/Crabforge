@@ -64,13 +64,30 @@ async fn decision_apis_preserve_native_requests_and_translate_group_fallbacks() 
                 "question_2":{"noul":0.25},"choice":{"choice":"true","probabilities":{"true":0.9,"false":0.1}},
                 "work":{"score":0.8,"probabilities":{"large: Extensive":0.8,"0":0.2}}
             },"usage":{"input_tokens":12,"output_tokens":3}}))
+        }))
+        .route("/v4/ai/evaluation-model", post(|Incoming {body, headers, ..}: Incoming| async move {
+            assert_eq!(headers["ai-model-id"], "typesafe-ai/jev");
+            assert_eq!(headers["ai-gateway-protocol-version"], "0.0.1");
+            assert_eq!(headers["ai-gateway-auth-method"], "api-key");
+            assert_eq!(headers["ai-evaluation-model-specification-version"], "4");
+            let value: Value = nextjson::from_slice(&body).unwrap();
+            assert!(value.get("model").is_none());
+            assert_eq!(value.get("state"), Some(&json!("Invoice for 42")));
+            assert_eq!(value.pointer("/questions/valid/type"), Some(&json!("boolean")));
+            assert_eq!(value.pointer("/questions/category/type"), Some(&json!("choice")));
+            Json(json!({"answers":{
+                "valid":{"type":"boolean","probability":0.95},
+                "category":{"type":"choice","choice":"invoice","probabilities":{"invoice":0.875,"other":0.125}}
+            },"usage":{"inputTokens":40,"outputTokens":1}}))
         }));
     let server = tokio::spawn(crabforge_test_support::server::serve(listener, app));
     let dir = tempdir()?;
     let cfg = json!({"listen":"127.0.0.1:0","providers":[
         {"id":"openai","models":["luna","busy"],"endpoints":{"decisions":format!("http://{addr}/native/decisions/")}},
         {"id":"jev","models":["jev"],"endpoints":{"systemone":format!("http://{addr}/fallback")}},
-        {"id":"chat","models":["m"],"endpoints":{"chat":format!("http://{addr}/chat/v1")}}
+        {"id":"chat","models":["m"],"endpoints":{"chat":format!("http://{addr}/chat/v1")}},
+        {"id":"vercel","models":["typesafe-ai/jev"],"endpoints":{
+            "chat":format!("http://{addr}/chat/v1"),"systemone":format!("http://{addr}/v4/ai/")}}
     ],"groups":{"judges":["chat/m","openai/busy","jev/jev"]}});
     config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
     let gateway = Service::start(dir.path()).await?;
@@ -96,6 +113,48 @@ async fn decision_apis_preserve_native_requests_and_translate_group_fallbacks() 
     .await?;
     assert_eq!(native.text().await?, "{\"native\":true}");
     assert_eq!(requests.try_recv()?, "/fallback/systemone");
+
+    let evaluation = send("systemone", json!({"model":"vercel/typesafe-ai/jev","state":"Invoice for 42",
+        "questions":{"valid":{"type":"noul"},"category":{"type":"choice","criteria":["invoice","other"]}}}).to_string())
+        .await?.error_for_status()?;
+    let evaluation: Value =
+        nextjson::from_slice(&evaluation.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(
+        evaluation.pointer("/answers/valid/type"),
+        Some(&json!("noul"))
+    );
+    assert_eq!(
+        evaluation.pointer("/answers/valid/noul"),
+        Some(&json!(0.95))
+    );
+    assert_eq!(
+        evaluation.pointer("/answers/category/confidence"),
+        Some(&json!(0.75))
+    );
+    assert_eq!(evaluation.pointer("/usage/input_tokens"), Some(&json!(40)));
+    assert_eq!(requests.try_recv()?, "/v4/ai/evaluation-model");
+
+    let evaluation = send(
+        "decisions",
+        json!({"model":"vercel/typesafe-ai/jev","input":"Invoice for 42",
+        "questions":[{"type":"predicate","name":"valid"},{"type":"choice","name":"category",
+            "choices":[{"value":"invoice"},{"value":"other"}]}]})
+        .to_string(),
+    )
+    .await?
+    .error_for_status()?;
+    let evaluation: Value =
+        nextjson::from_slice(&evaluation.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(
+        evaluation.pointer("/answers/0/probability"),
+        Some(&json!(0.95))
+    );
+    assert_eq!(
+        evaluation.pointer("/answers/1/choice"),
+        Some(&json!("invoice"))
+    );
+    assert_eq!(evaluation.pointer("/usage/total_tokens"), Some(&json!(41)));
+    assert_eq!(requests.try_recv()?, "/v4/ai/evaluation-model");
 
     let system_one = json!({"model":"openai/luna","state":{"document":123},"images":["https://example.org/receipt.png"],"questions":{
         "z":{"type":"noul","instructions":"Readable?"},"a":{"type":"choice","criteria":{"second":"Corresponding page","first":null}},
@@ -156,6 +215,15 @@ async fn decision_apis_preserve_native_requests_and_translate_group_fallbacks() 
     let rejected = send("systemone", json!({"model":"openai/luna","state":"test","audio":["data:audio/wav;base64,AAAA"],"questions":{"x":{"type":"noul"}}}).to_string()).await?;
     assert_eq!(rejected.status(), 400);
     assert!(rejected.text().await?.contains("audio"));
+    assert_eq!(
+        send(
+            "chat/completions",
+            json!({"model":"vercel/typesafe-ai/jev"}).to_string()
+        )
+        .await?
+        .status(),
+        400
+    );
     assert_eq!(
         send("decisions", json!({"model":"chat/m"}).to_string())
             .await?

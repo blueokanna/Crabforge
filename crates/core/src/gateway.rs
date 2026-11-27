@@ -25,6 +25,7 @@ mod classifier;
 mod cors;
 mod decision;
 pub(crate) use decision::{GEMINI_MODEL as GEMINI_DECISION_MODEL, gemini_decision_base};
+pub(crate) use decision::{VERCEL_EVALUATION_MODEL, vercel_evaluation_base};
 mod effort;
 mod first_content;
 mod keepalive;
@@ -400,7 +401,7 @@ impl<'a> Api<'a> {
             };
             return Some(Destination::Upstream(url, native, None));
         }
-        if model == decision::GEMINI_MODEL && decision::gemini_url(p, model).is_some() {
+        if decision::only(p, model) {
             return None;
         }
         if let Self::Chat(path) = self
@@ -1052,8 +1053,11 @@ async fn forward(
             Err(_) if candidates.advance().await => continue,
             Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
         };
+        let vercel_evaluation =
+            matches!(native, Api::Chat(decision::SYSTEM_ONE)) && decision::vercel_evaluation(&url);
         let (decision_body, decision_reply) = match (api, native) {
-            (Api::Chat(path @ (decision::DECISIONS | decision::SYSTEM_ONE)), native) if !matches!(native, Api::Chat(action) if action == path) =>
+            (Api::Chat(path @ (decision::DECISIONS | decision::SYSTEM_ONE)), native)
+                if vercel_evaluation || !matches!(native, Api::Chat(action) if action == path) =>
             {
                 let gemini = matches!(native, Api::Gemini(decision::DECISIONS));
                 match decision::request(path, model, &bytes, &url, gemini) {
@@ -1094,6 +1098,13 @@ async fn forward(
             None
         };
         let mut request = Request::post(url.as_str());
+        if vercel_evaluation {
+            request = request
+                .header("ai-gateway-protocol-version", "0.0.1")
+                .header("ai-gateway-auth-method", "api-key")
+                .header("ai-model-id", model)
+                .header("ai-evaluation-model-specification-version", "4");
+        }
         if matches!(native, Api::Chat(decision::SYSTEM_ONE)) && decision::ark(&url) {
             request = request.header("ark-beta-systemone-api", "true");
         }

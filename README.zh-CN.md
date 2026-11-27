@@ -53,6 +53,8 @@ DashScope `qwen-audio` TTS 模型通过 `/v1/audio/speech` 默认返回完整 MP
 
 使用 Gemini Developer API 时，可在带 API 密钥的 AI Studio 供应商中加入 `gemini-decision-1`，或将 `systemone` 设为 `https://generativelanguage.googleapis.com/v1beta/decisions`。网关的两个决策接口及组分类器均可使用该模型。System One 接收文本或 JSON 状态，`images` 和 `audio` 可传入 Base64 数据 URL 或 HTTP(S) URL。网关转换 Gemini 内容块、题目条件、用量字段和内容拦截响应。Vertex AI 无 Gemini Decisions 端点。
 
+使用 Vercel AI Gateway Evaluation 时，将 `systemone` 设为 `https://ai-gateway.vercel.sh/v4/ai`，加入 `typesafe-ai/jev`，并配置供应商密钥。网关在 Evaluation 请求头中发送模型 ID，同时转换布尔答案、置信度和 token 用量。TypeSafe System One API 使用 `https://ai-gateway.vercel.sh/typesafe/v1`。
+
 在路由组 JSON 的 `classifier` 同级加入 `"effort":"auto"`，由分类器为已请求推理的请求评估等级。网关可在一次调用中判定意图与等级，并在同一命名会话的工具续轮中复用结果、传给嵌套组。命中规则的 `useEffort` 优先。路由组分享和加密备份均保留该设置。
 
 配置 `intent` 规则时，在同一编辑器或 CLI 命令中传入 JSON 对象。`classifier` 和 `classifierMore` 接受已配置的模型和路由组 ID，`classifyPrompt` 可选。

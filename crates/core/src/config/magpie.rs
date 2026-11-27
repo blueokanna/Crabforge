@@ -188,42 +188,46 @@ impl BackupProvider {
             } else {
                 let mut url = super::endpoint(&self.decide)?;
                 let path = url.path().trim_end_matches('/');
-                match url.host_str() {
-                    host if host == Some("api.openai.com") || super::azure(&url) => {
-                        (self.decide, String::new())
-                    }
-                    Some("ai-gateway.vercel.sh") if !path.ends_with("/v4/ai") => {
-                        let base = path.strip_suffix("/systemone").unwrap_or(path);
-                        let base = base.strip_suffix("/models").unwrap_or(base);
-                        let base = base.strip_suffix("/v1").unwrap_or(base);
-                        let path = if base.is_empty() {
-                            "/typesafe/v1".to_owned()
-                        } else {
-                            format!("{base}/v1")
-                        };
-                        url.set_path(&path);
-                        (String::new(), url.to_string())
-                    }
-                    Some("generativelanguage.googleapis.com") => {
-                        url.set_path("/v1beta/decisions");
-                        (String::new(), url.to_string())
-                    }
-                    Some("api.cloudflare.com") => {
-                        bail!(
-                            "{} needs a vendor-specific Magpie decision adapter",
-                            self.id
-                        );
-                    }
-                    _ => {
-                        ensure!(
-                            !path.ends_with("/v4/ai") && !path.contains("/client/v4"),
-                            "{} needs a vendor-specific Magpie decision adapter",
-                            self.id
-                        );
-                        if path.is_empty() {
-                            url.set_path("/systemone");
+                if let Some(endpoint) = crate::gateway::vercel_evaluation_base(&self.decide) {
+                    (String::new(), endpoint.to_string())
+                } else {
+                    match url.host_str() {
+                        host if host == Some("api.openai.com") || super::azure(&url) => {
+                            (self.decide, String::new())
                         }
-                        (String::new(), url.to_string())
+                        Some("ai-gateway.vercel.sh") => {
+                            let base = path.strip_suffix("/systemone").unwrap_or(path);
+                            let base = base.strip_suffix("/models").unwrap_or(base);
+                            let base = base.strip_suffix("/v1").unwrap_or(base);
+                            let path = if base.is_empty() {
+                                "/typesafe/v1".to_owned()
+                            } else {
+                                format!("{base}/v1")
+                            };
+                            url.set_path(&path);
+                            (String::new(), url.to_string())
+                        }
+                        Some("generativelanguage.googleapis.com") => {
+                            url.set_path("/v1beta/decisions");
+                            (String::new(), url.to_string())
+                        }
+                        Some("api.cloudflare.com") => {
+                            bail!(
+                                "{} needs a vendor-specific Magpie decision adapter",
+                                self.id
+                            );
+                        }
+                        _ => {
+                            ensure!(
+                                !path.contains("/client/v4"),
+                                "{} needs a vendor-specific Magpie decision adapter",
+                                self.id
+                            );
+                            if path.is_empty() {
+                                url.set_path("/systemone");
+                            }
+                            (String::new(), url.to_string())
+                        }
                     }
                 }
             };
@@ -742,7 +746,7 @@ mod tests {
         seal(
             &file,
             json!({
-                "version": 2, "order": ["backup", "lab"], "groups": [{"id": "example"}],
+                "version": 2, "order": ["backup", "lab", "google", "evaluation"], "groups": [{"id": "example"}],
                 "providers": [
                     {"id":"lab", "was":["previous"], "key":"fixture-api-key", "models":["m"],
                      "anthropic":"http://127.0.0.1:1", "authHeader":"bearer", "noStandIn":true,
@@ -750,11 +754,18 @@ mod tests {
                     {"id":"backup", "key":"", "models":["n"], "chat":"http://127.0.0.1:1/v1",
                      "modelsURL":"http://127.0.0.1:1/v1/models", "countFree":true,
                      "decide":"http://127.0.0.1:1/v1"},
-                    {"id":"off", "off":true, "chat":"http://127.0.0.1:1/v1", "models":["m"]}
+                     {"id":"off", "off":true, "chat":"http://127.0.0.1:1/v1", "models":["m"]},
+                     {"id":"google", "models":["gemini-decision-1"], "decide":"https://generativelanguage.googleapis.com/v1beta"},
+                     {"id":"evaluation", "models":["typesafe-ai/jev"], "decide":"https://ai-gateway.vercel.sh/v4/ai"}
                 ]
             }),
         );
-        let selected = ["lab".into(), "backup".into()];
+        let selected = [
+            "lab".into(),
+            "backup".into(),
+            "google".into(),
+            "evaluation".into(),
+        ];
         let keys = BTreeMap::from([("lab".into(), "LAB_API_KEY".into())]);
         let run = |pass, selected: &[String], apply| {
             import_magpie_providers(dir.path(), &file, pass, selected, &keys, apply)
@@ -763,7 +774,7 @@ mod tests {
         assert!(run(PASSPHRASE, &[], true).is_err());
         assert!(run(PASSPHRASE, &selected[..1], true).is_err());
         let preview = run(PASSPHRASE, &selected, false)?;
-        assert_eq!(preview.providers, ["backup", "lab"]);
+        assert_eq!(preview.providers, ["backup", "lab", "google", "evaluation"]);
         assert_eq!(preview.other_sections, ["groups"]);
         assert!(!preview.applied);
         assert!(!settings.exists());
@@ -782,6 +793,14 @@ mod tests {
         assert_eq!(
             cfg.providers[0].endpoints.systemone,
             "http://127.0.0.1:1/v1"
+        );
+        assert_eq!(
+            cfg.providers[2].endpoints.systemone,
+            "https://generativelanguage.googleapis.com/v1beta/decisions"
+        );
+        assert_eq!(
+            cfg.providers[3].endpoints.systemone,
+            "https://ai-gateway.vercel.sh/v4/ai/evaluation-model"
         );
         assert!(run(PASSPHRASE, &selected, true).is_err());
         let tampered = fs::read_to_string(&file)?.replace("100000", "100001");

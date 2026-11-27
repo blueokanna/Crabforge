@@ -102,27 +102,29 @@ struct Source {
     deployments: bool,
 }
 
-fn sources(bases: &Endpoints) -> Result<Vec<Source>> {
-    let protocols = [
+fn protocol_bases(bases: &Endpoints) -> [(&String, &'static str); 6] {
+    [
         (&bases.chat, "chat"),
         (&bases.responses, "chat"),
         (&bases.anthropic, "anthropic"),
         (&bases.gemini, "gemini"),
         (&bases.decisions, "decisions"),
         (&bases.systemone, "systemone"),
-    ];
+    ]
+}
+
+fn decision_only(bases: &Endpoints) -> bool {
+    protocol_bases(bases)
+        .into_iter()
+        .all(|(base, api)| api == "systemone" || base.is_empty())
+}
+
+fn sources(bases: &Endpoints) -> Result<Vec<Source>> {
+    let gemini_decision = crate::gateway::gemini_decision_base(bases).is_some();
+    let vercel_evaluation = crate::gateway::vercel_evaluation_base(&bases.systemone).is_some();
+    let protocols = protocol_bases(bases);
     if !bases.models_url.is_empty() {
-        let api = if bases.vertex.is_some()
-            || crate::gateway::gemini_decision_base(bases).is_some()
-                && [
-                    &bases.chat,
-                    &bases.responses,
-                    &bases.anthropic,
-                    &bases.gemini,
-                ]
-                .into_iter()
-                .all(String::is_empty)
-        {
+        let api = if bases.vertex.is_some() || gemini_decision && decision_only(bases) {
             "gemini"
         } else {
             protocols
@@ -143,7 +145,7 @@ fn sources(bases: &Endpoints) -> Result<Vec<Source>> {
     let mut sources = Vec::new();
     for (base, api) in protocols {
         if base.is_empty()
-            || api == "systemone" && crate::gateway::gemini_decision_base(bases).is_some()
+            || api == "systemone" && (gemini_decision || vercel_evaluation)
             || (ai_studio_pair
                 && base.trim_end_matches('/')
                     == "https://generativelanguage.googleapis.com/v1beta/openai")
@@ -257,20 +259,22 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
             ..Default::default()
         });
     }
-    let gemini_decision =
-        bases.models_url.is_empty() && crate::gateway::gemini_decision_base(bases).is_some();
-    if gemini_decision
-        && [
-            &bases.chat,
-            &bases.responses,
-            &bases.anthropic,
-            &bases.gemini,
-        ]
-        .into_iter()
-        .all(String::is_empty)
-    {
+    let builtin_decision = bases
+        .models_url
+        .is_empty()
+        .then(|| {
+            if crate::gateway::gemini_decision_base(bases).is_some() {
+                Some(crate::gateway::GEMINI_DECISION_MODEL)
+            } else if crate::gateway::vercel_evaluation_base(&bases.systemone).is_some() {
+                Some(crate::gateway::VERCEL_EVALUATION_MODEL)
+            } else {
+                None
+            }
+        })
+        .flatten();
+    if let Some(model) = builtin_decision.filter(|_| decision_only(bases)) {
         return Ok(ModelCatalog {
-            models: vec![crate::gateway::GEMINI_DECISION_MODEL.to_owned()],
+            models: vec![model.to_owned()],
             ..Default::default()
         });
     }
@@ -324,13 +328,10 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
         }
     }
     ensure!(!catalog.models.is_empty(), "{}", errors.join("; "));
-    if gemini_decision
-        && key.is_some()
-        && seen.insert(crate::gateway::GEMINI_DECISION_MODEL.to_owned())
+    if let Some(model) = builtin_decision.filter(|_| key.is_some())
+        && !seen.contains(model)
     {
-        catalog
-            .models
-            .push(crate::gateway::GEMINI_DECISION_MODEL.to_owned());
+        catalog.models.push(model.to_owned());
     }
     catalog.learned_auth = auth.learned;
     Ok(catalog)

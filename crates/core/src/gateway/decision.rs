@@ -12,8 +12,11 @@ use std::collections::BTreeSet;
 use url::Url;
 
 mod gemini;
+mod vercel;
 pub(super) use gemini::gemini_url;
 pub(crate) use gemini::{GEMINI_MODEL, gemini_decision_base};
+pub(super) use vercel::evaluation as vercel_evaluation;
+pub(crate) use vercel::{VERCEL_EVALUATION_MODEL, vercel_evaluation_base};
 
 pub(super) const DECISIONS: &str = "decisions";
 pub(super) const SYSTEM_ONE: &str = "systemone";
@@ -46,6 +49,9 @@ pub(super) fn system_one_url(provider: &Provider, model: &str) -> Option<Url> {
     }
     let endpoints = &provider.endpoints;
     if !endpoints.systemone.is_empty() {
+        if let Some(url) = vercel_evaluation_base(&endpoints.systemone) {
+            return Some(url);
+        }
         return url(&endpoints.systemone, SYSTEM_ONE).filter(|url| !gemini::host(url));
     }
     let base = match model {
@@ -64,6 +70,16 @@ pub(super) fn system_one_url(provider: &Provider, model: &str) -> Option<Url> {
         _ => return None,
     };
     url(base.as_str(), SYSTEM_ONE)
+}
+
+pub(super) fn only(provider: &Provider, model: &str) -> bool {
+    match model {
+        GEMINI_MODEL => gemini_url(provider, model).is_some(),
+        VERCEL_EVALUATION_MODEL => {
+            system_one_url(provider, model).is_some_and(|url| vercel_evaluation(&url))
+        }
+        _ => false,
+    }
 }
 
 fn advertised(provider: &Provider, model: &str, endpoint: RelayEndpoint) -> bool {
@@ -135,6 +151,7 @@ pub(super) enum Reply {
     Decisions(Vec<Question>),
     SystemOne(Vec<Question>),
     Gemini(Option<Vec<Question>>),
+    Vercel(Option<Vec<Question>>),
 }
 
 pub(super) fn request(
@@ -145,14 +162,19 @@ pub(super) fn request(
     gemini: bool,
 ) -> Result<(Bytes, Reply)> {
     let value: Value = nextjson::from_slice(bytes).map_err(anyhow::Error::msg)?;
-    let (body, reply) = if gemini {
+    let vercel = vercel_evaluation(destination);
+    let (body, reply) = if gemini || vercel {
         let (body, questions) = if path == DECISIONS {
             let (body, questions) = into_system_one(&value, model, destination)?;
             (body, Some(questions))
         } else {
             (value, None)
         };
-        (gemini::request(body, model)?, Reply::Gemini(questions))
+        if gemini {
+            (gemini::request(body, model)?, Reply::Gemini(questions))
+        } else {
+            (vercel::request(body)?, Reply::Vercel(questions))
+        }
     } else if path == SYSTEM_ONE {
         let (body, questions) = into_decisions(&value, model)?;
         (body, Reply::SystemOne(questions))
@@ -614,6 +636,13 @@ impl Reply {
                     decisions_reply(&value, &questions, asked)?
                 } else {
                     value
+                }
+            }
+            Self::Vercel(questions) => {
+                let value = vercel::reply(value, asked)?;
+                match questions {
+                    Some(questions) => decisions_reply(&value, &questions, asked)?,
+                    None => value,
                 }
             }
         };

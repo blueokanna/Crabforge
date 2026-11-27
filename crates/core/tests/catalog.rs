@@ -29,6 +29,11 @@ async fn plans_without_live_catalogs_use_their_own_model_lists() -> Result<()> {
         discover(&google_decisions, "").await?,
         ["gemini-decision-1"]
     );
+    let vercel_evaluation = Endpoints {
+        systemone: "https://ai-gateway.vercel.sh/v4/ai/evaluation-model".into(),
+        ..Default::default()
+    };
+    assert_eq!(discover(&vercel_evaluation, "").await?, ["typesafe-ai/jev"]);
     for (region, count) in [("global", 23), ("eu", 9), ("us", 9), ("us-central1", 3)] {
         let mut vertex: Endpoints = nextjson::from_value(
             nextjson::json!({"vertex":{"project":"sample-project", "location":region}}),
