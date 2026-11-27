@@ -1,4 +1,10 @@
 {
+  "removeInstalledHook": "Remover hook instalado",
+  "hookBackups": "Backups de hooks",
+  "restoreHookBackup": "Restaurar backup do hook",
+  "hookBackupRestored": "Restaurado",
+  "hookBackupChanged": "As configurações do cliente mudaram",
+  "hookBackupUnavailable": "Perfil ou arquivo original indisponível",
   "importSubagents": "Importar subagentes",
   "subagentImportSource": "Arquivo Markdown, pasta local ou URL do Git",
   "subagentChooseFile": "Escolher arquivo Markdown",

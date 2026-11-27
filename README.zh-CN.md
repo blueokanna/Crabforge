@@ -94,6 +94,8 @@ carbforge-cli skills assign diagnostics --agent codex --revision '<列表返回�
 
 在 **客户端连接 → 钩子** 保存生命周期命令，可按事件分配给 Claude Code、Codex、Gemini CLI 或 Cursor。Gemini 同时使用原生和 Crabforge 配置。库可原址接管兼容的命令，并显示冲突及外部修改。客户端按自身的钩子和信任设置运行命令。`carbforge-cli hooks list` 可查看修订和已有条目。`hooks save` 从标准输入读取 UTF-8 JSON 对象，字段为 `name`、`event`、`command` 和 `agents`，可选字段为 `description`、`matcher` 和以秒为单位的 `timeout`。通用事件为 `turn-end`、`after-tool`、`before-tool`、`prompt` 和 `session-start`。使用 `claude:SessionStart` 等原生事件可指定客户端专用匹配条件。`hooks adopt <key> <name>` 接管未改动的原生条目，`hooks remove <name> --revision <revision>` 撤销受管理的副本，`hooks sync` 重试发布。
 
+**移除已安装的钩子** 会移除所选事件条目，并把原客户端配置文件保存在 Crabforge 数据目录的 `hooks/backups` 下。一个分组条目可能包含多条命令。客户端文件仍与移除后完全一致时，可从 **钩子备份** 恢复。CLI 使用 `hooks remove-installed <key>` 和 `hooks restore <id>`，其中键和 ID 分别来自 `hooks list` 的 `installed` 和 `backups` 字段。
+
 在 **客户端连接 → 子代理** 向 Claude Code、Codex、OpenCode、Gemini CLI、Qwen Code、Factory Droid、Grok Build、Cursor 和 Copilot CLI 发布原生 Markdown 或 TOML。也可以在同一窗口选择项目文件夹，管理该项目的子代理。项目配置另支持 Antigravity。Claude Code 支持技能引用和推理级别，Claude Code 和 Factory Droid 支持 MCP 服务器名称，Codex 支持模型 ID 和推理级别。
 
 在 **客户端连接 → 斜杠命令** 向 Claude Code、OpenCode、Pi、Gemini CLI、Qwen Code 和 Factory Droid 发布可复用提示词。`$ARGUMENTS` 表示全部参数。Claude Code、OpenCode 和 Pi 也可用 `$1`、`$2` 等引用单个参数。Crabforge 按客户端格式转换占位符，并报告无法发布的分配。Codex 可用技能保存可复用提示词。

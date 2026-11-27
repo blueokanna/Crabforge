@@ -208,6 +208,9 @@ Future<String> removeAgentHook({
   revision: revision,
 );
 
+Future<String> recoverAgentHook({required String key, required bool restore}) =>
+    RustLib.instance.api.crateApiRecoverAgentHook(key: key, restore: restore);
+
 Future<String> syncAgentHooks() =>
     RustLib.instance.api.crateApiSyncAgentHooks();
 

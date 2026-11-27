@@ -110,6 +110,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get installedHooks => '客户端配置中的钩子';
 
   @override
+  String get removeInstalledHook => '移除已安装的钩子';
+
+  @override
+  String get hookBackups => '钩子备份';
+
+  @override
+  String get restoreHookBackup => '恢复钩子备份';
+
+  @override
+  String get hookBackupRestored => '已恢复';
+
+  @override
+  String get hookBackupChanged => '客户端配置已更改';
+
+  @override
+  String get hookBackupUnavailable => '原配置或文件不可用';
+
+  @override
   String get hookName => '钩子名称';
 
   @override

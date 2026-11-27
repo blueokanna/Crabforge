@@ -97,6 +97,41 @@ class _AgentHooksState extends State<AgentHooks> {
     }
   }
 
+  Future<void> _changeInstalled(_Json row, {required bool restore}) async {
+    final strings = context.strings;
+    final target = row['target'] as _Json;
+    final entry = restore
+        ? ''
+        : '\n${(row['hook'] as _Json?)?['command'] ?? const JsonEncoder.withIndent('  ').convert(row['entry'])}';
+    final label = restore
+        ? strings.restoreHookBackup
+        : strings.removeInstalledHook;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(label),
+        scrollable: true,
+        content: SelectableText(
+          '${_agents[target['agent']]} · ${row['event']}\n${target['path']}$entry',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(strings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(restore ? strings.restoreHookBackup : strings.remove),
+          ),
+        ],
+      ),
+    );
+    if (mounted && confirmed == true) {
+      final key = row[restore ? 'id' : 'key'] as String;
+      await _load(() => api.recoverAgentHook(key: key, restore: restore));
+    }
+  }
+
   void _inspect(_Json row) {
     showDialog<void>(
       context: context,
@@ -126,6 +161,7 @@ class _AgentHooksState extends State<AgentHooks> {
     }
     final names = {...saved.keys, ...placements.keys}.toList();
     final installed = (_view['installed'] as List? ?? const []).cast<_Json>();
+    final backups = (_view['backups'] as List? ?? const []).cast<_Json>();
     return Dialog(
       key: const ValueKey('agent-hooks'),
       child: SizedBox(
@@ -267,6 +303,70 @@ class _AgentHooksState extends State<AgentHooks> {
                                       : () => _edit(found: row),
                                   icon: const Icon(Icons.bookmark_add_outlined),
                                   tooltip: strings.adoptHook,
+                                ),
+                              if (row['removable'] == true)
+                                IconButton(
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _changeInstalled(
+                                          row,
+                                          restore: false,
+                                        ),
+                                  icon: const Icon(Icons.delete_outline),
+                                  tooltip: strings.removeInstalledHook,
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                    if (backups.isNotEmpty) ...[
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            strings.hookBackups,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                      ),
+                      CollectionSliver.builder(
+                        grid: grid,
+                        height: 130,
+                        itemCount: backups.length,
+                        itemBuilder: (context, index) {
+                          final row = backups[index];
+                          final target = row['target'] as _Json;
+                          final status = switch (row['status']) {
+                            'ready' => null,
+                            'restored' => strings.hookBackupRestored,
+                            'conflict' => strings.hookBackupChanged,
+                            _ => strings.hookBackupUnavailable,
+                          };
+                          return CollectionTile(
+                            key: ValueKey(row['id']),
+                            grid: grid,
+                            leading: const Icon(
+                              Icons.settings_backup_restore_outlined,
+                            ),
+                            title: _line(
+                              '${_agents[target['agent']]} · ${row['event']}',
+                            ),
+                            detail: Tooltip(
+                              message: target['path'] as String,
+                              child: _line(status ?? target['path'] as String),
+                            ),
+                            actions: [
+                              if (status == null)
+                                IconButton(
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _changeInstalled(
+                                          row,
+                                          restore: true,
+                                        ),
+                                  icon: const Icon(Icons.restore_outlined),
+                                  tooltip: strings.restoreHookBackup,
                                 ),
                             ],
                           );

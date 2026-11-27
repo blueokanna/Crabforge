@@ -113,6 +113,25 @@ class AppLocalizationsFr extends AppLocalizations {
   String get installedHooks => 'Hooks des paramètres clients';
 
   @override
+  String get removeInstalledHook => 'Supprimer le hook installé';
+
+  @override
+  String get hookBackups => 'Sauvegardes des hooks';
+
+  @override
+  String get restoreHookBackup => 'Restaurer la sauvegarde du hook';
+
+  @override
+  String get hookBackupRestored => 'Restauré';
+
+  @override
+  String get hookBackupChanged => 'Les paramètres du client ont changé';
+
+  @override
+  String get hookBackupUnavailable =>
+      'Profil ou fichier d’origine indisponible';
+
+  @override
   String get hookName => 'Nom du hook';
 
   @override

@@ -306,6 +306,16 @@ pub fn remove_agent_hook(name: String, revision: String) -> Result<String> {
     hooks::edit(&config::data_dir()?, Edit::Remove { name, revision })
 }
 
+pub fn recover_agent_hook(key: String, restore: bool) -> Result<String> {
+    use crabforge_core::hooks::{self, Edit};
+    let edit = if restore {
+        Edit::Restore { id: key }
+    } else {
+        Edit::RemoveInstalled { key }
+    };
+    hooks::edit(&config::data_dir()?, edit)
+}
+
 pub fn sync_agent_hooks() -> Result<String> {
     use crabforge_core::hooks::{self, Edit};
     hooks::edit(&config::data_dir()?, Edit::Sync)

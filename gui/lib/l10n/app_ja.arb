@@ -1,4 +1,10 @@
 {
+  "removeInstalledHook": "インストール済みフックを削除",
+  "hookBackups": "フックのバックアップ",
+  "restoreHookBackup": "フックのバックアップを復元",
+  "hookBackupRestored": "復元済み",
+  "hookBackupChanged": "クライアント設定が変更されています",
+  "hookBackupUnavailable": "元のプロファイルまたはファイルを利用できません",
   "importSubagents": "サブエージェントをインポート",
   "subagentImportSource": "Markdown ファイル、ローカルフォルダ、または Git URL",
   "subagentChooseFile": "Markdown ファイルを選択",
