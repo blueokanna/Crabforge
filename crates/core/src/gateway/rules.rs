@@ -383,7 +383,7 @@ impl Facts {
     }
 }
 
-fn hash_text(hash: &mut Sha256, text: &str) {
+pub(super) fn hash_text(hash: &mut Sha256, text: &str) {
     hash.update((text.len() as u64).to_le_bytes());
     hash.update(text);
 }
