@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crabforge/collection_view.dart';
 import 'package:crabforge/main.dart';
 import 'package:crabforge/project_mcp.dart';
 import 'package:flutter/material.dart';
@@ -134,5 +135,24 @@ void main() {
     await waitFor(find.byTooltip('Assign to this project'));
     expect(servers().keys, ['existing']);
     expect(servers()['existing']['command'], 'external');
+
+    await tap(inLibrary(find.byTooltip('Assign to this project')));
+    await waitFor(inLibrary(find.byTooltip('Unassign from this project')));
+    final edited = config.readAsStringSync().replaceFirst(
+      'shared-fixture',
+      'manual-mcp-command',
+    );
+    config.writeAsStringSync(edited);
+    await tap(inLibrary(find.byTooltip('Remove')));
+    await tap(find.widgetWithText(TextButton, 'Remove'));
+    final retained = find.ancestor(
+      of: inLibrary(find.text('Existing file kept')),
+      matching: find.byType(CollectionTile),
+    );
+    await waitFor(retained);
+    expect(tester.widget<CollectionTile>(retained).grid, isTrue);
+    await tap(inLibrary(find.byTooltip('List view')));
+    expect(tester.widget<CollectionTile>(retained).grid, isFalse);
+    expect(config.readAsStringSync(), edited);
   });
 }

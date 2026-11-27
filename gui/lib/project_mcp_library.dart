@@ -108,6 +108,12 @@ class _ProjectMcpLibraryState extends State<_ProjectMcpLibrary> {
       for (final placement in placements.where(_matches))
         placement['name'] as String: placement,
     };
+    final savedNames = servers.map((entry) => entry['name']).toSet();
+    final retained = current.values.where(
+      (placement) =>
+          !savedNames.contains(placement['name']) &&
+          (placement['detail'] != null || placement['status'] == 'conflict'),
+    );
     return Dialog(
       key: const ValueKey('project-mcp-library'),
       child: SizedBox(
@@ -165,10 +171,18 @@ class _ProjectMcpLibraryState extends State<_ProjectMcpLibrary> {
                           onTap: _busy ? null : () => _edit(entry),
                           detail: placement == null
                               ? null
-                              : Text(
-                                  strings.ruleStatus(
-                                    placement['status'] as String,
-                                  ),
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      strings.ruleStatus(
+                                        placement['status'] as String,
+                                      ),
+                                    ),
+                                    if (placement['detail']
+                                        case final String detail)
+                                      SelectableText(detail),
+                                  ],
                                 ),
                           actions: [
                             IconButton(
@@ -206,17 +220,25 @@ class _ProjectMcpLibraryState extends State<_ProjectMcpLibrary> {
                         );
                       },
                     ),
-                    for (final placement in current.values)
-                      if (placement['detail'] != null ||
-                          (placement['status'] == 'conflict' &&
-                              !servers.any(
-                                (entry) => entry['name'] == placement['name'],
-                              )))
-                        SliverToBoxAdapter(
-                          child: SelectableText(
-                            '${placement['name']} · ${placement['detail'] ?? strings.ruleStatus(placement['status'] as String)}',
-                          ),
-                        ),
+                    if (retained.isNotEmpty)
+                      CollectionSliver(
+                        grid: grid,
+                        height: 130,
+                        children: [
+                          for (final placement in retained)
+                            CollectionTile(
+                              grid: grid,
+                              leading: const Icon(CrabforgeSymbols.dns),
+                              title: Text(placement['name'] as String),
+                              detail: SelectableText(
+                                placement['detail'] as String? ??
+                                    strings.ruleStatus(
+                                      placement['status'] as String,
+                                    ),
+                              ),
+                            ),
+                        ],
+                      ),
                   ],
                 ),
               ),

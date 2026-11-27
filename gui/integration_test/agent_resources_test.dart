@@ -147,9 +147,11 @@ void main() {
     final filter = find.byType(DropdownButton<String>);
     await tester.tap(filter);
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.widgetWithText(DropdownMenuItem<String>, 'Codex').hitTestable(),
+    final codexFilter = find.descendant(
+      of: find.byType(DropdownMenuItem<String>),
+      matching: find.text('Codex'),
     );
+    await tester.tap(codexFilter.hitTestable());
     await waitFor(codexTitle);
     expect(tester.widget<DropdownButton<String>>(filter).value, 'codex');
     expect(claudeTitle, findsNothing);
