@@ -694,6 +694,10 @@ A later loopback SSE run sent 20 requests each through the downloaded `465897d` 
 
 The repeat with concurrent CPU measurement alternated 20 trials per package. First-event minimum, median, and maximum were `2.351 / 3.643 / 13.456 ms` for `465897d` and `2.170 / 4.110 / 23.187 ms` for `cf76ad3`. All 40 returned HTTP 200 with one upstream request and zero proxy CONNECT requests per trial. Windows `GetSystemTimes` measured system-wide CPU busy time over each trial, including gateway startup, request, and shutdown. The ranges were `63.963–98.798%` and `59.707–96.354%`, both above the 25% low-load threshold. The CSV SHA-256 is `58ded33c438156bd9e4f33f9891ad20207b92fe94a4fef4835ed6321d5d1a6d9`. [Raw CSV](465897d-cf76ad3-forward-h1-with-cpu.csv)
 
+2026 年 11 月 28 日 07:43 至 07:57 UTC，本机观察了 30 个 CPU 采样窗。忙碌率为 `55.225–97.894%`，均值 `73.779%`。所有采样窗均超过 `25%` 启动阈值，未启动配对 SSE 请求。观察记录的 SHA-256 为 `366f459d498f69a48c9959c627fe35391f9bdfac21747bbc0d8723f9e74da810`。 [CPU 观察 CSV](465897d-cf76ad3-low-load-windows.csv)
+
+On 28 November 2026 from 07:43 to 07:57 UTC, the Windows probe collected 30 CPU observation windows. Host CPU busy time ranged from `55.225%` to `97.894%` and averaged `73.779%`. Every window exceeded the `25%` start threshold, so the probe issued no paired SSE requests. The observation CSV SHA-256 is `366f459d498f69a48c9959c627fe35391f9bdfac21747bbc0d8723f9e74da810`. [CPU observations](465897d-cf76ad3-low-load-windows.csv)
+
 ## 自动记忆提炼 / Automatic memory distillation
 
 提交 `0a759eaec3daa0fbe19f7bc3157f65eb5dd552a3` 的 Windows Debug 双 CLI 通过默认关闭、网关启动后调度、按路由组推理、会话静默筛选、只接受用户原话支持的候选、显式审核、重启去重和禁用检查。Rust 全工作区 170 项通过，30 项忽略。调度回归验证中断后继续使用已保存的小时尝试计数。 [调度实现和回归](../../../crates/core/src/memory/distill/schedule.rs)
@@ -763,11 +767,21 @@ The Windows Debug desktop test enabled daily publication for Claude Code at 1200
 
 Both Windows desktop runs passed from a clean checkout of `ad2dee070aadd2acbbdbe00c97b481cfe2e5cf04`. The first enabled daily publication in the wide layout and confirmed it in the narrow layout. The second launched a new process, confirmed the persisted setting in the narrow layout, then disabled it. Both runs compared the instruction file byte for byte. [Desktop integration test](../../../gui/integration_test/memory_publication_test.dart)
 
+提交 `ad2dee070aadd2acbbdbe00c97b481cfe2e5cf04` 的 Windows 下载包通过双 CLI、Release 桌面和 `--memory-publication` 在内的 40 项夹具。验包后远端 `main` 精确匹配该提交。Rust 174 项通过、30 项忽略。Artifact `15254507568` 的 ZIP 为 67,784,560 字节，SHA-256 为 `5ccd918f2589040eb87477461c00eb9391979badc8288a3eacaaf5742a5e38f2`。验包生成的 556 项文件清单 SHA-256 为 `0b48049eff9b7c9c1585002518d522ac26ada682fdb500f26f49c9983af3d091`。六个 PE 的 Authenticode 状态均为 `NotSigned`。 [Windows Run 46122083209](https://github.com/blueokanna/Crabforge/actions/runs/46122083209)
+
+The Windows package for `ad2dee070aadd2acbbdbe00c97b481cfe2e5cf04` passed checks on both CLIs and the Release desktop, including 40 fixture flags with `--memory-publication`. Remote `main` matched the build SHA exactly after acceptance. Rust reported 174 passed and 30 ignored. Artifact `15254507568` was 67,784,560 bytes with ZIP SHA-256 `5ccd918f2589040eb87477461c00eb9391979badc8288a3eacaaf5742a5e38f2`. The 556-entry manifest generated during acceptance had SHA-256 `0b48049eff9b7c9c1585002518d522ac26ada682fdb500f26f49c9983af3d091`. All six PE files reported `NotSigned` for Authenticode. [Windows run 46122083209](https://github.com/blueokanna/Crabforge/actions/runs/46122083209)
+
 ## 夜间整理记忆 / Nightly memory tidy
 
 Windows 本机通过 176 项 Rust 测试，忽略 30 项，全目标严格 Clippy 通过。Rust 回归覆盖纽约夏令时切换日的本地 03:00 边界、整理写入中断后的恢复，以及撤销时保留外部编辑。两个 Debug CLI 均通过回环模型夹具，验证网关启动时补跑到期任务、顺序组路由、模型失败保留原件、同作用域合并和来源保留、保护手写和置顶项、过期候选归档及逐字节撤销。Windows Debug 桌面在 1200 像素启用并立即整理，在 560 像素重开后撤销并停用，核对原文件的 BOM 和 CRLF。 [Rust 回归](../../../crates/core/src/memory/tidy.rs) · [桌面集成测试](../../../gui/integration_test/memory_tidy_test.dart)
 
 On Windows, 176 Rust tests passed, 30 were ignored, and strict Clippy passed for all targets. Rust regressions covered the local 3:00 AM boundary on New York's daylight saving transition, recovery after an interrupted tidy, and preservation of later edits during undo. Both Debug CLIs used a loopback model fixture to verify startup catch-up, group routing, preservation of originals on model failure, same-scope merging and provenance, protection for handwritten and pinned notes, candidate expiry, and byte-exact undo. The Windows Debug desktop enabled and ran the tidy at 1200 pixels, then reopened the dialog, undid the tidy, and disabled it at 560 pixels. The test verified the original file's BOM and CRLF. [Rust regressions](../../../crates/core/src/memory/tidy.rs) · [Desktop integration test](../../../gui/integration_test/memory_tidy_test.dart)
+
+## WebDAV 记忆同步 / WebDAV memory sync
+
+两套 Windows Debug CLI 通过 Magpie `0.1.4936` 加密备份双向互读、预览、条件写、逐字节读回、凭据隔离、删除记录、保护记忆和首次创建夹具。Rust 回归验证保留 `mergedFrom`，并忽略超过 180 天的删除记录。Windows Debug 桌面在 1200 像素预览，在 560 像素应用，夹具核对 Basic 鉴权、条件写和本地记忆。 [Rust 回归](../../../crates/core/src/memory/sync.rs) · [桌面集成测试](../../../gui/integration_test/memory_sync_test.dart)
+
+Both Windows Debug CLIs passed fixtures for two-way reads of a Magpie `0.1.4936` encrypted backup, preview, conditional writes, byte-for-byte readback, credential isolation, tombstones, protection for notes, and first sync. The Rust regression verified that WebDAV retains `mergedFrom` and ignores tombstones older than 180 days. The Windows Debug desktop previewed at 1200 pixels and applied at 560 pixels. Its fixture checked Basic authentication, the conditional write, and the local memory library. [Rust regression](../../../crates/core/src/memory/sync.rs) · [Desktop integration test](../../../gui/integration_test/memory_sync_test.dart)
 
 ## 签名与许可 / Signing and licenses
 
