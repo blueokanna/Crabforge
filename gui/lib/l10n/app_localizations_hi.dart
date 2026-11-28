@@ -400,6 +400,13 @@ class AppLocalizationsHi extends AppLocalizations {
       'प्रकाशित करने पर वैश्विक स्मृति और इस एजेंट की स्मृति उसके उपयोगकर्ता निर्देशों में लिखी जाती हैं।';
 
   @override
+  String get autoPublishAgentMemory => 'स्मृति रोज़ प्रकाशित करें';
+
+  @override
+  String get autoPublishAgentMemoryHelp =>
+      'गेटवे चालू रहने पर इस फ़ाइल में सक्रिय स्मृतियों का सारांश रोज़ अपडेट करें।';
+
+  @override
   String get agentMemoryDigestEmpty =>
       'प्रकाशित करने के लिए कोई सक्रिय वैश्विक या एजेंट स्मृति नहीं है।';
 

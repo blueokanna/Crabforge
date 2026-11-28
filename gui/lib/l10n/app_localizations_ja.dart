@@ -395,6 +395,13 @@ class AppLocalizationsJa extends AppLocalizations {
       '公開すると、グローバルメモリとこのエージェントのメモリが、エージェントのユーザー指示に書き込まれます。';
 
   @override
+  String get autoPublishAgentMemory => 'メモリを毎日公開';
+
+  @override
+  String get autoPublishAgentMemoryHelp =>
+      'ゲートウェイの稼働中に、このファイル内の有効なメモリの要約を毎日更新します。';
+
+  @override
   String get agentMemoryDigestEmpty => '公開できる有効なグローバルメモリまたはエージェントメモリはありません。';
 
   @override

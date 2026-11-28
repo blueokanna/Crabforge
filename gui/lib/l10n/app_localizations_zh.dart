@@ -391,6 +391,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentMemoryDigestHelp => '发布后，全局记忆和此 Agent 的记忆将写入该 Agent 的用户指令。';
 
   @override
+  String get autoPublishAgentMemory => '每日发布记忆';
+
+  @override
+  String get autoPublishAgentMemoryHelp => '网关运行时，每日将生效的记忆更新到此文件的摘要中。';
+
+  @override
   String get agentMemoryDigestEmpty => '没有可发布的有效全局记忆或 Agent 记忆。';
 
   @override

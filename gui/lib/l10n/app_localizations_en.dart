@@ -398,6 +398,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Publishing writes global memory and this agent’s memory to its user instructions.';
 
   @override
+  String get autoPublishAgentMemory => 'Publish memory daily';
+
+  @override
+  String get autoPublishAgentMemoryHelp =>
+      'Refresh the digest of active memories in this file while the gateway runs.';
+
+  @override
   String get agentMemoryDigestEmpty =>
       'There are no active global or agent memories to publish.';
 

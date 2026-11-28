@@ -56,6 +56,7 @@ Use `crabforge-cli memory distillation status` to inspect the schedule. The `mem
 ## Desktop appearance
 
 The desktop uses Material 3 Expressive button shapes and emphasized title styles, along with Google’s Material Symbols Rounded. The Windows accent seeds the Expressive light and dark palettes, including high-contrast variants. In the toolbar’s font menu, Google Sans renders Latin text and HarmonyOS Sans SC supplies Han glyphs. Selecting HarmonyOS Sans SC uses it for both English and Chinese. [Bundled font sources and licenses](assets/fonts/manifest.json)
+- **Daily memory publication.** In a build from current source, enable **Publish memory daily** under **User instructions** for Claude Code or Codex. While the gateway runs, it updates the managed digest of active global and agent memories. If you edit the published block or switch instruction files, reload and re-enable the setting to approve the target. The CLI accepts `--auto-publish` and `--stop-auto-publish` under `crabforge-cli memory agent-instructions <claude|codex>`.
 
 ## Build from source
 

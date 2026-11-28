@@ -403,6 +403,13 @@ class AppLocalizationsDe extends AppLocalizations {
       'Beim Veröffentlichen werden Einträge aus dem globalen Gedächtnis und dem Gedächtnis dieses Agenten in seine Benutzeranweisungen geschrieben.';
 
   @override
+  String get autoPublishAgentMemory => 'Gedächtnis täglich veröffentlichen';
+
+  @override
+  String get autoPublishAgentMemoryHelp =>
+      'Solange das Gateway läuft, wird die Zusammenfassung der aktiven Einträge in dieser Datei täglich aktualisiert.';
+
+  @override
   String get agentMemoryDigestEmpty =>
       'Es gibt keine aktiven globalen oder agentenspezifischen Einträge zum Veröffentlichen.';
 

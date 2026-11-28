@@ -56,6 +56,7 @@ CLI 提供相同的操作。运行 `crabforge-cli memory distillation status` �
 ## 桌面外观
 
 桌面端使用 Material 3 Expressive 按钮形状、强调标题样式，以及 Google Material Symbols Rounded 图标。浅色、深色和高对比度的 Expressive 配色会随 Windows 强调色更新。工具栏中选择 Google Sans 时，拉丁文本使用 Google Sans，汉字使用 HarmonyOS Sans SC。选择 HarmonyOS Sans SC 时，中英文均使用该字体。 [内置字体来源和许可证](assets/fonts/manifest.json)
+- **每日发布记忆。** 在当前源码构建的版本中，打开 Claude Code 或 Codex 的「用户指令」并启用「每日发布记忆」。网关运行时会刷新生效的全局和 Agent 记忆摘要。手动修改已发布的区块或切换指令文件后，重新加载并启用以确认目标。`crabforge-cli memory agent-instructions <claude|codex>` 支持 `--auto-publish` 和 `--stop-auto-publish`。
 
 ## 从源码构建
 

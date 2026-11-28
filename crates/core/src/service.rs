@@ -72,7 +72,12 @@ impl Service {
         let root = dir.to_owned();
         let catalogs = tokio::spawn(async move { catalog::maintain(&root, app, cfg).await });
         let root = dir.to_owned();
-        let memory = tokio::spawn(async move { schedule::hourly(&root).await });
+        let memory = tokio::spawn(async move {
+            tokio::join!(
+                schedule::hourly(&root),
+                crate::project_instructions::publication::maintain(&root),
+            );
+        });
         Ok(Self {
             addr,
             peer,

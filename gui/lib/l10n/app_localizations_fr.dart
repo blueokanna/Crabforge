@@ -403,6 +403,13 @@ class AppLocalizationsFr extends AppLocalizations {
       'La publication inscrit la mémoire globale et celle de cet agent dans ses instructions utilisateur.';
 
   @override
+  String get autoPublishAgentMemory => 'Publier la mémoire chaque jour';
+
+  @override
+  String get autoPublishAgentMemoryHelp =>
+      'Actualise chaque jour le résumé des mémoires actives dans ce fichier pendant que la passerelle fonctionne.';
+
+  @override
   String get agentMemoryDigestEmpty =>
       'Aucune entrée active de la mémoire globale ou de celle de cet agent à publier.';
 

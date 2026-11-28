@@ -737,6 +737,16 @@ The downloaded `0a759eaec3daa0fbe19f7bc3157f65eb5dd552a3` build passed 38 fixtur
 
 The `b71dba3cb007f0f9dbaf86e0de54bc738337683f` multipart fixture passed bytes to a string request API, and its directory refresh triggered an unread-assignment diagnostic. In `ec5e935b1bf0c75a5e2d3770ecdc9a4e99c71411`, Clippy rejected a directory refresh branch. Both Windows runs failed during the Rust checks and produced zero artifacts. [Run 46116339104](https://github.com/blueokanna/Crabforge/actions/runs/46116339104) · [Run 46116558964](https://github.com/blueokanna/Crabforge/actions/runs/46116558964)
 
+## 每日发布记忆 / Daily memory publication
+
+在 Claude Code 或 Codex 的「用户指令」中启用「每日发布记忆」，或在双 CLI 的 `memory agent-instructions <claude|codex>` 子命令中使用 `--auto-publish`。网关启动时及每小时检查到期目标，启用满 24 小时后首次自动发布。关闭开关或使用 `--stop-auto-publish` 会停止自动更新，已写入的摘要仍可从用户指令中查看。更换文件或编辑托管摘要后，可重新加载并重新启用以确认目标。 [调度实现](../../../crates/core/src/project_instructions/publication.rs)
+
+Enable **Publish memory daily** in **User instructions** for Claude Code or Codex, or use `--auto-publish` with `memory agent-instructions <claude|codex>` in either CLI. The gateway checks for due targets at startup and hourly. The first automatic publication is due 24 hours after opt-in. Turning the switch off or using `--stop-auto-publish` stops updates and keeps the published digest in the instruction file. After switching files or editing the managed digest, reload and re-enable the setting to approve the target. [Scheduler](../../../crates/core/src/project_instructions/publication.rs)
+
+Windows Debug 桌面复验在 1200 像素启用 Claude Code 的每日发布，在 560 像素重新打开对话框确认状态后关闭。双 CLI 夹具使用隔离的 Claude Code 和 Codex 目录，验证到期后重启网关即发布、两种 Agent 独立设置、手动发布仍可用、候选和其他 Agent 的记忆排除、BOM 与 CRLF 保留。Rust 回归覆盖外部编辑、目标切换和中断恢复。 [桌面集成测试](../../../gui/integration_test/memory_publication_test.dart)
+
+The Windows Debug desktop test enabled daily publication for Claude Code at 1200 pixels, reopened the dialog at 560 pixels to confirm persistence, and then disabled it. Fixtures for both CLIs used isolated Claude Code and Codex directories. They verified due publication at gateway startup, independent opt-in, manual publication, exclusion of candidates and other agents' notes, and preservation of BOM and CRLF. The Rust regression test covered external edits, target changes, and interrupted writes. [Desktop integration test](../../../gui/integration_test/memory_publication_test.dart)
+
 ## 签名与许可 / Signing and licenses
 
 本地隔离测试使用临时自签名证书。SignTool 添加了 RFC 3161 时间戳，随后因证书链不受信任拒绝该文件。签名脚本清除了临时密钥，发布目录未创建。正式发布需要受信任的发布者密钥。

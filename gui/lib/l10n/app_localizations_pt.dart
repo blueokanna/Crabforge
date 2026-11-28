@@ -401,6 +401,13 @@ class AppLocalizationsPt extends AppLocalizations {
       'A publicação grava a memória global e a deste agente nas suas instruções de utilizador.';
 
   @override
+  String get autoPublishAgentMemory => 'Publicar a memória diariamente';
+
+  @override
+  String get autoPublishAgentMemoryHelp =>
+      'Atualiza diariamente o resumo das memórias ativas neste ficheiro enquanto o gateway está em execução.';
+
+  @override
   String get agentMemoryDigestEmpty =>
       'Não há memórias globais ou deste agente ativas para publicar.';
 

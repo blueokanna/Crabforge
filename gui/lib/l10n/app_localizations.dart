@@ -832,6 +832,18 @@ abstract class AppLocalizations {
   /// **'Publishing writes global memory and this agent’s memory to its user instructions.'**
   String get agentMemoryDigestHelp;
 
+  /// No description provided for @autoPublishAgentMemory.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish memory daily'**
+  String get autoPublishAgentMemory;
+
+  /// No description provided for @autoPublishAgentMemoryHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the digest of active memories in this file while the gateway runs.'**
+  String get autoPublishAgentMemoryHelp;
+
   /// No description provided for @agentMemoryDigestEmpty.
   ///
   /// In en, this message translates to:

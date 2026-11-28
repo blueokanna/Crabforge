@@ -119,6 +119,8 @@
   "agentInstructions": "사용자 지침",
   "agentMemoryDigest": "사용자 메모리",
   "agentMemoryDigestHelp": "게시하면 전역 메모리와 이 에이전트의 메모리를 해당 에이전트의 사용자 지침에 기록합니다.",
+  "autoPublishAgentMemory": "매일 메모리 게시",
+  "autoPublishAgentMemoryHelp": "게이트웨이가 실행되는 동안 이 파일의 활성 메모리 요약을 매일 갱신합니다.",
   "agentMemoryDigestEmpty": "게시할 수 있는 활성 전역 또는 에이전트 메모리가 없습니다.",
   "projectMemory": "프로젝트 메모리",
   "publishMemory": "요약 게시",

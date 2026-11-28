@@ -119,6 +119,8 @@
   "agentInstructions": "Instructions utilisateur",
   "agentMemoryDigest": "Mémoire utilisateur",
   "agentMemoryDigestHelp": "La publication inscrit la mémoire globale et celle de cet agent dans ses instructions utilisateur.",
+  "autoPublishAgentMemory": "Publier la mémoire chaque jour",
+  "autoPublishAgentMemoryHelp": "Actualise chaque jour le résumé des mémoires actives dans ce fichier pendant que la passerelle fonctionne.",
   "agentMemoryDigestEmpty": "Aucune entrée active de la mémoire globale ou de celle de cet agent à publier.",
   "projectMemory": "Mémoire du projet",
   "publishMemory": "Publier le résumé",

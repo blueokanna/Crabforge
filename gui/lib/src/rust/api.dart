@@ -636,6 +636,16 @@ Future<void> publishAgentMemory({
   preview: preview,
 );
 
+Future<void> configureAgentMemoryPublication({
+  required String agent,
+  required bool enabled,
+  required String revision,
+}) => RustLib.instance.api.crateApiConfigureAgentMemoryPublication(
+  agent: agent,
+  enabled: enabled,
+  revision: revision,
+);
+
 Future<String> ompProfiles() => RustLib.instance.api.crateApiOmpProfiles();
 
 Future<String> ompAdvisor({required String profile}) =>

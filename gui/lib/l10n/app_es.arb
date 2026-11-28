@@ -119,6 +119,8 @@
   "agentInstructions": "Instrucciones del usuario",
   "agentMemoryDigest": "Memoria del usuario",
   "agentMemoryDigestHelp": "Al publicar, la memoria global y la de este agente se guardan en sus instrucciones de usuario.",
+  "autoPublishAgentMemory": "Publicar la memoria a diario",
+  "autoPublishAgentMemoryHelp": "Actualiza a diario el resumen de las memorias activas en este archivo mientras se ejecuta la pasarela.",
   "agentMemoryDigestEmpty": "No hay recuerdos activos globales ni de este agente para publicar.",
   "projectMemory": "Memoria del proyecto",
   "publishMemory": "Publicar resumen",

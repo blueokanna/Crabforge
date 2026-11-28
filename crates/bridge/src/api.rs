@@ -1028,6 +1028,19 @@ pub fn publish_agent_memory(agent: String, revision: String, preview: String) ->
     )
 }
 
+pub fn configure_agent_memory_publication(
+    agent: String,
+    enabled: bool,
+    revision: String,
+) -> Result<()> {
+    crabforge_core::project_instructions::publication::configure(
+        &config::data_dir()?,
+        &agent,
+        enabled,
+        &revision,
+    )
+}
+
 pub fn omp_profiles() -> Result<String> {
     use crabforge_core::agents::omp_profiles;
     let profiles = omp_profiles::list(&config::data_dir()?, &omp_profiles::installed()?)?;

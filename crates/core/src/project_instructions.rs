@@ -13,6 +13,7 @@ use std::{
 
 mod backup;
 pub use backup::{BackupInstructions, import_backup};
+pub mod publication;
 
 const BEGIN: &str = "<!-- crabforge:instructions:begin -->";
 const END: &str = "<!-- crabforge:instructions:end -->";
@@ -334,6 +335,8 @@ pub struct View {
     pub memory_digest: String,
     pub revision: String,
     pub can_restore: bool,
+    #[njson(skip_serializing_if = "std::ops::Not::not")]
+    pub auto_publish: bool,
 }
 
 #[derive(NsonSerialize, NsonDeserialize)]
@@ -399,7 +402,9 @@ pub fn read(dir: &Path, project: &Path, agent: &str) -> Result<View> {
 }
 
 pub fn read_agent(dir: &Path, agent: &str) -> Result<View> {
-    read_path(dir, agent_target(agent)?, Section::AgentMemory)
+    let mut view = read_path(dir, agent_target(agent)?, Section::AgentMemory)?;
+    view.auto_publish = publication::enabled(dir, agent)?;
+    Ok(view)
 }
 
 fn read_path(dir: &Path, path: PathBuf, memory_section: Section) -> Result<View> {
@@ -423,6 +428,7 @@ fn read_path(dir: &Path, path: PathBuf, memory_section: Section) -> Result<View>
         text: text(Section::Instructions),
         memory_digest: text(memory_section),
         can_restore: entries.iter().any(|e| e.after == revision),
+        auto_publish: false,
         revision,
     })
 }
@@ -472,19 +478,7 @@ pub fn publish_agent_memory(
     previous: &str,
     preview: Option<&str>,
 ) -> Result<()> {
-    let (_folder, _lock) = crate::memory::lock_store(dir)?;
-    let digest = crate::memory::agent_digest(dir, Some(agent))?;
-    ensure!(
-        preview.is_none_or(|preview| preview == digest),
-        "agent memory changed; preview it again"
-    );
-    write(
-        dir,
-        || agent_target(agent),
-        previous,
-        Some(&digest),
-        Section::AgentMemory,
-    )
+    publication::publish(dir, agent, previous, preview)
 }
 
 pub fn edit_agent(dir: &Path, agent: &str, previous: &str, text: Option<&str>) -> Result<()> {

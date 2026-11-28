@@ -119,6 +119,8 @@
   "agentInstructions": "Instruções do utilizador",
   "agentMemoryDigest": "Memória do utilizador",
   "agentMemoryDigestHelp": "A publicação grava a memória global e a deste agente nas suas instruções de utilizador.",
+  "autoPublishAgentMemory": "Publicar a memória diariamente",
+  "autoPublishAgentMemoryHelp": "Atualiza diariamente o resumo das memórias ativas neste ficheiro enquanto o gateway está em execução.",
   "agentMemoryDigestEmpty": "Não há memórias globais ou deste agente ativas para publicar.",
   "projectMemory": "Memória do projeto",
   "publishMemory": "Publicar resumo",

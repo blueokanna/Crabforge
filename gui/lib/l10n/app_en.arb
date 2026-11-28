@@ -122,6 +122,8 @@
   "agentInstructions": "User instructions",
   "agentMemoryDigest": "User memory",
   "agentMemoryDigestHelp": "Publishing writes global memory and this agent’s memory to its user instructions.",
+  "autoPublishAgentMemory": "Publish memory daily",
+  "autoPublishAgentMemoryHelp": "Refresh the digest of active memories in this file while the gateway runs.",
   "agentMemoryDigestEmpty": "There are no active global or agent memories to publish.",
   "projectMemory": "Project memory",
   "publishMemory": "Publish digest",

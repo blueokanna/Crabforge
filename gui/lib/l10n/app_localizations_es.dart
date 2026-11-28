@@ -401,6 +401,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Al publicar, la memoria global y la de este agente se guardan en sus instrucciones de usuario.';
 
   @override
+  String get autoPublishAgentMemory => 'Publicar la memoria a diario';
+
+  @override
+  String get autoPublishAgentMemoryHelp =>
+      'Actualiza a diario el resumen de las memorias activas en este archivo mientras se ejecuta la pasarela.';
+
+  @override
   String get agentMemoryDigestEmpty =>
       'No hay recuerdos activos globales ni de este agente para publicar.';
 

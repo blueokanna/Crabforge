@@ -76,6 +76,12 @@ pub(super) enum Command {
         publish: bool,
         #[arg(long, group = "change")]
         restore: bool,
+        /// Refresh this agent's published digest daily while the gateway runs.
+        #[arg(long, group = "change")]
+        auto_publish: bool,
+        /// Turn off daily refresh for this agent.
+        #[arg(long, group = "change")]
+        stop_auto_publish: bool,
         #[arg(long, requires = "change")]
         revision: Option<String>,
         /// Require this previously exported UTF-8 digest to still match.
@@ -249,6 +255,8 @@ pub(super) async fn run(dir: &Path, command: Command) -> Result<()> {
             agent,
             publish,
             restore,
+            auto_publish,
+            stop_auto_publish,
             revision,
             preview,
         } => {
@@ -268,6 +276,8 @@ pub(super) async fn run(dir: &Path, command: Command) -> Result<()> {
                 )?;
             } else if restore {
                 project_instructions::edit_agent(dir, &agent, revision, None)?;
+            } else if auto_publish || stop_auto_publish {
+                project_instructions::publication::configure(dir, &agent, auto_publish, revision)?;
             } else {
                 return print(&view);
             }

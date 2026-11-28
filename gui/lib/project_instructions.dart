@@ -32,6 +32,7 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
     String text,
     String memoryDigest,
     bool canRestore,
+    bool autoPublish,
   })?
   document;
   bool busy = false;
@@ -83,6 +84,7 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
         text: text,
         memoryDigest: result['memory_digest'] as String,
         canRestore: result['can_restore'] as bool,
+        autoPublish: result['auto_publish'] == true,
       );
     });
   }
@@ -274,6 +276,26 @@ class _ProjectInstructionsEditorState extends State<ProjectInstructionsEditor> {
                   ),
                 ),
               ),
+              if (widget.userInstructions)
+                ValueListenableBuilder(
+                  valueListenable: markdown,
+                  builder: (context, value, _) => SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(strings.autoPublishAgentMemory),
+                    subtitle: Text(strings.autoPublishAgentMemoryHelp),
+                    value: current.autoPublish,
+                    onChanged: busy || current.text != value.text
+                        ? null
+                        : (enabled) => perform(() async {
+                            await api.configureAgentMemoryPublication(
+                              agent: widget.agent,
+                              enabled: enabled,
+                              revision: current.revision,
+                            );
+                            await load(current.folder);
+                          }),
+                  ),
+                ),
               const SizedBox(height: 14),
               TextField(
                 controller: markdown,
