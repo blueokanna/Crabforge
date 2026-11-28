@@ -38,6 +38,7 @@ mod ollama;
 mod round;
 mod routing;
 mod session;
+mod video;
 
 use crate::config::{Config, Provider};
 use crate::media::{self, ark, dashscope, minimax, modelscope, speech};
@@ -93,6 +94,7 @@ pub struct Gateway {
     client: Arc<ForwardClient>,
     vertex_tokens: BTreeMap<String, crate::vertex::auth::TokenCache>,
     modelscope_queues: Arc<modelscope::Queues>,
+    video_key: Arc<tokio::sync::OnceCell<ring::hmac::Key>>,
     token: String,
     slots: Arc<Semaphore>,
     history: History,
@@ -154,6 +156,7 @@ impl Gateway {
         let state = Arc::get_mut(&mut next).expect("new gateway state");
         state.slots = self.slots.clone();
         state.modelscope_queues = self.modelscope_queues.clone();
+        state.video_key = self.video_key.clone();
         state.turn_affinity = self.turn_affinity.clone();
         state.classifier_cache = self.classifier_cache.clone();
         let mut snapshot = self
@@ -377,6 +380,7 @@ fn router_with_client(
             .map(|p| (p.id.clone(), Default::default()))
             .collect(),
         modelscope_queues: Default::default(),
+        video_key: Arc::default(),
         rounds,
         rules,
         classifier_cache: Default::default(),
@@ -436,6 +440,13 @@ impl<'a> Api<'a> {
         if let Some(site) = p.web_site {
             return matches!(self, Self::Chat("chat/completions"))
                 .then_some(Destination::Browser(site));
+        }
+        if matches!(self, Self::Chat(video::CREATE)) {
+            return media::video::route(p, model)
+                .map(|(_, url)| Destination::Upstream(url, self, None));
+        }
+        if media::video::only(p, model) {
+            return None;
         }
         if let Self::Chat(path @ (decision::DECISIONS | decision::SYSTEM_ONE)) = self {
             let decisions = || {
@@ -511,7 +522,9 @@ impl<'a> Api<'a> {
                     RelayEndpoint::Chat => (Api::Chat("chat/completions"), Format::Chat),
                     RelayEndpoint::Messages => (Api::Messages("messages"), Format::Messages),
                     RelayEndpoint::Responses => (Api::Responses("responses"), Format::Responses),
-                    RelayEndpoint::Decisions | RelayEndpoint::SystemOne => continue,
+                    RelayEndpoint::Decisions | RelayEndpoint::SystemOne | RelayEndpoint::Videos => {
+                        continue;
+                    }
                 };
                 if let Some(url) = api.url(p, model) {
                     if from == to {
@@ -795,6 +808,12 @@ async fn serve_http(
     body: impl Future<Output = Result<Bytes>>,
 ) -> Response {
     let path = path.strip_prefix("v1/").unwrap_or(path);
+    if let Some(id) = path.strip_prefix("videos/") {
+        if parts.method != Method::GET {
+            return failure(StatusCode::METHOD_NOT_ALLOWED, "GET required");
+        }
+        return video::retrieve(gw, id, parts, body).await;
+    }
     if parts.method == Method::GET {
         if path == "models" {
             return (
@@ -843,7 +862,8 @@ async fn serve_http(
         | "images/edits"
         | "audio/speech"
         | "audio/transcriptions"
-        | "audio/translations" => Api::Chat(path),
+        | "audio/translations"
+        | video::CREATE => Api::Chat(path),
         "responses" | "responses/compact" => Api::Responses(path),
         "messages" | "messages/count_tokens" => Api::Messages(path),
         _ => match path
@@ -944,7 +964,9 @@ async fn forward(
     {
         if !matches!(
             api,
-            Api::Chat("audio/transcriptions" | "audio/translations" | "images/edits")
+            Api::Chat(
+                "audio/transcriptions" | "audio/translations" | "images/edits" | video::CREATE
+            )
         ) {
             return failure(
                 StatusCode::UNSUPPORTED_MEDIA_TYPE,
@@ -1174,7 +1196,18 @@ async fn forward(
             Err(_) if candidates.advance().await => continue,
             Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
         };
-        let media_body = media_body.or(drawing_body);
+        let video_kind = matches!(api, Api::Chat(video::CREATE))
+            .then(|| media::video::Kind::for_create_url(p, &url));
+        let video_body = if let Some(kind) = video_kind {
+            match kind.request(model, &bytes, upload.as_ref()) {
+                Ok(body) => body,
+                Err(_) if candidates.advance().await => continue,
+                Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
+            }
+        } else {
+            None
+        };
+        let media_body = media_body.or(drawing_body).or(video_body);
         let vercel_evaluation =
             matches!(native, Api::Chat(decision::SYSTEM_ONE)) && decision::vercel_evaluation(&url);
         let workers_ai =
@@ -1224,6 +1257,9 @@ async fn forward(
             None
         };
         let mut request = Request::post(url.as_str());
+        if video_kind == Some(media::video::Kind::DashScope) {
+            request = request.header("x-dashscope-async", "enable");
+        }
         if vercel_evaluation {
             request = request
                 .header("ai-gateway-protocol-version", "0.0.1")
@@ -1299,6 +1335,19 @@ async fn forward(
                 }
             }
         }
+        let video = if let Some(kind) = video_kind {
+            match video::signer(gw, p, &url, key.as_deref()).await {
+                Ok(signer) => Some((kind, signer)),
+                Err(_) => {
+                    return failure(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "could not load the video job signing key",
+                    );
+                }
+            }
+        } else {
+            None
+        };
         if let Some(key) = key {
             let protocol = match native {
                 Api::Gemini(_) => "gemini",
@@ -1378,6 +1427,10 @@ async fn forward(
                 crate::bedrock::authenticate(&mut request, &url, &p.key_env)?;
                 gw.client.send(request).await
             }?;
+            let upstream = match video_kind {
+                Some(kind) => video::business_status(kind, upstream).await?,
+                None => upstream,
+            };
             match first_content {
                 Some((_, format)) => first_content::wait(upstream, format).await,
                 None => Ok(upstream),
@@ -1424,6 +1477,13 @@ async fn forward(
                 continue;
             }
         }
+        if let Some((kind, signer)) = video
+            && status.is_success()
+        {
+            let response = video::created(upstream, &signer, p, model, kind).await;
+            record(response.status().as_u16());
+            return response;
+        }
         let response = if let Some((to, from)) = translation
             && status.is_success()
         {
@@ -1469,6 +1529,8 @@ fn upstream_response(upstream: Response, permit: Arc<OwnedSemaphorePermit>) -> R
     for h in [
         "content-type",
         "content-encoding",
+        "content-range",
+        "accept-ranges",
         "retry-after",
         "x-request-id",
         "request-id",

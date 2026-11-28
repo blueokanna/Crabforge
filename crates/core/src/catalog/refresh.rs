@@ -440,6 +440,7 @@ mod tests {
                 async move {
                     assert_eq!(headers["x-magpie-drawers"], "1");
                     assert_eq!(headers["x-magpie-deciders"], "1");
+                    assert_eq!(headers["x-magpie-videomakers"], "1");
                     let payload = match call {
                         0 => json!({"data":[{"id":"keep"},{"id":"steady"},{"id":"chat-old"},{"id":"chat-muted"}]}),
                         1 => json!({"data":[{"id":"keep"},{"id":"steady"},{"id":"chat-muted"},{"id":"CHAT-new","free":true,"native_endpoints":["/v1/chat/completions"],"reasoning_levels":["low","high"]},{"id":"embed-new"}]}),

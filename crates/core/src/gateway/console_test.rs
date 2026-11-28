@@ -1,4 +1,5 @@
 use super::*;
+use anyhow::Context;
 use crabforge_test_support::{
     Client,
     server::{Incoming, Router, get, post, serve_io},
@@ -53,6 +54,7 @@ fn tls_fixture(
     let config = Agent::config_builder()
         .proxy(None)
         .http_status_as_error(false)
+        .max_redirects(0)
         .tls_config(tls)
         .timeout_global(Some(Duration::from_secs(5)))
         .build();
@@ -315,6 +317,318 @@ async fn ark_gateway_rewrites_multipart_edits_and_keeps_successful_draws() -> Re
     );
     assert_eq!(value.pointer("/usage/generated_images"), Some(&json!(2)));
     assert_eq!(value.pointer("/usage/total_tokens"), Some(&json!(8)));
+    Ok(())
+}
+
+#[tokio::test]
+async fn ark_video_maps_seedance_tasks_and_streams_the_signed_result() -> Result<()> {
+    use crabforge_test_support::server::Json;
+    const HOST: &str = "ark.cn-beijing.volces.com";
+    const MODEL: &str = "doubao-seedance-2-0-260128";
+    let upstream = TcpListener::bind("127.0.0.1:0").await?;
+    let address = upstream.local_addr()?;
+    let (client, tls) = tls_fixture(HOST, address, None)?;
+    let origin = format!("https://{HOST}:{}", address.port());
+    let asset = format!("{origin}/film.mp4?signature=fixture");
+    let server = tokio::spawn(async move {
+        for step in 0..5 {
+            let (tcp, _) = upstream.accept().await?;
+            let socket = tls.accept(tcp).await?;
+            let asset = asset.clone();
+            let routes = Router::new()
+                .route("/api/v3/contents/generations/tasks", post(move |Incoming { body, .. }| async move {
+                    assert_eq!(step, 0);
+                    let request: nextjson::Value = nextjson::from_slice(&body).unwrap();
+                    assert_eq!(request["model"], json!(MODEL));
+                    assert_eq!(request["duration"], json!(-1));
+                    assert_eq!(request["resolution"], json!("4k"));
+                    assert_eq!(request["ratio"], json!("16:9"));
+                    assert_eq!(request.pointer("/content/0/text"), Some(&json!("A cloud crosses the sky")));
+                    assert_eq!(request.pointer("/content/1/role"), Some(&json!("first_frame")));
+                    assert_eq!(request.pointer("/content/2/role"), Some(&json!("last_frame")));
+                    assert_eq!(request.pointer("/content/3/image_url/url"), Some(&json!("https://example.test/reference.png")));
+                    assert_eq!(request["return_last_frame"], json!(true));
+                    ([("connection", "close")], Json(json!({"id":"seedance-task-1"})))
+                }))
+                .route("/api/v3/contents/generations/tasks/seedance-task-1", get(move |Incoming { headers, .. }| {
+                    let asset = asset.clone();
+                    async move {
+                        assert!(!headers.contains_key("range"));
+                        let reply = match step {
+                            1 => json!({"id":"seedance-task-1","status":"running","progress":20}),
+                            2 => json!({"id":"seedance-task-1","status":"succeeded","content":{"video_url":"http://127.0.0.1/unrelated"}}),
+                            3 => json!({"id":"seedance-task-1","status":"succeeded","duration":4,"content":{"video_url":asset}}),
+                            _ => panic!("unexpected video status request {step}"),
+                        };
+                        ([("connection", "close")], Json(reply))
+                    }
+                }))
+                .route("/film.mp4", get(move |Incoming { uri, headers, .. }| async move {
+                    assert_eq!(step, 4);
+                    assert_eq!(uri.query(), Some("signature=fixture"));
+                    assert_eq!(headers["range"], "bytes=2-4");
+                    assert!(!headers.contains_key("authorization"));
+                    (StatusCode::PARTIAL_CONTENT, [("connection","close"), ("content-type","video/mp4"), ("content-range","bytes 2-4/5")], Bytes::from_static(b"\0\x01\xff"))
+                }));
+            serve_io(socket, Arc::new(routes)).await;
+        }
+        Ok::<_, anyhow::Error>(())
+    });
+    let config = nextjson::from_value(json!({"providers":[{
+        "id":"ark", "models":[MODEL], "endpoints":{"chat":origin}
+    }]}))
+    .map_err(anyhow::Error::msg)?;
+    let root = tempfile::tempdir()?;
+    let router = router_with_client(
+        config,
+        "gateway-key".into(),
+        Default::default(),
+        root.path(),
+        client,
+    )?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
+    let gateway = tokio::spawn(crate::service::serve_local(listener, router));
+    let client = Client::with_timeout(Duration::from_secs(8));
+    let path = format!("http://{addr}/v1/videos");
+    let create = client.post(&path).bearer_auth("gateway-key").body(json!({
+        "model":format!("ark/{MODEL}"), "prompt":"A cloud crosses the sky", "size":"3840x2160", "seconds":"-1",
+        "input_reference":"https://example.test/start.png", "last_frame":{"url":"https://example.test/end.png"},
+        "reference_images":["https://example.test/reference.png"], "return_last_frame":true
+    }).to_string()).send().await?.error_for_status()?;
+    let created: nextjson::Value =
+        nextjson::from_slice(&create.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(created["status"], json!("queued"));
+    let id = created["id"].as_str().unwrap();
+    let content = format!("{path}/{id}/content");
+    assert_eq!(
+        client
+            .get(&content)
+            .bearer_auth("gateway-key")
+            .send()
+            .await?
+            .status(),
+        StatusCode::CONFLICT
+    );
+    assert_eq!(
+        client
+            .get(&content)
+            .bearer_auth("gateway-key")
+            .send()
+            .await?
+            .status(),
+        StatusCode::BAD_GATEWAY
+    );
+    let result = client
+        .get(&content)
+        .header("range", "bytes=2-4")
+        .bearer_auth("gateway-key")
+        .send()
+        .await?;
+    assert_eq!(result.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(result.headers()["content-range"], "bytes 2-4/5");
+    assert_eq!(result.bytes().await?, Bytes::from_static(b"\0\x01\xff"));
+    gateway.abort();
+    tokio::time::timeout(Duration::from_secs(8), server).await???;
+    Ok(())
+}
+
+#[tokio::test]
+async fn vendor_video_tasks_use_native_paths_and_stream_content() -> Result<()> {
+    use crabforge_test_support::server::Json;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    for (host, model, create, poll) in [
+        (
+            "api.x.ai",
+            "grok-imagine-video",
+            "/v1/videos/generations",
+            "/v1/videos/fixture-1",
+        ),
+        (
+            "api.minimax.cn",
+            "MiniMax-H3-Max",
+            "/v2/video_generation",
+            "/v2/query/video_generation/fixture-1",
+        ),
+        (
+            "dashscope.aliyuncs.com",
+            "wan3.0-video",
+            "/api/v1/services/aigc/video-generation/video-synthesis",
+            "/api/v1/tasks/fixture-1",
+        ),
+    ] {
+        let vendor = TcpListener::bind("127.0.0.1:0").await?;
+        let addr = vendor.local_addr()?;
+        let (forward, tls) = tls_fixture(host, addr, None)?;
+        let origin = format!("https://{host}:{}", addr.port());
+        let asset = format!("{origin}/film.mp4?signature=fixture");
+        let minimax = host == "api.minimax.cn";
+        let server = tokio::spawn(async move {
+            let polls = AtomicUsize::new(0);
+            let routes = Router::new()
+                .route(create, post(move |Incoming { headers, body, .. }| async move {
+                    let fields: nextjson::Value = nextjson::from_slice(&body).unwrap();
+                    let fallback = minimax && fields["model"] == json!("MiniMax-H3-Lite");
+                    if !fallback {
+                        assert_eq!(fields["model"], json!(model));
+                    }
+                    let reply = match host {
+                        "api.x.ai" => {
+                            assert_eq!(fields["duration"], json!(4));
+                            assert_eq!(fields["resolution"], json!("720p"));
+                            assert_eq!(fields["aspect_ratio"], json!("9:16"));
+                            assert_eq!(fields.pointer("/image/url"), Some(&json!("https://example.test/start.png")));
+                            json!({"request_id":"fixture-1"})
+                        }
+                        "api.minimax.cn" => {
+                            assert_eq!(fields["duration"], json!(if fallback { 4 } else { 5 }));
+                            assert_eq!(fields["resolution"], json!("768P"));
+                            assert_eq!(fields.pointer("/content/1/role"), Some(&json!("first_frame")));
+                            assert!(fields.get("ratio").is_none());
+                            if fallback || fields.pointer("/content/0/text") == Some(&json!("Busy")) {
+                                json!({"base_resp":{"status_code":1002}})
+                            } else {
+                                json!({"task_id":"fixture-1","base_resp":{"status_code":0}})
+                            }
+                        }
+                        _ => {
+                            assert_eq!(headers["x-dashscope-async"], "enable");
+                            assert_eq!(fields.pointer("/input/media/0/type"), Some(&json!("first_frame")));
+                            assert_eq!(fields.pointer("/parameters/resolution"), Some(&json!("1080P")));
+                            json!({"output":{"task_id":"fixture-1","task_status":"PENDING"}})
+                        }
+                    };
+                    ([("connection", "close")], Json(reply))
+                }))
+                .route(poll, get(move |Incoming { headers, .. }| {
+                    let asset = asset.clone();
+                    let id = if polls.fetch_add(1, Ordering::Relaxed) == 0 { "different-job" } else { "fixture-1" };
+                    async move {
+                        assert!(!headers.contains_key("range"));
+                        let reply = match host {
+                            "api.x.ai" if id == "fixture-1" => json!({"status":"done","video":{"duration":5,"url":asset}}),
+                            "api.x.ai" => json!({"request_id":id,"status":"done","video":{"duration":5,"url":asset}}),
+                            "api.minimax.cn" => json!({"task":{"id":id,"status":"succeeded","duration":5,"content":{"url":asset}}}),
+                            _ => json!({"output":{"task_id":id,"task_status":"SUCCEEDED","video_url":asset},"usage":{"duration":5}}),
+                        };
+                        ([("connection", "close")], Json(reply))
+                    }
+                }))
+                .route("/film.mp4", get(|Incoming { headers, uri, .. }| async move {
+                    assert_eq!(uri.query(), Some("signature=fixture"));
+                    assert_eq!(headers["range"], "bytes=1-2");
+                    assert!(!headers.contains_key("authorization"));
+                    assert!(!headers.contains_key("x-api-key"));
+                    (StatusCode::PARTIAL_CONTENT, [("connection","close"), ("content-range","bytes 1-2/3"), ("content-type","video/mp4")], Bytes::from_static(b"\x01\xff"))
+                }));
+            let routes = Arc::new(routes);
+            for _ in 0..(5 + 2 * usize::from(minimax)) {
+                let (tcp, _) = vendor.accept().await?;
+                serve_io(tls.accept(tcp).await?, routes.clone()).await;
+            }
+            Ok::<_, anyhow::Error>(())
+        });
+        let mut models = vec!["text", model];
+        let mut members = vec!["vendor/text".to_owned()];
+        if minimax {
+            models.push("MiniMax-H3-Lite");
+            members.push("vendor/MiniMax-H3-Lite".into());
+        }
+        let direct = format!("vendor/{model}");
+        members.push(direct.clone());
+        let config = nextjson::from_value(json!({
+            "providers":[{"id":"vendor","models":models,"patience":-1,"endpoints":{"chat":origin}}],
+            "groups":{"films":members},
+            "group_patience":{"films":-1}
+        }))
+        .map_err(anyhow::Error::msg)?;
+        let root = tempfile::tempdir()?;
+        let router = router_with_client(
+            config,
+            "gateway-key".into(),
+            Default::default(),
+            root.path(),
+            forward,
+        )?;
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let base = format!("http://{}/v1", listener.local_addr()?);
+        let gateway = tokio::spawn(crate::service::serve_local(listener, router));
+        let client = Client::with_timeout(Duration::from_secs(8));
+        let catalog = client
+            .get(format!("{base}/models"))
+            .bearer_auth("gateway-key")
+            .send()
+            .await?
+            .error_for_status()?;
+        let catalog: nextjson::Value =
+            nextjson::from_slice(&catalog.bytes().await?).map_err(anyhow::Error::msg)?;
+        let catalog = catalog["data"].as_array().unwrap();
+        for id in [format!("vendor/{model}"), "group/films".to_owned()] {
+            let row = catalog
+                .iter()
+                .find(|row| row["id"] == json!(id))
+                .context("missing video model or group")?;
+            assert_eq!(row["native_endpoints"], json!(["/v1/videos"]));
+        }
+        let create = |route: &str, prompt| {
+            client
+                .post(format!("{base}/videos"))
+                .bearer_auth("gateway-key")
+                .body(
+                    json!({
+                        "model":route, "prompt":prompt, "seconds":4, "size":"1080x1920",
+                        "input_reference":"https://example.test/start.png"
+                    })
+                    .to_string(),
+                )
+        };
+        if minimax {
+            assert_eq!(
+                create(&direct, "Busy").send().await?.status(),
+                StatusCode::TOO_MANY_REQUESTS
+            );
+        }
+        let created = create("group/films", "Clouds over a lake")
+            .send()
+            .await?
+            .error_for_status()?;
+        let created: nextjson::Value =
+            nextjson::from_slice(&created.bytes().await?).map_err(anyhow::Error::msg)?;
+        assert_eq!(created["status"], json!("queued"));
+        assert_eq!(created["model"], json!(direct));
+        let job = format!("{base}/videos/{}", created["id"].as_str().unwrap());
+        assert_eq!(
+            client
+                .get(&job)
+                .bearer_auth("gateway-key")
+                .send()
+                .await?
+                .status(),
+            StatusCode::BAD_GATEWAY
+        );
+        let status = client
+            .get(&job)
+            .bearer_auth("gateway-key")
+            .send()
+            .await?
+            .error_for_status()?;
+        let status: nextjson::Value =
+            nextjson::from_slice(&status.bytes().await?).map_err(anyhow::Error::msg)?;
+        assert_eq!(status["status"], json!("completed"));
+        assert_eq!(status["seconds"], json!("5"));
+        let video = client
+            .get(format!("{job}/content"))
+            .bearer_auth("gateway-key")
+            .header("range", "bytes=1-2")
+            .send()
+            .await?;
+        assert_eq!(video.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(video.headers()["content-range"], "bytes 1-2/3");
+        assert_eq!(video.bytes().await?, Bytes::from_static(b"\x01\xff"));
+        gateway.abort();
+        tokio::time::timeout(Duration::from_secs(8), server).await???;
+    }
     Ok(())
 }
 

@@ -1,6 +1,7 @@
 use super::{Api, Config, Format, Provider, ark, decision, minimax};
 use crate::catalog::RelayEndpoint;
 use crate::config::ResolvedGroups;
+use crate::media::video;
 use std::collections::BTreeMap;
 
 /// The wire protocols the upstream accepts directly, and the one to put in an agent's catalog.
@@ -11,12 +12,19 @@ pub struct NativeProtocols {
     messages: bool,
     decisions: bool,
     system_one: bool,
+    videos: bool,
     decision_classifier: bool,
     preferred: Option<Format>,
 }
 
 impl NativeProtocols {
     pub(super) fn model(p: &Provider, model: &str) -> Self {
+        if video::only(p, model) {
+            return Self {
+                videos: true,
+                ..Self::default()
+            };
+        }
         if p.web_site.is_some()
             || minimax::destination(&p.endpoints, model).is_some()
             || ark::image_model(&p.endpoints, model)
@@ -95,6 +103,7 @@ impl NativeProtocols {
             messages,
             decisions,
             system_one,
+            videos: video::route(p, model).is_some(),
             decision_classifier: (decisions || system_one) && preferred.is_none()
                 || decisions && model == decision::LUNA
                 || system_one
@@ -117,6 +126,7 @@ impl NativeProtocols {
             common.messages &= member.messages;
             common.decisions &= member.decisions;
             common.system_one &= member.system_one;
+            common.videos |= member.videos;
             common.decision_classifier |= member.decision_classifier;
             prefers_responses |= member.preferred == Some(Format::Responses);
         }
@@ -148,6 +158,7 @@ impl NativeProtocols {
             (self.messages, "/v1/messages"),
             (self.decisions, "/v1/decisions"),
             (self.system_one, "/v1/systemone"),
+            (self.videos, "/v1/videos"),
         ]
         .into_iter()
         .filter_map(|(served, path)| served.then_some(path))

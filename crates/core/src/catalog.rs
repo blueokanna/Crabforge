@@ -74,6 +74,7 @@ string_enum! {
         Messages => "/v1/messages",
         Decisions => "/v1/decisions",
         SystemOne => "/v1/systemone",
+        Videos => "/v1/videos",
     }
 }
 
@@ -132,11 +133,37 @@ impl Entry {
             .as_ref()
             .or_else(|| self.extra.get(LEGACY_RELAY_PREFERENCE))
             .and_then(known);
-        let native_endpoints = self
+        let mut native_endpoints: Option<BTreeSet<_>> = self
             .native_endpoints
             .as_ref()
             .and_then(nextjson::Value::as_array)
             .map(|values| values.iter().filter_map(known).collect());
+        let outputs = self
+            .extra
+            .get("output_modalities")
+            .or_else(|| {
+                let modalities = self.extra.get("modalities")?;
+                modalities
+                    .get("output")
+                    .or_else(|| modalities.get("output_modalities"))
+            })
+            .and_then(nextjson::Value::as_array);
+        let video_only = ["kind", "type"].iter().any(|field| {
+            self.extra
+                .get(*field)
+                .and_then(nextjson::Value::as_str)
+                .is_some_and(|kind| kind.eq_ignore_ascii_case("video"))
+        }) || self.extra.get("domain").and_then(nextjson::Value::as_str)
+            == Some("VideoGeneration")
+            || outputs.is_some_and(|outputs| {
+                outputs.iter().any(|value| value.as_str() == Some("video"))
+                    && !outputs.iter().any(|value| value.as_str() == Some("text"))
+            });
+        if video_only {
+            native_endpoints
+                .get_or_insert_with(BTreeSet::new)
+                .insert(RelayEndpoint::Videos);
+        }
         (preferred_endpoint.is_some() || native_endpoints.is_some()).then_some(RelayProtocols {
             native_endpoints,
             preferred_endpoint,
@@ -415,6 +442,13 @@ pub async fn discover_directory(
                 catalog.models.push((*model).to_owned());
             }
         }
+        if !remote {
+            for model in crate::media::video::builtin_models(bases) {
+                if seen.insert(model.to_owned()) {
+                    catalog.models.push(model.to_owned());
+                }
+            }
+        }
     }
     catalog.learned_auth = auth.learned;
     catalog.partial = !errors.is_empty();
@@ -470,6 +504,7 @@ impl CatalogAuth<'_> {
         if api == "remote" {
             headers.insert("x-magpie-drawers".into(), "1".into());
             headers.insert("x-magpie-deciders".into(), "1".into());
+            headers.insert("x-magpie-videomakers".into(), "1".into());
         }
         if let Some(token) = self.bearer {
             headers.insert(

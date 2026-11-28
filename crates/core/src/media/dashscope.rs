@@ -37,7 +37,13 @@ pub(crate) fn destination(
         }
         _ => return None,
     };
-    let mut url = [&provider.endpoints.chat, &provider.endpoints.anthropic]
+    let mut url = base(&provider.endpoints)?;
+    url.set_path(native);
+    Some((url, native))
+}
+
+pub(super) fn base(endpoints: &crate::config::Endpoints) -> Option<Url> {
+    [&endpoints.chat, &endpoints.anthropic, &endpoints.responses]
         .into_iter()
         .filter_map(|base| crate::config::endpoint(base).ok())
         .find(|url| {
@@ -57,9 +63,7 @@ pub(crate) fn destination(
                         url.path().trim_end_matches('/'),
                         "/compatible-mode/v1" | "/apps/anthropic"
                     ))
-        })?;
-    url.set_path(native);
-    Some((url, native))
+        })
 }
 
 pub(crate) struct ImageRequest {

@@ -108,6 +108,121 @@ async fn media_uploads_rewrite_model_and_preserve_binary_parts() -> Result<()> {
 }
 
 #[tokio::test]
+async fn video_jobs_stay_with_the_selected_upstream_across_restarts() -> Result<()> {
+    use crabforge_test_support::{Client, server::get};
+    use http::StatusCode;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
+    let app = Router::new()
+        .route(
+            "/busy/v1/videos",
+            post(|_| async { StatusCode::TOO_MANY_REQUESTS }),
+        )
+        .route(
+            "/video/v1/videos",
+            post(|Incoming { headers, body, .. }| async move {
+                assert!(!headers.contains_key("authorization"));
+                assert_eq!(
+                    nextjson::from_slice::<Value>(&body).unwrap(),
+                    json!({"model":"video-model","prompt":"A wave","seconds":"4"})
+                );
+                (
+                    StatusCode::CREATED,
+                    Json(json!({"id":"vendor-42","status":"queued"})),
+                )
+            }),
+        )
+        .route(
+            "/video/v1/videos/vendor-42",
+            get(|_| async { Json(json!({"id":"vendor-42","status":"completed","progress":100})) }),
+        )
+        .route(
+            "/video/v1/videos/vendor-42/content",
+            get(|Incoming { uri, headers, .. }| async move {
+                assert_eq!(uri.query(), Some("variant=video"));
+                assert_eq!(headers["range"], "bytes=1-3");
+                (
+                    StatusCode::PARTIAL_CONTENT,
+                    [
+                        ("content-type", "video/mp4"),
+                        ("content-range", "bytes 1-3/4"),
+                    ],
+                    vec![0, 255, 3],
+                )
+            }),
+        );
+    let server = tokio::spawn(crabforge_test_support::server::serve(listener, app));
+    let dir = tempfile::tempdir()?;
+    let cfg = json!({
+        "listen":"127.0.0.1:0",
+        "providers":[
+            {"id":"busy","models":["video-model"],"model_protocols":{"video-model":{"native_endpoints":["/v1/videos"]}},"endpoints":{"chat":format!("http://{addr}/busy/v1")}},
+            {"id":"video","models":["video-model"],"model_protocols":{"video-model":{"native_endpoints":["/v1/videos"]}},"endpoints":{"responses":format!("http://{addr}/video/v1")}}
+        ],
+        "groups":{"films":["busy/video-model","video/video-model"]}
+    });
+    config::save(dir.path(), &config::snapshot(dir.path())?, &cfg.to_string())?;
+    let service = Service::start(dir.path()).await?;
+    let key = config::token(dir.path())?;
+    let client = Client::default();
+    let response = client
+        .post(format!("http://{}/v1/videos", service.addr))
+        .bearer_auth(&key)
+        .body(r#"{"model":"group/films","prompt":"A wave","seconds":"4"}"#)
+        .send()
+        .await?;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let created: Value =
+        nextjson::from_slice(&response.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(created["status"], json!("queued"));
+    assert_eq!(created["model"], json!("video/video-model"));
+    let id = created["id"].as_str().unwrap();
+    assert!(id.starts_with("video_"));
+    assert_ne!(id, "vendor-42");
+    service.stop().await;
+
+    let service = Service::start(dir.path()).await?;
+    let base = format!("http://{}/v1/videos", service.addr);
+    let job_url = format!("{base}/{id}");
+    assert_eq!(
+        client.get(&job_url).send().await?.status(),
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        client
+            .get(format!("{job_url}A"))
+            .bearer_auth(&key)
+            .send()
+            .await?
+            .status(),
+        StatusCode::NOT_FOUND
+    );
+    let status = client
+        .get(&job_url)
+        .bearer_auth(&key)
+        .send()
+        .await?
+        .error_for_status()?;
+    let status: Value = nextjson::from_slice(&status.bytes().await?).map_err(anyhow::Error::msg)?;
+    assert_eq!(status["id"], json!(id));
+    assert_eq!(status["status"], json!("completed"));
+    assert_eq!(status["progress"], json!(100));
+    let content = client
+        .get(format!("{job_url}/content?variant=video"))
+        .header("range", "bytes=1-3")
+        .bearer_auth(&key)
+        .send()
+        .await?;
+    assert_eq!(content.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(content.headers()["content-range"], "bytes 1-3/4");
+    assert_eq!(content.bytes().await?.as_ref(), &[0, 255, 3]);
+    service.stop().await;
+    server.abort();
+    Ok(())
+}
+
+#[tokio::test]
 async fn speech_routes_native_gemini_audio_and_keeps_openai_relays_native() -> Result<()> {
     use base64::{Engine, engine::general_purpose::STANDARD};
     use std::sync::{

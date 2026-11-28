@@ -12,6 +12,8 @@ use http_body_util::{BodyExt, Limited};
 use nextjson::{Map, Value, json};
 use url::Url;
 
+pub(crate) mod video;
+
 const MAX_DRAWS: u64 = 4;
 const MAX_IMAGES: usize = 15;
 const MAX_REPLY_BYTES: usize = 24 * 1024 * 1024;

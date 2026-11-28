@@ -129,7 +129,10 @@ async fn protocol_directories_merge_only_complete_lists_and_allow_an_override() 
             "/account/catalog",
             get(|Incoming { uri, .. }| async move {
                 assert_eq!(uri.query(), Some("edition=team"));
-                Json(json!({"data":[{"id":"account-model"}]}))
+                Json(json!({"data":[{"id":"account-model"},
+                    {"id":"video-a","kind":"video"},
+                    {"id":"video-b","modalities":{"output_modalities":["video"]}},
+                    {"id":"mixed","output_modalities":["text","video"]}]}))
             }),
         );
     let server =
@@ -156,16 +159,29 @@ async fn protocol_directories_merge_only_complete_lists_and_allow_an_override() 
         models_url: format!("{root}/account/catalog?edition=team"),
         ..endpoints
     };
-    assert_eq!(discover(&endpoints, "").await?, ["account-model"]);
+    let catalog = crabforge_core::catalog::discover_catalog(&endpoints, "").await?;
+    assert_eq!(
+        catalog.models,
+        ["account-model", "video-a", "video-b", "mixed"]
+    );
+    for id in ["video-a", "video-b"] {
+        assert_eq!(
+            catalog.model_protocols[id]
+                .native_endpoints
+                .as_ref()
+                .unwrap(),
+            &[crabforge_core::catalog::RelayEndpoint::Videos]
+                .into_iter()
+                .collect()
+        );
+    }
+    assert!(!catalog.model_protocols.contains_key("mixed"));
     assert_eq!(hits.load(Ordering::Relaxed), 1);
     let builtin_with_override = Endpoints {
         chat: "https://api.voyageai.com/v1".into(),
         ..endpoints
     };
-    assert_eq!(
-        discover(&builtin_with_override, "").await?,
-        ["account-model"]
-    );
+    assert_eq!(discover(&builtin_with_override, "").await?, catalog.models);
     server.abort();
     Ok(())
 }

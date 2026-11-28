@@ -12,6 +12,7 @@ pub(crate) mod dashscope;
 pub(crate) mod minimax;
 pub(crate) mod modelscope;
 pub(crate) mod speech;
+pub(crate) mod video;
 
 struct Field {
     name: String,
