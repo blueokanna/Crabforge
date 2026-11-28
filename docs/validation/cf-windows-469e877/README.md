@@ -686,6 +686,22 @@ Windows 低负载复测观察了 30 分钟。采样每 30 秒查看一次约十�
 
 The Windows low-load probe observed the host for 30 minutes. About every 30 seconds, it measured system-wide CPU busy time over roughly ten seconds. Every sampled window exceeded the probe's 25% start threshold, so the probe did not start a new paired stream run. The earlier 60 loopback requests and their concurrent CPU measurements remain available. [Request CSV](sse-repeat-46005007334.csv) · [CPU CSV](sse-repeat-46005007334-cpu.csv)
 
+## 自动记忆提炼 / Automatic memory distillation
+
+提交 `0a759eaec3daa0fbe19f7bc3157f65eb5dd552a3` 的 Windows Debug 双 CLI 通过默认关闭、网关启动后调度、按路由组推理、会话静默筛选、只接受用户原话支持的候选、显式审核、重启去重和禁用检查。Rust 全工作区 170 项通过，30 项忽略。调度回归验证中断后继续使用已保存的小时尝试计数。 [调度实现和回归](../../../crates/core/src/memory/distill/schedule.rs)
+
+Both Windows Debug CLIs from `0a759eaec3daa0fbe19f7bc3157f65eb5dd552a3` verified that distillation is off by default, starts with the gateway when enabled, routes through the selected group, waits for quiet sessions, requires a supporting user quote, leaves candidates for explicit review, deduplicates after restart, and can be disabled. The Rust workspace passed 170 tests with 30 ignored. The scheduling regression verified that an interrupted run resumes with the saved hourly attempt count. [Scheduler and regression](../../../crates/core/src/memory/distill/schedule.rs)
+
+Windows 桌面集成在 1200 和 560 像素宽分别启用与关闭提炼，核对组选择和磁盘状态，并打开全部九种语言的设置。并行读取 `settings.json` 曾与 Windows 原子替换产生共享冲突。改为等待保存完成后经 Rust 桥读取配置，集成测试通过。Flutter 分析无问题，四项 Flutter 单测通过。 [桌面集成测试](../../../gui/integration_test/console_layout_test.dart)
+
+The Windows desktop integration enabled and disabled distillation at widths of 1200 and 560 pixels, verified the selected group and persisted state, and opened the settings in all nine languages. The earlier direct read of `settings.json` hit a Windows sharing violation during atomic replacement. The rerun waited for the save to finish and read the persisted settings through the Rust bridge. The integration passed, Flutter analysis reported no issues, and all four Flutter unit tests passed. [Desktop integration](../../../gui/integration_test/console_layout_test.dart)
+
+## `f497750` 历史包 / Historical package `f497750`
+
+Run `46110378934` 为 `f4977507bb2f5cad4123af39cfd6c227476fe554` 通过 160 项 Rust 测试，忽略 33 项。ZIP 为 67,194,253 字节，SHA-256 为 `e28f11c4b12c6f91357bffb34a747ee9e5636ecc6bc9064ca654a7ff8210e201`。676 项解包清单的 SHA-256 为 `b3cb94e848e292e2705df8fdc98d339f5612ea192744aefdb0169190a8478f45`，六个 PE 均为 `NotSigned`。接受了 29 项夹具标志，覆盖原产品 PNG、Release 桌面、意图置信度、Grok 和 Oh My Pi 各 12 轮。此前两次 Grok 试跑分别只记录了未筛选的标记和 `new` 标记。续跑同一包时完整通过 `new`、`load`、未筛选钩子和原生历史检查。验后远端 `main` 为 `19477340ec38eb64497d600683fd98e9604e09f8`，包含该构建提交。 [Run 46110378934](https://github.com/blueokanna/Crabforge/actions/runs/46110378934) · [Artifact 15250260787](https://github.com/blueokanna/Crabforge/actions/runs/46110378934/artifacts/15250260787)
+
+Run `46110378934` passed 160 Rust tests with 33 ignored for `f4977507bb2f5cad4123af39cfd6c227476fe554`. The 67,194,253-byte ZIP has SHA-256 `e28f11c4b12c6f91357bffb34a747ee9e5636ecc6bc9064ca654a7ff8210e201`. The 676-entry extraction manifest has SHA-256 `b3cb94e848e292e2705df8fdc98d339f5612ea192744aefdb0169190a8478f45`, and all six PE files reported `NotSigned`. Acceptance covered 29 fixture flags, including the original product PNG, the Release desktop, intent confidence, and 12 turns each in Grok and Oh My Pi. Two earlier Grok attempts recorded only the unfiltered marker and only the `new` marker, respectively. The resumed run on the same package passed the `new`, `load`, and unfiltered hook checks and verified the native history. Remote `main` at acceptance was `19477340ec38eb64497d600683fd98e9604e09f8` and contained the build commit. [Run 46110378934](https://github.com/blueokanna/Crabforge/actions/runs/46110378934) · [Artifact 15250260787](https://github.com/blueokanna/Crabforge/actions/runs/46110378934/artifacts/15250260787)
+
 ## 签名与许可 / Signing and licenses
 
 本地隔离测试使用临时自签名证书。SignTool 添加了 RFC 3161 时间戳，随后因证书链不受信任拒绝该文件。签名脚本清除了临时密钥，发布目录未创建。正式发布需要受信任的发布者密钥。
@@ -695,6 +711,10 @@ An isolated local test used a temporary self-signed certificate. SignTool applie
 GitHub 发布试跑以 `ba09164c4a2265462ef736d64722f1b20b085206` 为源。`identify` 和 `build` 成功，`sign` 下载并校验 CI 包后报告三项签名设置缺失，`publish` 跳过。仓库 Release 列表为零条。
 
 The GitHub release trial used source `ba09164c4a2265462ef736d64722f1b20b085206`. `identify` and `build` passed. `sign` downloaded and verified the CI archive, then reported that the three signing settings were missing. `publish` was skipped, and the repository had zero release entries. [Release trial 45952988583](https://github.com/blueokanna/Crabforge/actions/runs/45952988583) · [Signing job 140361568621](https://github.com/blueokanna/Crabforge/actions/runs/45952988583/job/140361568621)
+
+公开 `v0.1.0` 的标签和 GitHub 构建来源证明均对应 `cf76ad373c90a14abfc32a3803ec970767404d8c`。通过发布页下载的 ZIP 为 67,369,055 字节，SHA-256 为 `0715b23e9e77b95e92f5b0b4ce24b5cdcf299b5f99905ac7c7207bd69ea3d604`。ZIP 和 `.sha256` 附件均与 GitHub 记录的摘要一致。包内 `SHA256SUMS` 的 SHA-256 为 `3962e8daa3d60ade364188c83ca43b8759ff35837786539c74cc3dff76956554`，记录的 556 个文件逐一通过校验。两个 CLI 均报告 `0.1.0`，产品 PNG 与源提交一致，Release 桌面可响应并正常退出。六个 PE 均报告 `NotSigned`。验收时远端 `main` 为 `19477340ec38eb64497d600683fd98e9604e09f8`，包含该标签提交。 [公开发布](https://github.com/blueokanna/Crabforge/releases/tag/v0.1.0) · [发布 Run 46111898874](https://github.com/blueokanna/Crabforge/actions/runs/46111898874)
+
+The public `v0.1.0` tag and the GitHub build attestation both identify `cf76ad373c90a14abfc32a3803ec970767404d8c`. The ZIP downloaded from the release is 67,369,055 bytes with SHA-256 `0715b23e9e77b95e92f5b0b4ce24b5cdcf299b5f99905ac7c7207bd69ea3d604`. Both the ZIP and its `.sha256` attachment match GitHub's recorded digests. The internal `SHA256SUMS` has SHA-256 `3962e8daa3d60ade364188c83ca43b8759ff35837786539c74cc3dff76956554`, and all 556 file hashes verified. Both CLIs reported `0.1.0`, the product PNG matched the source commit, and the Release desktop responded and closed cleanly. All six PE files reported `NotSigned`. Remote `main` was `19477340ec38eb64497d600683fd98e9604e09f8` at acceptance and contained the tag commit. [Public release](https://github.com/blueokanna/Crabforge/releases/tag/v0.1.0) · [Release run 46111898874](https://github.com/blueokanna/Crabforge/actions/runs/46111898874)
 
 双语发布指南的 PowerShell 示例通过了本地验证。有效时间戳签名和 UTF-8 路径可正确核对，空清单、缺失清单、篡改文件及未签名的 CI 二进制均被拒绝。
 

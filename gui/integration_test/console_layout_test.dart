@@ -254,13 +254,15 @@ void main() {
       expect(tester.widget<FilledButton>(saveRouteLimits).onPressed, isNotNull);
       await tester.tap(saveRouteLimits.hitTestable());
       final deadline = DateTime.now().add(const Duration(seconds: 10));
-      var saved = false;
-      while (!saved && DateTime.now().isBefore(deadline)) {
+      bool saving() =>
+          saveRouteLimits.evaluate().isNotEmpty ||
+          !tester.widget<PopupMenuButton<WorkspaceFont>>(fontMenu).enabled;
+      await tester.pump();
+      while (saving() && DateTime.now().isBefore(deadline)) {
         await tester.pump(const Duration(milliseconds: 50));
-        saved = persisted(jsonDecode(settings.readAsStringSync()) as Map);
       }
       expect(
-        saved,
+        !saving() && persisted(jsonDecode(await native.configuration()) as Map),
         isTrue,
         reason: [
           for (final field in tester.stateList<FormFieldState<String>>(
