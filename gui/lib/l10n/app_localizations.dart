@@ -1150,6 +1150,42 @@ abstract class AppLocalizations {
   /// **'Model patterns, one per line'**
   String get memberPatterns;
 
+  /// No description provided for @automaticDistillation.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic memory extraction'**
+  String get automaticDistillation;
+
+  /// No description provided for @automaticDistillationHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'While the gateway is running, Crabforge sends user messages from quiet sessions to the selected model route. Review the resulting candidates in the memory library.'**
+  String get automaticDistillationHelp;
+
+  /// No description provided for @distillationEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get distillationEnabled;
+
+  /// No description provided for @distillationLookback.
+  ///
+  /// In en, this message translates to:
+  /// **'Lookback in days'**
+  String get distillationLookback;
+
+  /// No description provided for @allSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'All listed sessions'**
+  String get allSessions;
+
+  /// No description provided for @distillationRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Read now'**
+  String get distillationRun;
+
   /// No description provided for @pluginBundles.
   ///
   /// In en, this message translates to:

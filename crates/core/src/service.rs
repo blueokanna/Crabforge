@@ -1,6 +1,7 @@
 use crate::{
     config,
     gateway::{self, Gateway, History},
+    memory::distill::schedule,
     peer::{self, PeerServer},
 };
 use anyhow::Result;
@@ -36,6 +37,7 @@ pub struct Service {
     pub peer: Option<PeerServer>,
     pub history: History,
     http: JoinHandle<std::io::Result<()>>,
+    memory: JoinHandle<()>,
 }
 
 impl Service {
@@ -66,11 +68,14 @@ impl Service {
             )
         };
         let http = tokio::spawn(serve_local(listener, app));
+        let root = dir.to_owned();
+        let memory = tokio::spawn(async move { schedule::hourly(&root).await });
         Ok(Self {
             addr,
             peer,
             history,
             http,
+            memory,
         })
     }
 
@@ -89,17 +94,20 @@ impl Service {
 
     pub async fn stop(mut self) {
         self.http.abort();
+        self.memory.abort();
         if let Some(p) = self.peer.take() {
             p.task.abort();
             let _ = p.task.await;
         }
         let _ = (&mut self.http).await;
+        let _ = (&mut self.memory).await;
     }
 }
 
 impl Drop for Service {
     fn drop(&mut self) {
         self.http.abort();
+        self.memory.abort();
         if let Some(p) = &self.peer {
             p.task.abort();
         }

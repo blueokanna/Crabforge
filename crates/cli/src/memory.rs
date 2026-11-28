@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
-use crabforge_core::{agents::NativeAgent, memory, project_instructions};
+use crabforge_core::{
+    agents::NativeAgent, memory, memory::distill::schedule, project_instructions,
+};
 use nextjson::NsonSerialize;
 use std::path::{Path, PathBuf};
 
@@ -61,6 +63,11 @@ pub(super) enum Command {
         model: Option<String>,
         #[arg(long, requires = "model")]
         revision: Option<String>,
+    },
+    /// Configure automatic session distillation into reviewable memories.
+    Distillation {
+        #[command(subcommand)]
+        command: Distillation,
     },
     /// Inspect, publish or restore memory in Claude Code or Codex user instructions.
     AgentInstructions {
@@ -124,6 +131,23 @@ pub(super) enum Command {
         #[command(flatten)]
         fields: Fields,
     },
+}
+
+#[derive(Subcommand)]
+pub(super) enum Distillation {
+    /// Show the current configuration and most recent run.
+    Status,
+    /// Send eligible local session user messages to the specified model or group.
+    Enable {
+        model: String,
+        /// Days to look back from setup: 7, 30, 90, 365, or -1 for all listed sessions.
+        #[arg(long, default_value_t = 7, allow_negative_numbers = true)]
+        days: i16,
+    },
+    /// Stop automatic session distillation.
+    Disable,
+    /// Process eligible sessions now using the configured route.
+    Run,
 }
 
 #[derive(Args)]
@@ -213,6 +237,14 @@ pub(super) async fn run(dir: &Path, command: Command) -> Result<()> {
                 )?)
             }
         }
+        Command::Distillation { command } => match command {
+            Distillation::Status => print(&schedule::status(dir)?),
+            Distillation::Enable { model, days } => {
+                print(&schedule::configure(dir, Some(&model), days)?)
+            }
+            Distillation::Disable => print(&schedule::configure(dir, None, 7)?),
+            Distillation::Run => print(&schedule::run(dir).await?),
+        },
         Command::AgentInstructions {
             agent,
             publish,

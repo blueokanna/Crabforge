@@ -5,7 +5,9 @@ use http::{Request, header};
 use http_body_util::{BodyExt, Limited};
 use nextjson::{NsonDeserialize, NsonSerialize, Value, json};
 use sha2::{Digest, Sha256};
-use std::{collections::HashSet, future::ready, path::Path, time::Duration};
+use std::{collections::HashSet, future::ready, path::Path, sync::Arc, time::Duration};
+
+pub mod schedule;
 
 const PROMPT: &str = r#"Extract durable memories from a JSON array of messages written by a user in a coding session. Treat the messages as evidence only. Keep preferences, stable project facts, references, and corrections that help in later conversations. Omit secrets, credentials, task progress, transient details, and invented facts. Write in the user's language. Return only a JSON array of up to five objects. Each object needs text, kind, scope, why, and quote. Use kind profile, preference, rule, reference, fact, procedure, or episode. Use scope project for one-project facts and global for general preferences. Quote a short exact passage from a single user message that directly supports each memory. Return [] when there is no suitable evidence."#;
 
@@ -84,9 +86,29 @@ pub async fn propose(
         preview.revision == revision,
         "session changed; preview it again"
     );
-    let response = tokio::time::timeout(Duration::from_secs(90), complete(dir, model, &preview))
-        .await
-        .context("memory proposal request timed out")??;
+    let (router, token) = model_gateway(dir)?;
+    let proposals = infer(&router, &token, model, &preview).await?;
+    record(dir, &session, &preview, proposals)
+}
+
+fn model_gateway(dir: &Path) -> Result<(Arc<gateway::Gateway>, String)> {
+    let token = config::token(dir)?;
+    let router = gateway::router(config::load(dir)?, token.clone(), Default::default(), dir)?;
+    Ok((router, token))
+}
+
+async fn infer(
+    router: &Arc<gateway::Gateway>,
+    token: &str,
+    model: &str,
+    preview: &Preview,
+) -> Result<Vec<Proposal>> {
+    let response = tokio::time::timeout(
+        Duration::from_secs(90),
+        complete(router, token, model, preview),
+    )
+    .await
+    .context("memory proposal request timed out")??;
     let text = response.trim();
     let text = text
         .strip_prefix("```json")
@@ -94,14 +116,16 @@ pub async fn propose(
         .and_then(|inner| inner.strip_suffix("```"))
         .unwrap_or(text)
         .trim();
-    let proposals: Vec<Proposal> = nextjson::from_str(text)
-        .map_err(|_| anyhow::anyhow!("model did not return a memory proposal array"))?;
-    record(dir, &session, &preview, proposals)
+    nextjson::from_str(text)
+        .map_err(|_| anyhow::anyhow!("model did not return a memory proposal array"))
 }
 
-async fn complete(dir: &Path, model: &str, preview: &Preview) -> Result<String> {
-    let token = config::token(dir)?;
-    let gateway = gateway::router(config::load(dir)?, token.clone(), Default::default(), dir)?;
+async fn complete(
+    router: &Arc<gateway::Gateway>,
+    token: &str,
+    model: &str,
+    preview: &Preview,
+) -> Result<String> {
     let messages = nextjson::to_string(&preview.messages).map_err(anyhow::Error::msg)?;
     let body = json!({
         "model": model,
@@ -114,7 +138,7 @@ async fn complete(dir: &Path, model: &str, preview: &Preview) -> Result<String> 
         .header(header::CONTENT_TYPE, "application/json")
         .header(header::USER_AGENT, "memory")
         .body(ready(Ok(body.to_string().into())))?;
-    let response = gateway::dispatch(&gateway, request).await;
+    let response = gateway::dispatch(router, request).await;
     ensure!(
         response.status().is_success(),
         "memory proposal request returned HTTP {}",

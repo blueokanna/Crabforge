@@ -905,6 +905,24 @@ pub async fn propose_session_memory(
     )
 }
 
+pub fn memory_distillation_status() -> Result<String> {
+    encode(&crabforge_core::memory::distill::schedule::status(
+        &config::data_dir()?,
+    )?)
+}
+
+pub fn configure_memory_distillation(model: Option<String>, days: i16) -> Result<String> {
+    encode(&crabforge_core::memory::distill::schedule::configure(
+        &config::data_dir()?,
+        model.as_deref(),
+        days,
+    )?)
+}
+
+pub async fn run_memory_distillation() -> Result<String> {
+    encode(&crabforge_core::memory::distill::schedule::run(&config::data_dir()?).await?)
+}
+
 pub fn search_memories(query: String) -> Result<String> {
     encode(&crabforge_core::memory::search(
         &config::data_dir()?,

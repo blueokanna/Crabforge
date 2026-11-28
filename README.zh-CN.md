@@ -37,6 +37,12 @@ Windows 默认将配置和网关密钥保存在 `%LOCALAPPDATA%\com.blue.crabfor
 
 Crabforge 可管理 Antigravity 的项目指令、MCP、钩子及子代理。全局技能和子代理写入 Antigravity 的共享配置目录。 [Antigravity 配置发现规则](https://antigravity.google/docs/customization-discovery)
 
+## 从会话提炼记忆
+
+自动提炼默认关闭。在「客户端连接」中打开「本地会话」和「自动提炼记忆」，选择模型或路由组及回溯天数，再保存。网关运行时，Crabforge 会把至少 30 分钟没有活动的会话中的用户消息发送给所选路由，每小时最多尝试 30 个会话。点击「立即读取」可处理最近列表中全部符合条件的会话，生成的候选记忆可在「记忆」中审核。
+
+CLI 提供相同的操作。运行 `crabforge-cli memory distillation status` 查看状态，也可在 `memory distillation` 下使用 `enable <模型或组> --days 7`、`run` 和 `disable`。
+
 ## 桌面外观
 
 桌面端使用 Material 3 Expressive 按钮形状、强调标题样式，以及 Google Material Symbols Rounded 图标。浅色、深色和高对比度的 Expressive 配色会随 Windows 强调色更新。工具栏中选择 Google Sans 时，拉丁文本使用 Google Sans，汉字使用 HarmonyOS Sans SC。选择 HarmonyOS Sans SC 时，中英文均使用该字体。 [内置字体来源和许可证](assets/fonts/manifest.json)

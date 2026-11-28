@@ -576,6 +576,25 @@ class AppLocalizationsKo extends AppLocalizations {
   String get memberPatterns => '모델 패턴 (한 줄에 하나씩)';
 
   @override
+  String get automaticDistillation => '자동 기억 추출';
+
+  @override
+  String get automaticDistillationHelp =>
+      '게이트웨이가 실행되는 동안 Crabforge는 비활성 세션의 사용자 메시지를 선택한 모델 경로로 보냅니다. 추출된 후보는 기억 라이브러리에서 검토하세요.';
+
+  @override
+  String get distillationEnabled => '사용';
+
+  @override
+  String get distillationLookback => '조회할 과거 일수';
+
+  @override
+  String get allSessions => '목록의 모든 세션';
+
+  @override
+  String get distillationRun => '지금 읽기';
+
+  @override
   String get pluginBundles => '공유 플러그인 라이브러리';
 
   @override

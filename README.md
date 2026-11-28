@@ -37,6 +37,12 @@ With `agy` on `PATH` and the gateway running, launch Antigravity with `crabforge
 
 Crabforge also manages Antigravity project instructions, MCP configuration, hooks, and subagents. Global skills and subagents use Antigravity’s shared configuration directory. [Antigravity configuration discovery](https://antigravity.google/docs/customization-discovery)
 
+## Extract memories from sessions
+
+Automatic memory extraction is off by default. In **Client connections**, open **Local sessions** and **Automatic memory extraction**. Select a model or route group and a lookback period, then save. While the gateway runs, Crabforge sends user messages from sessions that have been quiet for 30 minutes to that route. Each hourly run attempts up to 30 sessions. Use **Read now** to process all eligible sessions in the recent list and review the resulting candidates in **Memory**.
+
+Use `crabforge-cli memory distillation status` to inspect the schedule. The `memory distillation` subcommands `enable <model-or-group> --days 7`, `run`, and `disable` configure, run, and stop it.
+
 ## Desktop appearance
 
 The desktop uses Material 3 Expressive button shapes and emphasized title styles, along with Google’s Material Symbols Rounded. The Windows accent seeds the Expressive light and dark palettes, including high-contrast variants. In the toolbar’s font menu, Google Sans renders Latin text and HarmonyOS Sans SC supplies Han glyphs. Selecting HarmonyOS Sans SC uses it for both English and Chinese. [Bundled font sources and licenses](assets/fonts/manifest.json)

@@ -542,6 +542,20 @@ Future<String> proposeSessionMemory({
   revision: revision,
 );
 
+Future<String> memoryDistillationStatus() =>
+    RustLib.instance.api.crateApiMemoryDistillationStatus();
+
+Future<String> configureMemoryDistillation({
+  String? model,
+  required int days,
+}) => RustLib.instance.api.crateApiConfigureMemoryDistillation(
+  model: model,
+  days: days,
+);
+
+Future<String> runMemoryDistillation() =>
+    RustLib.instance.api.crateApiRunMemoryDistillation();
+
 Future<String> searchMemories({required String query}) =>
     RustLib.instance.api.crateApiSearchMemories(query: query);
 

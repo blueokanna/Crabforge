@@ -571,6 +571,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get memberPatterns => '模型匹配规则，每行一条';
 
   @override
+  String get automaticDistillation => '自动提炼记忆';
+
+  @override
+  String get automaticDistillationHelp =>
+      '网关运行时，Crabforge 会将近期无活动会话的用户消息发送给所选模型路由。生成的候选记忆可在记忆库中审核。';
+
+  @override
+  String get distillationEnabled => '已启用';
+
+  @override
+  String get distillationLookback => '回溯天数';
+
+  @override
+  String get allSessions => '所有已列出的会话';
+
+  @override
+  String get distillationRun => '立即读取';
+
+  @override
   String get pluginBundles => '共享插件库';
 
   @override

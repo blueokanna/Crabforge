@@ -377,6 +377,97 @@ void main() {
       expect(tester.takeException(), isNull);
     }
 
+    Future<Finder> openDistillation(AppLocalizations translated) async {
+      final sessions = find.widgetWithText(
+        TextButton,
+        translated.agentSessions,
+      );
+      await Scrollable.ensureVisible(tester.element(sessions), alignment: 0.5);
+      await tester.pumpAndSettle();
+      await tester.tap(sessions.hitTestable());
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.text(translated.automaticDistillation).hitTestable(),
+      );
+      await tester.pumpAndSettle();
+      final dialog = find.widgetWithText(
+        AlertDialog,
+        translated.automaticDistillation,
+      );
+      expect(dialog, findsOneWidget);
+      expect(
+        find.descendant(of: dialog, matching: find.byType(SwitchListTile)),
+        findsOneWidget,
+      );
+      return dialog;
+    }
+
+    Future<void> closeDistillation(Finder dialog) async {
+      final close = MaterialLocalizations.of(tester.element(dialog))
+          .closeButtonLabel;
+      await tester.tap(find.descendant(of: dialog, matching: find.text(close)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(close).hitTestable());
+      await tester.pumpAndSettle();
+    }
+
+    for (final width in [1200, 560]) {
+      tester.view.physicalSize = Size(width.toDouble(), 800);
+      await tester.pumpAndSettle();
+      await openPage(navigation(width), strings.clients);
+      final dialog = await openDistillation(strings);
+      final toggle = find.descendant(
+        of: dialog,
+        matching: find.byType(SwitchListTile),
+      );
+      final save = find.descendant(
+        of: dialog,
+        matching: find.widgetWithText(FilledButton, strings.save),
+      );
+      final shouldEnable = width == 1200;
+      expect(tester.widget<SwitchListTile>(toggle).value, !shouldEnable);
+      if (!shouldEnable) {
+        expect(
+          find.descendant(of: dialog, matching: find.text('group/review')),
+          findsOneWidget,
+        );
+      }
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      if (shouldEnable) {
+        expect(tester.widget<FilledButton>(save).onPressed, isNull);
+        await tester.tap(
+          find.descendant(
+            of: dialog,
+            matching: find.byType(DropdownButtonFormField<String>),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('group/review').last.hitTestable());
+        await tester.pumpAndSettle();
+      }
+      expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      final persisted =
+          jsonDecode(await native.memoryDistillationStatus()) as Map;
+      expect(
+        persisted['options']?['model'],
+        shouldEnable ? 'group/review' : null,
+      );
+      if (shouldEnable) {
+        expect(
+          find.descendant(
+            of: dialog,
+            matching: find.text(strings.distillationRun),
+          ),
+          findsOneWidget,
+        );
+      }
+      expect(tester.takeException(), isNull);
+      await closeDistillation(dialog);
+    }
+
     final narrowNav = navigation(560);
     for (final code in languageNames.keys) {
       final locale = Locale(code);
@@ -387,6 +478,13 @@ void main() {
         await openPage(narrowNav, label);
         expect(tester.takeException(), isNull, reason: '$code / $label');
       }
+      final dialog = await openDistillation(translated);
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: '$code / ${translated.automaticDistillation}',
+      );
+      await closeDistillation(dialog);
     }
     tester.binding.platformDispatcher.localesTestValue = [const Locale('en')];
     await tester.pumpAndSettle();

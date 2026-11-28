@@ -584,6 +584,25 @@ class AppLocalizationsHi extends AppLocalizations {
   String get memberPatterns => 'मॉडल पैटर्न, हर पंक्ति में एक';
 
   @override
+  String get automaticDistillation => 'स्वचालित स्मृति निष्कर्षण';
+
+  @override
+  String get automaticDistillationHelp =>
+      'गेटवे चालू होने पर Crabforge निष्क्रिय सत्रों के उपयोगकर्ता संदेश चुने हुए मॉडल रूट पर भेजता है। सुझाई गई स्मृतियों की समीक्षा स्मृति लाइब्रेरी में करें।';
+
+  @override
+  String get distillationEnabled => 'सक्षम';
+
+  @override
+  String get distillationLookback => 'पिछले दिनों की संख्या';
+
+  @override
+  String get allSessions => 'सूची के सभी सत्र';
+
+  @override
+  String get distillationRun => 'अभी पढ़ें';
+
+  @override
   String get pluginBundles => 'साझा प्लगइन लाइब्रेरी';
 
   @override

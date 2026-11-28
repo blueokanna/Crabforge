@@ -209,19 +209,209 @@ class _AgentSessionsState extends State<AgentSessions> {
                   },
                 ),
               ),
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    MaterialLocalizations.of(context).closeButtonLabel,
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                children: [
+                  TextButton(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) =>
+                          _DistillationSettings(models: widget.models),
+                    ),
+                    child: Text(strings.automaticDistillation),
                   ),
-                ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      MaterialLocalizations.of(context).closeButtonLabel,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DistillationSettings extends StatefulWidget {
+  const _DistillationSettings({required this.models});
+
+  final List<String> models;
+
+  @override
+  State<_DistillationSettings> createState() => _DistillationSettingsState();
+}
+
+class _DistillationSettingsState extends State<_DistillationSettings> {
+  bool busy = true;
+  bool loaded = false;
+  bool enabled = false;
+  String? model;
+  int days = 7;
+  Map<String, dynamic>? saved;
+  Map<String, dynamic>? report;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> perform(
+    Future<String> Function() action, {
+    bool run = false,
+  }) async {
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final result = jsonDecode(await action()) as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() {
+        if (run) {
+          report = result;
+        } else {
+          saved = result['options'] as Map<String, dynamic>?;
+          report = result['last'] as Map<String, dynamic>?;
+          enabled = saved != null;
+          model = saved?['model'] as String?;
+          days = saved?['days'] as int? ?? 7;
+          loaded = true;
+        }
+      });
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> load() => perform(api.memoryDistillationStatus);
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = context.strings;
+    final locale = MaterialLocalizations.of(context);
+    final models = {...widget.models, if (saved?['model'] case String id) id};
+    final dirty =
+        enabled != (saved != null) ||
+        (enabled && (model != saved?['model'] || days != saved?['days']));
+    final last = report;
+    return AlertDialog(
+      title: Text(strings.automaticDistillation),
+      scrollable: true,
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(strings.automaticDistillationHelp),
+            if (busy) const LinearProgressIndicator(),
+            if (loaded) ...[
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  enabled ? strings.distillationEnabled : strings.disabled,
+                ),
+                value: enabled,
+                onChanged: busy
+                    ? null
+                    : (value) => setState(() => enabled = value),
+              ),
+              if (enabled) ...[
+                DropdownButtonFormField<String>(
+                  key: ValueKey<String?>(saved?['model'] as String?),
+                  icon: const Icon(CrabforgeSymbols.arrowDropDown),
+                  initialValue: model,
+                  isExpanded: true,
+                  menuMaxHeight: 360,
+                  decoration: InputDecoration(labelText: strings.models),
+                  items: [
+                    for (final id in models)
+                      DropdownMenuItem(
+                        value: id,
+                        child: Text(id, overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged: busy
+                      ? null
+                      : (value) => setState(() => model = value),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  key: ValueKey<int?>(saved?['days'] as int?),
+                  icon: const Icon(CrabforgeSymbols.arrowDropDown),
+                  initialValue: days,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: strings.distillationLookback,
+                  ),
+                  items: [
+                    for (final value in [7, 30, 90, 365, -1])
+                      DropdownMenuItem(
+                        value: value,
+                        child: Text(
+                          value < 0
+                              ? strings.allSessions
+                              : locale.formatDecimal(value),
+                        ),
+                      ),
+                  ],
+                  onChanged: busy
+                      ? null
+                      : (value) => setState(() => days = value!),
+                ),
+              ],
+              if (last != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '${strings.memoryState('candidate')} · '
+                  '${locale.formatDecimal(last['proposed'] as int)}',
+                ),
+                if (last['error'] is String)
+                  SelectableText(last['error'] as String),
+              ],
+            ],
+            if (error != null) SelectableText(error!),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(locale.closeButtonLabel),
+        ),
+        if (!loaded && error != null)
+          TextButton(
+            onPressed: busy ? null : load,
+            child: Text(strings.reload),
+          ),
+        if (enabled && saved != null)
+          TextButton(
+            onPressed: busy || dirty
+                ? null
+                : () => perform(api.runMemoryDistillation, run: true),
+            child: Text(strings.distillationRun),
+          ),
+        FilledButton(
+          onPressed: !loaded || busy || !dirty || (enabled && model == null)
+              ? null
+              : () => perform(
+                  () => api.configureMemoryDistillation(
+                    model: enabled ? model : null,
+                    days: days,
+                  ),
+                ),
+          child: Text(strings.save),
+        ),
+      ],
     );
   }
 }

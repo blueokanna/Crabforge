@@ -576,6 +576,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get memberPatterns => 'モデルのパターン（1 行に 1 つ）';
 
   @override
+  String get automaticDistillation => '記憶の自動抽出';
+
+  @override
+  String get automaticDistillationHelp =>
+      'ゲートウェイの稼働中、Crabforge は非アクティブなセッションのユーザーメッセージを選択したモデルルートに送信します。抽出された候補は記憶ライブラリで確認できます。';
+
+  @override
+  String get distillationEnabled => '有効';
+
+  @override
+  String get distillationLookback => 'さかのぼる日数';
+
+  @override
+  String get allSessions => '一覧の全セッション';
+
+  @override
+  String get distillationRun => '今すぐ読み込む';
+
+  @override
   String get pluginBundles => '共有プラグインライブラリ';
 
   @override

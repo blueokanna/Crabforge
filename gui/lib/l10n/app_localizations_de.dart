@@ -587,6 +587,25 @@ class AppLocalizationsDe extends AppLocalizations {
   String get memberPatterns => 'Modellmuster, eines pro Zeile';
 
   @override
+  String get automaticDistillation => 'Erinnerungen automatisch ableiten';
+
+  @override
+  String get automaticDistillationHelp =>
+      'Bei laufendem Gateway sendet Crabforge Benutzernachrichten aus inaktiven Sitzungen an die gewählte Modellroute. Die Vorschläge lassen sich in der Erinnerungsbibliothek prüfen.';
+
+  @override
+  String get distillationEnabled => 'Aktiviert';
+
+  @override
+  String get distillationLookback => 'Rückblick in Tagen';
+
+  @override
+  String get allSessions => 'Alle aufgelisteten Sitzungen';
+
+  @override
+  String get distillationRun => 'Jetzt lesen';
+
+  @override
   String get pluginBundles => 'Gemeinsame Plug-in-Bibliothek';
 
   @override

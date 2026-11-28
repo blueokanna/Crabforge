@@ -581,6 +581,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memberPatterns => 'Model patterns, one per line';
 
   @override
+  String get automaticDistillation => 'Automatic memory extraction';
+
+  @override
+  String get automaticDistillationHelp =>
+      'While the gateway is running, Crabforge sends user messages from quiet sessions to the selected model route. Review the resulting candidates in the memory library.';
+
+  @override
+  String get distillationEnabled => 'Enabled';
+
+  @override
+  String get distillationLookback => 'Lookback in days';
+
+  @override
+  String get allSessions => 'All listed sessions';
+
+  @override
+  String get distillationRun => 'Read now';
+
+  @override
   String get pluginBundles => 'Shared plugin library';
 
   @override

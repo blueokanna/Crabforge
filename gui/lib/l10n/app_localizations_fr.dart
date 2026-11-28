@@ -588,6 +588,25 @@ class AppLocalizationsFr extends AppLocalizations {
   String get memberPatterns => 'Motifs de modèles, un par ligne';
 
   @override
+  String get automaticDistillation => 'Extraction automatique des souvenirs';
+
+  @override
+  String get automaticDistillationHelp =>
+      'Lorsque la passerelle fonctionne, Crabforge envoie les messages utilisateur des sessions inactives à la route de modèle sélectionnée. Examinez les propositions dans la bibliothèque de souvenirs.';
+
+  @override
+  String get distillationEnabled => 'Activée';
+
+  @override
+  String get distillationLookback => 'Période en jours';
+
+  @override
+  String get allSessions => 'Toutes les sessions listées';
+
+  @override
+  String get distillationRun => 'Lire maintenant';
+
+  @override
   String get pluginBundles => 'Bibliothèque d’extensions partagée';
 
   @override
