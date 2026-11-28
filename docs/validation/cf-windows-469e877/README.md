@@ -74,6 +74,14 @@ The fixture used two loopback providers and one route group. The Windows integra
 
 After restoring the product PNG, local Windows integration tests repeated both widths, both brightness settings, list/grid layouts and nine-locale narrow navigation, producing 48 PNGs. A separate process confirmed the saved HarmonyOS Sans SC preference. The local capture archive under `dist/crabforge-expressive-layouts/` has SHA-256 `a383713a16ddbfab11f5735aacbefbf66465301fc8dc4f7f1c91c693027eae71`.
 
+Windows Actions 从 `cf76ad373c90a14abfc32a3803ec970767404d8c` 构建，164 项 Rust 测试通过，30 项忽略。下载的 Release 桌面通过启动与退出检查，包内 PNG 与原件逐字节一致。双 CLI 通过旧式指令覆盖的冲突预览、缺失或过期修订拒绝及确认后原位保留 CRLF。37 项夹具开关对应的检查全部通过，六个 PE 均为 `NotSigned`。验收结束时经代理核对远端 `main` 为 `465897d447039211b379f7ab4c733259e9e0dfad`，Git 确认它包含构建提交。 [Windows job](https://github.com/blueokanna/Crabforge/actions/runs/46110437610/job/140872535031) · [下载件](https://github.com/blueokanna/Crabforge/actions/runs/46110437610/artifacts/15249104431)
+
+Windows Actions built `cf76ad373c90a14abfc32a3803ec970767404d8c` and passed 164 Rust tests with 30 ignored. The downloaded Release desktop opened and exited, and its PNG matched the original byte for byte. Both CLIs previewed a legacy instruction conflict, rejected missing and stale revisions, and preserved CRLF during the approved in-place edit. Checks selected by all 37 fixture flags passed. All six PE files reported `NotSigned`. The proxied ref check at the end of acceptance found remote `main` at `465897d447039211b379f7ab4c733259e9e0dfad`, and Git confirmed it contained the build commit. [Windows job](https://github.com/blueokanna/Crabforge/actions/runs/46110437610/job/140872535031) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/46110437610/artifacts/15249104431)
+
+| ZIP bytes | ZIP SHA-256 | 解包项数 / Extracted files | 清单 SHA-256 / Manifest SHA-256 |
+| ---: | --- | ---: | --- |
+| 67,031,411 | `c8838936cde17e5719ff53ed907e5eca0ab03c814fe0745ad8186a7a0fcb8ae6` | 556 | `8f8a19773dd19bf4cf8a25d67cccfa7cc254b7b13555d67b993c45fd05b7edfc` |
+
 GitHub Actions 的 Release 构建中，三套文字字体和产品 PNG 均与原件逐字节一致。两套主字体均覆盖英语译文用到的 47 个拉丁字母，简体中文译文中的 388 个汉字均由 HarmonyOS Sans SC 提供。包内的 Material Symbols Rounded 裁剪版为 229,580 字节，包含应用引用的 82 个唯一图标码点和 `FILL`、`GRAD`、`opsz`、`wght` 四条可变轴。
 
 The three text fonts and the product PNG in the GitHub build match their source files byte for byte. Both primary fonts cover the 47 Latin letters used in the English locale. HarmonyOS Sans SC supplies all 388 Han characters in the Simplified Chinese locale. The bundled Material Symbols Rounded subset is 229,580 bytes and retains all 82 distinct icon codepoints used by the app and the `FILL`, `GRAD`, `opsz`, and `wght` axes. [Font source manifest](../../../assets/fonts/manifest.json)
@@ -481,6 +489,23 @@ Windows Debug passed 161 Rust tests and all-target Clippy, with 33 tests ignored
 Windows Debug 通过 162 项 Rust 测试和全目标 Clippy，33 项忽略。两个 CLI 通过回环验证默认音色、朗读指令、语速下限、MP3 下载字节和 multipart WAV 转写，并核对 `verbose_json` 的语言、时长和正文。Rust 回归还覆盖语速上限、内联 PCM、畸形 Base64 触发组回退、普通 JSON 和纯文本转写，以及 SSE、FLAC、SRT 和翻译请求的 400 响应。实际语音模型验收需要 DashScope 凭据。 [媒体回归](../../../crates/core/tests/media.rs)
 
 Windows Debug passed 162 Rust tests and all-target Clippy, with 33 tests ignored. Both CLIs verified the default voice, speech instructions, lower rate bound, downloaded MP3 bytes, and multipart WAV transcription on loopback. The `verbose_json` response preserved the language hint, duration, and text. Rust coverage also included the upper rate bound, inline PCM, group fallback after malformed Base64, JSON and plain text transcripts, and HTTP 400 for SSE, FLAC, SRT, and translation requests. Live speech model acceptance requires DashScope credentials. [Media regression](../../../crates/core/tests/media.rs)
+
+### MiniMax 与火山方舟图片 / MiniMax and Volcengine Ark images
+
+Windows TLS 夹具验证 MiniMax 在已知区域端点返回 HTTP 200 和业务码 `1002` 时，网关以 429 记录该次尝试并切换组成员，路由记录为 `[429, 200]`。火山方舟夹具验证 multipart 编辑转 JSON、参考图顺序、三次绘图中的两次成功和用量合并。Seedream 5 Pro 的 `4K` 与 `16:9` 请求先发送 `2816x1584`，收到 HTTP 422 后改用 `2848x1600` 并返回上游图片链接。真实端点测试需要对应供应商凭据。 [TLS 回归](../../../crates/core/src/gateway/console_test.rs)
+
+The Windows TLS fixture verified that MiniMax business code `1002` in an HTTP 200 response records a 429 and switches group members, producing attempt statuses `[429, 200]`. The Ark fixture checked multipart edits as JSON, reference image order, two successful drawings out of three, and combined usage. A `4K`, `16:9` request for Seedream 5 Pro first sent `2816x1584`. After HTTP 422 the gateway sent `2848x1600` and returned the upstream image URL. Live tests require provider credentials. [TLS regressions](../../../crates/core/src/gateway/console_test.rs)
+
+### 媒体构建下载验收 / Media build download acceptance
+
+下表两次验收均核对下载 ZIP、逐文件清单、产品 PNG 及 Release 桌面启动和退出。六个 PE 均为 `NotSigned`。`42dce75` 的 Grok 夹具曾缺少 `new` 过滤钩子标记，同包从该阶段续跑后通过。`465897d` 完成全部 37 项累计夹具检查，验后远端 `main` 与构建 SHA 一致。
+
+Both download checks verified the ZIP, file manifest, product PNG, and Release desktop startup and exit. All six PE files reported `NotSigned`. The Grok fixture for `42dce75` initially lacked a filtered `new` hook marker and passed when resumed on the same package. All 37 accumulated fixture checks passed for `465897d`, and remote `main` matched its full build SHA after acceptance.
+
+| 构建 SHA / Build SHA | Rust 通过 / 忽略 | ZIP bytes | ZIP SHA-256 | 文件数 / Files | 清单 SHA-256 / Manifest SHA-256 | 验后远端 main / Remote main after acceptance | GitHub Actions |
+| --- | ---: | ---: | --- | ---: | --- | --- | --- |
+| `42dce757303df9acb1c72f8a08af8efc706923e5` | 160 / 33 | 67,164,527 | `ebeac7138619f34ac97622c8415a099845c9ab1c7f69c636f105b6e262387f14` | 676 | `27b6dd8ef6a655ac2390845b23c31515c605d6c6e6a23bc369fe26c04e59ecd3` | `465897d447039211b379f7ab4c733259e9e0dfad` | [Job](https://github.com/blueokanna/Crabforge/actions/runs/46110796580/job/140873656832) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/46110796580/artifacts/15250441872) |
+| `465897d447039211b379f7ab4c733259e9e0dfad` | 167 / 30 | 67,072,838 | `07820cbca0a7c26ee470f6a50c0c56e0ba80af98a6292888fe3704e73a57d7d2` | 556 | `fd7d7851299c561e576c6a11ec5776ce739185f5552ef2cdbfa195e28ecf4d57` | `465897d447039211b379f7ab4c733259e9e0dfad` | [Job](https://github.com/blueokanna/Crabforge/actions/runs/46111496870/job/140875811777) · [Artifact](https://github.com/blueokanna/Crabforge/actions/runs/46111496870/artifacts/15250871596) |
 
 ### 决策接口与原生分类 / Decision APIs and native classification
 

@@ -7,6 +7,7 @@ use http::header;
 use std::convert::Infallible;
 use url::Url;
 
+pub(crate) mod ark;
 pub(crate) mod dashscope;
 pub(crate) mod minimax;
 pub(crate) mod speech;
@@ -17,6 +18,27 @@ struct Field {
     mime: Option<String>,
     head: Bytes,
     value: Bytes,
+}
+
+impl Field {
+    fn image_reference(&self) -> Result<String> {
+        if let Some(mime) = image_type(&self.value) {
+            return Ok(format!(
+                "data:{mime};base64,{}",
+                STANDARD.encode(&self.value)
+            ));
+        }
+        ensure!(self.filename.is_none(), "unrecognized image file");
+        Ok(image_source(std::str::from_utf8(&self.value)?.trim())?.to_owned())
+    }
+}
+
+fn image_reference(value: &nextjson::Value) -> Result<&str> {
+    let link = value.get("image_url").unwrap_or(value);
+    let raw = link
+        .as_str()
+        .or_else(|| link.get("url").and_then(nextjson::Value::as_str));
+    image_source(raw.context("expected an image URL or data URL")?)
 }
 
 pub(crate) enum Reply {

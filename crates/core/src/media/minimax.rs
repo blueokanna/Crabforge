@@ -1,4 +1,4 @@
-use super::{Upload, asset_url, image_source, image_type};
+use super::{Upload, asset_url, image_reference, image_type};
 use crate::config::{Endpoints, endpoint};
 use anyhow::{Context, Result, bail, ensure};
 use axum_core::response::Response;
@@ -55,13 +55,7 @@ pub(crate) fn request(
         for field in &upload.fields {
             let name = field.name.as_str();
             if matches!(name, "image" | "image[]" | "images") {
-                let source = if let Some(mime) = image_type(&field.value) {
-                    format!("data:{mime};base64,{}", STANDARD.encode(&field.value))
-                } else {
-                    ensure!(field.filename.is_none(), "unrecognized image file");
-                    image_source(std::str::from_utf8(&field.value)?.trim())?.to_owned()
-                };
-                images.push(source);
+                images.push(field.image_reference()?);
                 continue;
             }
             ensure!(field.filename.is_none(), "unexpected file field {name}");
@@ -95,13 +89,7 @@ pub(crate) fn request(
                     .map(Vec::as_slice)
                     .unwrap_or_else(|| std::slice::from_ref(value));
                 for image in list {
-                    let link = image.get("image_url").unwrap_or(image);
-                    let raw = link
-                        .as_str()
-                        .or_else(|| link.get("url").and_then(Value::as_str));
-                    images.push(
-                        image_source(raw.context("expected an image URL or data URL")?)?.to_owned(),
-                    );
+                    images.push(image_reference(image)?.to_owned());
                 }
             }
             "background" | "quality" if value.as_str() == Some("auto") => {}

@@ -40,7 +40,7 @@ mod routing;
 mod session;
 
 use crate::config::{Config, Provider};
-use crate::media::{self, dashscope, minimax, speech};
+use crate::media::{self, ark, dashscope, minimax, speech};
 use crate::translate::{self, Format};
 use crate::webchat::{Site, WebPrompt};
 use round::Round;
@@ -412,6 +412,18 @@ impl<'a> Api<'a> {
         if let Some(url) = minimax::destination(&p.endpoints, model) {
             return matches!(self, Self::Chat("images/generations" | "images/edits"))
                 .then_some(Destination::Upstream(url, Self::Chat(minimax::IMAGE), None));
+        }
+        if matches!(self, Self::Chat("images/generations" | "images/edits"))
+            && let Some(url) = ark::destination(&p.endpoints)
+        {
+            return Some(Destination::Upstream(
+                url,
+                Self::Chat("images/generations"),
+                None,
+            ));
+        }
+        if ark::image_model(&p.endpoints, model) {
+            return None;
         }
         if let Self::Chat(path) = self
             && let Some((url, native)) = dashscope::destination(p, model, path)
@@ -1022,6 +1034,20 @@ async fn forward(
         } else {
             None
         };
+        let (ark_body, ark_drawing) = match (api, native) {
+            (
+                Api::Chat(path @ ("images/generations" | "images/edits")),
+                Api::Chat("images/generations"),
+            ) if ark::host(&url) => {
+                match ark::Drawing::prepare(model, &bytes, upload.as_ref(), path == "images/edits")
+                {
+                    Ok((body, drawing)) => (Some(body), Some(drawing)),
+                    Err(_) if candidates.advance().await => continue,
+                    Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
+                }
+            }
+            _ => (None, None),
+        };
         let media = match (api, native) {
             (
                 Api::Chat(path @ ("images/generations" | "images/edits")),
@@ -1067,6 +1093,7 @@ async fn forward(
             Err(_) if candidates.advance().await => continue,
             Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
         };
+        let media_body = media_body.or(ark_body);
         let vercel_evaluation =
             matches!(native, Api::Chat(decision::SYSTEM_ONE)) && decision::vercel_evaluation(&url);
         let workers_ai =
@@ -1123,7 +1150,7 @@ async fn forward(
                 .header("ai-model-id", model)
                 .header("ai-evaluation-model-specification-version", "4");
         }
-        if matches!(native, Api::Chat(decision::SYSTEM_ONE)) && decision::ark(&url) {
+        if matches!(native, Api::Chat(decision::SYSTEM_ONE)) && ark::host(&url) {
             request = request.header("ark-beta-systemone-api", "true");
         }
         if crate::opencode::Console::request(&url).is_some() && native.format().is_some() {
@@ -1246,7 +1273,9 @@ async fn forward(
         });
         let send = async {
             let mut request = request.header(header::CONTENT_LENGTH, length).body(parts)?;
-            let upstream = if matches!(native, Api::Messages(_))
+            let upstream = if let Some(drawing) = ark_drawing {
+                drawing.send(&gw.client, request).await
+            } else if matches!(native, Api::Messages(_))
                 && !p.key_env.is_empty()
                 && p.endpoints.vertex.is_none()
             {

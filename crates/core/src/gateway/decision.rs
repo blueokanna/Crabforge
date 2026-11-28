@@ -68,7 +68,9 @@ pub(super) fn system_one_url(provider: &Provider, model: &str) -> Option<Url> {
             let mut url = [&endpoints.chat, &endpoints.responses]
                 .into_iter()
                 .filter_map(|base| config::endpoint(base).ok())
-                .find(|url| ark(url) && url.path().trim_end_matches('/') == "/api/v3")?;
+                .find(|url| {
+                    crate::media::ark::host(url) && url.path().trim_end_matches('/') == "/api/v3"
+                })?;
             url.set_path("/api/v1");
             url
         }
@@ -104,11 +106,6 @@ fn advertised(provider: &Provider, model: &str, endpoint: RelayEndpoint) -> bool
                     )
                 })
         })
-}
-
-pub(super) fn ark(url: &Url) -> bool {
-    url.host_str()
-        .is_some_and(|host| host.starts_with("ark.") && host.ends_with(".volces.com"))
 }
 
 fn bailian(url: &Url) -> bool {
@@ -426,7 +423,7 @@ fn into_system_one(
         json!({"messages":messages})
     };
     ensure!(
-        images.is_empty() || !(ark(destination) || bailian(destination)),
+        images.is_empty() || !(crate::media::ark::host(destination) || bailian(destination)),
         "the target System One model does not accept images"
     );
     let questions = value
