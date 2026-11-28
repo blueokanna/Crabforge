@@ -1195,6 +1195,19 @@ pub async fn refresh_provider_catalog(id: String) -> Result<()> {
     crabforge_core::catalog::refresh_provider(&config::data_dir()?, &id).await?;
     Ok(())
 }
+
+pub fn subscription_usage_providers(configuration: String) -> Result<Vec<String>> {
+    let config = config::Config::parse(&configuration)?;
+    Ok(crabforge_core::usage::available(&config)
+        .into_iter()
+        .map(str::to_owned)
+        .collect())
+}
+
+pub async fn provider_subscription_usage(id: String) -> Result<String> {
+    encode(&crabforge_core::usage::provider(&config::data_dir()?, &id).await?)
+}
+
 pub fn gateway_key() -> Result<String> {
     config::token(&config::data_dir()?)
 }

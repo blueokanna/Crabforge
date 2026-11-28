@@ -112,6 +112,54 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @subscriptionUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription usage'**
+  String get subscriptionUsage;
+
+  /// No description provided for @noSubscriptionUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'No usage windows were reported for this key.'**
+  String get noSubscriptionUsage;
+
+  /// No description provided for @quotaUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} used'**
+  String quotaUsed(String amount);
+
+  /// No description provided for @quotaBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining balance: {amount}'**
+  String quotaBalance(String amount);
+
+  /// No description provided for @quotaReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Resets {time}'**
+  String quotaReset(String time);
+
+  /// No description provided for @quotaSeparate.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate allowance or overage billing'**
+  String get quotaSeparate;
+
+  /// No description provided for @quotaWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'{kind, select, allowance {Allowance} month {Month} session {Session limit} extra {Extra usage} monthly {Monthly credits} purchased {Purchased credits} free {Free credits} credits {credits} videos {videos} other {Allowance}}'**
+  String quotaWindow(String kind);
+
+  /// No description provided for @quotaDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'{unit, select, days {{amount} d} hours {{amount} h} other {{amount} min}}'**
+  String quotaDuration(String unit, String amount);
+
   /// No description provided for @memorySync.
   ///
   /// In en, this message translates to:

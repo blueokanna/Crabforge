@@ -10,6 +10,58 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get subscriptionUsage => 'सदस्यता का उपयोग';
+
+  @override
+  String get noSubscriptionUsage =>
+      'इस कुंजी के लिए उपयोग की कोई अवधि नहीं बताई गई।';
+
+  @override
+  String quotaUsed(String amount) {
+    return '$amount इस्तेमाल हुआ';
+  }
+
+  @override
+  String quotaBalance(String amount) {
+    return 'शेष राशि: $amount';
+  }
+
+  @override
+  String quotaReset(String time) {
+    return '$time पर रीसेट होगा';
+  }
+
+  @override
+  String get quotaSeparate => 'अलग कोटा या अतिरिक्त उपयोग का बिल';
+
+  @override
+  String quotaWindow(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'allowance': 'कोटा',
+      'month': 'महीना',
+      'session': 'सत्र की सीमा',
+      'extra': 'अतिरिक्त उपयोग',
+      'monthly': 'मासिक क्रेडिट',
+      'purchased': 'खरीदे गए क्रेडिट',
+      'free': 'मुफ़्त क्रेडिट',
+      'credits': 'क्रेडिट',
+      'videos': 'वीडियो',
+      'other': 'कोटा',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String quotaDuration(String unit, String amount) {
+    String _temp0 = intl.Intl.selectLogic(unit, {
+      'days': '$amount दिन',
+      'hours': '$amount घंटे',
+      'other': '$amount मिनट',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get memorySync => 'WebDAV से स्मृतियाँ सिंक करें';
 
   @override

@@ -318,6 +318,8 @@ enum ProviderCommand {
     Rename { from: String, to: String },
     /// Refresh a provider directory and apply the saved model inclusion rules.
     Refresh { id: String },
+    /// Read allowance windows from the provider's subscription API.
+    Usage { id: String },
     /// Set the model directory interval, such as 10m, 6h, 1d or off.
     RefreshEvery { id: String, interval: String },
     /// Set glob or re: rules for newly listed models. Omit patterns to clear.
@@ -631,6 +633,15 @@ async fn dispatch(args: Args) -> Result<()> {
             println!(
                 "{}",
                 nextjson::to_string_pretty(&result).map_err(anyhow::Error::msg)?
+            );
+        }
+        Command::Provider {
+            command: ProviderCommand::Usage { id },
+        } => {
+            let report = crabforge_core::usage::provider(&dir, &id).await?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?
             );
         }
         Command::Provider {

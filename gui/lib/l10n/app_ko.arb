@@ -1,4 +1,12 @@
 {
+  "subscriptionUsage": "구독 사용량",
+  "noSubscriptionUsage": "이 키에 대한 사용 기간이 보고되지 않았습니다.",
+  "quotaUsed": "{amount} 사용",
+  "quotaBalance": "남은 잔액: {amount}",
+  "quotaReset": "{time}에 초기화",
+  "quotaSeparate": "별도 한도 또는 초과 사용 요금",
+  "quotaWindow": "{kind, select, allowance {할당량} month {월간} session {세션 한도} extra {추가 사용량} monthly {월간 크레딧} purchased {구매한 크레딧} free {무료 크레딧} credits {크레딧} videos {동영상} other {할당량}}",
+  "quotaDuration": "{unit, select, days {{amount}일} hours {{amount}시간} other {{amount}분}}",
   "memorySync": "WebDAV 메모리 동기화",
   "memorySyncUrl": "WebDAV 폴더 또는 백업 URL",
   "memorySyncUser": "WebDAV 사용자 이름(선택 사항)",

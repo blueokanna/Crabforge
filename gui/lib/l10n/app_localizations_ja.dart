@@ -10,6 +10,57 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get subscriptionUsage => 'サブスクリプションの使用状況';
+
+  @override
+  String get noSubscriptionUsage => 'このキーの使用期間は報告されていません。';
+
+  @override
+  String quotaUsed(String amount) {
+    return '$amount 使用済み';
+  }
+
+  @override
+  String quotaBalance(String amount) {
+    return '残高：$amount';
+  }
+
+  @override
+  String quotaReset(String time) {
+    return '$time にリセット';
+  }
+
+  @override
+  String get quotaSeparate => '個別枠または超過分の課金';
+
+  @override
+  String quotaWindow(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'allowance': '利用枠',
+      'month': '月間',
+      'session': 'セッション上限',
+      'extra': '追加利用',
+      'monthly': '月間クレジット',
+      'purchased': '購入済みクレジット',
+      'free': '無料クレジット',
+      'credits': 'クレジット',
+      'videos': '本',
+      'other': '利用枠',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String quotaDuration(String unit, String amount) {
+    String _temp0 = intl.Intl.selectLogic(unit, {
+      'days': '$amount日',
+      'hours': '$amount時間',
+      'other': '$amount分',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get memorySync => 'WebDAV メモリ同期';
 
   @override

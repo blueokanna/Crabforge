@@ -633,6 +633,48 @@ async fn vendor_video_tasks_use_native_paths_and_stream_content() -> Result<()> 
 }
 
 #[tokio::test]
+async fn subscription_usage_keeps_the_plan_key_on_the_vendor_and_rejects_redirects() -> Result<()> {
+    use crabforge_test_support::server::Json;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let (client, tls) = tls_fixture("opencode.ai", listener.local_addr()?, None)?;
+    let server = tokio::spawn(async move {
+        for step in 0..2 {
+            let (tcp, _) = listener.accept().await?;
+            let socket = tls.accept(tcp).await?;
+            let app = Router::new().route("/zen/go/v1/usage", get(move |Incoming { headers, body, .. }| async move {
+                assert_eq!(headers["authorization"], "Bearer fixture-only");
+                assert_eq!(headers["accept-language"], "en-US,en");
+                assert!(!headers["x-opencode-session"].is_empty());
+                assert!(body.is_empty());
+                let (status, reply) = if step == 0 {
+                    (StatusCode::OK, json!({"usage":{"rolling":{"percent":42,"resetsAt":"2026-11-29T12:00:00Z"}}}))
+                } else {
+                    (StatusCode::FOUND, json!({}))
+                };
+                (status, [("connection", "close"), ("location", "/never")], Json(reply))
+            }));
+            serve_io(socket, Arc::new(app)).await;
+        }
+        Ok::<_, anyhow::Error>(())
+    });
+    let config = Config::parse(
+        r#"{"providers":[{"id":"go","models":["fixture"],"key_env":"GO_FIXTURE","endpoints":{"chat":"https://opencode.ai/inference/go/openai/v1"}}]}"#,
+    )?;
+    assert_eq!(crate::usage::available(&config), ["go"]);
+    let provider = &config.providers[0];
+    let report = crate::usage::report(provider, &client, "fixture-only").await?;
+    assert_eq!(report.windows[0].used_percent, Some(42.0));
+    let error = crate::usage::report(provider, &client, "fixture-only")
+        .await
+        .err()
+        .context("redirect was accepted")?;
+    assert!(error.to_string().contains("HTTP 302"));
+    tokio::time::timeout(Duration::from_secs(8), server).await???;
+    Ok(())
+}
+
+#[tokio::test]
 async fn modelscope_gateway_polls_images_and_keeps_partial_results() -> Result<()> {
     const HOST: &str = "api-inference.modelscope.cn";
     const PNG: &[u8] = b"\x89PNG\r\n\x1a\nfixture";

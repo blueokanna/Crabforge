@@ -58,6 +58,7 @@ pub mod sessions;
 pub mod skills;
 mod translate;
 mod upstream;
+pub mod usage;
 mod vertex;
 pub mod webchat;
 

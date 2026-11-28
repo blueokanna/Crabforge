@@ -25,6 +25,7 @@ import 'l10n/app_localizations.dart';
 import 'memory.dart';
 import 'src/rust/api.dart' as api;
 import 'src/rust/frb_generated.dart';
+import 'subscription_usage.dart';
 import 'workspace.dart';
 
 void main() {
@@ -231,6 +232,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   late String peerId;
   bool get running => status['running'] == true;
   List<JsonMap> providers = const [];
+  Set<String> subscriptionProviders = const {};
   Map<String, String> catalogGroupRefs = const {};
   JsonMap groups = {};
   List<MapEntry<String, dynamic>> groupRows = const [];
@@ -299,11 +301,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       if (running && catalogPage) {
         final saved = await api.configuration();
         if (saved != previous) {
-          final resolved = jsonDecode(
-            await api.routeGroups(configuration: saved),
-          );
+          final details = await configurationDetails(saved);
           if (mounted && catalogPage && !busy && snapshot == previous) {
-            setState(() => applyConfiguration(saved, resolved));
+            setState(() => applyConfiguration(saved, details));
           }
         }
       }
@@ -344,16 +344,14 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         api.uiLayout(),
         api.uiFont(),
       ]);
-      final resolved = jsonDecode(
-        await api.routeGroups(configuration: values[0]),
-      ) as JsonMap;
+      final details = await configurationDetails(values[0]);
       final instructionAgents = await api.projectInstructionAgents();
       if (!mounted) return;
       widget.onLanguage(values[5]);
       widget.onLayoutLoaded(values[6] == 'grid');
       widget.onFont(WorkspaceFont.fromPreference(values[7]));
       setState(() {
-        applyConfiguration(values[0], resolved);
+        applyConfiguration(values[0], details);
         presets = (jsonDecode(values[1]) as List).cast<JsonMap>();
         applyStatus(values[2]);
         peerId = values[3];
@@ -406,17 +404,25 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
 
   Future<void> reloadConfiguration() async {
     final s = await api.configuration();
-    final resolved =
-        jsonDecode(await api.routeGroups(configuration: s)) as JsonMap;
+    final details = await configurationDetails(s);
     if (mounted) {
-      setState(() => applyConfiguration(s, resolved));
+      setState(() => applyConfiguration(s, details));
     }
   }
 
-  void applyConfiguration(String saved, JsonMap resolved) {
+  Future<(JsonMap, Set<String>)> configurationDetails(String saved) async {
+    final subscriptions = api.subscriptionUsageProviders(configuration: saved);
+    final resolved = api.routeGroups(configuration: saved);
+    final (routes, supported) = await (resolved, subscriptions).wait;
+    return (jsonDecode(routes) as JsonMap, supported.toSet());
+  }
+
+  void applyConfiguration(String saved, (JsonMap, Set<String>) details) {
+    final (resolved, subscriptions) = details;
     snapshot = saved;
     settings = jsonDecode(saved);
     providers = (settings['providers'] as List).cast<JsonMap>();
+    subscriptionProviders = subscriptions;
     expandedGroups = resolved['expanded'] ?? {};
     groups = {
       for (final name in resolved['order']) name: resolved['members'][name],
@@ -1057,6 +1063,21 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               : () =>
                     p['web_site'] == null ? provider(p) : login(p['web_site']),
           actions: [
+            if (subscriptionProviders.contains(p['id']))
+              IconButton(
+                tooltip: context.strings.subscriptionUsage,
+                icon: const Icon(CrabforgeSymbols.timeline),
+                onPressed: busy
+                    ? null
+                    : () => showDialog<void>(
+                        context: context,
+                        builder: (_) => SubscriptionUsageDialog(
+                          provider: p['id'],
+                          read: () =>
+                              api.providerSubscriptionUsage(id: p['id']),
+                        ),
+                      ),
+              ),
             if (managesModelDirectory(p))
               IconButton(
                 tooltip: context.strings.readModels,

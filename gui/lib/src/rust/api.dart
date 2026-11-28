@@ -752,6 +752,15 @@ Future<String> discoverModelCatalog({
 Future<void> refreshProviderCatalog({required String id}) =>
     RustLib.instance.api.crateApiRefreshProviderCatalog(id: id);
 
+Future<List<String>> subscriptionUsageProviders({
+  required String configuration,
+}) => RustLib.instance.api.crateApiSubscriptionUsageProviders(
+  configuration: configuration,
+);
+
+Future<String> providerSubscriptionUsage({required String id}) =>
+    RustLib.instance.api.crateApiProviderSubscriptionUsage(id: id);
+
 Future<String> gatewayKey() => RustLib.instance.api.crateApiGatewayKey();
 
 Future<void> visitWeb({required String site}) =>

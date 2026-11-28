@@ -10,6 +10,58 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get subscriptionUsage => 'Subscription usage';
+
+  @override
+  String get noSubscriptionUsage =>
+      'No usage windows were reported for this key.';
+
+  @override
+  String quotaUsed(String amount) {
+    return '$amount used';
+  }
+
+  @override
+  String quotaBalance(String amount) {
+    return 'Remaining balance: $amount';
+  }
+
+  @override
+  String quotaReset(String time) {
+    return 'Resets $time';
+  }
+
+  @override
+  String get quotaSeparate => 'Separate allowance or overage billing';
+
+  @override
+  String quotaWindow(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'allowance': 'Allowance',
+      'month': 'Month',
+      'session': 'Session limit',
+      'extra': 'Extra usage',
+      'monthly': 'Monthly credits',
+      'purchased': 'Purchased credits',
+      'free': 'Free credits',
+      'credits': 'credits',
+      'videos': 'videos',
+      'other': 'Allowance',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String quotaDuration(String unit, String amount) {
+    String _temp0 = intl.Intl.selectLogic(unit, {
+      'days': '$amount d',
+      'hours': '$amount h',
+      'other': '$amount min',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get memorySync => 'WebDAV memory sync';
 
   @override

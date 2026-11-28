@@ -10,6 +10,59 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get subscriptionUsage => 'Abonnementnutzung';
+
+  @override
+  String get noSubscriptionUsage =>
+      'Für diesen Schlüssel wurden keine Nutzungszeiträume gemeldet.';
+
+  @override
+  String quotaUsed(String amount) {
+    return '$amount verbraucht';
+  }
+
+  @override
+  String quotaBalance(String amount) {
+    return 'Verbleibendes Guthaben: $amount';
+  }
+
+  @override
+  String quotaReset(String time) {
+    return 'Zurücksetzung am $time';
+  }
+
+  @override
+  String get quotaSeparate =>
+      'Separates Kontingent oder Abrechnung bei Überschreitung';
+
+  @override
+  String quotaWindow(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'allowance': 'Kontingent',
+      'month': 'Monat',
+      'session': 'Sitzungslimit',
+      'extra': 'Zusätzliche Nutzung',
+      'monthly': 'Monatliches Guthaben',
+      'purchased': 'Gekauftes Guthaben',
+      'free': 'Kostenloses Guthaben',
+      'credits': 'Credits',
+      'videos': 'Videos',
+      'other': 'Kontingent',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String quotaDuration(String unit, String amount) {
+    String _temp0 = intl.Intl.selectLogic(unit, {
+      'days': '$amount T.',
+      'hours': '$amount Std.',
+      'other': '$amount Min.',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get memorySync => 'Gedächtnis über WebDAV synchronisieren';
 
   @override

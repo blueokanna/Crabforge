@@ -1,4 +1,12 @@
 {
+  "subscriptionUsage": "サブスクリプションの使用状況",
+  "noSubscriptionUsage": "このキーの使用期間は報告されていません。",
+  "quotaUsed": "{amount} 使用済み",
+  "quotaBalance": "残高：{amount}",
+  "quotaReset": "{time} にリセット",
+  "quotaSeparate": "個別枠または超過分の課金",
+  "quotaWindow": "{kind, select, allowance {利用枠} month {月間} session {セッション上限} extra {追加利用} monthly {月間クレジット} purchased {購入済みクレジット} free {無料クレジット} credits {クレジット} videos {本} other {利用枠}}",
+  "quotaDuration": "{unit, select, days {{amount}日} hours {{amount}時間} other {{amount}分}}",
   "memorySync": "WebDAV メモリ同期",
   "memorySyncUrl": "WebDAV フォルダーまたはバックアップの URL",
   "memorySyncUser": "WebDAV ユーザー名（任意）",

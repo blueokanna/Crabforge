@@ -10,6 +10,58 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get subscriptionUsage => 'Utilisation de l’abonnement';
+
+  @override
+  String get noSubscriptionUsage =>
+      'Aucune période d’utilisation n’a été indiquée pour cette clé.';
+
+  @override
+  String quotaUsed(String amount) {
+    return '$amount utilisé';
+  }
+
+  @override
+  String quotaBalance(String amount) {
+    return 'Solde restant : $amount';
+  }
+
+  @override
+  String quotaReset(String time) {
+    return 'Réinitialisation le $time';
+  }
+
+  @override
+  String get quotaSeparate => 'Quota distinct ou facturation du dépassement';
+
+  @override
+  String quotaWindow(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'allowance': 'Quota',
+      'month': 'Mois',
+      'session': 'Limite de session',
+      'extra': 'Utilisation supplémentaire',
+      'monthly': 'Crédits mensuels',
+      'purchased': 'Crédits achetés',
+      'free': 'Crédits gratuits',
+      'credits': 'crédits',
+      'videos': 'vidéos',
+      'other': 'Quota',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String quotaDuration(String unit, String amount) {
+    String _temp0 = intl.Intl.selectLogic(unit, {
+      'days': '$amount j',
+      'hours': '$amount h',
+      'other': '$amount min',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get memorySync => 'Synchronisation des mémoires via WebDAV';
 
   @override

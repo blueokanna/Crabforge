@@ -1,4 +1,12 @@
 {
+  "subscriptionUsage": "Utilisation de l’abonnement",
+  "noSubscriptionUsage": "Aucune période d’utilisation n’a été indiquée pour cette clé.",
+  "quotaUsed": "{amount} utilisé",
+  "quotaBalance": "Solde restant : {amount}",
+  "quotaReset": "Réinitialisation le {time}",
+  "quotaSeparate": "Quota distinct ou facturation du dépassement",
+  "quotaWindow": "{kind, select, allowance {Quota} month {Mois} session {Limite de session} extra {Utilisation supplémentaire} monthly {Crédits mensuels} purchased {Crédits achetés} free {Crédits gratuits} credits {crédits} videos {vidéos} other {Quota}}",
+  "quotaDuration": "{unit, select, days {{amount} j} hours {{amount} h} other {{amount} min}}",
   "memorySync": "Synchronisation des mémoires via WebDAV",
   "memorySyncUrl": "URL du dossier ou de la sauvegarde WebDAV",
   "memorySyncUser": "Nom d’utilisateur WebDAV (facultatif)",

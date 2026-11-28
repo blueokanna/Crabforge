@@ -10,6 +10,57 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get subscriptionUsage => '구독 사용량';
+
+  @override
+  String get noSubscriptionUsage => '이 키에 대한 사용 기간이 보고되지 않았습니다.';
+
+  @override
+  String quotaUsed(String amount) {
+    return '$amount 사용';
+  }
+
+  @override
+  String quotaBalance(String amount) {
+    return '남은 잔액: $amount';
+  }
+
+  @override
+  String quotaReset(String time) {
+    return '$time에 초기화';
+  }
+
+  @override
+  String get quotaSeparate => '별도 한도 또는 초과 사용 요금';
+
+  @override
+  String quotaWindow(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'allowance': '할당량',
+      'month': '월간',
+      'session': '세션 한도',
+      'extra': '추가 사용량',
+      'monthly': '월간 크레딧',
+      'purchased': '구매한 크레딧',
+      'free': '무료 크레딧',
+      'credits': '크레딧',
+      'videos': '동영상',
+      'other': '할당량',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String quotaDuration(String unit, String amount) {
+    String _temp0 = intl.Intl.selectLogic(unit, {
+      'days': '$amount일',
+      'hours': '$amount시간',
+      'other': '$amount분',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get memorySync => 'WebDAV 메모리 동기화';
 
   @override

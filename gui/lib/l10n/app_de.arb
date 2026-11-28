@@ -1,4 +1,12 @@
 {
+  "subscriptionUsage": "Abonnementnutzung",
+  "noSubscriptionUsage": "Für diesen Schlüssel wurden keine Nutzungszeiträume gemeldet.",
+  "quotaUsed": "{amount} verbraucht",
+  "quotaBalance": "Verbleibendes Guthaben: {amount}",
+  "quotaReset": "Zurücksetzung am {time}",
+  "quotaSeparate": "Separates Kontingent oder Abrechnung bei Überschreitung",
+  "quotaWindow": "{kind, select, allowance {Kontingent} month {Monat} session {Sitzungslimit} extra {Zusätzliche Nutzung} monthly {Monatliches Guthaben} purchased {Gekauftes Guthaben} free {Kostenloses Guthaben} credits {Credits} videos {Videos} other {Kontingent}}",
+  "quotaDuration": "{unit, select, days {{amount} T.} hours {{amount} Std.} other {{amount} Min.}}",
   "memorySync": "Gedächtnis über WebDAV synchronisieren",
   "memorySyncUrl": "WebDAV-Ordner oder Sicherungs-URL",
   "memorySyncUser": "WebDAV-Benutzername (optional)",

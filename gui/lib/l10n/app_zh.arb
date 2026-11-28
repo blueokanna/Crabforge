@@ -1,4 +1,12 @@
 {
+  "subscriptionUsage": "订阅用量",
+  "noSubscriptionUsage": "供应商未返回此密钥的用量窗口。",
+  "quotaUsed": "已用 {amount}",
+  "quotaBalance": "剩余余额 {amount}",
+  "quotaReset": "下次重置于 {time}",
+  "quotaSeparate": "独立额度或超额计费",
+  "quotaWindow": "{kind, select, allowance {额度} month {月度} session {会话额度} extra {额外用量} monthly {月度点数} purchased {已购点数} free {免费点数} credits {点} videos {个视频} other {额度}}",
+  "quotaDuration": "{unit, select, days {{amount} 天} hours {{amount} 小时} other {{amount} 分钟}}",
   "memorySync": "WebDAV 记忆同步",
   "memorySyncUrl": "WebDAV 目录或备份地址",
   "memorySyncUser": "WebDAV 用户名（可选）",

@@ -10,6 +10,57 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get subscriptionUsage => '订阅用量';
+
+  @override
+  String get noSubscriptionUsage => '供应商未返回此密钥的用量窗口。';
+
+  @override
+  String quotaUsed(String amount) {
+    return '已用 $amount';
+  }
+
+  @override
+  String quotaBalance(String amount) {
+    return '剩余余额 $amount';
+  }
+
+  @override
+  String quotaReset(String time) {
+    return '下次重置于 $time';
+  }
+
+  @override
+  String get quotaSeparate => '独立额度或超额计费';
+
+  @override
+  String quotaWindow(String kind) {
+    String _temp0 = intl.Intl.selectLogic(kind, {
+      'allowance': '额度',
+      'month': '月度',
+      'session': '会话额度',
+      'extra': '额外用量',
+      'monthly': '月度点数',
+      'purchased': '已购点数',
+      'free': '免费点数',
+      'credits': '点',
+      'videos': '个视频',
+      'other': '额度',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String quotaDuration(String unit, String amount) {
+    String _temp0 = intl.Intl.selectLogic(unit, {
+      'days': '$amount 天',
+      'hours': '$amount 小时',
+      'other': '$amount 分钟',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get memorySync => 'WebDAV 记忆同步';
 
   @override

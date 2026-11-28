@@ -33,6 +33,8 @@ Windows 默认将配置和网关密钥保存在 `%LOCALAPPDATA%\com.blue.crabfor
 
 视频接口用 `POST /v1/videos` 创建任务，用 `GET /v1/videos/{id}` 查询状态，用 `GET /v1/videos/{id}/content` 流式下载已完成的视频。请求可选用网关目录中的视频模型或路由组。Crabforge 支持 OpenAI 形状的视频接口、火山方舟 Seedance、xAI Grok Imagine Video、MiniMax H3，以及 DashScope 的 Wan 3.0 和 HappyHorse 1.1。自定义 OpenAI 形状的供应商可在模型的 `native_endpoints` 中声明 `/v1/videos`。保留数据目录、上游端点和凭据，即可在重启后继续查询任务。下载支持 HTTP `Range`。
 
+在支持的供应商卡片上打开「订阅用量」，或运行 `crabforge-cli provider usage <id>` 或 `carbforge-cli provider usage <id>`。查询使用为该供应商配置的密钥环境变量，返回供应商报告的用量窗口、重置时间及余额。支持 OpenCode Go、智谱和 Z.ai、Kimi Code、Command Code、MiniMax、Ollama Cloud 及 Mistral Vibe。
+
 ## 定期刷新供应商目录
 
 可在「供应商」中设置模型目录刷新间隔，例如 `10m`、`6h` 或 `1d`。最短为十分钟。通过 **Remote Gateway** 预设添加的供应商默认每十分钟刷新一次，填写 `off` 可改为手动刷新。供应商卡片上的「读取模型目录」会刷新已保存的目录。自动纳入规则每行一条，可使用不区分大小写的 `gpt-*` 通配式，或使用 `re:` 开头、匹配完整模型 ID 的正则。上游持续列出的模型会保留手动取消状态，添加匹配该模型的新规则时会重新纳入。网关运行时会更新模型目录。

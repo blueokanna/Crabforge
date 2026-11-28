@@ -1,4 +1,12 @@
 {
+  "subscriptionUsage": "सदस्यता का उपयोग",
+  "noSubscriptionUsage": "इस कुंजी के लिए उपयोग की कोई अवधि नहीं बताई गई।",
+  "quotaUsed": "{amount} इस्तेमाल हुआ",
+  "quotaBalance": "शेष राशि: {amount}",
+  "quotaReset": "{time} पर रीसेट होगा",
+  "quotaSeparate": "अलग कोटा या अतिरिक्त उपयोग का बिल",
+  "quotaWindow": "{kind, select, allowance {कोटा} month {महीना} session {सत्र की सीमा} extra {अतिरिक्त उपयोग} monthly {मासिक क्रेडिट} purchased {खरीदे गए क्रेडिट} free {मुफ़्त क्रेडिट} credits {क्रेडिट} videos {वीडियो} other {कोटा}}",
+  "quotaDuration": "{unit, select, days {{amount} दिन} hours {{amount} घंटे} other {{amount} मिनट}}",
   "memorySync": "WebDAV से स्मृतियाँ सिंक करें",
   "memorySyncUrl": "WebDAV फ़ोल्डर या बैकअप का URL",
   "memorySyncUser": "WebDAV उपयोगकर्ता नाम (वैकल्पिक)",
