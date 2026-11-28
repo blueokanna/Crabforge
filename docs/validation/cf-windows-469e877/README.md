@@ -698,6 +698,10 @@ The repeat with concurrent CPU measurement alternated 20 trials per package. Fir
 
 On 28 November 2026 from 07:43 to 07:57 UTC, the Windows probe collected 30 CPU observation windows. Host CPU busy time ranged from `55.225%` to `97.894%` and averaged `73.779%`. Every window exceeded the `25%` start threshold, so the probe issued no paired SSE requests. The observation CSV SHA-256 is `366f459d498f69a48c9959c627fe35391f9bdfac21747bbc0d8723f9e74da810`. [CPU observations](465897d-cf76ad3-low-load-windows.csv)
 
+同日 08:20 至 08:34 UTC，以 `465897d447039211b379f7ab4c733259e9e0dfad` 为候选、`cf76ad373c90a14abfc32a3803ec970767404d8c` 为基线再次观察。本轮 30 个采样窗的 CPU 忙碌率为 `52.238–100.000%`，均值 `74.341%`。所有采样窗均超过 `25%` 启动阈值，本轮没有发出 SSE 请求。原始 CSV 的 SHA-256 为 `ce59a310eaebc648c7daf4fc52ce6802d5f04f72fcf510c8c4f9ca1cf8f6ab82`。 [第二轮 CPU 观察 CSV](465897d-cf76ad3-low-load-windows-repeat.csv)
+
+The probe ran again from 08:20 to 08:34 UTC with `465897d447039211b379f7ab4c733259e9e0dfad` as the candidate and `cf76ad373c90a14abfc32a3803ec970767404d8c` as the baseline. CPU busy time across the 30 windows ranged from `52.238%` to `100.000%` and averaged `74.341%`. Every window exceeded the `25%` start threshold, so the probe issued zero SSE requests. The raw CSV SHA-256 is `ce59a310eaebc648c7daf4fc52ce6802d5f04f72fcf510c8c4f9ca1cf8f6ab82`. [Second CPU observation run](465897d-cf76ad3-low-load-windows-repeat.csv)
+
 ## 自动记忆提炼 / Automatic memory distillation
 
 提交 `0a759eaec3daa0fbe19f7bc3157f65eb5dd552a3` 的 Windows Debug 双 CLI 通过默认关闭、网关启动后调度、按路由组推理、会话静默筛选、只接受用户原话支持的候选、显式审核、重启去重和禁用检查。Rust 全工作区 170 项通过，30 项忽略。调度回归验证中断后继续使用已保存的小时尝试计数。 [调度实现和回归](../../../crates/core/src/memory/distill/schedule.rs)
