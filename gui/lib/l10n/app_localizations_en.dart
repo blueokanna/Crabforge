@@ -1151,7 +1151,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clients => 'Client connections';
 
   @override
-  String get agentRoot => 'Agent API root URL';
+  String get clientPicker => 'Client';
+
+  @override
+  String get clientAddressPending =>
+      'Start the gateway to get this client’s address.';
+
+  @override
+  String get clientSettings => 'Client settings';
+
+  @override
+  String get clientResources => 'Local resources';
+
+  @override
+  String get supportedClients => 'Client profiles';
+
+  @override
+  String get noProviderModels => 'No models configured';
+
+  @override
+  String get noMatchingAttempts => 'No requests match your search.';
+
+  @override
+  String get agentRoot => 'Client API root URL';
 
   @override
   String get copyRoot => 'Copy root URL';
@@ -1161,7 +1183,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentHelp =>
-      'Append /v1 for Chat Completions and Responses clients. Route history shows the selected agent.';
+      'For Chat Completions and Responses, add /v1 to this URL.';
 
   @override
   String get tunnel => 'Remote gateway tunnel';

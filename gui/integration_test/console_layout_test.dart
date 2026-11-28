@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:crabforge/appearance.dart';
+import 'package:crabforge/integration_icon.dart';
 import 'package:crabforge/l10n/app_localizations.dart';
 import 'package:crabforge/language.dart';
 import 'package:crabforge/main.dart';
@@ -12,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -140,6 +142,14 @@ void main() {
     }
 
     final strings = lookupAppLocalizations(const Locale('en'));
+    Finder artwork(String name) => find.byWidgetPredicate(
+      (widget) =>
+          widget is SvgPicture &&
+          (widget.bytesLoader as SvgAssetLoader).assetName == 'brands/$name',
+    );
+    for (final icon in ['openai.svg', 'claude-color.svg', 'gemini-color.svg']) {
+      expect(artwork(icon), findsOneWidget);
+    }
     List<String> labels(AppLocalizations strings) => [
       strings.providers,
       strings.routes,
@@ -223,6 +233,7 @@ void main() {
       (widget) => widget is IconButton && widget.tooltip == strings.copyRoot,
     );
     expect(tester.widget<IconButton>(copyRoot).onPressed, isNull);
+    expect(find.text(strings.clientAddressPending), findsOneWidget);
     await openPage(wideNav, strings.gateway);
     expect(find.byTooltip(strings.copyBase), findsNothing);
     final gatewayButton = find.widgetWithText(FilledButton, strings.start);
@@ -250,6 +261,34 @@ void main() {
     }
     await openPage(wideNav, strings.clients);
     expect(tester.widget<IconButton>(copyRoot).onPressed, isNotNull);
+    expect(find.text('$local/agent/claude'), findsOneWidget);
+    final codexTile = find.byKey(const ValueKey('client-codex'));
+    await tester.ensureVisible(codexTile);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: codexTile, matching: artwork('codex-color.svg')),
+      findsOneWidget,
+    );
+    await tester.tap(codexTile);
+    await tester.pumpAndSettle();
+    expect(find.text('$local/agent/codex'), findsOneWidget);
+    final picker = find.byType(DropdownMenu<String>);
+    final pickerField = find.descendant(
+      of: picker,
+      matching: find.byType(TextField),
+    );
+    expect(tester.widget<TextField>(pickerField).controller!.text, 'Codex');
+    await tester.enterText(pickerField, 'Claude Code');
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(MenuItemButton),
+            matching: find.text('Claude Code'),
+          )
+          .hitTestable(),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('$local/agent/claude'), findsOneWidget);
     await openPage(wideNav, strings.gateway);
     await tester.tap(stopGateway);
@@ -311,6 +350,72 @@ void main() {
       }
     }
 
+    for (final width in [1200, 560]) {
+      tester.view.physicalSize = Size(width.toDouble(), 800);
+      tester.binding.platformDispatcher.platformBrightnessTestValue =
+          width == 1200 ? Brightness.light : Brightness.dark;
+      await tester.pumpAndSettle();
+      await openPage(navigation(width), strings.providers);
+      await tester.tap(find.widgetWithText(FilledButton, strings.addProvider));
+      await tester.pumpAndSettle();
+      final dropdown = find.byWidgetPredicate(
+        (widget) =>
+            widget is DropdownMenu &&
+            widget.label is Text &&
+            (widget.label as Text).data == strings.searchPresets,
+      );
+      final field = find.descendant(
+        of: dropdown,
+        matching: find.byType(TextField),
+      );
+      await tester.tap(field);
+      await tester.pumpAndSettle();
+      for (final (name, icon) in [
+        ('Azure OpenAI', 'azure-color.svg'),
+        ('Google Vertex AI / Gemini Express', 'vertexai-color.svg'),
+        ('Amazon Bedrock / US East', 'bedrock-color.svg'),
+        ('Qwen Cloud', 'qwen-color.svg'),
+      ]) {
+        final item = find.widgetWithText(MenuItemButton, name).hitTestable();
+        expect(
+          find.descendant(of: item, matching: artwork(icon)),
+          findsOneWidget,
+        );
+      }
+      expect(
+        find.descendant(
+          of: find
+              .widgetWithText(MenuItemButton, 'Remote Gateway')
+              .hitTestable(),
+          matching: find.byType(IntegrationIcon),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      if (output != null && width == 1200) {
+        await saveCapture('$output/en-presets.png');
+      }
+      await tester.enterText(field, 'Gemini Express');
+      await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(MenuItemButton, 'Azure OpenAI').hitTestable(),
+        findsNothing,
+      );
+      await tester.tap(
+        find
+            .widgetWithText(MenuItemButton, 'Google Vertex AI / Gemini Express')
+            .hitTestable(),
+      );
+      await tester.pumpAndSettle();
+      final providerId = find.widgetWithText(TextFormField, strings.providerId);
+      expect(
+        tester.widget<TextFormField>(providerId).controller!.text,
+        'google-vertex',
+      );
+      await tester.tap(find.widgetWithText(TextButton, strings.cancel));
+      await tester.pumpAndSettle();
+    }
+
     if (output != null) {
       const locale = Locale('zh');
       final zh = lookupAppLocalizations(locale);
@@ -319,13 +424,22 @@ void main() {
       for (final (brightness, label, file) in [
         (Brightness.light, zh.providers, 'providers'),
         (Brightness.dark, zh.models, 'models'),
+        (Brightness.light, zh.clients, 'clients'),
       ]) {
         tester.binding.platformDispatcher.platformBrightnessTestValue =
             brightness;
         await tester.pumpAndSettle();
         await openPage(wideNav, label);
+        if (label == zh.clients) {
+          await tester.tap(find.byTooltip(zh.gridView));
+          await tester.pumpAndSettle();
+        }
         expect(tester.takeException(), isNull);
         await saveCapture('$output/zh-$file.png');
+        if (label == zh.clients) {
+          await tester.tap(find.byTooltip(zh.listView));
+          await tester.pumpAndSettle();
+        }
       }
       tester.binding.platformDispatcher.localesTestValue = [const Locale('en')];
       await tester.pumpAndSettle();
@@ -786,6 +900,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final openMemory = find.widgetWithText(TextButton, strings.memoryLibrary);
+    final clientScroll = Scrollable.of(tester.element(openMemory)).position;
     await tester.ensureVisible(openMemory);
     await tester.tap(openMemory);
     await tester.pumpAndSettle();
@@ -838,6 +953,8 @@ void main() {
       findsOneWidget,
     );
     await tester.tap(find.widgetWithText(TextButton, 'Close'));
+    await tester.pumpAndSettle();
+    clientScroll.jumpTo(clientScroll.minScrollExtent);
     await tester.pumpAndSettle();
     await tester.tap(find.text(strings.projectInstructions));
     await tester.pumpAndSettle();

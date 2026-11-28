@@ -41,10 +41,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(GridView), findsOneWidget);
     expect(find.text('relay/gpt-example'), findsOneWidget);
-    expect(find.byIcon(CrabforgeSymbols.memory), findsOneWidget);
+    expect(find.byIcon(CrabforgeSymbols.dns), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'GROUP/PARENT');
     await tester.pumpAndSettle();
     expect(find.text('group/parent'), findsOneWidget);
+    expect(find.byIcon(CrabforgeSymbols.accountTree), findsOneWidget);
     await tester.tap(find.byIcon(CrabforgeSymbols.edit));
     expect(edited, 'parent');
     await tester.binding.setSurfaceSize(const Size(1200, 750));

@@ -1159,6 +1159,29 @@ class AppLocalizationsPt extends AppLocalizations {
   String get clients => 'Conexões de clientes';
 
   @override
+  String get clientPicker => 'Cliente';
+
+  @override
+  String get clientAddressPending =>
+      'Inicie o gateway para obter o endereço deste cliente.';
+
+  @override
+  String get clientSettings => 'Configurações do cliente';
+
+  @override
+  String get clientResources => 'Recursos locais';
+
+  @override
+  String get supportedClients => 'Perfis de cliente';
+
+  @override
+  String get noProviderModels => 'Nenhum modelo configurado';
+
+  @override
+  String get noMatchingAttempts =>
+      'Nenhuma solicitação corresponde à pesquisa.';
+
+  @override
   String get agentRoot => 'URL raiz da API do agente';
 
   @override

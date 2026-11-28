@@ -15,9 +15,9 @@ try {
             throw "Missing desktop output: $file"
         }
     }
-    $logo = Join-Path $desktop 'data/flutter_assets/packages/crabforge_assets/crabforge.png'
-    if ((Get-FileHash -LiteralPath $logo).Hash -ne (Get-FileHash -LiteralPath 'assets/crabforge.png').Hash) {
-        throw 'The packaged Crabforge logo does not match assets/crabforge.png.'
+    $logo = Join-Path $desktop 'data/flutter_assets/packages/crabforge_assets/crabforge-mark.png'
+    if ((Get-FileHash -LiteralPath $logo).Hash -ne (Get-FileHash -LiteralPath 'assets/crabforge-mark.png').Hash) {
+        throw 'The packaged Crabforge logo does not match assets/crabforge-mark.png.'
     }
     New-Item -ItemType Directory -Path $Destination | Out-Null
     $Destination = (Resolve-Path -LiteralPath $Destination).Path

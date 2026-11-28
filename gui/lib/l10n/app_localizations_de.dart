@@ -1164,6 +1164,28 @@ class AppLocalizationsDe extends AppLocalizations {
   String get clients => 'Clientverbindungen';
 
   @override
+  String get clientPicker => 'Client';
+
+  @override
+  String get clientAddressPending =>
+      'Starten Sie das Gateway, um die Adresse dieses Clients zu erhalten.';
+
+  @override
+  String get clientSettings => 'Client-Einstellungen';
+
+  @override
+  String get clientResources => 'Lokale Ressourcen';
+
+  @override
+  String get supportedClients => 'Client-Profile';
+
+  @override
+  String get noProviderModels => 'Keine Modelle konfiguriert';
+
+  @override
+  String get noMatchingAttempts => 'Keine Anfragen entsprechen Ihrer Suche.';
+
+  @override
   String get agentRoot => 'API-Stammadresse des Agenten';
 
   @override

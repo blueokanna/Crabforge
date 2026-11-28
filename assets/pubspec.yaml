@@ -5,7 +5,8 @@ environment:
   sdk: ^3.13.7
 flutter:
   assets:
-    - crabforge.png
+    - crabforge-mark.png
+    - brands/
     - fonts/NotoSansKR-OFL.txt
     - fonts/GoogleSans-OFL.txt
     - fonts/HarmonyOS-Sans-LICENSE.txt

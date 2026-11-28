@@ -26,6 +26,11 @@ abstract final class CrabforgeSymbols {
     fontFamily: _family,
     fontPackage: _package,
   );
+  static const code = IconData(
+    0xe86f,
+    fontFamily: _family,
+    fontPackage: _package,
+  );
   static const menu = IconData(
     0xe5d2,
     fontFamily: _family,

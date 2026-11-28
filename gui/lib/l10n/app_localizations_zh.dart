@@ -1123,7 +1123,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get clients => '客户端连接';
 
   @override
-  String get agentRoot => 'Agent 专属 API 根地址';
+  String get clientPicker => '客户端';
+
+  @override
+  String get clientAddressPending => '启动网关后即可获取此客户端的地址。';
+
+  @override
+  String get clientSettings => '客户端设置';
+
+  @override
+  String get clientResources => '本地资源';
+
+  @override
+  String get supportedClients => '客户端列表';
+
+  @override
+  String get noProviderModels => '尚未配置模型';
+
+  @override
+  String get noMatchingAttempts => '没有符合搜索条件的请求记录。';
+
+  @override
+  String get agentRoot => '客户端 API 根地址';
 
   @override
   String get copyRoot => '复制根地址';
@@ -1132,8 +1153,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rootCopied => '已复制根地址';
 
   @override
-  String get agentHelp =>
-      'Chat Completions 和 Responses 客户端使用此地址加 /v1。路由记录会显示所选 Agent。';
+  String get agentHelp => '使用 Chat Completions 或 Responses 时，请在此地址末尾加上 /v1。';
 
   @override
   String get tunnel => '远端网关隧道';

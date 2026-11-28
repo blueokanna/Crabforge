@@ -154,7 +154,7 @@ void main() {
     final clientPage = find.byKey(const PageStorageKey(5));
     await waitFor(clientPage);
     final scrollable = tester.state<ScrollableState>(
-      below(clientPage, find.byType(Scrollable)),
+      below(clientPage, find.byType(Scrollable)).first,
     );
     scrollable.position.jumpTo(scrollable.position.minScrollExtent);
     await tester.pumpAndSettle();

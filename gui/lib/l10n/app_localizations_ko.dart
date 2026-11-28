@@ -1133,6 +1133,27 @@ class AppLocalizationsKo extends AppLocalizations {
   String get clients => '클라이언트 연결';
 
   @override
+  String get clientPicker => '클라이언트';
+
+  @override
+  String get clientAddressPending => '게이트웨이를 시작하면 이 클라이언트의 주소가 표시됩니다.';
+
+  @override
+  String get clientSettings => '클라이언트 설정';
+
+  @override
+  String get clientResources => '로컬 리소스';
+
+  @override
+  String get supportedClients => '클라이언트 목록';
+
+  @override
+  String get noProviderModels => '구성된 모델 없음';
+
+  @override
+  String get noMatchingAttempts => '검색 조건에 맞는 요청이 없습니다.';
+
+  @override
   String get agentRoot => '에이전트 API 루트 URL';
 
   @override

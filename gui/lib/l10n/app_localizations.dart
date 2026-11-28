@@ -2133,10 +2133,52 @@ abstract class AppLocalizations {
   /// **'Client connections'**
   String get clients;
 
+  /// No description provided for @clientPicker.
+  ///
+  /// In en, this message translates to:
+  /// **'Client'**
+  String get clientPicker;
+
+  /// No description provided for @clientAddressPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Start the gateway to get this client’s address.'**
+  String get clientAddressPending;
+
+  /// No description provided for @clientSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Client settings'**
+  String get clientSettings;
+
+  /// No description provided for @clientResources.
+  ///
+  /// In en, this message translates to:
+  /// **'Local resources'**
+  String get clientResources;
+
+  /// No description provided for @supportedClients.
+  ///
+  /// In en, this message translates to:
+  /// **'Client profiles'**
+  String get supportedClients;
+
+  /// No description provided for @noProviderModels.
+  ///
+  /// In en, this message translates to:
+  /// **'No models configured'**
+  String get noProviderModels;
+
+  /// No description provided for @noMatchingAttempts.
+  ///
+  /// In en, this message translates to:
+  /// **'No requests match your search.'**
+  String get noMatchingAttempts;
+
   /// No description provided for @agentRoot.
   ///
   /// In en, this message translates to:
-  /// **'Agent API root URL'**
+  /// **'Client API root URL'**
   String get agentRoot;
 
   /// No description provided for @copyRoot.
@@ -2154,7 +2196,7 @@ abstract class AppLocalizations {
   /// No description provided for @agentHelp.
   ///
   /// In en, this message translates to:
-  /// **'Append /v1 for Chat Completions and Responses clients. Route history shows the selected agent.'**
+  /// **'For Chat Completions and Responses, add /v1 to this URL.'**
   String get agentHelp;
 
   /// No description provided for @tunnel.

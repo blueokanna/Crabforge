@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'integration_icon.dart';
 import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
@@ -303,6 +304,7 @@ class _ProviderEditorState extends State<ProviderEditor> {
     content: SizedBox(
       width: 520,
       child: SingleChildScrollView(
+        padding: const EdgeInsets.only(top: 10),
         child: Form(
           key: form,
           child: Column(
@@ -315,16 +317,21 @@ class _ProviderEditorState extends State<ProviderEditor> {
                     CrabforgeSymbols.arrowDropUp,
                   ),
                   label: Text(context.strings.searchPresets),
+                  leadingIcon: const Icon(CrabforgeSymbols.search),
                   expandedInsets: EdgeInsets.zero,
                   enableFilter: true,
                   requestFocusOnTap: true,
-                  menuHeight: 280,
+                  menuHeight: 348,
                   dropdownMenuEntries: [
                     for (final p in widget.presets)
                       DropdownMenuEntry(
                         value: p,
                         label: p['name'],
-                        leadingIcon: const Icon(CrabforgeSymbols.hub),
+                        labelWidget: Text(p['name'], softWrap: true),
+                        leadingIcon: IntegrationIcon.provider(
+                          p['id'],
+                          remote: p['remote_gateway'] == true,
+                        ),
                       ),
                   ],
                   onSelected: select,

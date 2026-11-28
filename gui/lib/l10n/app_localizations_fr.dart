@@ -1166,6 +1166,29 @@ class AppLocalizationsFr extends AppLocalizations {
   String get clients => 'Connexions client';
 
   @override
+  String get clientPicker => 'Client';
+
+  @override
+  String get clientAddressPending =>
+      'Démarrez la passerelle pour obtenir l’adresse de ce client.';
+
+  @override
+  String get clientSettings => 'Paramètres du client';
+
+  @override
+  String get clientResources => 'Ressources locales';
+
+  @override
+  String get supportedClients => 'Profils de clients';
+
+  @override
+  String get noProviderModels => 'Aucun modèle configuré';
+
+  @override
+  String get noMatchingAttempts =>
+      'Aucune requête ne correspond à votre recherche.';
+
+  @override
   String get agentRoot => 'URL racine de l’API de l’agent';
 
   @override

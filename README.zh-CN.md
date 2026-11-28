@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/crabforge.png" width="72" alt="Crabforge 标志"></p>
+<p align="center"><img src="assets/crabforge-mark.png" width="88" alt="Crabforge 标志"></p>
 
 <h1 align="center">Crabforge</h1>
 
@@ -45,9 +45,9 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:3425/v1/models' `
 
 网关提供 OpenAI Chat Completions、Responses、Anthropic Messages 和 Gemini Developer API 接口，可按原生协议转发请求，也可在这些协议之间转换受支持的生成请求。语音、图像和决策请求取决于所配置的供应商、接口和模型。[操作手册](CRABFORGE.md)
 
-视频接口用 `POST /v1/videos` 创建任务，用 `GET /v1/videos/{id}` 查询状态，用 `GET /v1/videos/{id}/content` 流式下载已完成的视频。请求可选用网关目录中的视频模型或路由组。Crabforge 支持 OpenAI 形状的视频接口、火山方舟 Seedance、xAI Grok Imagine Video、MiniMax H3，以及 DashScope 的 Wan 3.0 和 HappyHorse 1.1。自定义 OpenAI 形状的供应商可在模型的 `native_endpoints` 中声明 `/v1/videos`。保留数据目录、上游端点和凭据，即可在重启后继续查询任务。下载支持 HTTP `Range`。
+当前源码新增视频接口。用 `POST /v1/videos` 创建任务，用 `GET /v1/videos/{id}` 查询状态，用 `GET /v1/videos/{id}/content` 流式下载已完成的视频。请求可选用网关目录中的视频模型或路由组。Crabforge 支持 OpenAI 兼容的视频接口、火山方舟 Seedance、xAI Grok Imagine Video、MiniMax H3，以及 DashScope 的 Wan 3.0 和 HappyHorse 1.1。自定义 OpenAI 兼容供应商可在模型的 `native_endpoints` 中声明 `/v1/videos`。保留数据目录、上游端点和凭据，即可在重启后继续查询任务。下载支持 HTTP `Range`。
 
-在支持的供应商卡片上打开「订阅用量」，或运行 `crabforge-cli provider usage <id>` 或 `carbforge-cli provider usage <id>`。查询使用为该供应商配置的密钥环境变量，返回供应商报告的用量窗口、重置时间及余额。支持 OpenCode Go、智谱和 Z.ai、Kimi Code、Command Code、MiniMax、Ollama Cloud 及 Mistral Vibe。
+在当前源码构建的版本中，可在支持的供应商卡片上打开「订阅用量」，或运行 `crabforge-cli provider usage <id>` 或 `carbforge-cli provider usage <id>`。查询使用为该供应商配置的密钥环境变量，返回供应商报告的用量窗口、重置时间及余额。支持 OpenCode Go、智谱和 Z.ai、Kimi Code、Command Code、MiniMax、Ollama Cloud 及 Mistral Vibe。
 
 当前源码支持刷新可发现的上游模型目录。可在供应商编辑页设置至少 `10m` 的刷新间隔，或设为 `off`，仅手动刷新。**Remote Gateway** 默认每十分钟刷新一次。对于已启用目录管理的供应商，卡片上的「读取模型目录」会更新已保存的列表。网关可在运行中应用目录更新。
 
@@ -55,17 +55,21 @@ Invoke-RestMethod -Uri 'http://127.0.0.1:3425/v1/models' `
 
 ## 桌面界面与客户端
 
+![Crabforge 的 Windows 客户端连接页，展示客户端设置、本地资源与网格中的客户端列表](docs/screenshots/clients-zh.png)
+
+*客户端连接页的网格视图。选择客户端后可查看相应设置，启动网关后即可获取 API 根地址。*
+
 ![Crabforge 的 Windows 深色界面，展示模型搜索、供应商模型和路由组](docs/screenshots/models-zh.png)
 
 *深色模式下的模型目录。可在同一页面搜索供应商模型与路由组，并复制模型 ID。*
 
-桌面端采用 Material 3 Expressive 配色与 Material Symbols Rounded 图标，跟随 Windows 强调色及系统的浅色、深色和高对比度设置。选择 Google Sans 时，汉字由 HarmonyOS Sans SC 渲染。选择 HarmonyOS Sans SC 时，英文和中文均使用该字体。[字体来源与许可证](assets/fonts/manifest.json)
+桌面端采用 Material 3 Expressive 配色与 Material Symbols Rounded 图标，跟随 Windows 强调色及系统的浅色、深色和高对比度设置。客户端和供应商预设在有对应素材时显示品牌图标。选择 Google Sans 时，汉字由 HarmonyOS Sans SC 渲染。选择 HarmonyOS Sans SC 时，英文和中文均使用该字体。[字体来源与许可证](assets/fonts/manifest.json)
 
 - **Antigravity CLI。** 安装 `agy` 并将其加入 `PATH`。启动网关后，在项目目录运行 `crabforge-cli agent antigravity '<模型-ID>'`，填入从「模型」页复制的 ID。请将 `crabforge-cli` 加入 `PATH`，或用完整路径调用。启动器通过 Antigravity 的 Gemini API 密钥模式，为当前会话传入网关密钥和地址。[Antigravity 指南](docs/antigravity.md#简体中文)
 - **自动提炼记忆。** 在当前源码构建的版本中，打开「客户端连接 → 本地会话 → 自动提炼记忆」，选择模型路由和回溯天数。该功能默认关闭。网关运行时，定时任务每小时最多尝试处理 30 个符合条件且至少 30 分钟未更新的会话。任务将用户消息发送到所选路由，生成的候选记忆可在「记忆」中审核。命令行帮助见 `crabforge-cli memory distillation --help`。
 - **每日发布记忆。** 在当前源码构建的版本中，打开 Claude Code 或 Codex 的「用户指令」并启用「每日发布记忆」。网关运行时会刷新生效的全局和 Agent 记忆摘要。手动修改已发布的区块或切换指令文件后，重新加载并启用以确认目标。`crabforge-cli memory agent-instructions <claude|codex>` 支持 `--auto-publish` 和 `--stop-auto-publish`。
-- **夜间整理记忆。** 打开「客户端连接 → 本地会话 → 夜间整理记忆」并选择模型路由。启用后，网关会在本地时间凌晨 3 点后开始整理。它将已保存的记忆发送到所选路由，以识别重复或过时的条目，并归档超过 30 天未审核的提炼候选。手写和置顶记忆受到保护。可用「撤销上次整理」恢复修订仍匹配的条目。两个 CLI 都支持 `memory tidy` 子命令。
-- **WebDAV 记忆同步。** 打开「客户端连接 → 记忆库 → WebDAV 记忆同步」，填入已有目录或完整备份地址，然后预览并应用。使用目录时，文件名为 `crabforge.crabforge-backup`。共用既有 Magpie 备份时，填写以 `magpie/magpie.magpie-backup` 结尾的完整地址及其口令。本地记忆或远端备份发生变更时须重新预览。回环数字地址以外使用 HTTPS，更新远端备份需要服务端支持带强 ETag 的条件写入。双 CLI 均可先运行 `memory sync <url>`，再以返回的修订运行 `memory sync <url> --apply <revision>`。Basic 认证使用 `--user <名称> --password-env <变量>`。备份加密口令由终端提示或标准输入首行读取。
+- **夜间整理记忆。** 在当前源码构建的版本中，打开「客户端连接 → 本地会话 → 夜间整理记忆」并选择模型路由。启用后，网关会在本地时间凌晨 3 点后开始整理。它将已保存的记忆发送到所选路由，以识别重复或过时的条目，并归档超过 30 天未审核的提炼候选。手写和置顶记忆受到保护。可用「撤销上次整理」恢复修订仍匹配的条目。两个 CLI 都支持 `memory tidy` 子命令。
+- **WebDAV 记忆同步。** 在当前源码构建的版本中，打开「客户端连接 → 记忆 → WebDAV 记忆同步」，填入已有目录或完整备份地址，然后预览并应用。使用目录时，文件名为 `crabforge.crabforge-backup`。共用既有 Magpie 备份时，填写以 `magpie/magpie.magpie-backup` 结尾的完整地址及其口令。本地记忆或远端备份发生变更时须重新预览。回环数字地址以外使用 HTTPS，更新远端备份需要服务端支持带强 ETag 的条件写入。双 CLI 均可先运行 `memory sync <url>`，再以返回的修订运行 `memory sync <url> --apply <revision>`。Basic 认证使用 `--user <名称> --password-env <变量>`。备份加密口令由终端提示或标准输入首行读取。
 
 ## 从源码构建
 

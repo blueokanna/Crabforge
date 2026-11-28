@@ -17,6 +17,7 @@ import 'agent_sessions.dart';
 import 'agent_skills.dart';
 import 'collection_view.dart';
 import 'editors.dart';
+import 'integration_icon.dart';
 import 'language.dart';
 import 'omp_settings.dart';
 import 'project_instructions.dart';
@@ -814,11 +815,13 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                             ],
                           ],
                         ),
-                        if (running && (page == 0 || page == 2))
+                        if (running && (page == 0 || page == 2)) ...[
                           note(
                             context.strings.stopToEdit,
                             CrabforgeSymbols.lock,
                           ),
+                          const SizedBox(height: 16),
+                        ],
                       ],
                     ),
                     ...switch (page) {
@@ -877,13 +880,23 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: wide ? 64 : 56,
-        titleSpacing: 12,
+        titleSpacing: wide ? 14 : 8,
         title: TextButton(
-          style: TextButton.styleFrom(foregroundColor: colors.onSurface),
+          style: TextButton.styleFrom(
+            foregroundColor: colors.onSurface,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
           onPressed: () => showAboutDialog(
             context: context,
             applicationName: 'Crabforge',
             applicationVersion: status['version'] as String?,
+            applicationIcon: const ImageIcon(
+              AssetImage('crabforge-mark.png', package: 'crabforge_assets'),
+              size: 36,
+            ),
             children: const [
               Text('Google Sans · HarmonyOS Sans SC · Noto Sans KR'),
             ],
@@ -1019,12 +1032,15 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       ),
     ),
   );
-  Widget heading(String t) => Padding(
-    padding: const EdgeInsets.fromLTRB(6, 22, 4, 8),
-    child: Text(
-      t,
-      style: Theme.of(context).textTheme.titleMedium
-          ?.copyWith(fontWeight: FontWeight.bold),
+  Widget heading(String title) => Padding(
+    padding: const EdgeInsets.only(top: 24, bottom: 12),
+    child: Semantics(
+      header: true,
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium
+            ?.copyWith(fontWeight: FontWeight.w600),
+      ),
     ),
   );
   List<Widget> providerPage() => [
@@ -1038,18 +1054,19 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       itemCount: providers.length,
       itemBuilder: (context, index) {
         final p = providers[index];
+        final models = availableModels(p).join(' · ');
         return CollectionTile(
           grid: grid,
           title: collectionTitle(p['id']),
           detail: Text(
-            availableModels(p).join(' · '),
+            models.isEmpty ? context.strings.noProviderModels : models,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          leading: Icon(
-            p['web_site'] == null
-                ? CrabforgeSymbols.hub
-                : CrabforgeSymbols.link,
+          leading: IntegrationIcon.provider(
+            p['web_site'] ?? p['id'],
+            web: p['web_site'] != null,
+            remote: p['remote_gateway'] == true,
           ),
           onTap: busy || running
               ? null
@@ -1109,7 +1126,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       children: [
         heading(context.strings.webProviders),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          padding: const EdgeInsets.only(bottom: 12),
           child: Text(context.strings.webHelp),
         ),
         Wrap(
@@ -1124,7 +1141,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         providers.any((p) => p['id'] == '${s.$2}-web')
                     ? null
                     : () => addWeb(s.$2),
-                icon: const Icon(CrabforgeSymbols.link, size: 18),
+                icon: IntegrationIcon.provider(s.$2, web: true, size: 18),
                 label: Text(context.strings.webSite(s.$1)),
               ),
           ],
@@ -1464,9 +1481,27 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               controller: routeSearch,
               hintText: MaterialLocalizations.of(context).searchFieldLabel,
               leading: const Icon(CrabforgeSymbols.search),
+              trailing: [
+                if (routeSearch.text.isNotEmpty)
+                  IconButton(
+                    tooltip: MaterialLocalizations.of(context)
+                        .clearButtonTooltip,
+                    onPressed: () => setState(routeSearch.clear),
+                    icon: const Icon(CrabforgeSymbols.close),
+                  ),
+              ],
               onChanged: (_) => setState(() {}),
             ),
-            heading(context.strings.recentAttempts(visible.length)),
+            if (visible.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: note(
+                  context.strings.noMatchingAttempts,
+                  CrabforgeSymbols.searchOff,
+                ),
+              )
+            else
+              heading(context.strings.recentAttempts(visible.length)),
           ],
         ],
       ),
@@ -1621,6 +1656,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         children: [
           CollectionTile(
             grid: grid,
+            leading: const Icon(CrabforgeSymbols.vpnKey),
             title: collectionTitle(context.strings.localPeer),
             detail: SelectableText(peerId),
             actions: [
@@ -1633,6 +1669,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           ),
           CollectionTile(
             grid: grid,
+            leading: const Icon(CrabforgeSymbols.settingsEthernet),
             title: collectionTitle(context.strings.listenAddress),
             detail: SelectableText(
               status['peer'] ??
@@ -1643,6 +1680,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           ),
           CollectionTile(
             grid: grid,
+            leading: const Icon(CrabforgeSymbols.groupWork),
             title: collectionTitle(context.strings.trustedPeers),
             detail: Text('${(settings['allowed_peers'] as List).length}'),
           ),
@@ -1670,247 +1708,229 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   }
 
   List<Widget> agentPage() {
+    final strings = context.strings;
     final root = clientOrigin
         ?.replace(pathSegments: ['agent', selectedAgent])
         .toString();
-    return [
-      SliverToBoxAdapter(
-        child: Card.filled(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DropdownMenu<String>(
-                  trailingIcon: const Icon(CrabforgeSymbols.arrowDropDown),
-                  selectedTrailingIcon: const Icon(
-                    CrabforgeSymbols.arrowDropUp,
+    final connection = Card.filled(
+      color: colors.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownMenu<String>(
+              trailingIcon: const Icon(CrabforgeSymbols.arrowDropDown),
+              selectedTrailingIcon: const Icon(CrabforgeSymbols.arrowDropUp),
+              label: Text(strings.clientPicker),
+              expandedInsets: EdgeInsets.zero,
+              enableFilter: true,
+              requestFocusOnTap: true,
+              menuHeight: 320,
+              initialSelection: selectedAgent,
+              leadingIcon: Center(
+                widthFactor: 1,
+                heightFactor: 1,
+                child: IntegrationIcon.client(selectedAgent),
+              ),
+              dropdownMenuEntries: [
+                for (final (id, name) in agents)
+                  DropdownMenuEntry(
+                    value: id,
+                    label: name,
+                    labelWidget: Text(name, softWrap: true),
+                    leadingIcon: IntegrationIcon.client(id),
                   ),
-                  label: const Text('Agent'),
-                  expandedInsets: EdgeInsets.zero,
-                  enableFilter: true,
-                  menuHeight: 240,
-                  initialSelection: selectedAgent,
-                  leadingIcon: const Icon(CrabforgeSymbols.terminal),
-                  dropdownMenuEntries: [
-                    for (final (id, name) in agents)
-                      DropdownMenuEntry(value: id, label: name),
-                  ],
-                  onSelected: (v) {
-                    if (v != null) setState(() => selectedAgent = v);
-                  },
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(context.strings.agentRoot),
-                  subtitle: root == null ? null : SelectableText(root),
-                  trailing: IconButton(
-                    tooltip: context.strings.copyRoot,
-                    icon: const Icon(CrabforgeSymbols.contentCopy),
-                    onPressed: root == null
-                        ? null
-                        : () => copy(root, context.strings.rootCopied),
-                  ),
-                ),
-                Text(context.strings.agentHelp),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const MemoryLibrary(),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.bookmarks),
-                      label: Text(context.strings.memoryLibrary),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const AgentRules(),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.rule),
-                      label: Text(context.strings.agentRules),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const AgentSkills(),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.extension),
-                      label: Text(context.strings.agentSkills),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const AgentEnvironment(),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.terminal),
-                      label: Text(context.strings.agentEnvironment),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const AgentHooks(),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.bolt),
-                      label: Text(context.strings.agentHooks),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const ClaudePlugins(),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.extension),
-                      label: Text(context.strings.claudePlugins),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const PluginBundles(),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.inventory2),
-                      label: Text(context.strings.pluginBundles),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const AgentFiles(subagents: true),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.groupWork),
-                      label: Text(context.strings.agentSubagents),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => const AgentFiles(subagents: false),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.shortcut),
-                      label: Text(context.strings.agentCommands),
-                    ),
-                    if (projectAgents.contains(selectedAgent))
-                      TextButton.icon(
-                        onPressed: () => showDialog<void>(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (_) =>
-                              ProjectInstructionsEditor(agent: selectedAgent),
-                        ),
-                        icon: const Icon(CrabforgeSymbols.description),
-                        label: Text(context.strings.projectInstructions),
-                      ),
-                    if (projectMcpAgents.contains(selectedAgent))
-                      TextButton.icon(
-                        onPressed: () => showDialog<void>(
-                          context: context,
-                          builder: (_) => ProjectMcp(agent: selectedAgent),
-                        ),
-                        icon: const Icon(CrabforgeSymbols.dns),
-                        label: Text(context.strings.projectMcp),
-                      ),
-                    if (selectedAgent == 'claude' || selectedAgent == 'codex')
-                      TextButton.icon(
-                        onPressed: () => showDialog<void>(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (_) => ProjectInstructionsEditor(
-                            agent: selectedAgent,
-                            userInstructions: true,
-                          ),
-                        ),
-                        icon: const Icon(CrabforgeSymbols.person),
-                        label: Text(context.strings.agentInstructions),
-                      ),
-                    TextButton.icon(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => AgentSessions(
-                          models: {
-                            for (final provider in providers)
-                              for (final model in provider['models'] as List)
-                                '${provider['id']}/$model',
-                            ...catalogGroupRefs.values,
-                          }.toList()..sort(),
-                        ),
-                      ),
-                      icon: const Icon(CrabforgeSymbols.history),
-                      label: Text(context.strings.agentSessions),
-                    ),
-                  ],
-                ),
-                if (selectedAgent == 'omp') ...[
-                  TextButton.icon(
-                    onPressed: busy
-                        ? null
-                        : () => act(() => chooseOmpProtocol(context)),
-                    icon: const Icon(CrabforgeSymbols.settingsEthernet),
-                    label: Text(context.strings.gatewayProtocol),
-                  ),
-                  TextButton.icon(
-                    onPressed: busy
-                        ? null
-                        : () => act(() => editOmpRole(context)),
-                    icon: const Icon(CrabforgeSymbols.assignmentInd),
-                    label: Text(context.strings.roleModels),
-                  ),
-                  TextButton.icon(
-                    onPressed: busy
-                        ? null
-                        : () => act(() async {
-                            final profile = await chooseOmpProfile(context);
-                            if (profile == null) return;
-                            final count = await api.syncOmpCatalog(
-                              profile: profile,
-                            );
-                            if (mounted) {
-                              notice(
-                                '$profile · ${context.strings.models} ($count)',
-                              );
-                            }
-                          }),
-                    icon: const Icon(CrabforgeSymbols.sync),
-                    label: Text(context.strings.syncModelCatalog),
-                  ),
-                  TextButton.icon(
-                    onPressed: busy
-                        ? null
-                        : () => act(
-                            () => editOmpSettings(context, OmpEditor.advisor),
-                          ),
-                    icon: const Icon(CrabforgeSymbols.settings),
-                    label: Text(context.strings.advisorSettings),
-                  ),
-                  TextButton.icon(
-                    onPressed: busy
-                        ? null
-                        : () => act(
-                            () => editOmpSettings(context, OmpEditor.thinking),
-                          ),
-                    icon: const Icon(CrabforgeSymbols.psychology),
-                    label: Text(context.strings.thinkingLevels),
-                  ),
-                ],
               ],
+              onSelected: (id) {
+                if (id != null) setState(() => selectedAgent = id);
+              },
             ),
-          ),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(strings.agentRoot),
+              subtitle: root == null
+                  ? Text(strings.clientAddressPending)
+                  : SelectableText(root),
+              trailing: IconButton(
+                tooltip: strings.copyRoot,
+                icon: const Icon(CrabforgeSymbols.contentCopy),
+                onPressed: root == null
+                    ? null
+                    : () => copy(root, strings.rootCopied),
+              ),
+            ),
+            if (root != null)
+              Text(
+                strings.agentHelp,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+          ],
         ),
       ),
+    );
+    final selectedActions = selectedClientActions();
+    return [
+      SliverToBoxAdapter(
+        child: LayoutBuilder(
+          builder: (context, bounds) {
+            if (selectedActions.isEmpty) return connection;
+            final tools = clientActionGroup(
+              strings.clientSettings,
+              selectedActions,
+            );
+            if (bounds.maxWidth < 740 ||
+                MediaQuery.textScalerOf(context).scale(16) >= 22) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [connection, const SizedBox(height: 12), tools],
+              );
+            }
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: connection),
+                  const SizedBox(width: 16),
+                  Expanded(child: tools),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: clientActionGroup(strings.clientResources, [
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const MemoryLibrary(),
+              ),
+              icon: const Icon(CrabforgeSymbols.bookmarks),
+              label: Text(context.strings.memoryLibrary),
+            ),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const AgentRules(),
+              ),
+              icon: const Icon(CrabforgeSymbols.rule),
+              label: Text(context.strings.agentRules),
+            ),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const AgentSkills(),
+              ),
+              icon: const Icon(CrabforgeSymbols.extension),
+              label: Text(context.strings.agentSkills),
+            ),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const AgentEnvironment(),
+              ),
+              icon: const Icon(CrabforgeSymbols.terminal),
+              label: Text(context.strings.agentEnvironment),
+            ),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const AgentHooks(),
+              ),
+              icon: const Icon(CrabforgeSymbols.bolt),
+              label: Text(context.strings.agentHooks),
+            ),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const ClaudePlugins(),
+              ),
+              icon: const IntegrationIcon.client('claude', size: 18),
+              label: Text(context.strings.claudePlugins),
+            ),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const PluginBundles(),
+              ),
+              icon: const Icon(CrabforgeSymbols.inventory2),
+              label: Text(context.strings.pluginBundles),
+            ),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const AgentFiles(subagents: true),
+              ),
+              icon: const Icon(CrabforgeSymbols.groupWork),
+              label: Text(context.strings.agentSubagents),
+            ),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const AgentFiles(subagents: false),
+              ),
+              icon: const Icon(CrabforgeSymbols.shortcut),
+              label: Text(context.strings.agentCommands),
+            ),
+            TextButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => AgentSessions(
+                  models: {
+                    for (final provider in providers)
+                      for (final model in provider['models'] as List)
+                        '${provider['id']}/$model',
+                    ...catalogGroupRefs.values,
+                  }.toList()..sort(),
+                ),
+              ),
+              icon: const Icon(CrabforgeSymbols.history),
+              label: Text(context.strings.agentSessions),
+            ),
+          ]),
+        ),
+      ),
+      SliverToBoxAdapter(child: heading(strings.supportedClients)),
       CollectionSliver.builder(
         grid: grid,
-        height: 40,
+        height: 34,
+        minWidth: 270,
         itemCount: agents.length,
         itemBuilder: (tileContext, index) {
           final (id, name) = agents[index];
+          final selected = selectedAgent == id;
           return Card.filled(
+            color: selected
+                ? colors.secondaryContainer
+                : colors.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            clipBehavior: Clip.antiAlias,
             child: ListTile(
-              selected: selectedAgent == id,
-              leading: const Icon(CrabforgeSymbols.terminal),
+              key: ValueKey('client-$id'),
+              selected: selected,
+              selectedColor: colors.onSecondaryContainer,
+              horizontalTitleGap: 12,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 6,
+              ),
+              leading: CollectionGlyph(
+                IntegrationIcon.client(id),
+                highlighted: selected,
+              ),
               title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: name == id
                   ? null
                   : Text(id, maxLines: 1, overflow: TextOverflow.ellipsis),
+              trailing: selected
+                  ? const Icon(CrabforgeSymbols.check, size: 20)
+                  : null,
               onTap: () {
                 setState(() => selectedAgent = id);
                 Scrollable.of(tileContext).position.jumpTo(0);
@@ -1922,8 +1942,106 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     ];
   }
 
+  Widget clientActionGroup(String title, List<Widget> actions) => Card.filled(
+    color: colors.surfaceContainerLow,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+          ),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: actions),
+        ],
+      ),
+    ),
+  );
+
+  List<Widget> selectedClientActions() => [
+    if (projectAgents.contains(selectedAgent))
+      OutlinedButton.icon(
+        onPressed: () => showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => ProjectInstructionsEditor(agent: selectedAgent),
+        ),
+        icon: const Icon(CrabforgeSymbols.description),
+        label: Text(context.strings.projectInstructions),
+      ),
+    if (projectMcpAgents.contains(selectedAgent))
+      OutlinedButton.icon(
+        onPressed: () => showDialog<void>(
+          context: context,
+          builder: (_) => ProjectMcp(agent: selectedAgent),
+        ),
+        icon: const Icon(CrabforgeSymbols.hub),
+        label: Text(context.strings.projectMcp),
+      ),
+    if (selectedAgent == 'claude' || selectedAgent == 'codex')
+      OutlinedButton.icon(
+        onPressed: () => showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => ProjectInstructionsEditor(
+            agent: selectedAgent,
+            userInstructions: true,
+          ),
+        ),
+        icon: const Icon(CrabforgeSymbols.person),
+        label: Text(context.strings.agentInstructions),
+      ),
+    if (selectedAgent == 'omp') ...[
+      OutlinedButton.icon(
+        onPressed: busy ? null : () => act(() => chooseOmpProtocol(context)),
+        icon: const Icon(CrabforgeSymbols.settingsEthernet),
+        label: Text(context.strings.gatewayProtocol),
+      ),
+      OutlinedButton.icon(
+        onPressed: busy ? null : () => act(() => editOmpRole(context)),
+        icon: const Icon(CrabforgeSymbols.assignmentInd),
+        label: Text(context.strings.roleModels),
+      ),
+      OutlinedButton.icon(
+        onPressed: busy
+            ? null
+            : () => act(() async {
+                final profile = await chooseOmpProfile(context);
+                if (profile == null) return;
+                final count = await api.syncOmpCatalog(profile: profile);
+                if (mounted) {
+                  notice('$profile · ${context.strings.models} ($count)');
+                }
+              }),
+        icon: const Icon(CrabforgeSymbols.sync),
+        label: Text(context.strings.syncModelCatalog),
+      ),
+      OutlinedButton.icon(
+        onPressed: busy
+            ? null
+            : () => act(() => editOmpSettings(context, OmpEditor.advisor)),
+        icon: const Icon(CrabforgeSymbols.settings),
+        label: Text(context.strings.advisorSettings),
+      ),
+      OutlinedButton.icon(
+        onPressed: busy
+            ? null
+            : () => act(() => editOmpSettings(context, OmpEditor.thinking)),
+        icon: const Icon(CrabforgeSymbols.psychology),
+        label: Text(context.strings.thinkingLevels),
+      ),
+    ],
+  ];
+
   Widget gatewayTunnel() => Card.filled(
     child: ListTile(
+      leading: Icon(
+        status['tunnel'] == null
+            ? CrabforgeSymbols.linkOff
+            : CrabforgeSymbols.link,
+      ),
       title: Text(context.strings.tunnel),
       subtitle: Text(
         status['tunnel'] == null
@@ -2082,11 +2200,15 @@ class _ModelCatalogState extends State<ModelCatalog> {
                   final row = rows[i];
                   final group = row.group;
                   final provider = row.provider;
-                  final icon = Icon(
-                    group != null
-                        ? CrabforgeSymbols.accountTree
-                        : CrabforgeSymbols.memory,
-                  );
+                  final icon = group != null
+                      ? const Icon(CrabforgeSymbols.accountTree)
+                      : provider == null
+                      ? const Icon(CrabforgeSymbols.memory)
+                      : IntegrationIcon.provider(
+                          provider['web_site'] ?? provider['id'],
+                          web: provider['web_site'] != null,
+                          remote: provider['remote_gateway'] == true,
+                        );
                   final actions = [
                     if (group != null ||
                         (provider != null && provider['web_site'] == null))

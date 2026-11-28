@@ -158,23 +158,30 @@ class CollectionSliver extends StatelessWidget {
 }
 
 class CollectionGlyph extends StatelessWidget {
-  const CollectionGlyph(this.child, {super.key});
+  const CollectionGlyph(this.child, {super.key, this.highlighted = false});
 
   final Widget child;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: ShapeDecoration(
-        color: colors.secondaryContainer,
+        color: highlighted
+            ? colors.surfaceContainerLowest
+            : colors.secondaryContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       child: SizedBox.square(
         dimension: 40,
         child: Center(
           child: IconTheme.merge(
-            data: IconThemeData(color: colors.onSecondaryContainer),
+            data: IconThemeData(
+              color: highlighted
+                  ? colors.onSurface
+                  : colors.onSecondaryContainer,
+            ),
             child: child,
           ),
         ),

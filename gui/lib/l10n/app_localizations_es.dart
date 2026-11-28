@@ -1165,6 +1165,29 @@ class AppLocalizationsEs extends AppLocalizations {
   String get clients => 'Conexiones de clientes';
 
   @override
+  String get clientPicker => 'Cliente';
+
+  @override
+  String get clientAddressPending =>
+      'Inicia la puerta de enlace para obtener la dirección de este cliente.';
+
+  @override
+  String get clientSettings => 'Ajustes del cliente';
+
+  @override
+  String get clientResources => 'Recursos locales';
+
+  @override
+  String get supportedClients => 'Perfiles de cliente';
+
+  @override
+  String get noProviderModels => 'No hay modelos configurados';
+
+  @override
+  String get noMatchingAttempts =>
+      'Ninguna solicitud coincide con la búsqueda.';
+
+  @override
   String get agentRoot => 'URL raíz de la API del agente';
 
   @override

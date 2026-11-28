@@ -27,30 +27,48 @@ class WorkspaceBrand extends StatelessWidget {
   const WorkspaceBrand({super.key});
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Image.asset(
-        'crabforge.png',
-        package: 'crabforge_assets',
-        scale: 1,
-        width: 28,
-        height: 28,
-        cacheWidth: (28 * MediaQuery.devicePixelRatioOf(context)).ceil(),
-        excludeFromSemantics: true,
-      ),
-      const SizedBox(width: 10),
-      Flexible(
-        child: Text(
-          'Crabforge',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w600),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: SizedBox.square(
+            dimension: 36,
+            child: Center(
+              child: Image.asset(
+                'crabforge-mark.png',
+                package: 'crabforge_assets',
+                width: 29,
+                height: 29,
+                cacheWidth: (29 * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
+                color: colors.onPrimaryContainer,
+                excludeFromSemantics: true,
+              ),
+            ),
+          ),
         ),
-      ),
-    ],
-  );
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            'Crabforge',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class WorkspaceHeader extends StatelessWidget {

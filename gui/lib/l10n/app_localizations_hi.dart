@@ -1154,6 +1154,28 @@ class AppLocalizationsHi extends AppLocalizations {
   String get clients => 'क्लाइंट कनेक्शन';
 
   @override
+  String get clientPicker => 'क्लाइंट';
+
+  @override
+  String get clientAddressPending =>
+      'इस क्लाइंट का पता पाने के लिए गेटवे शुरू करें।';
+
+  @override
+  String get clientSettings => 'क्लाइंट सेटिंग';
+
+  @override
+  String get clientResources => 'स्थानीय संसाधन';
+
+  @override
+  String get supportedClients => 'क्लाइंट प्रोफ़ाइल';
+
+  @override
+  String get noProviderModels => 'कोई मॉडल कॉन्फ़िगर नहीं है';
+
+  @override
+  String get noMatchingAttempts => 'आपकी खोज से कोई अनुरोध मेल नहीं खाता।';
+
+  @override
   String get agentRoot => 'एजेंट API का रूट URL';
 
   @override

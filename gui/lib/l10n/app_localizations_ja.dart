@@ -1133,6 +1133,27 @@ class AppLocalizationsJa extends AppLocalizations {
   String get clients => 'クライアント接続';
 
   @override
+  String get clientPicker => 'クライアント';
+
+  @override
+  String get clientAddressPending => 'ゲートウェイを起動すると、このクライアントのアドレスが表示されます。';
+
+  @override
+  String get clientSettings => 'クライアント設定';
+
+  @override
+  String get clientResources => 'ローカルリソース';
+
+  @override
+  String get supportedClients => 'クライアント一覧';
+
+  @override
+  String get noProviderModels => 'モデルが設定されていません';
+
+  @override
+  String get noMatchingAttempts => '検索条件に一致するリクエストはありません。';
+
+  @override
   String get agentRoot => 'エージェントの API ルート URL';
 
   @override
