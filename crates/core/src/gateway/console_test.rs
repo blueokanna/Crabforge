@@ -1,7 +1,7 @@
 use super::*;
 use crabforge_test_support::{
     Client,
-    server::{Incoming, Router, post, serve_io},
+    server::{Incoming, Router, get, post, serve_io},
 };
 use tokio::net::TcpListener;
 use tokio_rustls::{TlsAcceptor, rustls};
@@ -315,6 +315,104 @@ async fn ark_gateway_rewrites_multipart_edits_and_keeps_successful_draws() -> Re
     );
     assert_eq!(value.pointer("/usage/generated_images"), Some(&json!(2)));
     assert_eq!(value.pointer("/usage/total_tokens"), Some(&json!(8)));
+    Ok(())
+}
+
+#[tokio::test]
+async fn modelscope_gateway_polls_images_and_keeps_partial_results() -> Result<()> {
+    const HOST: &str = "api-inference.modelscope.cn";
+    const PNG: &[u8] = b"\x89PNG\r\n\x1a\nfixture";
+    let upstream = TcpListener::bind("127.0.0.1:0").await?;
+    let address = upstream.local_addr()?;
+    let (client, tls) = tls_fixture(HOST, address, None)?;
+    let origin = format!("https://{HOST}:{}", address.port());
+    let asset = format!("{origin}/result.png");
+    let upstream = tokio::spawn(async move {
+        for index in 0..6 {
+            let (tcp, _) = upstream.accept().await?;
+            let socket = tls.accept(tcp).await?;
+            let asset = asset.clone();
+            let routes = Router::new()
+                .route("/v1/images/generations", post(move |Incoming { headers, body, .. }| async move {
+                    assert_eq!(headers["x-modelscope-async-mode"], "true");
+                    assert_eq!(headers[header::CONTENT_TYPE], "application/json");
+                    assert!(!headers.contains_key(header::AUTHORIZATION));
+                    let request: nextjson::Value = nextjson::from_slice(&body).unwrap();
+                    assert_eq!(request, json!({"model":"Qwen/Image-Edit","prompt":"Draw a crab","size":"1024x1024","image_url":["data:image/png;base64,iVBORw0KGgpmaXh0dXJl","https://example.com/second.png"]}));
+                    let (status, reply) = match index {
+                        0 => (StatusCode::TOO_MANY_REQUESTS, json!({"message":"user queue is full"})),
+                        1 => (StatusCode::OK, json!({"task_id":"drawing-1"})),
+                        5 => (StatusCode::SERVICE_UNAVAILABLE, json!({"message":"service unavailable"})),
+                        _ => panic!("unexpected image start at step {index}"),
+                    };
+                    (status, [("connection", "close")], reply.to_string())
+                }))
+                .route("/v1/tasks/drawing-1", get(move |Incoming { headers, body, .. }| {
+                    let asset = asset.clone();
+                    async move {
+                        assert_eq!(headers["x-modelscope-task-type"], "image_generation");
+                        assert!(!headers.contains_key("x-modelscope-async-mode"));
+                        assert!(!headers.contains_key(header::AUTHORIZATION));
+                        assert!(body.is_empty());
+                        let reply = match index {
+                            2 => json!({"task_status":"RUNNING"}),
+                            3 => json!({"task_status":"SUCCEED","output_images":[asset]}),
+                            _ => panic!("unexpected image poll at step {index}"),
+                        };
+                        ([("connection", "close")], reply.to_string())
+                    }
+                }))
+                .route("/result.png", get(move |Incoming { headers, .. }| async move {
+                    assert_eq!(index, 4);
+                    assert!(!headers.contains_key(header::AUTHORIZATION));
+                    ([("connection", "close")], Bytes::from_static(PNG))
+                }));
+            serve_io(socket, Arc::new(routes)).await;
+        }
+        Ok::<_, anyhow::Error>(())
+    });
+    let config = nextjson::from_value(json!({"providers":[{
+        "id":"modelscope","models":["Qwen/Image-Edit"],"endpoints":{"chat":format!("{origin}/v1")}
+    }]}))
+    .map_err(anyhow::Error::msg)?;
+    let root = tempfile::tempdir()?;
+    let router = router_with_client(
+        config,
+        "gateway-key".into(),
+        Default::default(),
+        root.path(),
+        client,
+    )?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
+    let gateway = tokio::spawn(crate::service::serve_local(listener, router));
+    let body = [
+        b"--fixture\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nmodelscope/Qwen/Image-Edit\r\n\
+          --fixture\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nDraw a crab\r\n\
+          --fixture\r\nContent-Disposition: form-data; name=\"size\"\r\n\r\n1024x1024\r\n\
+          --fixture\r\nContent-Disposition: form-data; name=\"n\"\r\n\r\n2\r\n\
+          --fixture\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\nb64_json\r\n\
+          --fixture\r\nContent-Disposition: form-data; name=\"image[]\"; filename=\"first.png\"\r\nContent-Type: image/png\r\n\r\n".as_slice(),
+        PNG,
+        b"\r\n--fixture\r\nContent-Disposition: form-data; name=\"image[]\"\r\n\r\nhttps://example.com/second.png\r\n--fixture--\r\n",
+    ].concat();
+    let reply = Client::with_timeout(Duration::from_secs(15))
+        .post(format!("http://{addr}/v1/images/edits"))
+        .bearer_auth("gateway-key")
+        .header("content-type", "multipart/form-data; boundary=fixture")
+        .body(body)
+        .send()
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+    gateway.abort();
+    tokio::time::timeout(Duration::from_secs(5), upstream).await???;
+    let value: nextjson::Value = nextjson::from_slice(&reply).map_err(anyhow::Error::msg)?;
+    assert_eq!(
+        value.get("data"),
+        Some(&json!([{"b64_json":"iVBORw0KGgpmaXh0dXJl"}]))
+    );
     Ok(())
 }
 

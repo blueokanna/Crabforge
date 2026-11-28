@@ -108,6 +108,8 @@ struct BackupProvider {
     models_url: String,
     auth_header: AuthHeader,
     models: Vec<String>,
+    refresh_every: String,
+    auto_include: Vec<String>,
     catalog: String,
     contexts: BTreeMap<String, u32>,
     fallback: Vec<String>,
@@ -161,79 +163,82 @@ impl BackupProvider {
                 );
             }
         }
-        let (decisions, systemone) =
-            if self.other.get("preset").and_then(Value::as_str) == Some("remote-gateway") {
-                if let Some(base) = [&self.chat, &self.responses, &self.anthropic, &self.decide]
-                    .into_iter()
-                    .find(|base| !base.is_empty())
-                {
-                    let mut url = super::endpoint(base)?;
-                    let path = url.path().trim_end_matches('/');
-                    if let Some(base) = [
-                        "/chat/completions",
-                        "/messages/count_tokens",
-                        "/messages",
-                        "/responses",
-                        "/systemone",
-                        "/decisions",
-                    ]
-                    .into_iter()
-                    .find_map(|suffix| path.strip_suffix(suffix))
-                    {
-                        let base = base.to_owned();
-                        url.set_path(&base);
-                    }
-                    (url.to_string(), url.to_string())
-                } else {
-                    (String::new(), String::new())
-                }
-            } else if self.decide.is_empty() {
-                (String::new(), String::new())
-            } else {
-                let mut url = super::endpoint(&self.decide)?;
+        let remote_gateway = matches!(
+            self.other.get("preset").and_then(Value::as_str),
+            Some("remote-gateway" | "remote-magpie")
+        );
+        let (decisions, systemone) = if remote_gateway {
+            if let Some(base) = [&self.chat, &self.responses, &self.anthropic, &self.decide]
+                .into_iter()
+                .find(|base| !base.is_empty())
+            {
+                let mut url = super::endpoint(base)?;
                 let path = url.path().trim_end_matches('/');
-                if let Some(endpoint) = crate::gateway::vercel_evaluation_base(&self.decide)
-                    .or_else(|| crate::gateway::cloudflare_decision_base(&self.decide))
+                if let Some(base) = [
+                    "/chat/completions",
+                    "/messages/count_tokens",
+                    "/messages",
+                    "/responses",
+                    "/systemone",
+                    "/decisions",
+                ]
+                .into_iter()
+                .find_map(|suffix| path.strip_suffix(suffix))
                 {
-                    (String::new(), endpoint.to_string())
-                } else {
-                    match url.host_str() {
-                        host if host == Some("api.openai.com") || super::azure(&url) => {
-                            (self.decide, String::new())
+                    let base = base.to_owned();
+                    url.set_path(&base);
+                }
+                (url.to_string(), url.to_string())
+            } else {
+                (String::new(), String::new())
+            }
+        } else if self.decide.is_empty() {
+            (String::new(), String::new())
+        } else {
+            let mut url = super::endpoint(&self.decide)?;
+            let path = url.path().trim_end_matches('/');
+            if let Some(endpoint) = crate::gateway::vercel_evaluation_base(&self.decide)
+                .or_else(|| crate::gateway::cloudflare_decision_base(&self.decide))
+            {
+                (String::new(), endpoint.to_string())
+            } else {
+                match url.host_str() {
+                    host if host == Some("api.openai.com") || super::azure(&url) => {
+                        (self.decide, String::new())
+                    }
+                    Some("ai-gateway.vercel.sh") => {
+                        let base = path.strip_suffix("/systemone").unwrap_or(path);
+                        let base = base.strip_suffix("/models").unwrap_or(base);
+                        let base = base.strip_suffix("/v1").unwrap_or(base);
+                        let path = if base.is_empty() {
+                            "/typesafe/v1".to_owned()
+                        } else {
+                            format!("{base}/v1")
+                        };
+                        url.set_path(&path);
+                        (String::new(), url.to_string())
+                    }
+                    Some("generativelanguage.googleapis.com") => {
+                        url.set_path("/v1beta/decisions");
+                        (String::new(), url.to_string())
+                    }
+                    Some("api.cloudflare.com") => {
+                        bail!("{} has an invalid Workers AI decision endpoint", self.id);
+                    }
+                    _ => {
+                        ensure!(
+                            !path.contains("/client/v4"),
+                            "{} has an invalid Workers AI decision endpoint",
+                            self.id
+                        );
+                        if path.is_empty() {
+                            url.set_path("/systemone");
                         }
-                        Some("ai-gateway.vercel.sh") => {
-                            let base = path.strip_suffix("/systemone").unwrap_or(path);
-                            let base = base.strip_suffix("/models").unwrap_or(base);
-                            let base = base.strip_suffix("/v1").unwrap_or(base);
-                            let path = if base.is_empty() {
-                                "/typesafe/v1".to_owned()
-                            } else {
-                                format!("{base}/v1")
-                            };
-                            url.set_path(&path);
-                            (String::new(), url.to_string())
-                        }
-                        Some("generativelanguage.googleapis.com") => {
-                            url.set_path("/v1beta/decisions");
-                            (String::new(), url.to_string())
-                        }
-                        Some("api.cloudflare.com") => {
-                            bail!("{} has an invalid Workers AI decision endpoint", self.id);
-                        }
-                        _ => {
-                            ensure!(
-                                !path.contains("/client/v4"),
-                                "{} has an invalid Workers AI decision endpoint",
-                                self.id
-                            );
-                            if path.is_empty() {
-                                url.set_path("/systemone");
-                            }
-                            (String::new(), url.to_string())
-                        }
+                        (String::new(), url.to_string())
                     }
                 }
-            };
+            }
+        };
         let free_models = if self.count_free {
             self.models.iter().cloned().collect()
         } else {
@@ -256,6 +261,10 @@ impl BackupProvider {
             },
             key_env,
             models: self.models,
+            refresh_every: self.refresh_every,
+            auto_include: self.auto_include,
+            remote_gateway,
+            model_directory: None,
             fallback: self.fallback,
             patience: self.patience.unwrap_or_else(super::disabled_patience),
             no_stand_in: self.no_stand_in,

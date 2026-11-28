@@ -10,6 +10,7 @@ use url::Url;
 pub(crate) mod ark;
 pub(crate) mod dashscope;
 pub(crate) mod minimax;
+pub(crate) mod modelscope;
 pub(crate) mod speech;
 
 struct Field {

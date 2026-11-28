@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, VecDeque},
     ops::Range,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -40,7 +40,7 @@ mod routing;
 mod session;
 
 use crate::config::{Config, Provider};
-use crate::media::{self, ark, dashscope, minimax, speech};
+use crate::media::{self, ark, dashscope, minimax, modelscope, speech};
 use crate::translate::{self, Format};
 use crate::webchat::{Site, WebPrompt};
 use round::Round;
@@ -90,11 +90,13 @@ pub struct Gateway {
     classifier_cache: classifier::Cache,
     turn_affinity: affinity::Cache,
     models: Bytes,
-    client: ForwardClient,
+    client: Arc<ForwardClient>,
     vertex_tokens: BTreeMap<String, crate::vertex::auth::TokenCache>,
+    modelscope_queues: Arc<modelscope::Queues>,
     token: String,
     slots: Arc<Semaphore>,
     history: History,
+    refreshed: RwLock<Option<Arc<Gateway>>>,
 }
 
 #[derive(NsonSerialize)]
@@ -141,6 +143,24 @@ fn gemini_model(id: &str) -> nextjson::Value {
 }
 
 impl Gateway {
+    pub(crate) fn replace_catalog(&self, config: Config) -> Result<()> {
+        let mut next = router_with_client(
+            config,
+            self.token.clone(),
+            self.history.clone(),
+            &self.root,
+            self.client.clone(),
+        )?;
+        let state = Arc::get_mut(&mut next).expect("new gateway state");
+        state.slots = self.slots.clone();
+        state.modelscope_queues = self.modelscope_queues.clone();
+        *self
+            .refreshed
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = Some(next);
+        Ok(())
+    }
+
     fn listed_ids(&self) -> impl Iterator<Item = &String> {
         self.ordered_group_refs.iter().chain(
             self.routes
@@ -175,7 +195,7 @@ fn router_with_client(
     token: String,
     history: History,
     root: &Path,
-    client: ForwardClient,
+    client: impl Into<Arc<ForwardClient>>,
 ) -> Result<Arc<Gateway>> {
     config.validate()?;
     for p in &mut config.providers {
@@ -183,10 +203,17 @@ fn router_with_client(
     }
     anyhow::ensure!(!token.is_empty(), "empty gateway token");
     let mut routes = BTreeMap::new();
+    let mut delisted = std::collections::BTreeSet::new();
     for (i, p) in config.providers.iter().enumerate() {
         for (j, m) in p.models.iter().enumerate() {
+            let id = format!("{}/{m}", p.id);
+            if p.delisted(m) {
+                delisted.insert(id.clone());
+                routes.insert(id, Route::Disabled);
+                continue;
+            }
             routes.insert(
-                format!("{}/{m}", p.id),
+                id,
                 Route::Model(Target {
                     provider: i,
                     model: j,
@@ -198,6 +225,7 @@ fn router_with_client(
     let mut resolved = config.resolved_groups();
     let rules = rules::compile(&config, &resolved)?;
     let mut hidden_aliases = config.unlisted_model_ids(&resolved);
+    hidden_aliases.extend(delisted);
     let ordered_group_refs = if config.group_display_order.is_empty() {
         vec![]
     } else {
@@ -293,7 +321,9 @@ fn router_with_client(
     for p in &config.providers {
         for m in &p.models {
             let route = routes[&format!("{}/{m}", p.id)];
-            routes.entry(m.clone()).or_insert(route);
+            if !matches!(route, Route::Disabled) {
+                routes.entry(m.clone()).or_insert(route);
+            }
         }
     }
     #[derive(NsonSerialize)]
@@ -328,6 +358,7 @@ fn router_with_client(
             .filter(|p| p.endpoints.vertex.is_some() && p.key_env.is_empty())
             .map(|p| (p.id.clone(), Default::default()))
             .collect(),
+        modelscope_queues: Default::default(),
         rounds,
         rules,
         classifier_cache: Default::default(),
@@ -339,10 +370,11 @@ fn router_with_client(
         config,
         routes,
         models: Bytes::new(),
-        client,
+        client: client.into(),
         token,
         slots: Arc::new(Semaphore::new(MAX_IN_FLIGHT)),
         history,
+        refreshed: Default::default(),
     };
     state.models = Bytes::from(
         nextjson::to_vec(&ModelList {
@@ -414,7 +446,8 @@ impl<'a> Api<'a> {
                 .then_some(Destination::Upstream(url, Self::Chat(minimax::IMAGE), None));
         }
         if matches!(self, Self::Chat("images/generations" | "images/edits"))
-            && let Some(url) = ark::destination(&p.endpoints)
+            && let Some(url) =
+                ark::destination(&p.endpoints).or_else(|| modelscope::destination(&p.endpoints))
         {
             return Some(Destination::Upstream(
                 url,
@@ -621,6 +654,15 @@ pub(crate) fn failure(code: StatusCode, message: &str) -> Response {
     )
 }
 
+fn unavailable(id: &str) -> Response {
+    let message = if id.starts_with("group/") || id.starts_with("auto/") {
+        "route group is switched off"
+    } else {
+        "model is no longer listed by its provider"
+    };
+    failure(StatusCode::NOT_FOUND, message)
+}
+
 pub(crate) fn json_response(status: StatusCode, value: &impl NsonSerialize) -> Response {
     match nextjson::to_vec(value) {
         Ok(bytes) => (status, [(header::CONTENT_TYPE, "application/json")], bytes).into_response(),
@@ -675,6 +717,12 @@ pub(crate) async fn dispatch(
     gw: &Arc<Gateway>,
     req: Request<impl Future<Output = Result<Bytes>>>,
 ) -> Response {
+    let refreshed = gw
+        .refreshed
+        .read()
+        .unwrap_or_else(|error| error.into_inner())
+        .clone();
+    let gw = refreshed.as_ref().unwrap_or(gw);
     let (parts, body) = req.into_parts();
     let mut origins = parts.headers.get_all(header::ORIGIN).iter();
     let origin = origins.next();
@@ -753,8 +801,8 @@ async fn serve_http(
             };
             let id = decoded.as_ref();
             let route = match gw.resolve(id) {
-                Some((_, Route::Disabled)) => {
-                    return failure(StatusCode::NOT_FOUND, "route group is switched off");
+                Some((route, Route::Disabled)) => {
+                    return unavailable(route);
                 }
                 None => return failure(StatusCode::NOT_FOUND, "unknown model"),
                 Some((_, route)) => route,
@@ -905,11 +953,11 @@ async fn forward(
             }
         },
     };
-    let Some((_, route)) = gw.resolve(&asked) else {
+    let Some((route_id, route)) = gw.resolve(&asked) else {
         return failure(StatusCode::NOT_FOUND, "unknown model");
     };
     if matches!(route, Route::Disabled) {
-        return failure(StatusCode::NOT_FOUND, "route group is switched off");
+        return unavailable(route_id);
     }
     let picks = if matches!(route, Route::Group { .. }) || !route.fallbacks(&gw.config).is_empty() {
         match gw.current_picks().await {
@@ -1034,20 +1082,35 @@ async fn forward(
         } else {
             None
         };
-        let (ark_body, ark_drawing) = match (api, native) {
-            (
-                Api::Chat(path @ ("images/generations" | "images/edits")),
-                Api::Chat("images/generations"),
-            ) if ark::host(&url) => {
-                match ark::Drawing::prepare(model, &bytes, upload.as_ref(), path == "images/edits")
-                {
-                    Ok((body, drawing)) => (Some(body), Some(drawing)),
-                    Err(_) if candidates.advance().await => continue,
-                    Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
+        let mut ark_drawing = None;
+        let mut modelscope_drawing = None;
+        let mut drawing_body = None;
+        if let Api::Chat(path @ ("images/generations" | "images/edits")) = api
+            && matches!(native, Api::Chat("images/generations"))
+        {
+            let edit = path == "images/edits";
+            let prepared = if ark::host(&url) {
+                ark::Drawing::prepare(model, &bytes, upload.as_ref(), edit).map(|(body, draw)| {
+                    ark_drawing = Some(draw);
+                    drawing_body = Some(body);
+                })
+            } else if modelscope::host(&url) {
+                modelscope::Drawing::prepare(model, &bytes, upload.as_ref(), edit).map(
+                    |(body, draw)| {
+                        modelscope_drawing = Some(draw);
+                        drawing_body = Some(body);
+                    },
+                )
+            } else {
+                Ok(())
+            };
+            if let Err(error) = prepared {
+                if candidates.advance().await {
+                    continue;
                 }
+                return failure(StatusCode::BAD_REQUEST, &error.to_string());
             }
-            _ => (None, None),
-        };
+        }
         let media = match (api, native) {
             (
                 Api::Chat(path @ ("images/generations" | "images/edits")),
@@ -1093,7 +1156,7 @@ async fn forward(
             Err(_) if candidates.advance().await => continue,
             Err(error) => return failure(StatusCode::BAD_REQUEST, &error.to_string()),
         };
-        let media_body = media_body.or(ark_body);
+        let media_body = media_body.or(drawing_body);
         let vercel_evaluation =
             matches!(native, Api::Chat(decision::SYSTEM_ONE)) && decision::vercel_evaluation(&url);
         let workers_ai =
@@ -1275,6 +1338,10 @@ async fn forward(
             let mut request = request.header(header::CONTENT_LENGTH, length).body(parts)?;
             let upstream = if let Some(drawing) = ark_drawing {
                 drawing.send(&gw.client, request).await
+            } else if let Some(drawing) = modelscope_drawing {
+                drawing
+                    .send(&gw.client, request, &gw.modelscope_queues)
+                    .await
             } else if matches!(native, Api::Messages(_))
                 && !p.key_env.is_empty()
                 && p.endpoints.vertex.is_none()
@@ -1634,6 +1701,10 @@ mod tests {
                 .map_err(anyhow::Error::msg)?,
             key_env: String::new(),
             models: vec![],
+            refresh_every: String::new(),
+            auto_include: vec![],
+            remote_gateway: false,
+            model_directory: None,
         };
         for (api, model, expected_path, translated) in [
             (

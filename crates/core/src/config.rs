@@ -68,6 +68,18 @@ pub struct Provider {
     #[njson(default)]
     pub key_env: String,
     pub models: Vec<String>,
+    #[njson(
+        default,
+        alias = "refreshEvery",
+        skip_serializing_if = "String::is_empty"
+    )]
+    pub refresh_every: String,
+    #[njson(default, alias = "autoInclude", skip_serializing_if = "Vec::is_empty")]
+    pub auto_include: Vec<String>,
+    #[njson(default, skip_serializing_if = "std::ops::Not::not")]
+    pub remote_gateway: bool,
+    #[njson(default, skip_serializing_if = "Option::is_none")]
+    pub model_directory: Option<crate::catalog::ModelDirectory>,
     /// Backup model and route group IDs in the order to try for direct requests.
     #[njson(default, skip_serializing_if = "Vec::is_empty")]
     pub fallback: Vec<String>,
@@ -91,6 +103,14 @@ pub struct Provider {
     /// Known input context sizes in tokens, with an optional provider-wide `*` default.
     #[njson(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub contexts: BTreeMap<String, u32>,
+}
+
+impl Provider {
+    pub(crate) fn delisted(&self, model: &str) -> bool {
+        self.model_directory
+            .as_ref()
+            .is_some_and(|list| list.delisted.contains(model))
+    }
 }
 
 #[derive(Clone, Debug, NsonSerialize, NsonDeserialize)]
@@ -227,7 +247,7 @@ fn valid_id(s: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
 }
 
-fn valid_model_id(id: &str) -> bool {
+pub(crate) fn valid_model_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= 256
         && id.split('/').all(|part| !matches!(part, "" | "." | ".."))
@@ -526,7 +546,12 @@ impl Config {
             if !p.endpoints.models_url.is_empty() {
                 catalog_url(&p.endpoints.models_url)?;
             }
-            ensure!(!p.models.is_empty(), "{} has no models", p.id);
+            crate::catalog::validate_refresh(p).with_context(|| format!("provider {}", p.id))?;
+            ensure!(
+                !p.models.is_empty() || !p.auto_include.is_empty(),
+                "{} has no models or automatic inclusion rules",
+                p.id
+            );
             for m in &p.models {
                 ensure!(valid_model_id(m), "invalid model id");
                 ensure!(
@@ -820,6 +845,13 @@ impl Config {
                 .map(|id| id.trim().to_owned())
                 .filter(|id| !id.is_empty() && seen.insert(id.clone()))
                 .collect();
+            provider.refresh_every = provider.refresh_every.trim().to_ascii_lowercase();
+            seen.clear();
+            provider.auto_include = std::mem::take(&mut provider.auto_include)
+                .into_iter()
+                .map(|pattern| pattern.trim().to_owned())
+                .filter(|pattern| !pattern.is_empty() && seen.insert(pattern.clone()))
+                .collect();
         }
         let active: HashSet<_> = config.providers.iter().map(|p| p.id.as_str()).collect();
         config.former_providers.retain(|old, current| {
@@ -951,7 +983,7 @@ pub(crate) fn remember_auth(dir: &Path, provider: &Provider, mode: AuthHeader) -
     Ok(())
 }
 
-fn settings_lock(dir: &Path) -> Result<File> {
+pub(crate) fn settings_lock(dir: &Path) -> Result<File> {
     fs::create_dir_all(dir)?;
     let lock = File::options()
         .read(true)
@@ -964,7 +996,7 @@ fn settings_lock(dir: &Path) -> Result<File> {
 }
 
 pub fn save(dir: &Path, previous: &str, text: &str) -> Result<()> {
-    let cfg = Config::parse(text)?;
+    let mut cfg = Config::parse(text)?;
     let _lock = settings_lock(dir)?;
     let current = load(dir)?;
     current.check_snapshot(previous)?;
@@ -973,10 +1005,12 @@ pub fn save(dir: &Path, previous: &str, text: &str) -> Result<()> {
             || current.providers.iter().any(|p| p.id == "auto"),
         "provider ID auto is reserved for automatic model groups"
     );
+    crate::catalog::on_save(&current, &mut cfg)?;
+    cfg.validate()?;
     write_settings(dir, &cfg)
 }
 
-fn write_settings(dir: &Path, cfg: &Config) -> Result<()> {
+pub(crate) fn write_settings(dir: &Path, cfg: &Config) -> Result<()> {
     let bytes = cfg.formatted()?.into_bytes();
     ensure!(
         bytes.len() <= MAX_CONFIG,

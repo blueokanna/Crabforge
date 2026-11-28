@@ -221,7 +221,7 @@ fn loopback(url: &Url) -> bool {
     }
 }
 
-fn public_oss(url: &Url) -> bool {
+pub(super) fn public_oss(url: &Url) -> bool {
     // Signed DashScope image URLs use public Alibaba Cloud OSS bucket hosts.
     url.port().is_none()
         && url

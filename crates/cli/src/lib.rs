@@ -316,6 +316,12 @@ enum ProviderCommand {
     },
     /// Rename a provider and migrate its saved model references.
     Rename { from: String, to: String },
+    /// Refresh a provider directory and apply the saved model inclusion rules.
+    Refresh { id: String },
+    /// Set the model directory interval, such as 10m, 6h, 1d or off.
+    RefreshEvery { id: String, interval: String },
+    /// Set glob or re: rules for newly listed models. Omit patterns to clear.
+    AutoInclude { id: String, patterns: Vec<String> },
     /// Show or replace the ordered fallback models and groups. Use none to clear.
     Fallback { id: String, targets: Vec<String> },
     /// Set fallback-for-others=yes|no or patience=SECONDS.
@@ -617,6 +623,38 @@ async fn dispatch(args: Args) -> Result<()> {
             command: ProviderCommand::Rename { from, to },
         } => {
             config::rename_provider(&dir, &config::snapshot(&dir)?, &from, &to)?;
+        }
+        Command::Provider {
+            command: ProviderCommand::Refresh { id },
+        } => {
+            let result = crabforge_core::catalog::refresh_provider(&dir, &id).await?;
+            println!(
+                "{}",
+                nextjson::to_string_pretty(&result).map_err(anyhow::Error::msg)?
+            );
+        }
+        Command::Provider {
+            command:
+                command @ (ProviderCommand::RefreshEvery { .. } | ProviderCommand::AutoInclude { .. }),
+        } => {
+            let previous = config::snapshot(&dir)?;
+            let mut cfg = config::Config::parse(&previous)?;
+            let id = match &command {
+                ProviderCommand::RefreshEvery { id, .. }
+                | ProviderCommand::AutoInclude { id, .. } => id,
+                _ => unreachable!(),
+            };
+            let provider = cfg
+                .providers
+                .iter_mut()
+                .find(|p| &p.id == id)
+                .context("provider not found")?;
+            match command {
+                ProviderCommand::RefreshEvery { interval, .. } => provider.refresh_every = interval,
+                ProviderCommand::AutoInclude { patterns, .. } => provider.auto_include = patterns,
+                _ => unreachable!(),
+            }
+            config::save(&dir, &previous, &cfg.to_json()?)?;
         }
         Command::Provider {
             command: ProviderCommand::Fallback { id, targets },
@@ -1053,6 +1091,7 @@ async fn dispatch(args: Args) -> Result<()> {
                     let catalog =
                         crabforge_core::catalog::discover_catalog(&p.endpoints, &p.key_env).await?;
                     p.models.clone_from(&catalog.models);
+                    p.model_directory = None;
                     p.free_models = catalog.free_models;
                     p.model_protocols = catalog.model_protocols;
                     p.model_reasoning_levels = catalog.model_reasoning_levels;

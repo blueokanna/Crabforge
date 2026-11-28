@@ -1,5 +1,5 @@
 use crate::{
-    config,
+    catalog, config,
     gateway::{self, Gateway, History},
     memory::distill::schedule,
     peer::{self, PeerServer},
@@ -38,6 +38,7 @@ pub struct Service {
     pub history: History,
     http: JoinHandle<std::io::Result<()>>,
     memory: JoinHandle<()>,
+    catalogs: JoinHandle<()>,
 }
 
 impl Service {
@@ -51,7 +52,7 @@ impl Service {
             .iter()
             .map(|s| s.parse())
             .collect::<Result<Vec<_>, _>>()?;
-        let app = gateway::router(cfg, config::token(dir)?, history.clone(), dir)?;
+        let app = gateway::router(cfg.clone(), config::token(dir)?, history.clone(), dir)?;
         let listener = TcpListener::bind(addr).await?;
         let addr = listener.local_addr()?;
         let peer = if peer_listen.is_empty() {
@@ -67,7 +68,9 @@ impl Service {
                 .await?,
             )
         };
-        let http = tokio::spawn(serve_local(listener, app));
+        let http = tokio::spawn(serve_local(listener, app.clone()));
+        let root = dir.to_owned();
+        let catalogs = tokio::spawn(async move { catalog::maintain(&root, app, cfg).await });
         let root = dir.to_owned();
         let memory = tokio::spawn(async move { schedule::hourly(&root).await });
         Ok(Self {
@@ -76,6 +79,7 @@ impl Service {
             history,
             http,
             memory,
+            catalogs,
         })
     }
 
@@ -95,12 +99,14 @@ impl Service {
     pub async fn stop(mut self) {
         self.http.abort();
         self.memory.abort();
+        self.catalogs.abort();
         if let Some(p) = self.peer.take() {
             p.task.abort();
             let _ = p.task.await;
         }
         let _ = (&mut self.http).await;
         let _ = (&mut self.memory).await;
+        let _ = (&mut self.catalogs).await;
     }
 }
 
@@ -108,6 +114,7 @@ impl Drop for Service {
     fn drop(&mut self) {
         self.http.abort();
         self.memory.abort();
+        self.catalogs.abort();
         if let Some(p) = &self.peer {
             p.task.abort();
         }

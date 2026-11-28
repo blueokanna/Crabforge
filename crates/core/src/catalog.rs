@@ -12,6 +12,9 @@ use std::{
 use url::Url;
 mod builtin;
 pub use builtin::fixed_models;
+mod refresh;
+pub use refresh::{ModelDirectory, RefreshedModels, refresh_provider};
+pub(crate) use refresh::{maintain, on_save, validate_refresh};
 
 /// Include the local lists in the catalog shown by both the CLI and Flutter.
 pub fn presets() -> Result<String> {
@@ -76,7 +79,7 @@ string_enum! {
 
 pub(crate) const LEGACY_RELAY_PREFERENCE: &str = concat!("mag", "pie_prefers");
 
-#[derive(Clone, Debug, Default, nextjson::NsonSerialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, nextjson::NsonSerialize)]
 pub struct RelayProtocols {
     #[njson(skip_serializing_if = "Option::is_none")]
     pub native_endpoints: Option<BTreeSet<RelayEndpoint>>,
@@ -293,6 +296,8 @@ pub struct ModelCatalog {
     pub model_reasoning_levels: BTreeMap<String, Vec<String>>,
     #[njson(skip)]
     pub learned_auth: Option<crate::config::AuthHeader>,
+    #[njson(skip)]
+    partial: bool,
 }
 
 pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelCatalog> {
@@ -387,6 +392,7 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
         }
     }
     catalog.learned_auth = auth.learned;
+    catalog.partial = !errors.is_empty();
     Ok(catalog)
 }
 
