@@ -35,7 +35,7 @@ pub const MAX_CONFIG: usize = 1024 * 1024;
 pub const MAX_MEMBER_WEIGHT: u32 = 1000;
 pub const PRESETS: &str = include_str!("presets.json");
 
-#[derive(Clone, Debug, Default, NsonSerialize, NsonDeserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, NsonSerialize, NsonDeserialize)]
 #[njson(default, deny_unknown_fields)]
 pub struct Endpoints {
     #[njson(skip_serializing_if = "AuthHeader::is_default")]

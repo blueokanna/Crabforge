@@ -85,10 +85,10 @@ pub struct Gateway {
     // IDs already listed in group order, or hidden aliases of public IDs.
     skip_in_sorted_catalog: std::collections::BTreeSet<String>,
     ordered_group_refs: Vec<String>,
-    rounds: BTreeMap<String, Round>,
+    rounds: BTreeMap<String, Arc<Round>>,
     rules: BTreeMap<String, Vec<rules::Rule>>,
-    classifier_cache: classifier::Cache,
-    turn_affinity: affinity::Cache,
+    classifier_cache: Arc<classifier::Cache>,
+    turn_affinity: Arc<affinity::Cache>,
     models: Bytes,
     client: Arc<ForwardClient>,
     vertex_tokens: BTreeMap<String, crate::vertex::auth::TokenCache>,
@@ -154,10 +154,23 @@ impl Gateway {
         let state = Arc::get_mut(&mut next).expect("new gateway state");
         state.slots = self.slots.clone();
         state.modelscope_queues = self.modelscope_queues.clone();
-        *self
+        state.turn_affinity = self.turn_affinity.clone();
+        state.classifier_cache = self.classifier_cache.clone();
+        let mut snapshot = self
             .refreshed
             .write()
-            .unwrap_or_else(|error| error.into_inner()) = Some(next);
+            .unwrap_or_else(|error| error.into_inner());
+        let previous = snapshot.as_deref().unwrap_or(self);
+        for (id, round) in &mut state.rounds {
+            let name = &id["group/".len()..];
+            if let Some(saved) = previous.rounds.get(id)
+                && previous.config.groups[name] == state.config.groups[name]
+                && previous.config.group_weights.get(name) == state.config.group_weights.get(name)
+            {
+                *round = saved.clone();
+            }
+        }
+        *snapshot = Some(next);
         Ok(())
     }
 
@@ -335,14 +348,19 @@ fn router_with_client(
     let mut rounds: BTreeMap<_, _> = config
         .rotating_groups
         .iter()
-        .map(|name| (format!("group/{name}"), Round::Rotate(Default::default())))
+        .map(|name| {
+            (
+                format!("group/{name}"),
+                Arc::new(Round::Rotate(Default::default())),
+            )
+        })
         .collect();
     for (name, weights) in &config.group_weights {
         let weights = config.groups[name]
             .iter()
             .map(|id| weights.get(id).copied().unwrap_or(1))
             .collect();
-        rounds.insert(format!("group/{name}"), Round::weighted(weights));
+        rounds.insert(format!("group/{name}"), Arc::new(Round::weighted(weights)));
     }
     let mut state = Gateway {
         manual_members,
@@ -1287,7 +1305,9 @@ async fn forward(
                 Api::Messages(_) => "anthropic",
                 _ => "openai",
             };
-            request = if p.endpoints.vertex.is_some() {
+            request = if p.remote_gateway {
+                request.header("x-api-key", key)
+            } else if p.endpoints.vertex.is_some() {
                 request.header("x-goog-api-key", key)
             } else {
                 crate::config::authenticate(request, &url, protocol, &key, p.endpoints.auth_header)
@@ -1345,6 +1365,7 @@ async fn forward(
             } else if matches!(native, Api::Messages(_))
                 && !p.key_env.is_empty()
                 && p.endpoints.vertex.is_none()
+                && !p.remote_gateway
             {
                 let learned = &gw.anthropic_auth[candidate.target.provider];
                 let unknown = learned.get().is_none();

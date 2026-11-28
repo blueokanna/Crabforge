@@ -1055,6 +1055,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get changed => '공급자 설정이 변경되었습니다. 모델을 다시 불러오세요.';
 
   @override
+  String get catalogRefreshInterval => '모델 목록 새로고침 간격';
+
+  @override
+  String get catalogAutoInclude => '이 규칙과 일치하는 모델 자동 추가';
+
+  @override
   String modelsRead(int count) {
     return '모델 $count개를 불러왔습니다. 저장하기 전에 편집할 수 있습니다.';
   }

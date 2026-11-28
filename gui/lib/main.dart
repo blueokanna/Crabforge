@@ -32,6 +32,21 @@ void main() {
   runApp(const CrabforgeApp());
 }
 
+Iterable<String> availableModels(JsonMap provider) {
+  final delisted = Set<String>.from(
+    provider['model_directory']?['delisted'] ?? [],
+  );
+  return (provider['models'] as List).cast<String>().where(
+    (model) => !delisted.contains(model),
+  );
+}
+
+bool managesModelDirectory(JsonMap provider) =>
+    provider['remote_gateway'] == true ||
+    provider['refresh_every'] != null ||
+    provider['auto_include'] != null ||
+    provider['model_directory'] != null;
+
 class CrabforgeApp extends StatefulWidget {
   const CrabforgeApp({super.key});
   @override
@@ -261,13 +276,18 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         lifecycle == AppLifecycleState.resumed ||
         lifecycle == AppLifecycleState.inactive;
     final manualGroups = running && page == 2 && groupPicks.isNotEmpty;
+    final liveCatalog =
+        running && catalogPage && providers.any(managesModelDirectory);
     if ((manualGroups && visible) ||
         (lifecycle == AppLifecycleState.resumed &&
-            ((running && (page == 1 || page == 3)) ||
+            (liveCatalog ||
+                (running && (page == 1 || page == 3)) ||
                 (page == 3 && status['tunnel'] != null)))) {
       timer = Timer.periodic(const Duration(seconds: 3), (_) => refresh());
     }
   }
+
+  bool get catalogPage => page == 0 || page == 2 || page == 4;
 
   Future<void> refresh() async {
     if (reading || busy) return;
@@ -276,14 +296,13 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       final previous = snapshot;
       final previousStatus = statusSnapshot;
       final updatedStatus = await api.status();
-      // Both the CLI and this window can change a manual selection while serving.
-      if (running && page == 2 && groupPicks.isNotEmpty) {
+      if (running && catalogPage) {
         final saved = await api.configuration();
         if (saved != previous) {
           final resolved = jsonDecode(
             await api.routeGroups(configuration: saved),
           );
-          if (mounted && page == 2 && !busy && snapshot == previous) {
+          if (mounted && catalogPage && !busy && snapshot == previous) {
             setState(() => applyConfiguration(saved, resolved));
           }
         }
@@ -1023,7 +1042,11 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
         return CollectionTile(
           grid: grid,
           title: collectionTitle(p['id']),
-          detail: Text((p['models'] as List).join(' · ')),
+          detail: Text(
+            availableModels(p).join(' · '),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           leading: Icon(
             p['web_site'] == null
                 ? CrabforgeSymbols.hub
@@ -1034,6 +1057,17 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               : () =>
                     p['web_site'] == null ? provider(p) : login(p['web_site']),
           actions: [
+            if (managesModelDirectory(p))
+              IconButton(
+                tooltip: context.strings.readModels,
+                icon: const Icon(CrabforgeSymbols.sync),
+                onPressed: busy
+                    ? null
+                    : () => act(() async {
+                        await api.refreshProviderCatalog(id: p['id']);
+                        await reloadConfiguration();
+                      }),
+              ),
             IconButton(
               tooltip: context.strings.renameProvider,
               icon: const Icon(CrabforgeSymbols.editSquare),
@@ -1931,7 +1965,7 @@ class _ModelCatalogState extends State<ModelCatalog> {
   void indexModels() {
     entries = [
       for (final provider in widget.providers)
-        for (final model in provider['models'] as List)
+        for (final model in availableModels(provider))
           catalogEntry('${provider['id']}/$model', provider: provider),
       for (final group in widget.groupRefs.entries)
         catalogEntry(group.value, group: group.key),

@@ -322,6 +322,25 @@ async fn ark_gateway_rewrites_multipart_edits_and_keeps_successful_draws() -> Re
 async fn modelscope_gateway_polls_images_and_keeps_partial_results() -> Result<()> {
     const HOST: &str = "api-inference.modelscope.cn";
     const PNG: &[u8] = b"\x89PNG\r\n\x1a\nfixture";
+    const KEY_ENV: &str = "CRABFORGE_TEST_MODELSCOPE_BEARER";
+    const KEY: &str = "modelscope-fixture-key";
+    if std::env::var(KEY_ENV).as_deref() != Ok(KEY) {
+        let output = tokio::process::Command::new(std::env::current_exe()?)
+            .args([
+                "--exact",
+                "gateway::console_test::modelscope_gateway_polls_images_and_keeps_partial_results",
+            ])
+            .env(KEY_ENV, KEY)
+            .output()
+            .await?;
+        anyhow::ensure!(
+            output.status.success(),
+            "ModelScope credential fixture failed: {}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return Ok(());
+    }
     let upstream = TcpListener::bind("127.0.0.1:0").await?;
     let address = upstream.local_addr()?;
     let (client, tls) = tls_fixture(HOST, address, None)?;
@@ -336,7 +355,7 @@ async fn modelscope_gateway_polls_images_and_keeps_partial_results() -> Result<(
                 .route("/v1/images/generations", post(move |Incoming { headers, body, .. }| async move {
                     assert_eq!(headers["x-modelscope-async-mode"], "true");
                     assert_eq!(headers[header::CONTENT_TYPE], "application/json");
-                    assert!(!headers.contains_key(header::AUTHORIZATION));
+                    assert_eq!(headers[header::AUTHORIZATION], concat!("Bearer ", "modelscope-fixture-key"));
                     let request: nextjson::Value = nextjson::from_slice(&body).unwrap();
                     assert_eq!(request, json!({"model":"Qwen/Image-Edit","prompt":"Draw a crab","size":"1024x1024","image_url":["data:image/png;base64,iVBORw0KGgpmaXh0dXJl","https://example.com/second.png"]}));
                     let (status, reply) = match index {
@@ -352,7 +371,7 @@ async fn modelscope_gateway_polls_images_and_keeps_partial_results() -> Result<(
                     async move {
                         assert_eq!(headers["x-modelscope-task-type"], "image_generation");
                         assert!(!headers.contains_key("x-modelscope-async-mode"));
-                        assert!(!headers.contains_key(header::AUTHORIZATION));
+                        assert_eq!(headers[header::AUTHORIZATION], concat!("Bearer ", "modelscope-fixture-key"));
                         assert!(body.is_empty());
                         let reply = match index {
                             2 => json!({"task_status":"RUNNING"}),
@@ -372,7 +391,7 @@ async fn modelscope_gateway_polls_images_and_keeps_partial_results() -> Result<(
         Ok::<_, anyhow::Error>(())
     });
     let config = nextjson::from_value(json!({"providers":[{
-        "id":"modelscope","models":["Qwen/Image-Edit"],"endpoints":{"chat":format!("{origin}/v1")}
+        "id":"modelscope","key_env":KEY_ENV,"models":["Qwen/Image-Edit"],"endpoints":{"chat":format!("{origin}/v1")}
     }]}))
     .map_err(anyhow::Error::msg)?;
     let root = tempfile::tempdir()?;

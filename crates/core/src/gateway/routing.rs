@@ -303,7 +303,7 @@ impl Gateway {
                                     let choice = classification
                                         .choose(
                                             self,
-                                            index,
+                                            &self.group_ids[index],
                                             facts,
                                             Question {
                                                 settings: decision.settings,
@@ -443,7 +443,7 @@ impl Gateway {
         let key = facts
             .filter(|_| !rules.is_empty() || settings.is_some())
             .and_then(super::rules::Facts::affinity_turn)
-            .map(|turn| affinity::Key { group: index, turn });
+            .map(|turn| affinity::Key::new(id, turn));
         let held = facts
             .filter(|facts| facts.continued())
             .and(key)
@@ -539,7 +539,7 @@ impl Gateway {
             }
         }
         (!branches.is_empty()).then(|| Plan::Group {
-            round: self.rounds.get(id),
+            round: self.rounds.get(id).map(std::sync::Arc::as_ref),
             branches,
             preferred: preferred_count,
             classify,

@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1282618426;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -13603110;
 
 // Section: executor
 
@@ -1008,12 +1008,17 @@ fn wire__crate__api__discover_model_catalog_impl(
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_endpoints = <String>::sse_decode(&mut deserializer);
             let api_key_env = <String>::sse_decode(&mut deserializer);
+            let api_remote_gateway = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::discover_model_catalog(api_endpoints, api_key_env).await?;
+                        let output_ok = crate::api::discover_model_catalog(
+                            api_endpoints,
+                            api_key_env,
+                            api_remote_gateway,
+                        )
+                        .await?;
                         std::result::Result::Ok(output_ok)
                     })()
                     .await,
@@ -2449,6 +2454,42 @@ fn wire__crate__api__recover_agent_hook_impl(
                         let output_ok = crate::api::recover_agent_hook(api_key, api_restore)?;
                         std::result::Result::Ok(output_ok)
                     })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__refresh_provider_catalog_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "refresh_provider_catalog",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok = crate::api::refresh_provider_catalog(api_id).await?;
+                        std::result::Result::Ok(output_ok)
+                    })()
+                    .await,
                 )
             }
         },
@@ -4382,64 +4423,65 @@ fn pde_ffi_dispatcher_primary_impl(
         63 => wire__crate__api__publish_agent_memory_impl(port, ptr, rust_vec_len, data_len),
         64 => wire__crate__api__publish_project_memory_impl(port, ptr, rust_vec_len, data_len),
         65 => wire__crate__api__recover_agent_hook_impl(port, ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__remove_agent_hook_impl(port, ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__remove_agent_rule_impl(port, ptr, rust_vec_len, data_len),
-        68 => wire__crate__api__remove_agent_skill_impl(port, ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__remove_agent_variable_impl(port, ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__remove_mcp_library_server_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__remove_plugin_bundle_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__remove_project_mcp_server_impl(port, ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__rename_provider_impl(port, ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__renamed_group_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__repository_skill_catalog_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__route_groups_impl(port, ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__run_memory_distillation_impl(port, ptr, rust_vec_len, data_len),
-        78 => wire__crate__api__save_agent_hook_impl(port, ptr, rust_vec_len, data_len),
-        79 => wire__crate__api__save_agent_rule_impl(port, ptr, rust_vec_len, data_len),
-        80 => wire__crate__api__save_agent_variable_impl(port, ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__save_configuration_impl(port, ptr, rust_vec_len, data_len),
-        82 => wire__crate__api__save_mcp_library_server_impl(port, ptr, rust_vec_len, data_len),
-        83 => wire__crate__api__save_memory_impl(port, ptr, rust_vec_len, data_len),
-        84 => wire__crate__api__save_omp_advisor_impl(port, ptr, rust_vec_len, data_len),
-        85 => wire__crate__api__save_omp_protocol_impl(port, ptr, rust_vec_len, data_len),
-        86 => wire__crate__api__save_omp_role_impl(port, ptr, rust_vec_len, data_len),
-        87 => wire__crate__api__save_omp_thinking_impl(port, ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__save_plugin_bundle_impl(port, ptr, rust_vec_len, data_len),
-        89 => wire__crate__api__save_project_mcp_server_impl(port, ptr, rust_vec_len, data_len),
-        90 => wire__crate__api__search_memories_impl(port, ptr, rust_vec_len, data_len),
-        91 => {
+        66 => wire__crate__api__refresh_provider_catalog_impl(port, ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__remove_agent_hook_impl(port, ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__remove_agent_rule_impl(port, ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__remove_agent_skill_impl(port, ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__remove_agent_variable_impl(port, ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__remove_mcp_library_server_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__remove_plugin_bundle_impl(port, ptr, rust_vec_len, data_len),
+        73 => wire__crate__api__remove_project_mcp_server_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__rename_provider_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__renamed_group_impl(port, ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__repository_skill_catalog_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__route_groups_impl(port, ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__run_memory_distillation_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__save_agent_hook_impl(port, ptr, rust_vec_len, data_len),
+        80 => wire__crate__api__save_agent_rule_impl(port, ptr, rust_vec_len, data_len),
+        81 => wire__crate__api__save_agent_variable_impl(port, ptr, rust_vec_len, data_len),
+        82 => wire__crate__api__save_configuration_impl(port, ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__save_mcp_library_server_impl(port, ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__save_memory_impl(port, ptr, rust_vec_len, data_len),
+        85 => wire__crate__api__save_omp_advisor_impl(port, ptr, rust_vec_len, data_len),
+        86 => wire__crate__api__save_omp_protocol_impl(port, ptr, rust_vec_len, data_len),
+        87 => wire__crate__api__save_omp_role_impl(port, ptr, rust_vec_len, data_len),
+        88 => wire__crate__api__save_omp_thinking_impl(port, ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__save_plugin_bundle_impl(port, ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__save_project_mcp_server_impl(port, ptr, rust_vec_len, data_len),
+        91 => wire__crate__api__search_memories_impl(port, ptr, rust_vec_len, data_len),
+        92 => {
             wire__crate__api__set_pi_project_plugin_bundle_impl(port, ptr, rust_vec_len, data_len)
         }
-        92 => wire__crate__api__set_project_plugin_bundle_impl(port, ptr, rust_vec_len, data_len),
-        93 => wire__crate__api__set_running_impl(port, ptr, rust_vec_len, data_len),
-        94 => wire__crate__api__set_ui_font_impl(port, ptr, rust_vec_len, data_len),
-        95 => wire__crate__api__set_ui_language_impl(port, ptr, rust_vec_len, data_len),
-        96 => wire__crate__api__set_ui_layout_impl(port, ptr, rust_vec_len, data_len),
-        97 => wire__crate__api__shared_group_impl(port, ptr, rust_vec_len, data_len),
-        98 => wire__crate__api__status_impl(port, ptr, rust_vec_len, data_len),
-        99 => wire__crate__api__sync_agent_environment_impl(port, ptr, rust_vec_len, data_len),
-        100 => wire__crate__api__sync_agent_hooks_impl(port, ptr, rust_vec_len, data_len),
-        101 => wire__crate__api__sync_agent_rules_impl(port, ptr, rust_vec_len, data_len),
-        102 => wire__crate__api__sync_agent_skills_impl(port, ptr, rust_vec_len, data_len),
-        103 => wire__crate__api__sync_mcp_library_impl(port, ptr, rust_vec_len, data_len),
-        104 => wire__crate__api__sync_omp_catalog_impl(port, ptr, rust_vec_len, data_len),
-        105 => wire__crate__api__transfer_pi_project_plugin_bundles_impl(
+        93 => wire__crate__api__set_project_plugin_bundle_impl(port, ptr, rust_vec_len, data_len),
+        94 => wire__crate__api__set_running_impl(port, ptr, rust_vec_len, data_len),
+        95 => wire__crate__api__set_ui_font_impl(port, ptr, rust_vec_len, data_len),
+        96 => wire__crate__api__set_ui_language_impl(port, ptr, rust_vec_len, data_len),
+        97 => wire__crate__api__set_ui_layout_impl(port, ptr, rust_vec_len, data_len),
+        98 => wire__crate__api__shared_group_impl(port, ptr, rust_vec_len, data_len),
+        99 => wire__crate__api__status_impl(port, ptr, rust_vec_len, data_len),
+        100 => wire__crate__api__sync_agent_environment_impl(port, ptr, rust_vec_len, data_len),
+        101 => wire__crate__api__sync_agent_hooks_impl(port, ptr, rust_vec_len, data_len),
+        102 => wire__crate__api__sync_agent_rules_impl(port, ptr, rust_vec_len, data_len),
+        103 => wire__crate__api__sync_agent_skills_impl(port, ptr, rust_vec_len, data_len),
+        104 => wire__crate__api__sync_mcp_library_impl(port, ptr, rust_vec_len, data_len),
+        105 => wire__crate__api__sync_omp_catalog_impl(port, ptr, rust_vec_len, data_len),
+        106 => wire__crate__api__transfer_pi_project_plugin_bundles_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__transfer_project_plugin_bundles_impl(
+        107 => wire__crate__api__transfer_project_plugin_bundles_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__ui_font_impl(port, ptr, rust_vec_len, data_len),
-        108 => wire__crate__api__ui_language_impl(port, ptr, rust_vec_len, data_len),
-        109 => wire__crate__api__ui_layout_impl(port, ptr, rust_vec_len, data_len),
-        110 => wire__crate__api__visit_web_impl(port, ptr, rust_vec_len, data_len),
-        111 => wire__crate__api__web_login_impl(port, ptr, rust_vec_len, data_len),
+        108 => wire__crate__api__ui_font_impl(port, ptr, rust_vec_len, data_len),
+        109 => wire__crate__api__ui_language_impl(port, ptr, rust_vec_len, data_len),
+        110 => wire__crate__api__ui_layout_impl(port, ptr, rust_vec_len, data_len),
+        111 => wire__crate__api__visit_web_impl(port, ptr, rust_vec_len, data_len),
+        112 => wire__crate__api__web_login_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

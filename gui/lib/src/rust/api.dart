@@ -706,10 +706,15 @@ Future<List<String>> discoverModels({
 Future<String> discoverModelCatalog({
   required String endpoints,
   required String keyEnv,
+  required bool remoteGateway,
 }) => RustLib.instance.api.crateApiDiscoverModelCatalog(
   endpoints: endpoints,
   keyEnv: keyEnv,
+  remoteGateway: remoteGateway,
 );
+
+Future<void> refreshProviderCatalog({required String id}) =>
+    RustLib.instance.api.crateApiRefreshProviderCatalog(id: id);
 
 Future<String> gatewayKey() => RustLib.instance.api.crateApiGatewayKey();
 

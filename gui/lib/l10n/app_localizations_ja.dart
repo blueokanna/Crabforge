@@ -1055,6 +1055,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get changed => '設定が変更されました。モデルを再取得してください。';
 
   @override
+  String get catalogRefreshInterval => 'モデル一覧の更新間隔';
+
+  @override
+  String get catalogAutoInclude => 'ルールに一致するモデルを自動で追加';
+
+  @override
   String modelsRead(int count) {
     return 'モデルを $count 件取得しました。保存前に編集できます。';
   }

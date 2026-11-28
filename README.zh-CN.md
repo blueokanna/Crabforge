@@ -31,6 +31,16 @@ Windows 默认将配置和网关密钥保存在 `%LOCALAPPDATA%\com.blue.crabfor
 - 语音、图像和决策接口取决于所配置的供应商与模型。请求包含目标协议无法表达的字段时，请使用支持该字段的原生接口。
 - CLI 可预览加密备份并按需导入。运行 `crabforge-cli import-backup --help` 查看选项。路由组可通过 `group share` 和 `group import` 在设备之间分享。
 
+## 定期刷新供应商目录
+
+可在「供应商」中设置模型目录刷新间隔，例如 `10m`、`6h` 或 `1d`。最短为十分钟。通过 **Remote Gateway** 预设添加的供应商默认每十分钟刷新一次，填写 `off` 可改为手动刷新。供应商卡片上的「读取模型目录」会刷新已保存的目录。自动纳入规则每行一条，可使用不区分大小写的 `gpt-*` 通配式，或使用 `re:` 开头、匹配完整模型 ID 的正则。上游持续列出的模型会保留手动取消状态，添加匹配该模型的新规则时会重新纳入。网关运行时会更新模型目录。
+
+```powershell
+crabforge-cli provider refresh-every <供应商-ID> 10m
+crabforge-cli provider auto-include <供应商-ID> 'gpt-*' 're:claude-.*'
+crabforge-cli provider refresh <供应商-ID>
+```
+
 ## Antigravity
 
 启动网关并将 `agy` 加入 `PATH` 后，运行 `crabforge-cli agent antigravity <模型-ID>`。启动器使用 Antigravity 的 Gemini API 密钥认证模式，并将网关密钥和所选模型传入当前会话。在「客户端连接」中选择 **Antigravity CLI** 即可复制专用网关根地址。 [安装和启动步骤](docs/antigravity.md#简体中文)

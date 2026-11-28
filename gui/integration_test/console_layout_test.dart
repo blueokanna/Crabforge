@@ -30,8 +30,32 @@ void main() {
     }
     final settings = File('${home.path}/settings.json');
     final restart = Platform.environment['CRABFORGE_RESTART_CHECK'] == '1';
+    var refreshedModel = 'gpt-refresh-1200';
     expect(settings.existsSync(), restart);
     if (!restart) {
+      final directory = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => directory.close(force: true));
+      directory.listen((request) async {
+        if (request.uri.path != '/v1/models') {
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+          return;
+        }
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'data': [
+              {
+                'id': 'gpt-4.1',
+                'reasoning_levels': ['low', 'high'],
+              },
+              {'id': refreshedModel},
+              {'id': 'unmatched'},
+            ],
+          }),
+        );
+        await request.response.close();
+      });
       home.createSync(recursive: true);
       settings.writeAsStringSync(
         jsonEncode({
@@ -44,7 +68,12 @@ void main() {
               {
                 'id': id,
                 'models': [model],
-                'endpoints': {'chat': 'http://127.0.0.1:1/v1'},
+                'endpoints': {
+                  'chat': 'http://127.0.0.1:1/v1',
+                  if (id == 'openai')
+                    'models_url':
+                        'http://127.0.0.1:${directory.port}/v1/models',
+                },
                 if (id == 'openai')
                   'model_reasoning_levels': {
                     model: ['low', 'high'],
@@ -309,6 +338,16 @@ void main() {
       await tester.pumpAndSettle();
       final providerPatience = width == 1200 ? 7 : 0;
       await fillField(patienceField, '$providerPatience');
+      final interval = width == 1200 ? '10m' : 'off';
+      final rules = width == 1200 ? ['gpt-*'] : ['gpt-*', 're:claude-.*'];
+      await fillField(
+        find.widgetWithText(TextFormField, strings.catalogRefreshInterval),
+        interval,
+      );
+      await fillField(
+        find.widgetWithText(TextFormField, strings.catalogAutoInclude),
+        rules.join('\n'),
+      );
       final decisions = width == 1200
           ? 'https://api.openai.com/v1/decisions'
           : 'http://127.0.0.1:3250/v1';
@@ -324,6 +363,8 @@ void main() {
           (item) =>
               item['id'] == 'openai' &&
               item['patience'] == providerPatience &&
+              item['refresh_every'] == interval &&
+              listEquals(item['auto_include'] as List?, rules) &&
               item['endpoints']['decisions'] == decisions &&
               item['endpoints']['systemone'] == systemOne &&
               listEquals(item['model_reasoning_levels']?['gpt-4.1'] as List?, [
@@ -332,6 +373,18 @@ void main() {
               ]),
         ),
       );
+      refreshedModel = 'gpt-refresh-$width';
+      final refreshDirectory = find.byTooltip(strings.readModels);
+      await tester.ensureVisible(refreshDirectory);
+      await tester.tap(refreshDirectory.hitTestable());
+      final refreshedModelLabel = find.textContaining(refreshedModel);
+      final refreshDeadline = DateTime.now().add(const Duration(seconds: 10));
+      while (refreshedModelLabel.evaluate().isEmpty &&
+          DateTime.now().isBefore(refreshDeadline)) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(refreshedModelLabel, findsOneWidget);
+      expect(find.textContaining('unmatched'), findsNothing);
       await openPage(nav, strings.groups);
       await tester.tap(find.text('group/review'));
       await tester.pumpAndSettle();

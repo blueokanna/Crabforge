@@ -102,7 +102,7 @@ impl Config {
     pub fn agent_model_ids(&self, groups: &ResolvedGroups) -> Vec<String> {
         let mut ids = BTreeSet::new();
         for p in &self.providers {
-            for m in &p.models {
+            for m in p.models.iter().filter(|m| !p.delisted(m)) {
                 ids.insert(m.clone());
                 ids.insert(format!("{}/{m}", p.id));
             }

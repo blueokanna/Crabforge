@@ -131,7 +131,6 @@ pub(super) struct Question<'a, 't> {
 type Verdict = Arc<OnceCell<Option<Answer>>>;
 
 struct Turn {
-    group: usize,
     identity: [u8; 32],
     added: Instant,
     verdict: Verdict,
@@ -141,10 +140,11 @@ struct Turn {
 pub(super) struct Cache(Mutex<VecDeque<Turn>>);
 
 impl Cache {
-    fn entry(&self, group: usize, turn: [u8; 32], intents: &[&str], automatic: bool) -> Verdict {
+    fn entry(&self, group: &str, turn: [u8; 32], intents: &[&str], automatic: bool) -> Verdict {
         let mut hash = Sha256::new()
             .chain_update(turn)
             .chain_update([u8::from(automatic)]);
+        hash_text(&mut hash, group);
         for intent in intents {
             hash_text(&mut hash, intent);
         }
@@ -157,10 +157,7 @@ impl Cache {
         {
             turns.pop_front();
         }
-        if let Some(turn) = turns
-            .iter()
-            .find(|turn| turn.group == group && turn.identity == identity)
-        {
+        if let Some(turn) = turns.iter().find(|turn| turn.identity == identity) {
             return turn.verdict.clone();
         }
         if turns.len() == TURN_CACHE_LIMIT {
@@ -168,7 +165,6 @@ impl Cache {
         }
         let verdict = Arc::new(OnceCell::new());
         turns.push_back(Turn {
-            group,
             identity,
             added: now,
             verdict: verdict.clone(),
@@ -198,7 +194,7 @@ impl<'a> Classification<'a> {
     pub async fn choose<'t>(
         &mut self,
         gateway: &Gateway,
-        group: usize,
+        group: &str,
         facts: &super::rules::Facts,
         question: Question<'_, 't>,
     ) -> Option<Choice<'t>> {

@@ -323,6 +323,8 @@
   "copyBase": "复制基址",
   "baseCopied": "已复制 API 基址",
   "changed": "供应商设置已改变，请重新获取模型。",
+  "catalogRefreshInterval": "模型目录刷新间隔",
+  "catalogAutoInclude": "自动纳入匹配这些规则的模型",
   "modelsRead": "已读取 {count} 个模型。可在保存前编辑列表。",
   "presetLoaded": "已带入预设模型。可按账户权限编辑。",
   "editProvider": "编辑供应商",

@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use std::{collections::VecDeque, sync::Mutex, time::Duration};
 use tokio::time::Instant;
 
@@ -5,9 +6,18 @@ const MAX_TURNS: usize = 256;
 const MAX_AGE: Duration = Duration::from_secs(30 * 60);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) struct Key {
-    pub group: usize,
-    pub turn: [u8; 32],
+pub(super) struct Key([u8; 32]);
+
+impl Key {
+    pub fn new(group: &str, turn: [u8; 32]) -> Self {
+        Self(
+            Sha256::new()
+                .chain_update(turn)
+                .chain_update(group)
+                .finalize()
+                .into(),
+        )
+    }
 }
 
 #[derive(Clone)]

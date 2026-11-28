@@ -97,6 +97,10 @@ async fn four_protocols_preserve_function_calls_and_usage_across_the_gateway() -
                 web_site: None,
                 key_env: String::new(),
                 models: vec!["m".into()],
+                refresh_every: String::new(),
+                auto_include: vec![],
+                remote_gateway: false,
+                model_directory: None,
                 endpoints: nextjson::from_value::<Endpoints>(nextjson::json!({(*name): &base}))
                     .unwrap(),
             })

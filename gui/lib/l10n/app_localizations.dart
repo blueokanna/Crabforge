@@ -2050,6 +2050,18 @@ abstract class AppLocalizations {
   /// **'Provider settings changed. Fetch models again.'**
   String get changed;
 
+  /// No description provided for @catalogRefreshInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Model directory refresh interval'**
+  String get catalogRefreshInterval;
+
+  /// No description provided for @catalogAutoInclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically include models matching these rules'**
+  String get catalogAutoInclude;
+
   /// No description provided for @modelsRead.
   ///
   /// In en, this message translates to:

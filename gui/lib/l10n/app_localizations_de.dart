@@ -1085,6 +1085,14 @@ class AppLocalizationsDe extends AppLocalizations {
       'Anbietereinstellungen geändert. Modelle erneut abrufen.';
 
   @override
+  String get catalogRefreshInterval =>
+      'Aktualisierungsintervall der Modellliste';
+
+  @override
+  String get catalogAutoInclude =>
+      'Modelle nach diesen Regeln automatisch aufnehmen';
+
+  @override
   String modelsRead(int count) {
     return 'Gefundene Modelle: $count. Die Liste lässt sich vor dem Speichern bearbeiten.';
   }

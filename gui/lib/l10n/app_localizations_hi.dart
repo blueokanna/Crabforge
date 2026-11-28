@@ -1075,6 +1075,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get changed => 'प्रदाता सेटिंग बदल गई हैं। मॉडल फिर लोड करें।';
 
   @override
+  String get catalogRefreshInterval => 'मॉडल सूची रीफ़्रेश करने का अंतराल';
+
+  @override
+  String get catalogAutoInclude =>
+      'इन नियमों से मेल खाने वाले मॉडल अपने आप शामिल करें';
+
+  @override
   String modelsRead(int count) {
     return '$count मॉडल मिले। सहेजने से पहले सूची बदल सकते हैं।';
   }

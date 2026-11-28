@@ -31,6 +31,16 @@ Windows stores settings and the gateway key under `%LOCALAPPDATA%\com.blue.crabf
 - Audio, image, and decision routes depend on the configured provider and model. Use the upstream model’s native endpoint when a request requires a field the destination protocol cannot represent.
 - The CLI previews encrypted backups before applying selected entries. Run `crabforge-cli import-backup --help` for options. Portable route-group shares are available through `group share` and `group import`.
 
+## Keep a provider directory current
+
+In **Providers**, set a model directory refresh interval such as `10m`, `6h`, or `1d`. Ten minutes is the minimum. A provider created from the **Remote Gateway** preset uses ten minutes by default. Use `off` for manual refresh. The **Load model catalog** action on the provider card refreshes its saved directory. Add one inclusion rule per line to pick newly listed models automatically. Globs such as `gpt-*` ignore case, and regular expressions prefixed with `re:` match the entire model ID. A model you deselect stays deselected while it remains in the upstream directory, unless you add a new rule that matches it. The gateway applies directory changes while serving.
+
+```powershell
+crabforge-cli provider refresh-every <provider-id> 10m
+crabforge-cli provider auto-include <provider-id> 'gpt-*' 're:claude-.*'
+crabforge-cli provider refresh <provider-id>
+```
+
 ## Antigravity
 
 With `agy` on `PATH` and the gateway running, launch Antigravity with `crabforge-cli agent antigravity <model-id>`. The launcher uses Antigravity’s Gemini API authentication mode and passes the gateway key and model selection to that session. In **Client connections**, choose **Antigravity CLI** to copy its gateway root. [Antigravity setup](docs/antigravity.md)

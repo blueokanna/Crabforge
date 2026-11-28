@@ -1,7 +1,7 @@
 [
   {"id":"azure","name":"Azure OpenAI","endpoints":{},"resource":{"hint":"https://my-resource.openai.azure.com","paths":{"chat":"/openai/v1","responses":"/openai/v1"}}},
   {"id":"google-vertex","name":"Google Vertex AI / Gemini Express","endpoints":{"gemini":"https://aiplatform.googleapis.com/v1/publishers/google"}},
-  {"id":"remote-gateway","name":"Remote Gateway","endpoints":{},"resource":{"hint":"https://gateway.example.com","paths":{"chat":"/v1","responses":"/v1","anthropic":"","gemini":"/v1beta"}}},
+  {"id":"remote-gateway","name":"Remote Gateway","remote_gateway":true,"endpoints":{},"resource":{"hint":"https://gateway.example.com","paths":{"chat":"/v1","responses":"/v1","anthropic":"","gemini":"/v1beta","decisions":"/v1","systemone":"/v1"}}},
   {"id":"bedrock","name":"Amazon Bedrock / US East","endpoints":{"chat":"https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1","responses":"https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1","anthropic":"https://bedrock-runtime.us-east-1.amazonaws.com/anthropic"}},
   {"id":"qwencloud","name":"Qwen Cloud","endpoints":{"chat":"https://ap-southeast-1.maas.qwencloudapi.com/compatible-mode/v1","anthropic":"https://ap-southeast-1.maas.qwencloudapi.com/apps/anthropic"}},
   {"id":"qwencloud-us-east-1","name":"Qwen Cloud / US East","endpoints":{"chat":"https://us-east-1.maas.qwencloudapi.com/compatible-mode/v1","anthropic":"https://us-east-1.maas.qwencloudapi.com/apps/anthropic"}},

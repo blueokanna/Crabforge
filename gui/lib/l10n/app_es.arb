@@ -323,6 +323,8 @@
   "copyBase": "Copiar URL base",
   "baseCopied": "URL base de la API copiada",
   "changed": "Cambió la configuración. Vuelve a cargar los modelos.",
+  "catalogRefreshInterval": "Intervalo de actualización del catálogo de modelos",
+  "catalogAutoInclude": "Incluir automáticamente los modelos que coincidan con estas reglas",
   "modelsRead": "Modelos encontrados: {count}. Puedes editar la lista antes de guardarla.",
   "presetLoaded": "Modelos predefinidos cargados. Ajusta la lista a tu cuenta.",
   "editProvider": "Editar proveedor",

@@ -365,6 +365,8 @@
   "copyBase": "Copy base URL",
   "baseCopied": "API base URL copied",
   "changed": "Provider settings changed. Fetch models again.",
+  "catalogRefreshInterval": "Model directory refresh interval",
+  "catalogAutoInclude": "Automatically include models matching these rules",
   "modelsRead": "Models found: {count}. Edit the list before saving.",
   "@modelsRead": {
     "placeholders": {

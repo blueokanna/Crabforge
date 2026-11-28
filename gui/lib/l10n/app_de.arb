@@ -323,6 +323,8 @@
   "copyBase": "Basis-URL kopieren",
   "baseCopied": "API-Basis-URL kopiert",
   "changed": "Anbietereinstellungen geändert. Modelle erneut abrufen.",
+  "catalogRefreshInterval": "Aktualisierungsintervall der Modellliste",
+  "catalogAutoInclude": "Modelle nach diesen Regeln automatisch aufnehmen",
   "modelsRead": "Gefundene Modelle: {count}. Die Liste lässt sich vor dem Speichern bearbeiten.",
   "presetLoaded": "Vorlagenmodelle geladen. Liste an die Kontoberechtigungen anpassen.",
   "editProvider": "Anbieter bearbeiten",

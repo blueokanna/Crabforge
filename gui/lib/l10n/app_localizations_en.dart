@@ -1072,6 +1072,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changed => 'Provider settings changed. Fetch models again.';
 
   @override
+  String get catalogRefreshInterval => 'Model directory refresh interval';
+
+  @override
+  String get catalogAutoInclude =>
+      'Automatically include models matching these rules';
+
+  @override
   String modelsRead(int count) {
     return 'Models found: $count. Edit the list before saving.';
   }

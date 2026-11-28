@@ -323,6 +323,8 @@
   "copyBase": "ベース URL をコピー",
   "baseCopied": "API ベース URL をコピーしました",
   "changed": "設定が変更されました。モデルを再取得してください。",
+  "catalogRefreshInterval": "モデル一覧の更新間隔",
+  "catalogAutoInclude": "ルールに一致するモデルを自動で追加",
   "modelsRead": "モデルを {count} 件取得しました。保存前に編集できます。",
   "presetLoaded": "プリセットのモデルを読み込みました。アカウントに合わせて編集できます。",
   "editProvider": "プロバイダーを編集",

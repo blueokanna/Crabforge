@@ -1117,9 +1117,20 @@ pub async fn discover_models(endpoints: String, key_env: String) -> Result<Vec<S
     crabforge_core::catalog::discover(&decode(&endpoints)?, &key_env).await
 }
 
-pub async fn discover_model_catalog(endpoints: String, key_env: String) -> Result<String> {
-    let catalog = crabforge_core::catalog::discover_catalog(&decode(&endpoints)?, &key_env).await?;
+pub async fn discover_model_catalog(
+    endpoints: String,
+    key_env: String,
+    remote_gateway: bool,
+) -> Result<String> {
+    let catalog =
+        crabforge_core::catalog::discover_directory(&decode(&endpoints)?, &key_env, remote_gateway)
+            .await?;
     encode(&catalog)
+}
+
+pub async fn refresh_provider_catalog(id: String) -> Result<()> {
+    crabforge_core::catalog::refresh_provider(&config::data_dir()?, &id).await?;
+    Ok(())
 }
 pub fn gateway_key() -> Result<String> {
     config::token(&config::data_dir()?)

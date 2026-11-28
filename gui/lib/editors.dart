@@ -163,17 +163,24 @@ class _ProviderEditorState extends State<ProviderEditor> {
 
   Future<void> discover() async {
     final bases = jsonEncode(endpoints), key = keyEnv.text.trim();
+    final remote = remoteGateway;
     setState(() {
       loading = true;
       discoveryMessage = null;
     });
     try {
       final result = jsonDecode(
-        await api.discoverModelCatalog(endpoints: bases, keyEnv: key),
+        await api.discoverModelCatalog(
+          endpoints: bases,
+          keyEnv: key,
+          remoteGateway: remote,
+        ),
       ) as JsonMap;
       final ids = List<String>.from(result['models']);
       if (!mounted) return;
-      if (bases != jsonEncode(endpoints) || key != keyEnv.text.trim()) {
+      if (bases != jsonEncode(endpoints) ||
+          key != keyEnv.text.trim() ||
+          remote != remoteGateway) {
         discoveryMessage = context.strings.changed;
       } else {
         models.text = {...linesOf(models.text), ...ids}.join('\n');
@@ -206,6 +213,13 @@ class _ProviderEditorState extends State<ProviderEditor> {
   late final models = TextEditingController(
     text: (widget.provider?['models'] as List?)?.join('\n'),
   );
+  late bool remoteGateway = widget.provider?['remote_gateway'] == true;
+  late final refreshEvery = TextEditingController(
+    text: widget.provider?['refresh_every'],
+  );
+  late final autoInclude = TextEditingController(
+    text: (widget.provider?['auto_include'] as List?)?.join('\n'),
+  );
   late final fallback = TextEditingController(
     text: (widget.provider?['fallback'] as List?)?.join('\n'),
   );
@@ -225,6 +239,8 @@ class _ProviderEditorState extends State<ProviderEditor> {
     for (final c in [
       id,
       models,
+      refreshEvery,
+      autoInclude,
       fallback,
       keyEnv,
       catalog,
@@ -256,6 +272,7 @@ class _ProviderEditorState extends State<ProviderEditor> {
     if (usePresetModels) models.text = presetModelText;
     setState(() {
       resource = p['resource'];
+      remoteGateway = p['remote_gateway'] == true;
       authHeader = p['endpoints']['auth_header'] ?? '';
       vertexPreset = p['id'] == 'google-vertex';
       vertexProject = false;
@@ -384,12 +401,19 @@ class _ProviderEditorState extends State<ProviderEditor> {
                     },
                   ),
                 ),
+              field(context, models, context.strings.modelIds, lines: 3),
               field(
                 context,
-                models,
-                context.strings.modelIds,
-                lines: 3,
-                required: true,
+                refreshEvery,
+                context.strings.catalogRefreshInterval,
+                hint: remoteGateway ? '10m' : '10m, 6h, 1d, off',
+              ),
+              field(
+                context,
+                autoInclude,
+                context.strings.catalogAutoInclude,
+                hint: 'gpt-*\nre:claude-.*',
+                lines: 2,
               ),
               if (!vertexProject)
                 for (final e in urls.entries)
@@ -398,7 +422,7 @@ class _ProviderEditorState extends State<ProviderEditor> {
                     e.value,
                     context.strings.protocolBase(protocolLabels[e.key]!),
                   ),
-              if (!vertexProject)
+              if (!vertexProject && !remoteGateway)
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: urls['anthropic']!,
                   builder: (context, url, _) => url.text.trim().isEmpty
@@ -500,25 +524,33 @@ class _ProviderEditorState extends State<ProviderEditor> {
               if (catalog.text.trim().isNotEmpty)
                 'catalog': catalog.text.trim(),
               'models': linesOf(models.text),
+              if (refreshEvery.text.trim().isNotEmpty)
+                'refresh_every': refreshEvery.text.trim(),
+              if (autoInclude.text.trim().isNotEmpty)
+                'auto_include': linesOf(autoInclude.text),
+              if (remoteGateway) 'remote_gateway': true,
+              if (widget.provider?['model_directory']
+                  case final JsonMap directory)
+                'model_directory': directory,
               if (fallback.text.trim().isNotEmpty)
                 'fallback': linesOf(fallback.text),
               if (wait != -1) 'patience': wait,
               if (!allowFallback) 'no_stand_in': true,
               if (modelProtocols.isNotEmpty)
                 'model_protocols': {
-                  for (final id in linesOf(models.text))
+                  for (final id in directoryMetadataIds)
                     if (modelProtocols.containsKey(id)) id: modelProtocols[id],
                 },
               if (reasoningLevels.isNotEmpty)
                 'model_reasoning_levels': {
-                  for (final id in linesOf(models.text))
+                  for (final id in directoryMetadataIds)
                     if (reasoningLevels.containsKey(id))
                       id: reasoningLevels[id],
                 },
               if (widget.provider?['contexts'] case final JsonMap contexts)
                 'contexts': contexts,
               if (freeModels.isNotEmpty)
-                'free_models': linesOf(models.text)
+                'free_models': directoryMetadataIds
                     .where(freeModels.contains)
                     .toList(),
               'endpoints': endpoints,
@@ -529,6 +561,13 @@ class _ProviderEditorState extends State<ProviderEditor> {
       ),
     ],
   );
+
+  Set<String> get directoryMetadataIds => {
+    ...linesOf(models.text),
+    ...List<String>.from(
+      widget.provider?['model_directory']?['available'] ?? [],
+    ),
+  };
 }
 
 Widget field(

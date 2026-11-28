@@ -5,7 +5,9 @@ use url::Url;
 
 pub(crate) mod auth;
 
-#[derive(Clone, Debug, Default, nextjson::NsonSerialize, nextjson::NsonDeserialize)]
+#[derive(
+    Clone, Debug, Default, PartialEq, Eq, nextjson::NsonSerialize, nextjson::NsonDeserialize,
+)]
 #[njson(default, deny_unknown_fields)]
 pub struct Vertex {
     pub project: String,

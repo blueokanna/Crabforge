@@ -590,6 +590,10 @@ async fn route_group_streams_first_chunk_before_upstream_finishes() -> Result<()
         },
         key_env: String::new(),
         models: vec!["family/m".into()],
+        refresh_every: String::new(),
+        auto_include: vec![],
+        remote_gateway: false,
+        model_directory: None,
     });
     let cfg = Config {
         listen: ephemeral(),

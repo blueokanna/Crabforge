@@ -301,6 +301,14 @@ pub struct ModelCatalog {
 }
 
 pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelCatalog> {
+    discover_directory(bases, key_env, false).await
+}
+
+pub async fn discover_directory(
+    bases: &Endpoints,
+    key_env: &str,
+    remote: bool,
+) -> Result<ModelCatalog> {
     if let Some(v) = &bases.vertex {
         v.validate(!key_env.is_empty(), &bases.models_url)?;
     }
@@ -331,7 +339,24 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
             ..Default::default()
         });
     }
-    let sources = sources(bases)?;
+    let sources = if remote {
+        let url = if bases.models_url.is_empty() {
+            let (base, api) = protocol_bases(bases)
+                .into_iter()
+                .find(|(base, _)| !base.is_empty())
+                .context("configure a remote gateway API endpoint first")?;
+            list_url(api_base(base, api)?, api)?
+        } else {
+            crate::config::catalog_url(&bases.models_url)?
+        };
+        vec![Source {
+            url,
+            api: "remote",
+            deployments: false,
+        }]
+    } else {
+        sources(bases)?
+    };
     let key = if key_env.is_empty() {
         None
     } else {
@@ -400,7 +425,12 @@ pub async fn discover_provider(
     dir: &std::path::Path,
     provider: &crate::config::Provider,
 ) -> Result<Vec<String>> {
-    let catalog = discover_catalog(&provider.endpoints, &provider.key_env).await?;
+    let catalog = discover_directory(
+        &provider.endpoints,
+        &provider.key_env,
+        provider.remote_gateway,
+    )
+    .await?;
     if let Some(mode) = catalog.learned_auth {
         let _ = crate::config::remember_auth(dir, provider, mode);
     }
@@ -437,13 +467,22 @@ impl CatalogAuth<'_> {
         if matches!(api, "decisions" | "systemone") {
             headers.insert("x-crabforge-deciders".into(), "true".into());
         }
+        if api == "remote" {
+            headers.insert("x-magpie-drawers".into(), "1".into());
+            headers.insert("x-magpie-deciders".into(), "1".into());
+        }
         if let Some(token) = self.bearer {
             headers.insert(
                 "authorization".into(),
                 HeaderValue::from_bytes(format!("Bearer {token}").as_bytes())?,
             );
         } else if let Some(key) = self.key {
-            for &name in api_key_headers(url, api, self.learned.unwrap_or(self.mode)) {
+            let names = if api == "remote" {
+                &["x-api-key"]
+            } else {
+                api_key_headers(url, api, self.learned.unwrap_or(self.mode))
+            };
+            for &name in names {
                 let value = if name == "authorization" {
                     HeaderValue::from_bytes(format!("Bearer {key}").as_bytes())?
                 } else {

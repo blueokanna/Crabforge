@@ -1080,6 +1080,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get changed => 'A configuração mudou. Carregue os modelos novamente.';
 
   @override
+  String get catalogRefreshInterval =>
+      'Intervalo de atualização do catálogo de modelos';
+
+  @override
+  String get catalogAutoInclude =>
+      'Incluir automaticamente os modelos que correspondam a estas regras';
+
+  @override
   String modelsRead(int count) {
     return 'Modelos encontrados: $count. Edite a lista antes de salvar.';
   }

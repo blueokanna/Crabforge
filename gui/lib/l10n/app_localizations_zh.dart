@@ -1046,6 +1046,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get changed => '供应商设置已改变，请重新获取模型。';
 
   @override
+  String get catalogRefreshInterval => '模型目录刷新间隔';
+
+  @override
+  String get catalogAutoInclude => '自动纳入匹配这些规则的模型';
+
+  @override
   String modelsRead(int count) {
     return '已读取 $count 个模型。可在保存前编辑列表。';
   }
