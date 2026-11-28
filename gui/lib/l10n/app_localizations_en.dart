@@ -10,6 +10,29 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get memoryTidy => 'Nightly memory tidy';
+
+  @override
+  String get memoryTidyHelp =>
+      'When enabled, the gateway starts the tidy after 3:00 AM local time. It sends saved memories to the selected model route to find duplicates and stale notes. Handwritten and pinned memories are protected.';
+
+  @override
+  String get memoryTidyRun => 'Tidy now';
+
+  @override
+  String get memoryTidyUndo => 'Undo last tidy';
+
+  @override
+  String memoryTidyChanged(String count) {
+    return 'Memories changed ($count)';
+  }
+
+  @override
+  String memoryTidyRestored(String count) {
+    return 'Changes undone ($count)';
+  }
+
+  @override
   String get interfaceFont => 'Interface font';
 
   @override

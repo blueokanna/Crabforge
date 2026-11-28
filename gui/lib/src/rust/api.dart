@@ -556,6 +556,18 @@ Future<String> configureMemoryDistillation({
 Future<String> runMemoryDistillation() =>
     RustLib.instance.api.crateApiRunMemoryDistillation();
 
+Future<String> memoryTidyStatus() =>
+    RustLib.instance.api.crateApiMemoryTidyStatus();
+
+Future<String> configureMemoryTidy({String? model}) =>
+    RustLib.instance.api.crateApiConfigureMemoryTidy(model: model);
+
+Future<String> runMemoryTidy({required String model}) =>
+    RustLib.instance.api.crateApiRunMemoryTidy(model: model);
+
+Future<String> undoMemoryTidy() =>
+    RustLib.instance.api.crateApiUndoMemoryTidy();
+
 Future<String> searchMemories({required String query}) =>
     RustLib.instance.api.crateApiSearchMemories(query: query);
 

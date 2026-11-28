@@ -112,6 +112,42 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @memoryTidy.
+  ///
+  /// In en, this message translates to:
+  /// **'Nightly memory tidy'**
+  String get memoryTidy;
+
+  /// No description provided for @memoryTidyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, the gateway starts the tidy after 3:00 AM local time. It sends saved memories to the selected model route to find duplicates and stale notes. Handwritten and pinned memories are protected.'**
+  String get memoryTidyHelp;
+
+  /// No description provided for @memoryTidyRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Tidy now'**
+  String get memoryTidyRun;
+
+  /// No description provided for @memoryTidyUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo last tidy'**
+  String get memoryTidyUndo;
+
+  /// No description provided for @memoryTidyChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Memories changed ({count})'**
+  String memoryTidyChanged(String count);
+
+  /// No description provided for @memoryTidyRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes undone ({count})'**
+  String memoryTidyRestored(String count);
+
   /// No description provided for @interfaceFont.
   ///
   /// In en, this message translates to:

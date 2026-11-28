@@ -1,4 +1,10 @@
 {
+  "memoryTidy": "夜間のメモリ整理",
+  "memoryTidyHelp": "有効にすると、現地時刻の午前3時以降に整理が始まります。重複したメモや古くなったメモを見つけるため、保存済みメモリを選択したモデルルートに送信します。手書きや固定済みのメモリは保護されます。",
+  "memoryTidyRun": "今すぐ整理",
+  "memoryTidyUndo": "前回の整理を取り消す",
+  "memoryTidyChanged": "変更したメモリ（{count}件）",
+  "memoryTidyRestored": "取り消した変更（{count}件）",
   "interfaceFont": "??????",
   "importSlashCommands": "スラッシュコマンドをインポート",
   "commandImportSource": "Markdown または TOML ファイル、ローカルフォルダー、Git URL",

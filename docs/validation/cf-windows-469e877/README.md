@@ -763,6 +763,12 @@ The Windows Debug desktop test enabled daily publication for Claude Code at 1200
 
 Both Windows desktop runs passed from a clean checkout of `ad2dee070aadd2acbbdbe00c97b481cfe2e5cf04`. The first enabled daily publication in the wide layout and confirmed it in the narrow layout. The second launched a new process, confirmed the persisted setting in the narrow layout, then disabled it. Both runs compared the instruction file byte for byte. [Desktop integration test](../../../gui/integration_test/memory_publication_test.dart)
 
+## 夜间整理记忆 / Nightly memory tidy
+
+Windows 本机通过 176 项 Rust 测试，忽略 30 项，全目标严格 Clippy 通过。Rust 回归覆盖纽约夏令时切换日的本地 03:00 边界、整理写入中断后的恢复，以及撤销时保留外部编辑。两个 Debug CLI 均通过回环模型夹具，验证网关启动时补跑到期任务、顺序组路由、模型失败保留原件、同作用域合并和来源保留、保护手写和置顶项、过期候选归档及逐字节撤销。Windows Debug 桌面在 1200 像素启用并立即整理，在 560 像素重开后撤销并停用，核对原文件的 BOM 和 CRLF。 [Rust 回归](../../../crates/core/src/memory/tidy.rs) · [桌面集成测试](../../../gui/integration_test/memory_tidy_test.dart)
+
+On Windows, 176 Rust tests passed, 30 were ignored, and strict Clippy passed for all targets. Rust regressions covered the local 3:00 AM boundary on New York's daylight saving transition, recovery after an interrupted tidy, and preservation of later edits during undo. Both Debug CLIs used a loopback model fixture to verify startup catch-up, group routing, preservation of originals on model failure, same-scope merging and provenance, protection for handwritten and pinned notes, candidate expiry, and byte-exact undo. The Windows Debug desktop enabled and ran the tidy at 1200 pixels, then reopened the dialog, undid the tidy, and disabled it at 560 pixels. The test verified the original file's BOM and CRLF. [Rust regressions](../../../crates/core/src/memory/tidy.rs) · [Desktop integration test](../../../gui/integration_test/memory_tidy_test.dart)
+
 ## 签名与许可 / Signing and licenses
 
 本地隔离测试使用临时自签名证书。SignTool 添加了 RFC 3161 时间戳，随后因证书链不受信任拒绝该文件。签名脚本清除了临时密钥，发布目录未创建。正式发布需要受信任的发布者密钥。

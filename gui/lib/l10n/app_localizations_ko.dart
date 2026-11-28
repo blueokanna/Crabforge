@@ -10,6 +10,29 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get memoryTidy => '야간 메모리 정리';
+
+  @override
+  String get memoryTidyHelp =>
+      '사용하면 현지 시각 오전 3시 이후에 정리를 시작합니다. 게이트웨이가 저장된 메모리를 선택한 모델 경로로 보내 중복되거나 오래된 내용을 찾습니다. 직접 작성하거나 고정한 메모리는 보호됩니다.';
+
+  @override
+  String get memoryTidyRun => '지금 정리';
+
+  @override
+  String get memoryTidyUndo => '마지막 정리 취소';
+
+  @override
+  String memoryTidyChanged(String count) {
+    return '변경된 메모리 ($count)';
+  }
+
+  @override
+  String memoryTidyRestored(String count) {
+    return '되돌린 변경 사항 ($count)';
+  }
+
+  @override
   String get interfaceFont => '????? ??';
 
   @override

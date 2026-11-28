@@ -10,6 +10,29 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get memoryTidy => 'Tri nocturne des mémoires';
+
+  @override
+  String get memoryTidyHelp =>
+      'Une fois activé, le tri commence après 3 h, heure locale. La passerelle envoie les mémoires au modèle sélectionné pour repérer les doublons et les notes obsolètes. Les mémoires écrites à la main ou épinglées sont protégées.';
+
+  @override
+  String get memoryTidyRun => 'Trier maintenant';
+
+  @override
+  String get memoryTidyUndo => 'Annuler le dernier tri';
+
+  @override
+  String memoryTidyChanged(String count) {
+    return 'Mémoires modifiées ($count)';
+  }
+
+  @override
+  String memoryTidyRestored(String count) {
+    return 'Modifications annulées ($count)';
+  }
+
+  @override
   String get interfaceFont => 'Police de l?interface';
 
   @override

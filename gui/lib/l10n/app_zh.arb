@@ -1,4 +1,10 @@
 {
+  "memoryTidy": "夜间整理记忆",
+  "memoryTidyHelp": "启用后，网关会在本地时间凌晨 3 点后开始整理。已保存的记忆会发送到所选模型路由，以识别重复和过时的条目。手写及置顶记忆受到保护。",
+  "memoryTidyRun": "立即整理",
+  "memoryTidyUndo": "撤销上次整理",
+  "memoryTidyChanged": "已更改的记忆（{count}）",
+  "memoryTidyRestored": "已撤销的更改（{count}）",
   "interfaceFont": "????",
   "importSlashCommands": "导入斜杠命令",
   "commandImportSource": "Markdown 或 TOML 文件、本地文件夹或 Git URL",

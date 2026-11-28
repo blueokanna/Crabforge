@@ -1,4 +1,10 @@
 {
+  "memoryTidy": "Tri nocturne des mémoires",
+  "memoryTidyHelp": "Une fois activé, le tri commence après 3 h, heure locale. La passerelle envoie les mémoires au modèle sélectionné pour repérer les doublons et les notes obsolètes. Les mémoires écrites à la main ou épinglées sont protégées.",
+  "memoryTidyRun": "Trier maintenant",
+  "memoryTidyUndo": "Annuler le dernier tri",
+  "memoryTidyChanged": "Mémoires modifiées ({count})",
+  "memoryTidyRestored": "Modifications annulées ({count})",
   "interfaceFont": "Police de l?interface",
   "importSlashCommands": "Importer des commandes slash",
   "commandImportSource": "Fichier Markdown ou TOML, dossier local ou URL Git",

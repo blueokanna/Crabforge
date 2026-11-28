@@ -1,4 +1,10 @@
 {
+  "memoryTidy": "Nächtliche Gedächtnispflege",
+  "memoryTidyHelp": "Wenn aktiviert, beginnt die Pflege nach 3 Uhr Ortszeit. Das Gateway sendet die gespeicherten Erinnerungen an die gewählte Modellroute, um doppelte und veraltete Einträge zu finden. Selbst verfasste und angeheftete Einträge sind geschützt.",
+  "memoryTidyRun": "Jetzt aufräumen",
+  "memoryTidyUndo": "Letzte Bereinigung rückgängig machen",
+  "memoryTidyChanged": "Geänderte Erinnerungen ({count})",
+  "memoryTidyRestored": "Rückgängig gemachte Änderungen ({count})",
   "interfaceFont": "Schriftart",
   "importSlashCommands": "Slash-Befehle importieren",
   "commandImportSource": "Markdown- oder TOML-Datei, lokaler Ordner oder Git-URL",

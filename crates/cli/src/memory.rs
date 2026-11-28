@@ -69,6 +69,11 @@ pub(super) enum Command {
         #[command(subcommand)]
         command: Distillation,
     },
+    /// Merge duplicate memories and set aside stale memories.
+    Tidy {
+        #[command(subcommand)]
+        command: Tidy,
+    },
     /// Inspect, publish or restore memory in Claude Code or Codex user instructions.
     AgentInstructions {
         agent: String,
@@ -154,6 +159,20 @@ pub(super) enum Distillation {
     Disable,
     /// Process eligible sessions now using the configured route.
     Run,
+}
+
+#[derive(Subcommand)]
+pub(super) enum Tidy {
+    /// Show the schedule and the most recent tidy or undo.
+    Status,
+    /// Schedule a tidy at 03:00 local time using this model or group route.
+    Enable { model: String },
+    /// Stop scheduled tidying.
+    Disable,
+    /// Run a tidy now using the configured route or the supplied route.
+    Run { model: Option<String> },
+    /// Restore entries from the last tidy where their saved revisions still match.
+    Undo,
 }
 
 #[derive(Args)]
@@ -250,6 +269,13 @@ pub(super) async fn run(dir: &Path, command: Command) -> Result<()> {
             }
             Distillation::Disable => print(&schedule::configure(dir, None, 7)?),
             Distillation::Run => print(&schedule::run(dir).await?),
+        },
+        Command::Tidy { command } => match command {
+            Tidy::Status => print(&memory::tidy::status(dir)?),
+            Tidy::Enable { model } => print(&memory::tidy::configure(dir, Some(&model))?),
+            Tidy::Disable => print(&memory::tidy::configure(dir, None)?),
+            Tidy::Run { model } => print(&memory::tidy::run(dir, model.as_deref()).await?),
+            Tidy::Undo => print(&memory::tidy::undo(dir)?),
         },
         Command::AgentInstructions {
             agent,

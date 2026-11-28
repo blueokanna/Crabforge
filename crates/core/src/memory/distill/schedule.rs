@@ -67,7 +67,7 @@ impl State {
     }
 }
 
-fn open_lock(dir: &Path, name: &str) -> Result<File> {
+pub(in crate::memory) fn open_lock(dir: &Path, name: &str) -> Result<File> {
     fs::create_dir_all(dir)?;
     Ok(File::options()
         .read(true)

@@ -91,7 +91,7 @@ pub async fn propose(
     record(dir, &session, &preview, proposals)
 }
 
-fn model_gateway(dir: &Path) -> Result<(Arc<gateway::Gateway>, String)> {
+pub(super) fn model_gateway(dir: &Path) -> Result<(Arc<gateway::Gateway>, String)> {
     let token = config::token(dir)?;
     let router = gateway::router(config::load(dir)?, token.clone(), Default::default(), dir)?;
     Ok((router, token))
@@ -103,9 +103,10 @@ async fn infer(
     model: &str,
     preview: &Preview,
 ) -> Result<Vec<Proposal>> {
+    let messages = nextjson::to_string(&preview.messages).map_err(anyhow::Error::msg)?;
     let response = tokio::time::timeout(
         Duration::from_secs(90),
-        complete(router, token, model, preview),
+        complete(router, token, model, PROMPT, &messages),
     )
     .await
     .context("memory proposal request timed out")??;
@@ -120,18 +121,18 @@ async fn infer(
         .map_err(|_| anyhow::anyhow!("model did not return a memory proposal array"))
 }
 
-async fn complete(
+pub(super) async fn complete(
     router: &Arc<gateway::Gateway>,
     token: &str,
     model: &str,
-    preview: &Preview,
+    prompt: &str,
+    input: &str,
 ) -> Result<String> {
-    let messages = nextjson::to_string(&preview.messages).map_err(anyhow::Error::msg)?;
     let body = json!({
         "model": model,
         "stream": false,
-        "messages": [{"role": "system", "content": PROMPT},
-                     {"role": "user", "content": messages}]
+        "messages": [{"role": "system", "content": prompt},
+                     {"role": "user", "content": input}]
     });
     let request = Request::post("/v1/chat/completions")
         .header(header::AUTHORIZATION, format!("Bearer {token}"))

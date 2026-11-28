@@ -1,7 +1,7 @@
 use crate::{
     catalog, config,
     gateway::{self, Gateway, History},
-    memory::distill::schedule,
+    memory::{distill::schedule, tidy},
     peer::{self, PeerServer},
 };
 use anyhow::Result;
@@ -76,6 +76,7 @@ impl Service {
             tokio::join!(
                 schedule::hourly(&root),
                 crate::project_instructions::publication::maintain(&root),
+                tidy::maintain(&root),
             );
         });
         Ok(Self {

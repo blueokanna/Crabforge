@@ -10,6 +10,29 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get memoryTidy => '夜間のメモリ整理';
+
+  @override
+  String get memoryTidyHelp =>
+      '有効にすると、現地時刻の午前3時以降に整理が始まります。重複したメモや古くなったメモを見つけるため、保存済みメモリを選択したモデルルートに送信します。手書きや固定済みのメモリは保護されます。';
+
+  @override
+  String get memoryTidyRun => '今すぐ整理';
+
+  @override
+  String get memoryTidyUndo => '前回の整理を取り消す';
+
+  @override
+  String memoryTidyChanged(String count) {
+    return '変更したメモリ（$count件）';
+  }
+
+  @override
+  String memoryTidyRestored(String count) {
+    return '取り消した変更（$count件）';
+  }
+
+  @override
   String get interfaceFont => '??????';
 
   @override

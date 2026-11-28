@@ -10,6 +10,29 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get memoryTidy => 'Organización nocturna de la memoria';
+
+  @override
+  String get memoryTidyHelp =>
+      'Si está activada, la organización comienza después de las 3:00 de la madrugada, hora local. La pasarela envía las memorias a la ruta de modelo elegida para detectar duplicados y notas obsoletas. Las memorias escritas a mano o fijadas están protegidas.';
+
+  @override
+  String get memoryTidyRun => 'Organizar ahora';
+
+  @override
+  String get memoryTidyUndo => 'Deshacer la última organización';
+
+  @override
+  String memoryTidyChanged(String count) {
+    return 'Memorias modificadas ($count)';
+  }
+
+  @override
+  String memoryTidyRestored(String count) {
+    return 'Cambios deshechos ($count)';
+  }
+
+  @override
   String get interfaceFont => 'Fuente de la interfaz';
 
   @override

@@ -1,4 +1,10 @@
 {
+  "memoryTidy": "Organización nocturna de la memoria",
+  "memoryTidyHelp": "Si está activada, la organización comienza después de las 3:00 de la madrugada, hora local. La pasarela envía las memorias a la ruta de modelo elegida para detectar duplicados y notas obsoletas. Las memorias escritas a mano o fijadas están protegidas.",
+  "memoryTidyRun": "Organizar ahora",
+  "memoryTidyUndo": "Deshacer la última organización",
+  "memoryTidyChanged": "Memorias modificadas ({count})",
+  "memoryTidyRestored": "Cambios deshechos ({count})",
   "interfaceFont": "Fuente de la interfaz",
   "importSlashCommands": "Importar comandos de barra",
   "commandImportSource": "Archivo Markdown o TOML, carpeta local o URL de Git",

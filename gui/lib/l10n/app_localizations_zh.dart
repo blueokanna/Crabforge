@@ -10,6 +10,29 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get memoryTidy => '夜间整理记忆';
+
+  @override
+  String get memoryTidyHelp =>
+      '启用后，网关会在本地时间凌晨 3 点后开始整理。已保存的记忆会发送到所选模型路由，以识别重复和过时的条目。手写及置顶记忆受到保护。';
+
+  @override
+  String get memoryTidyRun => '立即整理';
+
+  @override
+  String get memoryTidyUndo => '撤销上次整理';
+
+  @override
+  String memoryTidyChanged(String count) {
+    return '已更改的记忆（$count）';
+  }
+
+  @override
+  String memoryTidyRestored(String count) {
+    return '已撤销的更改（$count）';
+  }
+
+  @override
   String get interfaceFont => '????';
 
   @override

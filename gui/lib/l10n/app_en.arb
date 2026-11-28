@@ -1,4 +1,12 @@
 {
+  "memoryTidy": "Nightly memory tidy",
+  "memoryTidyHelp": "When enabled, the gateway starts the tidy after 3:00 AM local time. It sends saved memories to the selected model route to find duplicates and stale notes. Handwritten and pinned memories are protected.",
+  "memoryTidyRun": "Tidy now",
+  "memoryTidyUndo": "Undo last tidy",
+  "memoryTidyChanged": "Memories changed ({count})",
+  "@memoryTidyChanged": {"placeholders": {"count": {"type": "String"}}},
+  "memoryTidyRestored": "Changes undone ({count})",
+  "@memoryTidyRestored": {"placeholders": {"count": {"type": "String"}}},
   "interfaceFont": "Interface font",
   "importSlashCommands": "Import slash commands",
   "commandImportSource": "Markdown or TOML file, local folder, or Git URL",

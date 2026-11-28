@@ -10,6 +10,29 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get memoryTidy => 'Nächtliche Gedächtnispflege';
+
+  @override
+  String get memoryTidyHelp =>
+      'Wenn aktiviert, beginnt die Pflege nach 3 Uhr Ortszeit. Das Gateway sendet die gespeicherten Erinnerungen an die gewählte Modellroute, um doppelte und veraltete Einträge zu finden. Selbst verfasste und angeheftete Einträge sind geschützt.';
+
+  @override
+  String get memoryTidyRun => 'Jetzt aufräumen';
+
+  @override
+  String get memoryTidyUndo => 'Letzte Bereinigung rückgängig machen';
+
+  @override
+  String memoryTidyChanged(String count) {
+    return 'Geänderte Erinnerungen ($count)';
+  }
+
+  @override
+  String memoryTidyRestored(String count) {
+    return 'Rückgängig gemachte Änderungen ($count)';
+  }
+
+  @override
   String get interfaceFont => 'Schriftart';
 
   @override

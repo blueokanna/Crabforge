@@ -7,6 +7,7 @@ import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'memory.dart';
+import 'memory_tidy.dart';
 import 'src/rust/api.dart' as api;
 
 const _agentNames = {
@@ -220,6 +221,13 @@ class _AgentSessionsState extends State<AgentSessions> {
                           _DistillationSettings(models: widget.models),
                     ),
                     child: Text(strings.automaticDistillation),
+                  ),
+                  TextButton(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => MemoryTidySettings(models: widget.models),
+                    ),
+                    child: Text(strings.memoryTidy),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pop(context),

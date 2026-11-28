@@ -923,6 +923,29 @@ pub async fn run_memory_distillation() -> Result<String> {
     encode(&crabforge_core::memory::distill::schedule::run(&config::data_dir()?).await?)
 }
 
+pub fn memory_tidy_status() -> Result<String> {
+    encode(&crabforge_core::memory::tidy::status(&config::data_dir()?)?)
+}
+
+pub fn configure_memory_tidy(model: Option<String>) -> Result<String> {
+    encode(&crabforge_core::memory::tidy::configure(
+        &config::data_dir()?,
+        model.as_deref(),
+    )?)
+}
+
+pub async fn run_memory_tidy(model: String) -> Result<String> {
+    let dir = config::data_dir()?;
+    crabforge_core::memory::tidy::run(&dir, Some(&model)).await?;
+    encode(&crabforge_core::memory::tidy::status(&dir)?)
+}
+
+pub fn undo_memory_tidy() -> Result<String> {
+    let dir = config::data_dir()?;
+    crabforge_core::memory::tidy::undo(&dir)?;
+    encode(&crabforge_core::memory::tidy::status(&dir)?)
+}
+
 pub fn search_memories(query: String) -> Result<String> {
     encode(&crabforge_core::memory::search(
         &config::data_dir()?,

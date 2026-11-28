@@ -10,6 +10,29 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get memoryTidy => 'रात में स्मृतियाँ व्यवस्थित करें';
+
+  @override
+  String get memoryTidyHelp =>
+      'चालू होने पर यह काम स्थानीय समय के अनुसार सुबह 3 बजे के बाद शुरू होता है। गेटवे सहेजी गई स्मृतियाँ चुने गए मॉडल रूट को भेजता है ताकि दोहराई गई और पुरानी बातें पहचानी जा सकें। हाथ से लिखी और पिन की गई स्मृतियाँ सुरक्षित रहती हैं।';
+
+  @override
+  String get memoryTidyRun => 'अभी व्यवस्थित करें';
+
+  @override
+  String get memoryTidyUndo => 'पिछले बदलाव वापस लें';
+
+  @override
+  String memoryTidyChanged(String count) {
+    return 'बदली गई स्मृतियाँ ($count)';
+  }
+
+  @override
+  String memoryTidyRestored(String count) {
+    return 'वापस लिए गए बदलाव ($count)';
+  }
+
+  @override
   String get interfaceFont => '???????? ??????';
 
   @override
