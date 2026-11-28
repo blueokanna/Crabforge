@@ -376,13 +376,15 @@ pub async fn discover_catalog(bases: &Endpoints, key_env: &str) -> Result<ModelC
         }
     }
     ensure!(!catalog.models.is_empty(), "{}", errors.join("; "));
-    if let Some(models) = builtin_decisions.filter(|_| key.is_some()) {
-        catalog.models.extend(
-            models
-                .iter()
-                .filter(|model| !seen.contains(**model))
-                .map(|model| (*model).to_owned()),
-        );
+    if key.is_some() {
+        let additional_models = builtin_decisions
+            .into_iter()
+            .chain(crate::media::minimax::catalog_models(bases));
+        for model in additional_models.flatten() {
+            if seen.insert((*model).to_owned()) {
+                catalog.models.push((*model).to_owned());
+            }
+        }
     }
     catalog.learned_auth = auth.learned;
     Ok(catalog)

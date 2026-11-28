@@ -1,4 +1,4 @@
-use super::{Api, Config, Format, Provider, decision};
+use super::{Api, Config, Format, Provider, decision, minimax};
 use crate::catalog::RelayEndpoint;
 use crate::config::ResolvedGroups;
 use std::collections::BTreeMap;
@@ -17,7 +17,7 @@ pub struct NativeProtocols {
 
 impl NativeProtocols {
     pub(super) fn model(p: &Provider, model: &str) -> Self {
-        if p.web_site.is_some() {
+        if p.web_site.is_some() || minimax::destination(&p.endpoints, model).is_some() {
             return Self::default();
         }
         if decision::only(p, model) {

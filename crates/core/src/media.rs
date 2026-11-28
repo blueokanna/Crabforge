@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use axum_core::response::Response;
+use base64::{Engine, engine::general_purpose::STANDARD};
 use bytes::Bytes;
 use futures_util::stream;
 use http::header;
@@ -7,6 +8,7 @@ use std::convert::Infallible;
 use url::Url;
 
 pub(crate) mod dashscope;
+pub(crate) mod minimax;
 pub(crate) mod speech;
 
 struct Field {
@@ -21,6 +23,7 @@ pub(crate) enum Reply {
     GeminiSpeech(speech::AudioFormat),
     DashScopeImage { inline: bool },
     DashScopeAudio(dashscope::audio::Reply),
+    MiniMaxImage(minimax::ImageFormat),
 }
 
 impl Reply {
@@ -36,7 +39,50 @@ impl Reply {
                 dashscope::image_reply(upstream, inline, source, client).await
             }
             Self::DashScopeAudio(format) => format.convert(upstream, source, client).await,
+            Self::MiniMaxImage(format) => format.reply(upstream).await,
         }
+    }
+}
+
+fn image_source(raw: &str) -> Result<&str> {
+    if let Some((mime, content)) = raw
+        .strip_prefix("data:")
+        .and_then(|raw| raw.split_once(";base64,"))
+    {
+        let bytes = STANDARD.decode(content).context("invalid base64 image")?;
+        ensure!(
+            image_type(&bytes) == Some(mime),
+            "invalid data URL image type"
+        );
+    } else {
+        asset_url(raw).context("invalid image URL")?;
+    }
+    Ok(raw)
+}
+
+fn asset_url(raw: &str) -> Option<Url> {
+    let url = Url::parse(raw).ok()?;
+    (matches!(url.scheme(), "http" | "https")
+        && url.has_host()
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.fragment().is_none())
+    .then_some(url)
+}
+
+fn image_type(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        Some("image/png")
+    } else if bytes.starts_with(b"\xff\xd8\xff") {
+        Some("image/jpeg")
+    } else if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
+        Some("image/webp")
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        Some("image/gif")
+    } else if bytes.starts_with(b"BM") {
+        Some("image/bmp")
+    } else {
+        None
     }
 }
 

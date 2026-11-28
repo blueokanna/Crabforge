@@ -1,4 +1,4 @@
-use super::Upload;
+use super::{Upload, asset_url, image_source, image_type};
 use crate::{config::Provider, upstream::ForwardClient};
 use anyhow::{Context, Result, bail, ensure};
 use axum_core::response::Response;
@@ -209,48 +209,6 @@ impl ImageRequest {
             body: body.into(),
             inline,
         })
-    }
-}
-
-fn image_source(raw: &str) -> Result<&str> {
-    if let Some((mime, content)) = raw
-        .strip_prefix("data:")
-        .and_then(|raw| raw.split_once(";base64,"))
-    {
-        let bytes = STANDARD.decode(content).context("invalid base64 image")?;
-        ensure!(
-            image_type(&bytes) == Some(mime),
-            "invalid data URL image type"
-        );
-    } else {
-        asset_url(raw).context("invalid image URL")?;
-    }
-    Ok(raw)
-}
-
-fn asset_url(raw: &str) -> Option<Url> {
-    let url = Url::parse(raw).ok()?;
-    (matches!(url.scheme(), "http" | "https")
-        && url.has_host()
-        && url.username().is_empty()
-        && url.password().is_none()
-        && url.fragment().is_none())
-    .then_some(url)
-}
-
-fn image_type(bytes: &[u8]) -> Option<&'static str> {
-    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
-        Some("image/png")
-    } else if bytes.starts_with(b"\xff\xd8\xff") {
-        Some("image/jpeg")
-    } else if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP") {
-        Some("image/webp")
-    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
-        Some("image/gif")
-    } else if bytes.starts_with(b"BM") {
-        Some("image/bmp")
-    } else {
-        None
     }
 }
 

@@ -40,7 +40,7 @@ mod routing;
 mod session;
 
 use crate::config::{Config, Provider};
-use crate::media::{self, dashscope, speech};
+use crate::media::{self, dashscope, minimax, speech};
 use crate::translate::{self, Format};
 use crate::webchat::{Site, WebPrompt};
 use round::Round;
@@ -409,6 +409,10 @@ impl<'a> Api<'a> {
         if decision::only(p, model) {
             return None;
         }
+        if let Some(url) = minimax::destination(&p.endpoints, model) {
+            return matches!(self, Self::Chat("images/generations" | "images/edits"))
+                .then_some(Destination::Upstream(url, Self::Chat(minimax::IMAGE), None));
+        }
         if let Self::Chat(path) = self
             && let Some((url, native)) = dashscope::destination(p, model, path)
         {
@@ -598,7 +602,7 @@ impl<'a> Api<'a> {
     }
 }
 
-fn failure(code: StatusCode, message: &str) -> Response {
+pub(crate) fn failure(code: StatusCode, message: &str) -> Response {
     json_response(
         code,
         &json!({"error":{"message":message,"type":"gateway_error"}}),
@@ -1019,6 +1023,11 @@ async fn forward(
             None
         };
         let media = match (api, native) {
+            (
+                Api::Chat(path @ ("images/generations" | "images/edits")),
+                Api::Chat(minimax::IMAGE),
+            ) => minimax::request(model, &bytes, upload.as_ref(), path == "images/edits")
+                .map(|(body, format)| Some((body, media::Reply::MiniMaxImage(format)))),
             (Api::Chat("audio/speech"), Api::Gemini(_)) => speech::Speech::gemini(&bytes)
                 .map(|speech| Some((speech.body, media::Reply::GeminiSpeech(speech.format)))),
             (
@@ -1326,6 +1335,13 @@ async fn forward(
             Err(e) => failure(StatusCode::BAD_GATEWAY, &e.to_string()),
         };
         record(response.status().as_u16());
+        if matches!(native, Api::Chat(minimax::IMAGE))
+            && status.is_success()
+            && response.status() == StatusCode::TOO_MANY_REQUESTS
+            && candidates.has_more().await
+        {
+            continue;
+        }
         return response;
     }
     failure(StatusCode::BAD_GATEWAY, "no upstream available")
@@ -1410,6 +1426,45 @@ mod console_test;
 mod tests {
     use super::*;
     use nextjson::json;
+
+    #[test]
+    fn minimax_images_use_the_regional_native_endpoint() -> Result<()> {
+        for (base, model, host) in [
+            ("https://api.minimax.io/v1", "image-01", "api.minimax.io"),
+            (
+                "https://api.minimaxi.com/anthropic",
+                "image-01-live",
+                "api.minimaxi.com",
+            ),
+        ] {
+            let p: Provider = nextjson::from_value(
+                json!({"id":"draw","models":[model],"endpoints":{"anthropic":base}}),
+            )
+            .map_err(anyhow::Error::msg)?;
+            for path in ["images/generations", "images/edits"] {
+                let Some(Destination::Upstream(url, Api::Chat(minimax::IMAGE), None)) =
+                    Api::Chat(path).destination(&p, model)
+                else {
+                    panic!("missing MiniMax destination for {path}");
+                };
+                assert_eq!(url.host_str(), Some(host));
+                assert_eq!(url.path(), "/v1/image_generation");
+            }
+            assert!(
+                Api::Chat("chat/completions")
+                    .destination(&p, model)
+                    .is_none()
+            );
+            assert!(NativeProtocols::model(&p, model).endpoints().is_empty());
+        }
+        let relay: Provider = nextjson::from_value(json!({"id":"relay","models":["image-01"],"endpoints":{"chat":"http://127.0.0.1:1/v1"}}))
+            .map_err(anyhow::Error::msg)?;
+        assert!(matches!(
+            Api::Chat("images/edits").destination(&relay, "image-01"),
+            Some(Destination::Upstream(_, Api::Chat("images/edits"), None))
+        ));
+        Ok(())
+    }
 
     #[test]
     fn selection_locates_only_the_top_level_model_literal() {
