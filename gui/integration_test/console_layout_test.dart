@@ -7,6 +7,7 @@ import 'package:crabforge/l10n/app_localizations.dart';
 import 'package:crabforge/language.dart';
 import 'package:crabforge/main.dart';
 import 'package:crabforge/src/rust/api.dart' as native;
+import 'package:crabforge/workspace.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -73,6 +74,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(find.text('Add provider'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(WorkspaceBrand),
+        matching: find.byType(Image),
+      ),
+      findsOneWidget,
+    );
     final fontMenu = find.byKey(const ValueKey('font-picker'));
     ThemeData activeTheme() => Theme.of(tester.element(fontMenu));
     Future<void> expectFont(WorkspaceFont font) async {

@@ -16,6 +16,8 @@ pub use backup::{BackupInstructions, import_backup};
 
 const BEGIN: &str = "<!-- crabforge:instructions:begin -->";
 const END: &str = "<!-- crabforge:instructions:end -->";
+const LEGACY_BEGIN: &str = "<!-- magpie:begin · written by magpie from its Library -->";
+const LEGACY_END: &str = "<!-- magpie:end -->";
 const MEMORY_BEGIN: &str = "<!-- crabforge:project-memory:begin -->";
 const MEMORY_END: &str = "<!-- crabforge:project-memory:end -->";
 const AGENT_MEMORY_BEGIN: &str = "<!-- crabforge:agent-memory:begin -->";
@@ -256,8 +258,14 @@ fn block(source: &str, (start_marker, end_marker): (&str, &str)) -> Result<Optio
 
 fn blocks(source: &str) -> Result<[Option<Block>; 3]> {
     let [instructions, project, agent] = Section::ALL;
+    let instructions = block(source, instructions.markers())?;
+    let legacy = block(source, (LEGACY_BEGIN, LEGACY_END))?;
+    ensure!(
+        instructions.is_none() || legacy.is_none(),
+        "multiple instruction blocks"
+    );
     let found = [
-        block(source, instructions.markers())?,
+        instructions.or(legacy),
         block(source, project.markers())?,
         block(source, agent.markers())?,
     ];
@@ -284,7 +292,14 @@ fn updated(source: &str, text: &str, section: Section) -> Result<String> {
     ensure!(
         !text.split('\n').any(|line| matches!(
             line.trim_end_matches('\r'),
-            BEGIN | END | MEMORY_BEGIN | MEMORY_END | AGENT_MEMORY_BEGIN | AGENT_MEMORY_END
+            BEGIN
+                | END
+                | LEGACY_BEGIN
+                | LEGACY_END
+                | MEMORY_BEGIN
+                | MEMORY_END
+                | AGENT_MEMORY_BEGIN
+                | AGENT_MEMORY_END
         )),
         "instructions contain a reserved marker line"
     );
@@ -573,6 +588,27 @@ fn write(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn edits_legacy_instructions_in_place() -> Result<()> {
+        let source = format!("\u{feff}# Local\r\n{LEGACY_BEGIN}\r\nOld text\r\n{LEGACY_END}\r\n");
+        let block = blocks(&source)?[Section::Instructions as usize]
+            .take()
+            .context("missing legacy instructions")?;
+        assert_eq!(&source[block.body], "Old text\r\n");
+        assert_eq!(
+            updated(&source, "New\ntext", Section::Instructions)?,
+            source.replace("Old text", "New\r\ntext")
+        );
+        assert_eq!(
+            updated(&source, "", Section::Instructions)?,
+            "\u{feff}# Local\r\n"
+        );
+        assert!(blocks(&format!("{source}{BEGIN}\nNew text\n{END}\n")).is_err());
+        assert!(blocks(&format!("{LEGACY_BEGIN}\nMixed markers\n{END}\n")).is_err());
+        assert!(updated("", LEGACY_BEGIN, Section::Instructions).is_err());
+        Ok(())
+    }
 
     #[test]
     fn uses_existing_agent_files_and_respects_overrides() -> Result<()> {
