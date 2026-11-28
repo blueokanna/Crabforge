@@ -152,6 +152,14 @@ void main() {
     addTearDown(
       tester.binding.platformDispatcher.clearPlatformBrightnessTestValue,
     );
+    Finder layoutToggle(bool grid) => find.byWidgetPredicate(
+      (widget) =>
+          widget is IconButton &&
+          widget.tooltip == (grid ? strings.listView : strings.gridView) &&
+          widget.onPressed != null,
+      description:
+          'enabled ${grid ? strings.listView : strings.gridView} button',
+    );
     for (final brightness in Brightness.values) {
       tester.binding.platformDispatcher.platformBrightnessTestValue =
           brightness;
@@ -164,10 +172,12 @@ void main() {
         for (final label in pages) {
           await openPage(nav, label);
           for (final grid in [false, true]) {
-            final toggle = find.byTooltip(
-              grid ? strings.listView : strings.gridView,
+            final toggle = layoutToggle(grid);
+            expect(
+              toggle,
+              findsOneWidget,
+              reason: '$brightness / $width / $label',
             );
-            expect(toggle, findsOneWidget);
             expect(tester.takeException(), isNull);
             if (output != null) {
               final boundary =
@@ -195,6 +205,17 @@ void main() {
               }
             }
             await tester.tap(toggle);
+            final deadline = DateTime.now().add(const Duration(seconds: 10));
+            final next = layoutToggle(!grid);
+            while (next.evaluate().isEmpty &&
+                DateTime.now().isBefore(deadline)) {
+              await tester.pump(const Duration(milliseconds: 50));
+            }
+            expect(
+              next,
+              findsOneWidget,
+              reason: '$brightness / $width / $label',
+            );
             await tester.pumpAndSettle();
           }
         }
