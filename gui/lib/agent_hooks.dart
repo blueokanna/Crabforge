@@ -14,7 +14,6 @@ typedef _Json = Map<String, dynamic>;
 const _agents = {
   'claude': 'Claude Code',
   'codex': 'Codex',
-  'gemini': 'Gemini CLI',
   'cursor': 'Cursor',
   'agy': 'Antigravity',
   'grok': 'Grok Build',

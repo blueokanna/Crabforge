@@ -97,7 +97,7 @@ async fn synced_relay_catalog_preserves_native_protocols_across_gateways() -> Re
         .await?
         .error_for_status()?;
     let info: Value = nextjson::from_slice(&response.bytes().await?).map_err(anyhow::Error::msg)?;
-    assert_eq!(info["magpie_prefers"], json!("/v1/responses"));
+    assert_eq!(info["preferred_endpoint"], json!("/v1/responses"));
     assert_eq!(info["native_endpoints"], json!(["/v1/responses"]));
     let mixed: Value = nextjson::from_slice(
         &client
@@ -111,7 +111,7 @@ async fn synced_relay_catalog_preserves_native_protocols_across_gateways() -> Re
     )
     .map_err(anyhow::Error::msg)?;
     assert_eq!(mixed["native_endpoints"], json!([]));
-    assert!(mixed.get("magpie_prefers").is_none());
+    assert!(mixed.get("preferred_endpoint").is_none());
     let request =
         json!({"model":"relay/group/preferred","input":"next","previous_response_id":"earlier"});
     let response = client
@@ -198,7 +198,7 @@ async fn every_advertised_agent_root_forwards_and_records_its_own_name() -> Resu
             Some(name)
         );
     }
-    assert_eq!(ids.len(), 93);
+    assert_eq!(ids.len(), crabforge_core::agents::CLIENTS.len());
     for (ua, expected) in [
         ("Cursor-Local/1.0", "Cursor Private Inference"),
         ("Pi-Desktop/1.2", "PI-Desktop"),
@@ -243,7 +243,6 @@ async fn every_advertised_agent_root_forwards_and_records_its_own_name() -> Resu
             Some(&native[..128]),
             Some(&native[..128]),
         ),
-        ("x-magpie-session", "legacy", Some("legacy"), None),
         ("x-crabforge-session", "local", Some("local"), None),
         ("x-conversation-request-id", "only-a-turn", None, None),
     ] {
@@ -258,7 +257,7 @@ async fn every_advertised_agent_root_forwards_and_records_its_own_name() -> Resu
         assert_eq!(
             response
                 .headers()
-                .get("x-magpie-session")
+                .get("x-crabforge-session")
                 .and_then(|v| v.to_str().ok()),
             session
         );
@@ -305,20 +304,6 @@ fn responses_stream() -> Router {
         }
         ([("content-type","text/event-stream")],frames)
     }))
-}
-
-#[tokio::test]
-#[ignore = "requires the Gemini CLI on PATH"]
-async fn gemini_receives_text_through_the_gateway() -> Result<()> {
-    client_round(
-        "gemini",
-        "Gemini CLI",
-        "gemini",
-        "v1beta",
-        gemini_stream(),
-        &["--skip-trust", "-p", "Please say hello."],
-    )
-    .await
 }
 
 fn gemini_stream() -> Router {
@@ -1433,7 +1418,6 @@ max_context_size = 32768
         command
             .env("CODEX_HOME", root.join("codex"))
             .env("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1")
-            .env("GEMINI_TELEMETRY_ENABLED", "false")
             .env("CRUSH_DISABLE_PROVIDER_AUTO_UPDATE", "1")
             .env("COPILOT_OFFLINE", "true")
             .env(
@@ -1458,9 +1442,6 @@ max_context_size = 32768
                 }
                 "anthropic" => {
                     command.env("OMP_PROFILE", omp_profile);
-                }
-                "gemini" => {
-                    command.env("PI_PROFILE", omp_profile);
                 }
                 _ => {
                     command.env("OMP_PROFILE", "");

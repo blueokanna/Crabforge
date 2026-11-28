@@ -15,6 +15,14 @@ pub(super) struct Project {
     assignments: Assignments,
 }
 
+impl Project {
+    pub(super) fn retire_assignments(&mut self) {
+        for agents in self.assignments.values_mut() {
+            agents.retain(|agent| agent != "gemini");
+        }
+    }
+}
+
 pub(super) fn store_path(dir: &Path, key: &str) -> PathBuf {
     dir.join("subagents/projects")
         .join(format!("{}.json", hash(key)))

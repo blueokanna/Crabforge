@@ -1,5 +1,5 @@
 use super::{Config, Server, Store, encode, lock_library, name};
-use crate::config::magpie_library_section;
+use crate::config::backup_library_section;
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value};
 use std::{
@@ -8,7 +8,7 @@ use std::{
 };
 
 #[derive(NsonDeserialize)]
-struct MagpieServer {
+struct BackupServer {
     name: String,
     agents: Option<BTreeSet<String>>,
     #[njson(flatten)]
@@ -45,11 +45,11 @@ fn transport_config(fields: BTreeMap<String, Value>) -> Result<(Config, Vec<Stri
                 || value.as_bool() == Some(false)
                 || crate::json::unsigned(&value) == Some(0)
                 || value.as_array().is_some_and(Vec::is_empty) => {}
-            _ => bail!("unsupported Magpie MCP field {key:?}"),
+            _ => bail!("unsupported backup MCP field {key:?}"),
         }
     }
     let config: Config = nextjson::from_value(Value::Object(transport))
-        .map_err(|_| anyhow::anyhow!("invalid Magpie MCP transport configuration"))?;
+        .map_err(|_| anyhow::anyhow!("invalid backup MCP transport configuration"))?;
     config.validate()?;
     ensure!(
         encode(&config)?.len() <= super::super::MAX_SERVER,
@@ -59,38 +59,38 @@ fn transport_config(fields: BTreeMap<String, Value>) -> Result<(Config, Vec<Stri
 }
 
 /// Import portable server definitions for explicit assignment to local projects.
-pub fn import_magpie(
+pub fn import_backup(
     dir: &Path,
     file: &Path,
     passphrase: &str,
     selected: &[String],
     apply: bool,
 ) -> Result<ImportReport> {
-    let (entries, other_library_sections) = magpie_library_section(file, passphrase, "mcp")?;
+    let (entries, other_library_sections) = backup_library_section(file, passphrase, "mcp")?;
     let selected: BTreeSet<_> = selected.iter().map(String::as_str).collect();
     let mut servers = BTreeMap::new();
     for entry in entries {
         let key = entry
             .pointer("/name")
             .and_then(Value::as_str)
-            .context("missing Magpie MCP server name")?;
+            .context("missing backup MCP server name")?;
         if !selected.is_empty() && !selected.contains(key) {
             continue;
         }
-        let imported: MagpieServer = nextjson::from_value(entry)
-            .map_err(|_| anyhow::anyhow!("invalid Magpie MCP server"))?;
+        let imported: BackupServer = nextjson::from_value(entry)
+            .map_err(|_| anyhow::anyhow!("invalid backup MCP server"))?;
         name(&imported.name)?;
         let (config, skipped_fields) = transport_config(imported.fields)
-            .with_context(|| format!("cannot import Magpie MCP server {:?}", imported.name))?;
+            .with_context(|| format!("cannot import backup MCP server {:?}", imported.name))?;
         let Entry::Vacant(slot) = servers.entry(imported.name) else {
-            bail!("duplicate Magpie MCP server name");
+            bail!("duplicate backup MCP server name");
         };
         slot.insert((config, imported.agents.unwrap_or_default(), skipped_fields));
     }
     for key in selected {
         ensure!(
             servers.contains_key(key),
-            "Magpie MCP server {key:?} was not found"
+            "backup MCP server {key:?} was not found"
         );
     }
 

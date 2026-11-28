@@ -13,7 +13,6 @@ dependencies:
     sdk: flutter
   intl: ^0.20.2
   flutter_rust_bridge: 2.13.0
-  flutter_svg: ^2.3.3
   file_selector: ^1.1.0
   flutter:
     sdk: flutter
@@ -29,4 +28,3 @@ dev_dependencies:
 
 flutter:
   generate: true
-  uses-material-design: true

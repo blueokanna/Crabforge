@@ -22,13 +22,13 @@ pub(crate) fn library_section(
         backup
             .remove("library")
             .filter(|value| !value.is_null())
-            .context("Magpie backup has no library section")?,
+            .context("encrypted backup has no library section")?,
     )
-    .map_err(|_| anyhow::anyhow!("invalid Magpie library section"))?;
+    .map_err(|_| anyhow::anyhow!("invalid backup library section"))?;
     let entries = match library.remove(section) {
         Some(Value::Array(entries)) => entries,
-        None | Some(Value::Null) => anyhow::bail!("Magpie library has no {section} list"),
-        Some(_) => anyhow::bail!("invalid Magpie library {section} list"),
+        None | Some(Value::Null) => anyhow::bail!("backup library has no {section} list"),
+        Some(_) => anyhow::bail!("invalid backup library {section} list"),
     };
     Ok((entries, library.into_keys().collect()))
 }
@@ -46,14 +46,18 @@ struct Envelope {
 
 impl Envelope {
     fn open(&self, passphrase: &str) -> Result<Zeroizing<Vec<u8>>> {
-        ensure!(self.format == "magpie-backup", "expected a Magpie backup");
+        let legacy = format!("{}-backup", super::LEGACY_FORMAT_PREFIX);
+        ensure!(
+            self.format == legacy || self.format == "crabforge-backup",
+            "expected an encrypted backup"
+        );
         ensure!(
             self.version == 1 && self.kdf == "pbkdf2-sha256",
-            "unsupported Magpie backup envelope"
+            "unsupported encrypted backup envelope"
         );
         let rounds = NonZeroU32::new(self.iterations)
             .filter(|n| (100_000..=10_000_000).contains(&n.get()))
-            .context("invalid Magpie backup iteration count")?;
+            .context("invalid encrypted backup iteration count")?;
         let salt = STANDARD.decode(&self.salt).context("invalid backup salt")?;
         ensure!(salt.len() >= 16, "invalid backup salt length");
         let nonce = STANDARD
@@ -82,7 +86,7 @@ impl Envelope {
         );
         let length = aead::LessSafeKey::new(key)
             .open_in_place(nonce, aead::Aad::from(header.as_bytes()), &mut data)
-            .map_err(|_| anyhow::anyhow!("wrong passphrase or modified Magpie backup"))?
+            .map_err(|_| anyhow::anyhow!("wrong passphrase or modified encrypted backup"))?
             .len();
         data.truncate(length);
         Ok(data)
@@ -137,7 +141,7 @@ impl BackupProvider {
                         | "website"
                         | "keysUrl"
                 ),
-                "{} has an unsupported Magpie provider setting {field:?}",
+                "{} has an unsupported backup provider setting {field:?}",
                 self.id
             );
         }
@@ -150,15 +154,15 @@ impl BackupProvider {
             &self.models_url,
         ] {
             if !endpoint.is_empty() {
-                let url = catalog_url(endpoint).context("invalid Magpie provider endpoint")?;
+                let url = catalog_url(endpoint).context("invalid backup provider endpoint")?;
                 ensure!(
                     url.query_pairs().all(|(name, _)| name == "api-version"),
-                    "Magpie provider endpoint contains an unsupported query parameter"
+                    "backup provider endpoint contains an unsupported query parameter"
                 );
             }
         }
         let (decisions, systemone) =
-            if self.other.get("preset").and_then(Value::as_str) == Some("remote-magpie") {
+            if self.other.get("preset").and_then(Value::as_str) == Some("remote-gateway") {
                 if let Some(base) = [&self.chat, &self.responses, &self.anthropic, &self.decide]
                     .into_iter()
                     .find(|base| !base.is_empty())
@@ -264,7 +268,7 @@ impl BackupProvider {
 }
 
 #[derive(NsonSerialize)]
-pub struct MagpieProviderImport {
+pub struct BackupProviderImport {
     providers: Vec<String>,
     other_sections: Vec<String>,
     applied: bool,
@@ -273,27 +277,27 @@ pub struct MagpieProviderImport {
 pub(crate) fn open_backup(file: &Path, passphrase: &str) -> Result<BTreeMap<String, Value>> {
     ensure!(
         !passphrase.is_empty(),
-        "a Magpie backup requires its passphrase"
+        "an encrypted backup requires its passphrase"
     );
-    let bytes = read_limited(file, MAX_BACKUP).context("could not read Magpie backup")?;
+    let bytes = read_limited(file, MAX_BACKUP).context("could not read encrypted backup")?;
     let envelope: Envelope =
         nextjson::from_slice(bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&bytes))
-            .map_err(|_| anyhow::anyhow!("invalid Magpie backup envelope"))?;
+            .map_err(|_| anyhow::anyhow!("invalid encrypted backup envelope"))?;
     let plain = envelope.open(passphrase)?;
     let bundle: BTreeMap<String, Value> = nextjson::from_slice(&plain)
-        .map_err(|_| anyhow::anyhow!("invalid decrypted Magpie backup"))?;
+        .map_err(|_| anyhow::anyhow!("invalid decrypted encrypted backup"))?;
     ensure!(
         matches!(
             bundle.get("version").and_then(crate::json::unsigned),
             Some(1 | 2)
         ),
-        "unsupported Magpie backup version"
+        "unsupported encrypted backup version"
     );
     Ok(bundle)
 }
 
 #[derive(NsonSerialize)]
-pub struct MagpieGroupImport {
+pub struct BackupGroupImport {
     groups: Vec<String>,
     applied: bool,
 }
@@ -302,7 +306,7 @@ fn take_entries(bundle: &mut BTreeMap<String, Value>, section: &str) -> Result<O
     match bundle.remove(section) {
         None | Some(Value::Null) => Ok(None),
         Some(Value::Array(entries)) => Ok(Some(entries)),
-        Some(_) => anyhow::bail!("invalid Magpie backup {section} list"),
+        Some(_) => anyhow::bail!("invalid encrypted backup {section} list"),
     }
 }
 
@@ -311,7 +315,7 @@ fn take_order(bundle: &mut BTreeMap<String, Value>, field: &str) -> Result<Vec<S
         .remove(field)
         .map(nextjson::from_value)
         .transpose()
-        .map_err(|_| anyhow::anyhow!("invalid Magpie backup order field {field:?}"))?
+        .map_err(|_| anyhow::anyhow!("invalid encrypted backup order field {field:?}"))?
         .unwrap_or_default())
 }
 
@@ -327,51 +331,52 @@ fn other_sections(bundle: BTreeMap<String, Value>) -> Vec<String> {
         .collect()
 }
 
-pub fn import_magpie_groups(
+pub fn import_backup_groups(
     dir: &Path,
     previous: &str,
     file: &Path,
     passphrase: &str,
     selected: &[String],
     apply: bool,
-) -> Result<MagpieGroupImport> {
+) -> Result<BackupGroupImport> {
     let mut bundle = open_backup(file, passphrase)?;
-    let groups = take_entries(&mut bundle, "groups")?.context("Magpie backup has no group list")?;
+    let groups =
+        take_entries(&mut bundle, "groups")?.context("encrypted backup has no group list")?;
     let order = take_order(&mut bundle, "groupOrder")?;
     let mut cfg = Config::parse(previous)?;
-    let groups = cfg.restore_magpie_groups(groups, selected, &order)?;
+    let groups = cfg.restore_backup_groups(groups, selected, &order)?;
     let text = cfg.formatted()?;
     Config::parse(&text)?;
     if apply {
         save(dir, previous, &text)?;
     }
-    Ok(MagpieGroupImport {
+    Ok(BackupGroupImport {
         groups,
         applied: apply,
     })
 }
 
-pub fn import_magpie_providers(
+pub fn import_backup_providers(
     dir: &Path,
     file: &Path,
     passphrase: &str,
     selected: &[String],
     key_envs: &BTreeMap<String, String>,
     apply: bool,
-) -> Result<MagpieProviderImport> {
+) -> Result<BackupProviderImport> {
     let mut bundle = open_backup(file, passphrase)?;
     let providers =
-        take_entries(&mut bundle, "providers")?.context("Magpie backup has no provider list")?;
+        take_entries(&mut bundle, "providers")?.context("encrypted backup has no provider list")?;
     let order = take_order(&mut bundle, "order")?;
     let previous = snapshot(dir)?;
     let mut cfg = Config::parse(&previous)?;
     let providers = restore_providers(&mut cfg, providers, selected, key_envs, &order)?;
     ensure!(
         !providers.is_empty(),
-        "Magpie backup has no providers to import"
+        "encrypted backup has no providers to import"
     );
     finish_import(dir, &previous, &cfg, &providers, apply)?;
-    Ok(MagpieProviderImport {
+    Ok(BackupProviderImport {
         providers,
         other_sections: other_sections(bundle),
         applied: apply,
@@ -379,11 +384,11 @@ pub fn import_magpie_providers(
 }
 
 #[derive(NsonSerialize)]
-pub struct MagpieRoutingImport {
+pub struct BackupRoutingImport {
     providers: Vec<String>,
     groups: Vec<String>,
     #[njson(skip_serializing_if = "Option::is_none")]
-    settings: Option<MagpieSettingsImport>,
+    settings: Option<BackupSettingsImport>,
     other_sections: Vec<String>,
     applied: bool,
 }
@@ -418,28 +423,28 @@ struct BackupSettings {
 }
 
 #[derive(NsonSerialize)]
-struct MagpieSettingsImport {
+struct BackupSettingsImport {
     #[njson(flatten)]
     imported: BackupSettings,
     skipped_fields: Vec<String>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum MagpieSettingsMode {
+pub enum BackupSettingsMode {
     Skip,
     Include,
     Only,
 }
 
-pub struct MagpieImportOptions<'a> {
+pub struct BackupImportOptions<'a> {
     pub providers: &'a [String],
     pub groups: &'a [String],
     pub key_envs: &'a BTreeMap<String, String>,
-    pub settings: MagpieSettingsMode,
+    pub settings: BackupSettingsMode,
     pub apply: bool,
 }
 
-pub fn import_magpie_routing(
+pub fn import_backup_routing(
     dir: &Path,
     file: &Path,
     passphrase: &str,
@@ -447,36 +452,36 @@ pub fn import_magpie_routing(
     groups: &[String],
     key_envs: &BTreeMap<String, String>,
     apply: bool,
-) -> Result<MagpieRoutingImport> {
-    import_magpie_backup(
+) -> Result<BackupRoutingImport> {
+    import_backup(
         dir,
         file,
         passphrase,
-        MagpieImportOptions {
+        BackupImportOptions {
             providers,
             groups,
             key_envs,
-            settings: MagpieSettingsMode::Skip,
+            settings: BackupSettingsMode::Skip,
             apply,
         },
     )
 }
 
-pub fn import_magpie_backup(
+pub fn import_backup(
     dir: &Path,
     file: &Path,
     passphrase: &str,
-    options: MagpieImportOptions<'_>,
-) -> Result<MagpieRoutingImport> {
+    options: BackupImportOptions<'_>,
+) -> Result<BackupRoutingImport> {
     let mut bundle = open_backup(file, passphrase)?;
     let previous = snapshot(dir)?;
     let mut cfg = Config::parse(&previous)?;
-    let settings = if options.settings == MagpieSettingsMode::Skip {
+    let settings = if options.settings == BackupSettingsMode::Skip {
         None
     } else {
         Some(restore_settings(&mut cfg, bundle.remove("settings"))?)
     };
-    let (providers, groups) = if options.settings == MagpieSettingsMode::Only {
+    let (providers, groups) = if options.settings == BackupSettingsMode::Only {
         ensure!(
             options.providers.is_empty()
                 && options.groups.is_empty()
@@ -501,18 +506,18 @@ pub fn import_magpie_backup(
         let groups = if definitions.is_empty() && options.groups.is_empty() {
             Vec::new()
         } else {
-            cfg.restore_magpie_groups(definitions, options.groups, &order)?
+            cfg.restore_backup_groups(definitions, options.groups, &order)?
         };
         (providers, groups)
     };
     ensure!(
         !providers.is_empty() || !groups.is_empty() || settings.is_some(),
-        "Magpie backup has no providers or groups to import"
+        "encrypted backup has no providers or groups to import"
     );
     finish_import(dir, &previous, &cfg, &providers, options.apply)?;
     bundle.remove("settingsKeys");
     bundle.remove("libraryKeys");
-    Ok(MagpieRoutingImport {
+    Ok(BackupRoutingImport {
         providers,
         groups,
         settings,
@@ -521,12 +526,12 @@ pub fn import_magpie_backup(
     })
 }
 
-fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettingsImport> {
+fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<BackupSettingsImport> {
     let Some(raw @ Value::Object(_)) = raw else {
-        anyhow::bail!("Magpie backup has no settings object");
+        anyhow::bail!("encrypted backup has no settings object");
     };
     let mut imported: BackupSettings =
-        nextjson::from_value(raw).map_err(|_| anyhow::anyhow!("invalid Magpie gateway setting"))?;
+        nextjson::from_value(raw).map_err(|_| anyhow::anyhow!("invalid backup gateway setting"))?;
     ensure!(
         imported.port.is_some()
             || imported.cors_origins.is_some()
@@ -535,7 +540,7 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
             || imported.group_first_content.is_some()
             || imported.group_patience.is_some()
             || imported.classify_timeout.is_some(),
-        "Magpie backup has no supported settings to import"
+        "encrypted backup has no supported settings to import"
     );
     if let Some(port) = &mut imported.port {
         if *port == 0 {
@@ -555,7 +560,7 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
                         && !matches!(provider, "auto" | "group")
                         && super::valid_model_id(model)
                 }) && super::valid_model_id(name),
-                "invalid Magpie modelSameAs entry"
+                "invalid backup modelSameAs entry"
             );
             ensure!(
                 cfg.model_same_as
@@ -570,7 +575,7 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
         for (id, levels) in efforts {
             ensure!(
                 super::valid_model_ref(id),
-                "invalid Magpie modelEfforts entry {id:?}"
+                "invalid backup modelEfforts entry {id:?}"
             );
             super::effort::validate_levels(levels, false)?;
             ensure!(
@@ -592,7 +597,7 @@ fn restore_settings(cfg: &mut Config, raw: Option<Value>) -> Result<MagpieSettin
         cfg.classify_timeout = seconds;
     }
     let skipped_fields = std::mem::take(&mut imported.other).into_keys().collect();
-    Ok(MagpieSettingsImport {
+    Ok(BackupSettingsImport {
         imported,
         skipped_fields,
     })
@@ -617,27 +622,27 @@ fn restore_providers(
         let id = raw
             .get("id")
             .and_then(Value::as_str)
-            .context("missing Magpie provider ID")?
+            .context("missing backup provider ID")?
             .to_owned();
         if !selected.is_empty() && !selected.contains(&id) {
             continue;
         }
         ensure!(
             super::valid_id(&id) && !matches!(id.as_str(), "auto" | "group"),
-            "invalid or reserved Magpie provider ID {id:?}"
+            "invalid or reserved backup provider ID {id:?}"
         );
         ensure!(
             occupied.insert(id.clone()),
             "provider ID already in use: {id}"
         );
         let mut source: BackupProvider = nextjson::from_value(raw)
-            .map_err(|_| anyhow::anyhow!("invalid Magpie provider definition: {id}"))?;
+            .map_err(|_| anyhow::anyhow!("invalid backup provider definition: {id}"))?;
         let former = std::mem::take(&mut source.was);
         let provider = source.convert(key_envs.get(&id).cloned().unwrap_or_default())?;
         for alias in former {
             ensure!(
                 super::valid_id(&alias) && !matches!(alias.as_str(), "auto" | "group"),
-                "invalid or reserved former Magpie provider ID {alias:?}"
+                "invalid or reserved former backup provider ID {alias:?}"
             );
             ensure!(
                 occupied.insert(alias.clone()),
@@ -722,16 +727,16 @@ mod tests {
         );
         let key = aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_256_GCM, &key).unwrap());
         let mut bytes = nextjson::to_vec(&payload).unwrap();
+        let format = format!("{}-backup", crate::config::LEGACY_FORMAT_PREFIX);
+        let header = format!("{format}/1/pbkdf2-sha256/100000/{}", hex::encode(salt));
         key.seal_in_place_append_tag(
             aead::Nonce::assume_unique_for_key(nonce),
-            aead::Aad::from(
-                b"magpie-backup/1/pbkdf2-sha256/100000/23232323232323232323232323232323",
-            ),
+            aead::Aad::from(header.as_bytes()),
             &mut bytes,
         )
         .unwrap();
         fs::write(file, format!("\u{feff}{}", json!({
-            "format": "magpie-backup", "version": 1, "kdf": "pbkdf2-sha256", "iterations": 100_000,
+            "format": format, "version": 1, "kdf": "pbkdf2-sha256", "iterations": 100_000,
             "salt": STANDARD.encode(salt), "nonce": STANDARD.encode(nonce), "data": STANDARD.encode(bytes),
         }))).unwrap();
     }
@@ -740,7 +745,7 @@ mod tests {
     fn provider_backup_preview_and_apply_preserve_ids_and_keep_secrets_out_of_settings()
     -> Result<()> {
         let dir = tempfile::tempdir()?;
-        let file = dir.path().join("test.magpie-backup");
+        let file = dir.path().join("test.crabforge-backup");
         let settings = dir.path().join("settings.json");
         seal(
             &file,
@@ -769,7 +774,7 @@ mod tests {
         ];
         let keys = BTreeMap::from([("lab".into(), "LAB_API_KEY".into())]);
         let run = |pass, selected: &[String], apply| {
-            import_magpie_providers(dir.path(), &file, pass, selected, &keys, apply)
+            import_backup_providers(dir.path(), &file, pass, selected, &keys, apply)
         };
         assert!(run("a different passphrase", &selected, true).is_err());
         assert!(run(PASSPHRASE, &[], true).is_err());
@@ -823,7 +828,7 @@ mod tests {
     #[test]
     fn group_backup_preserves_addresses_and_rejects_incomplete_batches() -> Result<()> {
         let dir = tempfile::tempdir()?;
-        let file = dir.path().join("groups.magpie-backup");
+        let file = dir.path().join("groups.crabforge-backup");
         let settings = dir.path().join("settings.json");
         let original = r#"{"providers":[{"id":"lab","endpoints":{"chat":"http://127.0.0.1:1"},"models":["m","n"]}]}"#;
         fs::write(&settings, original)?;
@@ -841,7 +846,7 @@ mod tests {
         );
         let previous = snapshot(dir.path())?;
         let import = |ids: &[String], apply| {
-            import_magpie_groups(dir.path(), &previous, &file, PASSPHRASE, ids, apply)
+            import_backup_groups(dir.path(), &previous, &file, PASSPHRASE, ids, apply)
         };
         let selected = ["team".into(), "tools".into()];
         assert!(import(&selected[..1], true).is_err());
@@ -870,7 +875,7 @@ mod tests {
     #[test]
     fn routing_backup_validates_cross_references_before_writing() -> Result<()> {
         let dir = tempfile::tempdir()?;
-        let file = dir.path().join("routing.magpie-backup");
+        let file = dir.path().join("routing.crabforge-backup");
         let settings = dir.path().join("settings.json");
         let original = r#"{"listen":"127.0.0.1:0"}"#;
         fs::write(&settings, original)?;
@@ -894,7 +899,7 @@ mod tests {
         let keys = BTreeMap::from([("lab".into(), "LAB_API_KEY".into())]);
         let groups = ["work".into(), "tools".into()];
         let restore = |providers: &[String], groups: &[String], apply| {
-            import_magpie_routing(
+            import_backup_routing(
                 dir.path(),
                 &file,
                 PASSPHRASE,
@@ -904,7 +909,7 @@ mod tests {
                 apply,
             )
         };
-        assert!(import_magpie_providers(dir.path(), &file, PASSPHRASE, &[], &keys, true).is_err());
+        assert!(import_backup_providers(dir.path(), &file, PASSPHRASE, &[], &keys, true).is_err());
         assert!(restore(&[], &groups[1..], true).is_err());
         assert!(restore(&["lab".into()], &groups, true).is_err());
         assert!(restore(&[], &[], true).is_err());
@@ -947,20 +952,20 @@ mod tests {
     #[test]
     fn settings_backup_preserves_the_loopback_host_and_skips_unselected_sections() -> Result<()> {
         let dir = tempfile::tempdir()?;
-        let file = dir.path().join("settings.magpie-backup");
+        let file = dir.path().join("settings.crabforge-backup");
         let settings = dir.path().join("settings.json");
         let original = r#"{"listen":"[::1]:32122","model_same_as":{"old/model":"old-name"}}"#;
         fs::write(&settings, original)?;
         let restore = |apply| {
-            import_magpie_backup(
+            import_backup(
                 dir.path(),
                 &file,
                 PASSPHRASE,
-                MagpieImportOptions {
+                BackupImportOptions {
                     providers: &[],
                     groups: &[],
                     key_envs: &BTreeMap::new(),
-                    settings: MagpieSettingsMode::Only,
+                    settings: BackupSettingsMode::Only,
                     apply,
                 },
             )
@@ -1015,7 +1020,7 @@ mod tests {
     #[test]
     fn settings_and_routes_resolve_equivalent_models_in_the_same_import() -> Result<()> {
         let dir = tempfile::tempdir()?;
-        let file = dir.path().join("routes.magpie-backup");
+        let file = dir.path().join("routes.crabforge-backup");
         seal(
             &file,
             json!({"version":2, "settings":{"modelSameAs":{"lab/wire-name":"canonical"}},
@@ -1026,11 +1031,11 @@ mod tests {
                 ], "groups":[{"id":"work","members":["lab/wire-name"]}]}),
         );
         let apply = |settings| {
-            import_magpie_backup(
+            import_backup(
                 dir.path(),
                 &file,
                 PASSPHRASE,
-                MagpieImportOptions {
+                BackupImportOptions {
                     providers: &[],
                     groups: &[],
                     key_envs: &BTreeMap::new(),
@@ -1039,9 +1044,9 @@ mod tests {
                 },
             )
         };
-        assert!(apply(MagpieSettingsMode::Skip).is_err());
+        assert!(apply(BackupSettingsMode::Skip).is_err());
         assert!(!dir.path().join("settings.json").exists());
-        let report = apply(MagpieSettingsMode::Include)?;
+        let report = apply(BackupSettingsMode::Include)?;
         assert!(report.applied && report.other_sections.is_empty());
         assert_eq!(report.providers, ["lab", "direct"]);
         assert_eq!(report.groups, ["work"]);
@@ -1058,7 +1063,7 @@ mod tests {
         use crate::memory;
 
         let dir = tempfile::tempdir()?;
-        let file = dir.path().join("memory.magpie-backup");
+        let file = dir.path().join("memory.crabforge-backup");
         let store = dir.path().join("crabforge");
         let stamp = "2026-11-26T04:09:42.123456789Z";
         let sample = |id, status| {
@@ -1082,10 +1087,10 @@ mod tests {
         ];
         seal(&file, backup(original.clone()));
         let report = |apply| -> Result<Value> {
-            let report = memory::import_magpie(&store, &file, PASSPHRASE, apply)?;
+            let report = memory::import_backup(&store, &file, PASSPHRASE, apply)?;
             nextjson::to_value(&report).map_err(anyhow::Error::msg)
         };
-        assert!(memory::import_magpie(&store, &file, "wrong passphrase", true).is_err());
+        assert!(memory::import_backup(&store, &file, "wrong passphrase", true).is_err());
         assert_eq!(
             report(false)?,
             json!({
@@ -1123,10 +1128,10 @@ mod tests {
 
     #[test]
     fn resource_backup_import_is_read_only_until_apply_and_checks_the_whole_batch() -> Result<()> {
-        use crate::agent_files::{Kind, import_magpie};
+        use crate::agent_files::{Kind, import_backup};
 
         let dir = tempfile::tempdir()?;
-        let file = dir.path().join("resources.magpie-backup");
+        let file = dir.path().join("resources.crabforge-backup");
         let store = dir.path().join("crabforge");
         let command = json!({"name":"inspect","description":"Inspect","prompt":"Read $1","agents":["claude"]});
         let subagent = json!({"name":"reviewer","description":"Review","prompt":"Check the report.",
@@ -1136,7 +1141,7 @@ mod tests {
             json!({"version":2,"library":{"commands":[command],"subagents":[subagent]}}),
         );
         let report = |kind, apply| -> Result<Value> {
-            let report = import_magpie(&store, kind, &file, PASSPHRASE, &[], apply)?;
+            let report = import_backup(&store, kind, &file, PASSPHRASE, &[], apply)?;
             nextjson::to_value(&report).map_err(anyhow::Error::msg)
         };
         assert_eq!(
@@ -1169,27 +1174,27 @@ mod tests {
         );
         assert!(report(Kind::Command, true).is_err());
         let selected = ["ahead".to_owned(), "inspect".to_owned()];
-        let preview = import_magpie(&store, Kind::Command, &file, PASSPHRASE, &selected, false)?;
+        let preview = import_backup(&store, Kind::Command, &file, PASSPHRASE, &selected, false)?;
         let preview = nextjson::to_value(&preview).map_err(anyhow::Error::msg)?;
         assert_eq!(preview["resources"][0]["action"], json!("create"));
         assert_eq!(preview["resources"][1]["action"], json!("conflict"));
-        assert!(import_magpie(&store, Kind::Command, &file, PASSPHRASE, &selected, true).is_err());
+        assert!(import_backup(&store, Kind::Command, &file, PASSPHRASE, &selected, true).is_err());
         assert_eq!(std::fs::read(&library)?, before);
         Ok(())
     }
 
     #[test]
     fn environment_backup_masks_values_and_rejects_a_conflicting_batch() -> Result<()> {
-        use crate::environment::import_magpie;
+        use crate::environment::import_backup;
 
         let dir = tempfile::tempdir()?;
-        let file = dir.path().join("environment.magpie-backup");
+        let file = dir.path().join("environment.crabforge-backup");
         let store = dir.path().join("crabforge");
         let value = "fixture-value-原文\nsecond line";
         let variable = json!({"name":"EXISTING","value":value,"agents":["claude","pi"]});
         seal(&file, json!({"version":2,"library":{"env":[variable]}}));
         let report = |apply| -> Result<Value> {
-            let report = import_magpie(&store, &file, PASSPHRASE, &[], apply)?;
+            let report = import_backup(&store, &file, PASSPHRASE, &[], apply)?;
             nextjson::to_value(&report).map_err(anyhow::Error::msg)
         };
         let preview = report(false)?;

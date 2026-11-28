@@ -107,7 +107,7 @@ struct Model<'a> {
     free: bool,
     native_endpoints: Vec<&'static str>,
     #[njson(skip_serializing_if = "Option::is_none")]
-    magpie_prefers: Option<&'static str>,
+    preferred_endpoint: Option<&'static str>,
     #[njson(skip_serializing_if = "Option::is_none")]
     reasoning_levels: Option<&'a [String]>,
 }
@@ -131,7 +131,7 @@ fn listed_model<'a>(id: &'a str, route: Route, config: &'a Config) -> Model<'a> 
         created: 0,
         owned_by: "crabforge",
         native_endpoints: protocols.endpoints(),
-        magpie_prefers: protocols.preferred_endpoint(),
+        preferred_endpoint: protocols.preferred_endpoint(),
         reasoning_levels: (!reasoning_levels.is_empty()).then_some(reasoning_levels),
     }
 }
@@ -435,7 +435,7 @@ impl<'a> Api<'a> {
             && let Some(endpoints) = &hints.native_endpoints
         {
             let mut translated = None;
-            for endpoint in hints.magpie_prefers.iter().chain(endpoints) {
+            for endpoint in hints.preferred_endpoint.iter().chain(endpoints) {
                 use crate::catalog::RelayEndpoint;
                 if !endpoints.contains(endpoint) {
                     continue;
@@ -699,7 +699,7 @@ pub(crate) async fn dispatch(
         headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.clone());
         headers.insert(
             header::ACCESS_CONTROL_EXPOSE_HEADERS,
-            http::HeaderValue::from_static("X-Crabforge-Session, X-Magpie-Session"),
+            http::HeaderValue::from_static("X-Crabforge-Session"),
         );
     }
     response
@@ -1434,7 +1434,7 @@ mod tests {
         "endpoints":{"chat":"http://localhost/v1","responses":"http://localhost/v1","anthropic":"http://localhost"},
         "model_protocols":{
             "mixed":{"native_endpoints":[]},
-            "picked":{"native_endpoints":["/v1/messages","/v1/responses"],"magpie_prefers":"/v1/messages"},
+            "picked":{"native_endpoints":["/v1/messages","/v1/responses"],"preferred_endpoint":"/v1/messages"},
             "text":{"native_endpoints":["/v1/chat/completions"]}
         }})).map_err(anyhow::Error::msg)?;
         for (model, api, expected, conversion) in [

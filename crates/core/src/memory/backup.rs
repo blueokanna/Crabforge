@@ -1,5 +1,5 @@
 use super::{MAX_FILE, filename, lock_store, markdown_text, parse, tags};
-use crate::config::{open_magpie_backup, read_limited};
+use crate::config::{open_import_backup, read_limited};
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value};
 use std::{
@@ -67,20 +67,20 @@ struct PlannedMemory {
 }
 
 /// Restore local Markdown entries from the memory section of an encrypted backup.
-pub fn import_magpie(
+pub fn import_backup(
     dir: &Path,
     file: &Path,
     passphrase: &str,
     apply: bool,
 ) -> Result<ImportReport> {
-    let mut backup = open_magpie_backup(file, passphrase)?;
+    let mut backup = open_import_backup(file, passphrase)?;
     let bundle: Bundle = nextjson::from_value(
         backup
             .remove("memory")
             .filter(|value| !value.is_null())
-            .context("Magpie backup has no memory section")?,
+            .context("encrypted backup has no memory section")?,
     )
-    .map_err(|_| anyhow::anyhow!("invalid Magpie memory section"))?;
+    .map_err(|_| anyhow::anyhow!("invalid backup memory section"))?;
     let removed = bundle.removed.unwrap_or_default();
     let mut report = ImportReport {
         memories: Vec::new(),
@@ -95,7 +95,7 @@ pub fn import_magpie(
         let path = filename(&folder, &memory.id)?;
         ensure!(
             seen.insert(memory.id.to_lowercase()),
-            "duplicate Magpie memory ID {:?}",
+            "duplicate backup memory ID {:?}",
             memory.id
         );
         if let Some(deleted) = removed.get(&memory.id)
@@ -155,7 +155,7 @@ pub fn import_magpie(
 }
 
 fn timestamp(value: &str) -> Result<OffsetDateTime> {
-    OffsetDateTime::parse(value, &Rfc3339).context("invalid Magpie memory timestamp")
+    OffsetDateTime::parse(value, &Rfc3339).context("invalid backup memory timestamp")
 }
 
 fn write_new(folder: &Path, create: Vec<(PathBuf, Vec<u8>)>) -> Result<()> {

@@ -220,8 +220,10 @@ void main() {
 
     Future<void> saveAndRead(bool Function(Map) persisted) async {
       FocusManager.instance.primaryFocus?.unfocus();
-      await tester.pump();
-      await tester.tap(saveRouteLimits);
+      await tester.pumpAndSettle();
+      expect(saveRouteLimits.hitTestable(), findsOneWidget);
+      expect(tester.widget<FilledButton>(saveRouteLimits).onPressed, isNotNull);
+      await tester.tap(saveRouteLimits.hitTestable());
       final deadline = DateTime.now().add(const Duration(seconds: 10));
       var saved = false;
       while (!saved && DateTime.now().isBefore(deadline)) {
@@ -231,15 +233,20 @@ void main() {
       expect(
         saved,
         isTrue,
-        reason: tester
-            .widgetList<Text>(
-              find.descendant(
-                of: find.byType(SnackBar),
-                matching: find.byType(Text),
-              ),
-            )
-            .map((text) => text.data)
-            .join('\n'),
+        reason: [
+          for (final field in tester.stateList<FormFieldState<String>>(
+            find.byType(TextFormField),
+          ))
+            if (field.hasError) field.errorText,
+          ...tester
+              .widgetList<Text>(
+                find.descendant(
+                  of: find.byType(SnackBar),
+                  matching: find.byType(Text),
+                ),
+              )
+              .map((text) => text.data),
+        ].join('\n'),
       );
       await tester.pumpAndSettle(const Duration(milliseconds: 16));
     }
@@ -382,6 +389,29 @@ void main() {
     }
     dispatcher.clearAccessibilityFeaturesTestValue();
     await tester.pumpAndSettle();
+
+    Future<Uint8List> renderText(String text, TextStyle style) async {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final recorder = ui.PictureRecorder();
+      painter.paint(Canvas(recorder), const Offset(2, 2));
+      painter.dispose();
+      final picture = recorder.endRecording();
+      try {
+        final image = await picture.toImage(192, 40);
+        try {
+          return (await image.toByteData())!.buffer.asUint8List();
+        } finally {
+          image.dispose();
+        }
+      } finally {
+        picture.dispose();
+      }
+    }
+
+    Map<WorkspaceFont, Uint8List> latin = {}, han = {};
     for (final font in [
       WorkspaceFont.harmonyOs,
       WorkspaceFont.googleSans,
@@ -391,7 +421,22 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text(font.label));
       await expectFont(font);
+      final style = activeTheme().textTheme.bodyMedium!.copyWith(fontSize: 24);
+      latin[font] = await renderText('Crabforge', style);
+      han[font] = await renderText('网关配置', style);
     }
+    expect(
+      listEquals(
+        latin[WorkspaceFont.googleSans],
+        latin[WorkspaceFont.harmonyOs],
+      ),
+      isFalse,
+    );
+    expect(
+      listEquals(han[WorkspaceFont.googleSans], han[WorkspaceFont.harmonyOs]),
+      isTrue,
+    );
+    expect(han[WorkspaceFont.harmonyOs]!.any((byte) => byte != 0), isTrue);
 
     final project = Directory('${home.path}/layout-project')..createSync();
     final instructions = File('${project.path}/CLAUDE.md');
@@ -464,29 +509,25 @@ void main() {
 
     await tester.tap(find.widgetWithText(TextButton, 'Close'));
     await tester.pumpAndSettle();
-    final geminiSettings = File('${project.path}/.gemini/settings.json');
-    geminiSettings.parent.createSync();
-    geminiSettings.writeAsStringSync('{"context":{"fileName":["CUSTOM.md"]}}');
-    final customInstructions = File('${project.path}/CUSTOM.md');
-    customInstructions.writeAsStringSync('# Before\r\n');
+    final projectInstructions = File('${project.path}/AGENTS.md');
+    projectInstructions.writeAsStringSync('# Before\r\n');
     final agentSelector = find.byType(DropdownMenu<String>);
-    tester.widget<DropdownMenu<String>>(agentSelector).onSelected!('gemini');
+    tester.widget<DropdownMenu<String>>(agentSelector).onSelected!('agy');
     await tester.pumpAndSettle();
     await tester.tap(find.text(strings.projectInstructions));
     await tester.pumpAndSettle();
     await tester.enterText(fields.first, project.path);
     await tester.tap(find.text(strings.openProject));
     await waitForEdit('');
-    await tester.enterText(fields.last, 'Use the custom instructions file.');
+    await tester.enterText(fields.last, 'Follow the workspace instructions.');
     await tester.pump();
     await tester.tap(save);
-    await waitForEdit('Use the custom instructions file.');
-    expect(customInstructions.readAsStringSync(), contains('# Before\r\n'));
+    await waitForEdit('Follow the workspace instructions.');
+    expect(projectInstructions.readAsStringSync(), contains('# Before\r\n'));
     expect(
-      customInstructions.readAsStringSync(),
-      contains('Use the custom instructions file.\r\n'),
+      projectInstructions.readAsStringSync(),
+      contains('Follow the workspace instructions.\r\n'),
     );
-    expect(File('${project.path}/GEMINI.md').existsSync(), isFalse);
     await tester.tap(find.widgetWithText(TextButton, 'Close'));
     await tester.pumpAndSettle();
 
@@ -548,7 +589,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(fields.first, project.path);
     await tester.tap(find.text(strings.openProject));
-    await waitForEdit('Use the custom instructions file.');
+    await waitForEdit('Follow the workspace instructions.');
     await tester.tap(find.text(strings.projectMemory));
     final publish = find.widgetWithText(FilledButton, strings.publishMemory);
     final publicationDeadline = DateTime.now().add(const Duration(seconds: 10));
@@ -559,7 +600,7 @@ void main() {
     expect(find.textContaining('- $memory'), findsOneWidget);
     await tester.pumpAndSettle();
     await tester.tap(publish);
-    await waitForEdit('Use the custom instructions file.');
-    expect(customInstructions.readAsStringSync(), contains('- $memory\r\n'));
+    await waitForEdit('Follow the workspace instructions.');
+    expect(projectInstructions.readAsStringSync(), contains('- $memory\r\n'));
   });
 }

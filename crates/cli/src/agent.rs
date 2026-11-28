@@ -25,7 +25,6 @@ pub(crate) enum Agent {
     Crush,
     Claude,
     Deveco,
-    Gemini,
     Kimi,
     #[value(alias = "mimo")]
     Mimocode,
@@ -38,6 +37,8 @@ pub(crate) enum Agent {
     Prime,
     Pi,
     Goose,
+    #[value(alias = "agy")]
+    Antigravity,
     Qwen,
     Vibe,
 }
@@ -61,14 +62,18 @@ impl Agent {
             Self::Claude => "@anthropic-ai/claude-code",
             Self::Deveco => "@deveco/deveco-code",
             Self::Mimocode => "@mimo-ai/cli",
-            Self::Gemini => "@google/gemini-cli",
             Self::Kimi => "@moonshot-ai/kimi-code",
             Self::Pi => "@earendil-works/pi-coding-agent",
             Self::Mu => "mu-agent",
             Self::Omo => "omo-ai",
             Self::Omp => return omp_profiles::installed(),
             Self::Opencode => "@opencode/cli",
-            Self::Goose | Self::Vibe | Self::Crush | Self::Nanobot | Self::Prime => "",
+            Self::Antigravity
+            | Self::Goose
+            | Self::Vibe
+            | Self::Crush
+            | Self::Nanobot
+            | Self::Prime => "",
             Self::Qwen => "@qwen-code/qwen-code",
         };
         crabforge_core::agents::installed_command(binary, package, "node")
@@ -124,7 +129,6 @@ impl Agent {
             Self::Claude => "claude",
             Self::Deveco => "deveco",
             Self::Mimocode => "mimo",
-            Self::Gemini => "gemini",
             Self::Kimi => "kimi",
             Self::Nanobot => "nanobot",
             Self::Mu => "mu",
@@ -134,6 +138,7 @@ impl Agent {
             Self::Prime => "prime-agent",
             Self::Pi => "pi",
             Self::Goose => "goose",
+            Self::Antigravity => "agy",
             Self::Qwen => "qwen",
             Self::Vibe => "vibe",
         };
@@ -254,15 +259,6 @@ impl Agent {
                     .env("ANTHROPIC_AUTH_TOKEN", key)
                     .env_remove("ANTHROPIC_API_KEY");
             }
-            Self::Gemini => {
-                command
-                    .env("GEMINI_CLI_HOME", crabforge_core::agents::gemini_home(dir)?)
-                    .env("GOOGLE_GEMINI_BASE_URL", root)
-                    .env("GEMINI_API_KEY", key)
-                    .env_remove("GOOGLE_GENAI_USE_GCA")
-                    .env_remove("GOOGLE_API_KEY")
-                    .env_remove("GOOGLE_GENAI_USE_VERTEXAI");
-            }
             Self::Pi | Self::Mu | Self::Omo | Self::Prime => {
                 let profile_var = match self {
                     Self::Mu => "MU_AGENT_DIR",
@@ -299,6 +295,21 @@ impl Agent {
                     .env("GOOSE_PROVIDER", "crabforge")
                     .env("GOOSE_MODEL", model)
                     .env("CRABFORGE_GATEWAY_KEY", key);
+            }
+            Self::Antigravity => {
+                let settings = json!({
+                    "modelProvider": "gemini",
+                    "customModelsConfig": {"customModels": {"crabforge": {
+                        "modelName": format!("gemini-api://{model}"),
+                        "label": model,
+                    }}}
+                });
+                let settings = nextjson::to_string(&settings).map_err(anyhow::Error::msg)?;
+                command
+                    .env("GEMINI_API_KEY", key)
+                    .env("GOOGLE_GEMINI_BASE_URL", &root)
+                    .env_remove("AGY_ADC_AUTH")
+                    .args(["--settings", &settings, "--model", "crabforge"]);
             }
             Self::Qwen => {
                 command
@@ -341,6 +352,7 @@ impl Agent {
         if !matches!(
             self,
             Self::Goose
+                | Self::Antigravity
                 | Self::Vibe
                 | Self::Crush
                 | Self::Kimi

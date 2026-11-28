@@ -1,5 +1,5 @@
 use super::{Skill, Store, Tree, details, lock_library, normalize_agents, snapshot};
-use crate::config::magpie_library_section;
+use crate::config::backup_library_section;
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value};
 use std::{
@@ -8,7 +8,7 @@ use std::{
 };
 
 #[derive(NsonDeserialize)]
-struct MagpieSkill {
+struct BackupSkill {
     name: String,
     agents: Option<Vec<String>>,
     files: BTreeMap<String, String>,
@@ -38,34 +38,34 @@ struct PlannedSkill {
 }
 
 /// Restore complete, embedded skill snapshots without contacting their sources.
-pub fn import_magpie(
+pub fn import_backup(
     dir: &Path,
     file: &Path,
     passphrase: &str,
     selected: &[String],
     apply: bool,
 ) -> Result<ImportReport> {
-    let (entries, other_library_sections) = magpie_library_section(file, passphrase, "skills")?;
+    let (entries, other_library_sections) = backup_library_section(file, passphrase, "skills")?;
     let selected: BTreeSet<_> = selected.iter().map(String::as_str).collect();
     let mut skills = BTreeMap::new();
     for entry in entries {
         let key = entry
             .pointer("/name")
             .and_then(Value::as_str)
-            .context("missing Magpie skill name")?;
+            .context("missing backup skill name")?;
         if !selected.is_empty() && !selected.contains(key) {
             continue;
         }
-        let imported: MagpieSkill = nextjson::from_value(entry)
-            .map_err(|_| anyhow::anyhow!("invalid Magpie skill definition"))?;
+        let imported: BackupSkill = nextjson::from_value(entry)
+            .map_err(|_| anyhow::anyhow!("invalid backup skill definition"))?;
         ensure!(
             !imported.fetch.unwrap_or_default() && imported.left.as_ref().is_none_or(Vec::is_empty),
-            "Magpie skill {:?} requires files from outside the backup",
+            "backup skill {:?} requires files from outside the backup",
             imported.name
         );
         ensure!(
             imported.bundle.as_deref().is_none_or(str::is_empty),
-            "Magpie skill {:?} belongs to a plugin",
+            "backup skill {:?} belongs to a plugin",
             imported.name
         );
         let mut skipped_fields: Vec<_> = imported.other.into_keys().collect();
@@ -75,18 +75,18 @@ pub fn import_magpie(
             skipped_fields.sort_unstable();
         }
         let tree = Tree::from_backup(imported.files, &executable)
-            .with_context(|| format!("read Magpie skill {:?}", imported.name))?;
+            .with_context(|| format!("read backup skill {:?}", imported.name))?;
         let (name, description) =
-            details(&tree).with_context(|| format!("read Magpie skill {:?}", imported.name))?;
+            details(&tree).with_context(|| format!("read backup skill {:?}", imported.name))?;
         ensure!(
             name == imported.name,
-            "Magpie skill name differs from SKILL.md"
+            "backup skill name differs from SKILL.md"
         );
         let agents = normalize_agents(imported.agents.unwrap_or_default())
-            .with_context(|| format!("invalid assignments for Magpie skill {name:?}"))?;
+            .with_context(|| format!("invalid assignments for backup skill {name:?}"))?;
         let content = tree.hash();
         let Entry::Vacant(slot) = skills.entry(name.clone()) else {
-            bail!("duplicate Magpie skill name {name:?}");
+            bail!("duplicate backup skill name {name:?}");
         };
         let skill = Skill {
             name,
@@ -100,7 +100,7 @@ pub fn import_magpie(
     for name in selected {
         ensure!(
             skills.contains_key(name),
-            "Magpie skill {name:?} was not found"
+            "backup skill {name:?} was not found"
         );
     }
 

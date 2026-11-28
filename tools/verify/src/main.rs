@@ -23,7 +23,6 @@ enum Command {
     #[cfg(windows)]
     Gateway {
         cli: PathBuf,
-        magpie: PathBuf,
         #[arg(value_enum)]
         workload: memory::Workload,
         #[arg(long,default_value_t=3,value_parser=clap::value_parser!(u8).range(1..=100))]
@@ -33,7 +32,7 @@ enum Command {
     Desktop {
         gui: PathBuf,
         #[arg(long)]
-        magpie_pid: Option<u32>,
+        baseline_pid: Option<u32>,
         #[arg(long,default_value_t=3,value_parser=clap::value_parser!(u8).range(1..=100))]
         rounds: u8,
     },
@@ -46,23 +45,14 @@ async fn main() -> Result<()> {
         #[cfg(windows)]
         Command::Gateway {
             cli,
-            magpie,
             workload,
             rounds,
-        } => {
-            memory::gateway(
-                &cli.canonicalize()?,
-                &magpie.canonicalize()?,
-                workload,
-                rounds,
-            )
-            .await
-        }
+        } => memory::gateway(&cli.canonicalize()?, workload, rounds).await,
         #[cfg(windows)]
         Command::Desktop {
             gui,
-            magpie_pid,
+            baseline_pid,
             rounds,
-        } => memory::desktop(&gui.canonicalize()?, magpie_pid, rounds).await,
+        } => memory::desktop(&gui.canonicalize()?, baseline_pid, rounds).await,
     }
 }

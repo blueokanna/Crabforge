@@ -10,8 +10,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-mod magpie;
-pub use magpie::import_magpie;
+mod backup;
+pub use backup::import_backup;
 
 const AGENTS: [&str; 3] = ["claude", "cline", "kiro-cli"];
 const MAX_BODY: usize = 100_000;

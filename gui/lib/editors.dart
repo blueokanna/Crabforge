@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'material_symbols.dart';
-import 'brand_icon.dart';
 import 'collection_view.dart';
 import 'language.dart';
 import 'src/rust/api.dart' as api;
@@ -308,7 +307,7 @@ class _ProviderEditorState extends State<ProviderEditor> {
                       DropdownMenuEntry(
                         value: p,
                         label: p['name'],
-                        leadingIcon: BrandIcon.provider(p['id']),
+                        leadingIcon: const Icon(CrabforgeSymbols.hub),
                       ),
                   ],
                   onSelected: select,

@@ -3,7 +3,6 @@ use std::borrow::Cow;
 
 // These clients have a known request signature without a configurable agent root.
 const OTHER_CLIENTS: &[(&str, &str)] = &[
-    ("magpie", "magpie"),
     ("curl", "curl"),
     ("pi-desktop", "PI-Desktop"),
     ("flowdown", "FlowDown"),
@@ -25,7 +24,6 @@ const SIGNATURES: &[(&str, &[&str], &[&str])] = &[
     ("claude-desktop", &["claude-app"], &[]),
     ("claude-science", &["operon", "science"], &[]),
     ("codex", &[], &["codex", "acp-extension-codex"]),
-    ("gemini", &["gemini-cli"], &["geminicli", "gemini-cli"]),
     ("agy", &["antigravity-cli"], &[]),
     ("dim", &["dima", "dimcode-alpha"], &[]),
     ("antigravity", &["antigravity-app", "agy-app"], &[]),
@@ -155,7 +153,6 @@ const SIGNATURES: &[(&str, &[&str], &[&str])] = &[
     ("cindy", &[], &["cindy"]),
     ("cherrystudio", &["cherry-studio"], &[]),
     ("lody", &[], &["lody"]),
-    ("magpie", &[], &["magpie"]),
     ("curl", &[], &["curl"]),
     ("flowdown", &[], &["flowdown"]),
     ("dimcode", &[], &["dimagent", "dimcode"]),

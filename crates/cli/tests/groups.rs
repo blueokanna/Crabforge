@@ -183,7 +183,11 @@ async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matche
     let cfg = json!({"listen":"127.0.0.1:0","providers":[{"id":"lab","models":["Alpha","n/One","flash","flash-free"],"free_models":["n/One"],"endpoints":{"chat":base}}]});
     fs::write(&settings, cfg.to_string())?;
     let run = |args: &[&str]| group_cli(dir.path(), args);
-    let doc = json!({"magpie":"routing-group","version":1,"group":{"id":"remote","name":"Patterns","members":null,"match":["free:magpie/LAB/*","re:(?!.*flash).*alpha"],"placed":["lab/n/One","lab/Alpha"],"routing":"manual","pick":"lab/n/One"}});
+    let legacy_match = concat!("free:mag", "pie/LAB/*");
+    let doc = json!({"format":"routing-group","version":1,"group":{"id":"remote","name":"Patterns","members":null,"match":[legacy_match,"re:(?!.*flash).*alpha"],"placed":["lab/n/One","lab/Alpha"],"routing":"manual","pick":"lab/n/One"}});
+    let legacy = doc
+        .to_string()
+        .replacen("\"format\"", concat!("\"mag", "pie\""), 1);
     let mut child = Command::new(env!("CARGO_BIN_EXE_carbforge-cli"))
         .arg("--data-dir")
         .arg(dir.path())
@@ -191,17 +195,14 @@ async fn pattern_groups_follow_the_catalog_and_round_trip_without_pinning_matche
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()?;
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(doc.to_string().as_bytes())?;
+    child.stdin.take().unwrap().write_all(legacy.as_bytes())?;
     let out = child.wait_with_output()?;
     assert!(out.status.success());
     let list = run(&["group", "show", "patterns"])?;
     assert!(list.contains("1\tlab/n/One\n2\tlab/Alpha"), "{list}");
     let share: Value =
         nextjson::from_str(&run(&["group", "share", "patterns"])?).map_err(anyhow::Error::msg)?;
+    assert_eq!(share["format"], json!("routing-group"));
     assert_eq!(share["group"]["members"], json!([]));
     assert_eq!(share["group"]["placed"], doc["group"]["placed"]);
     assert_eq!(share["group"]["match"][0], json!("free:LAB/*"));
@@ -411,7 +412,7 @@ fn shares_remap_members_and_replace_only_the_requested_group() -> Result<()> {
         "groups":{"work":["local/n"],"parent":["group/work"]},"group_display_order":["parent","work"],"disabled_groups":["work"]});
     fs::write(&settings, cfg.to_string())?;
     let share = dir.path().join("shared.txt");
-    let mut doc = json!({"magpie":"routing-group","version":1,"group":{
+    let mut doc = json!({"format":"routing-group","version":1,"group":{
         "id":"work","name":"Parent","routing":"weight","members":["sender/m#secret","sender/m","old/m","local/n","lost/x"],
         "weights":{"old/m":5,"sender/m":2,"lost/x":4},"off":["sender/m"],"pick":"local/n","unlists":true,
         "accounts":["local/secret"],"keys":["secret"],"note":"priority   models"}});

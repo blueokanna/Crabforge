@@ -16,7 +16,6 @@ const _agents = {
   'codex': 'Codex',
   'opencode': 'OpenCode',
   'pi': 'Pi',
-  'gemini': 'Gemini CLI',
   'qwen': 'Qwen Code',
   'droid': 'Factory Droid',
   'grok': 'Grok Build',

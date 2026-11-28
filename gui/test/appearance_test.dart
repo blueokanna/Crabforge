@@ -55,4 +55,20 @@ void main() {
     expect(CrabforgeSymbols.formatSize.fontFamily, 'Material Symbols Rounded');
     expect(CrabforgeSymbols.formatSize.fontPackage, 'crabforge_assets');
   });
+
+  test('Expressive buttons and titles use the small component tokens', () {
+    final theme = workspaceTheme(Brightness.light, WorkspaceFont.googleSans);
+    for (final style in [
+      theme.filledButtonTheme.style!,
+      theme.outlinedButtonTheme.style!,
+    ]) {
+      final rest = style.shape!.resolve({}) as RoundedRectangleBorder;
+      final pressed =
+          style.shape!.resolve({WidgetState.pressed}) as RoundedRectangleBorder;
+      expect(rest.borderRadius, BorderRadius.circular(12));
+      expect(pressed.borderRadius, BorderRadius.circular(8));
+    }
+    expect(theme.appBarTheme.titleTextStyle!.fontWeight, FontWeight.w500);
+    expect(theme.dialogTheme.titleTextStyle!.fontWeight, FontWeight.w500);
+  });
 }

@@ -333,7 +333,7 @@ mod tests {
             let mut output = Vec::new();
             serve(
                 root,
-                Some("gemini"),
+                Some("codex"),
                 Some(project),
                 input.as_bytes(),
                 &mut output,

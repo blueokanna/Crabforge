@@ -70,7 +70,7 @@ void main() {
       ]);
       expect(persisted['providers'][0]['model_protocols']['account-model'], {
         'native_endpoints': ['/v1/messages'],
-        'magpie_prefers': '/v1/messages',
+        'preferred_endpoint': '/v1/messages',
       });
       expect(Localizations.localeOf(tester.element(picker)).languageCode, 'zh');
       await tester.tap(find.text(zh.groups).last);
@@ -118,7 +118,7 @@ void main() {
       if (req.method == 'GET' && req.uri.path == '/account/catalog') {
         req.response.headers.contentType = ContentType.json;
         req.response.write(
-          '{"data":[{"id":"account-model","free":true,"native_endpoints":["/v1/messages"],"magpie_prefers":"/v1/messages"}]}',
+          '{"data":[{"id":"account-model","free":true,"native_endpoints":["/v1/messages"],"preferred_endpoint":"/v1/messages"}]}',
         );
         await req.response.close();
         return;
@@ -263,7 +263,7 @@ void main() {
     expect(saved['free_models'], ['account-model']);
     expect(saved['model_protocols']['account-model'], {
       'native_endpoints': ['/v1/messages'],
-      'magpie_prefers': '/v1/messages',
+      'preferred_endpoint': '/v1/messages',
     });
     await tapText('DeepSeek 网页');
     await waitFor(find.text('deepseek-web'));
@@ -651,7 +651,6 @@ void main() {
         resp.headers.value('access-control-allow-origin'),
         'https://client.example',
       );
-      expect(resp.headers.value('x-magpie-session'), session);
       expect(await utf8.decoder.bind(resp).join(), contains('desktop reply'));
     }
 

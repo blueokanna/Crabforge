@@ -77,7 +77,6 @@ fn webviews(root: u32) -> Result<Vec<u32>> {
             ..Default::default()
         };
         let mut valid = Process32FirstW(snap.0, &mut entry);
-        let mut magpie = false;
         while valid != 0 {
             let end = entry
                 .szExeFile
@@ -88,12 +87,8 @@ fn webviews(root: u32) -> Result<Vec<u32>> {
             if name.eq_ignore_ascii_case("msedgewebview2.exe") {
                 entries.push((entry.th32ParentProcessID, entry.th32ProcessID));
             }
-            if entry.th32ProcessID == root {
-                magpie = name.eq_ignore_ascii_case("magpie.exe");
-            }
             valid = Process32NextW(snap.0, &mut entry);
         }
-        ensure!(magpie, "expected the PID of a Magpie window");
     }
     let mut tree = HashSet::from([root]);
     loop {
@@ -148,10 +143,10 @@ pub async fn desktop(gui: &Path, reference: Option<u32>, rounds: u8) -> Result<(
         sleep(Duration::from_secs(3)).await;
         row("Crabforge", round, &[pid]).await?;
         if let Some(pid) = reference {
-            ensure!(!window(pid).is_null(), "Magpie has no visible window");
+            ensure!(!window(pid).is_null(), "Baseline has no visible window");
             let tree = webviews(pid)?;
-            row("Magpie main", round, &[pid]).await?;
-            row("Magpie with WebView2", round, &tree).await?;
+            row("Baseline main", round, &[pid]).await?;
+            row("Baseline with WebView2", round, &tree).await?;
         }
         unsafe {
             PostMessageW(window(pid), WM_CLOSE, 0, 0);
@@ -180,7 +175,7 @@ pub enum Workload {
     Chat,
 }
 
-pub async fn gateway(cli: &Path, magpie: &Path, work: Workload, rounds: u8) -> Result<()> {
+pub async fn gateway(cli: &Path, work: Workload, rounds: u8) -> Result<()> {
     let server = Server::bind("127.0.0.1:0")?;
     let base = format!("http://{}/v1", server.local_addr()?);
     let fixture = server.serve_background(|req: Request<Body>| {
@@ -193,20 +188,10 @@ pub async fn gateway(cli: &Path, magpie: &Path, work: Workload, rounds: u8) -> R
     })?;
     println!("Gateway,Round,Workload,Models,WorkingSetMiB,PrivateMiB");
     for round in 1..=rounds {
-        for reference in [round % 2 == 0, round % 2 != 0] {
-            let result = measure(
-                if reference { magpie } else { cli },
-                reference,
-                round,
-                work,
-                &base,
-            )
-            .await;
-            if let Err(error) = result {
-                fixture.stop();
-                fixture.join()?;
-                return Err(error);
-            }
+        if let Err(error) = measure(cli, round, work, &base).await {
+            fixture.stop();
+            fixture.join()?;
+            return Err(error);
         }
     }
     fixture.stop();
@@ -214,39 +199,23 @@ pub async fn gateway(cli: &Path, magpie: &Path, work: Workload, rounds: u8) -> R
     Ok(())
 }
 
-async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &str) -> Result<()> {
+async fn measure(exe: &Path, round: u8, work: Workload, base: &str) -> Result<()> {
     let dir = tempfile::tempdir()?;
     let root = dir.path();
     let addr = TcpListener::bind("127.0.0.1:0").await?.local_addr()?;
-    let mut cmd = if reference {
-        let local = root.join("magpie.exe");
-        fs::copy(exe, &local)?;
-        fs::write(root.join(".portable"), "")?;
-        if matches!(work, Workload::Chat) {
-            fs::create_dir(root.join("data"))?;
-            fs::write(
-                root.join("data/providers.json"),
-                nextjson::to_vec(
-                    &json!({"providers":[{"id":"bench","name":"Benchmark","key":"local-test","chat":base,"models":["m"]}]}),
-                ).map_err(anyhow::Error::msg)?,
-            )?;
-        }
-        Command::new(local)
-    } else {
-        let mut cfg = nextjson::Map::new();
-        cfg.insert("listen".into(), json!(addr.to_string()));
-        if matches!(work, Workload::Chat) {
-            cfg.insert(
-                "providers".into(),
-                json!([{"id":"bench","endpoints":{"chat":base},"models":["m"]}]),
-            );
-        }
-        fs::write(
-            root.join("settings.json"),
-            nextjson::to_vec(&Value::Object(cfg)).map_err(anyhow::Error::msg)?,
-        )?;
-        Command::new(exe)
-    };
+    let mut cfg = nextjson::Map::new();
+    cfg.insert("listen".into(), json!(addr.to_string()));
+    if matches!(work, Workload::Chat) {
+        cfg.insert(
+            "providers".into(),
+            json!([{"id":"bench","endpoints":{"chat":base},"models":["m"]}]),
+        );
+    }
+    fs::write(
+        root.join("settings.json"),
+        nextjson::to_vec(&Value::Object(cfg)).map_err(anyhow::Error::msg)?,
+    )?;
+    let mut cmd = Command::new(exe);
     let startup_log = root.join("gateway-stderr.log");
     cmd.arg("serve")
         .kill_on_drop(true)
@@ -284,9 +253,7 @@ async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &
     ] {
         cmd.env(var, root);
     }
-    cmd.env("MAGPIE_ADDR", addr.to_string())
-        .env("MAGPIE_NO_STATS", "1")
-        .env("HTTP_PROXY", "http://127.0.0.1:1")
+    cmd.env("HTTP_PROXY", "http://127.0.0.1:1")
         .env("HTTPS_PROXY", "http://127.0.0.1:1")
         .env("NO_PROXY", "127.0.0.1,localhost");
     let mut process = cmd.spawn()?;
@@ -307,11 +274,7 @@ async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &
                 fs::read_to_string(&startup_log).unwrap_or_default()
             )
         })?;
-        let key = if reference {
-            Some("magpie".to_owned())
-        } else {
-            fs::read(root.join("gateway.key")).ok().map(hex::encode)
-        };
+        let key = fs::read(root.join("gateway.key")).ok().map(hex::encode);
         if let Some(key) = key {
             match http.request(&catalog, Method::GET).bearer_auth(&key).send() {
                 Ok(res) if res.status.is_success() => {
@@ -355,10 +318,7 @@ async fn measure(exe: &Path, reference: bool, round: u8, work: Workload, base: &
     }
     sleep(Duration::from_secs(2)).await;
     let (w, p) = sample(&[process.id().context("gateway exited")?]).await?;
-    println!(
-        "{},{round},{work:?},{models},{w:.2},{p:.2}",
-        if reference { "Magpie" } else { "Crabforge" }
-    );
+    println!("Crabforge,{round},{work:?},{models},{w:.2},{p:.2}");
     process.kill().await?;
     Ok(())
 }

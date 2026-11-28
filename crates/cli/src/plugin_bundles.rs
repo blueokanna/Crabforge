@@ -23,8 +23,8 @@ pub(super) enum Command {
         #[arg(long)]
         revision: Option<String>,
     },
-    /// Preview or restore complete plugin snapshots from an encrypted Magpie backup.
-    ImportMagpie {
+    /// Preview or restore complete plugin snapshots from an encrypted backup.
+    ImportBackup {
         file: PathBuf,
         /// Select one or more names. Defaults to all plugin snapshots in the backup.
         #[arg(long = "name")]
@@ -135,9 +135,9 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
             content,
             revision: revision.as_deref(),
         },
-        Command::ImportMagpie { file, names, apply } => {
+        Command::ImportBackup { file, names, apply } => {
             let passphrase = super::backup_passphrase()?;
-            let report = plugin_bundles::import_magpie(dir, file, &passphrase, names, *apply)?;
+            let report = plugin_bundles::import_backup(dir, file, &passphrase, names, *apply)?;
             println!(
                 "{}",
                 nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?

@@ -121,7 +121,7 @@ async fn protocol_directories_merge_only_complete_lists_and_allow_an_override() 
         .route(
             "/judge/v1/models",
             get(|Incoming { headers, .. }| async move {
-                assert_eq!(headers["x-magpie-deciders"], "true");
+                assert_eq!(headers["x-crabforge-deciders"], "true");
                 Json(json!({"data":[{"id":"jev","native_endpoints":["/v1/systemone"]}]}))
             }),
         )

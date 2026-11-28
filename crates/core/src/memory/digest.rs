@@ -92,9 +92,7 @@ fn render(entries: Vec<Entry>, intro: &str, budget: usize) -> String {
             let why = entry.why.split_whitespace().collect::<Vec<_>>().join(" ");
             line.push_str(&format!(" (reason: {why})"));
         }
-        line = line
-            .replace("<!-- magpie:", "<!-- magpie :")
-            .replace("<!-- crabforge:", "<!-- crabforge :");
+        line = line.replace("<!-- crabforge:", "<!-- crabforge :");
         let section = &mut groups[kind];
         let heading = HEADINGS[kind];
         let cost = line.chars().count()

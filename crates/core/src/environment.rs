@@ -14,9 +14,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-mod magpie;
+mod backup;
 mod native;
-pub use magpie::import_magpie;
+pub use backup::import_backup;
 
 const AGENTS: &[&str] = &["claude", "codex", "pi"];
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;

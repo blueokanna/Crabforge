@@ -6,9 +6,9 @@ Crabforge uses Google's Material Symbols Rounded under Apache License 2.0. The u
 
 Windows distributions include Cargo registry license notices in licenses/rust and additional license texts in licenses/rust-upstream.txt. The latter cites the publishing commits for packages whose registry archives omitted those texts.
 
-Crabforge incorporates provider catalog data and brand assets from Magpie. Brand marks identify their owners and services. Certain vector assets originate in Lobe Icons.
+The provider catalog incorporates data from yetone's Magpie project. Brand artwork kept in the source tree includes assets from Lobe Icons.
 
-magpie
+Magpie
 https://github.com/yetone/magpie/blob/main/LICENSE
 
 MIT License

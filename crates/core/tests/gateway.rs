@@ -405,7 +405,7 @@ async fn native_endpoints_follow_models_aliases_and_enabled_group_members() -> R
         .map_err(anyhow::Error::msg)?;
         assert_eq!(detail["native_endpoints"], paths, "{id}");
         assert_eq!(
-            detail.get("magpie_prefers"),
+            detail.get("preferred_endpoint"),
             (!preferred.is_null()).then_some(&preferred),
             "{id}"
         );

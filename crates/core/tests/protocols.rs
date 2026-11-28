@@ -363,7 +363,7 @@ async fn relay_uses_a_reachable_native_endpoint_for_the_actual_request() -> Resu
     let dir = tempfile::tempdir()?;
     let config = json!({"listen":"127.0.0.1:0", "providers":[{
         "id":"relay", "models":["m"], "endpoints":{"responses":base, "chat":base},
-        "model_protocols":{"m":{"native_endpoints":["/v1/messages","/v1/responses"],"magpie_prefers":"/v1/messages"}}
+        "model_protocols":{"m":{"native_endpoints":["/v1/messages","/v1/responses"],"preferred_endpoint":"/v1/messages"}}
     }]});
     config::save(
         dir.path(),

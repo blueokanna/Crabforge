@@ -2,7 +2,6 @@
 pub const CLIENTS: &[(&str, &str)] = &[
     ("claude", "Claude Code"),
     ("codex", "Codex"),
-    ("gemini", "Gemini CLI"),
     ("opencode", "OpenCode"),
     ("mimocode", "MiMo Code"),
     ("deveco", "DevEco Code"),
@@ -112,7 +111,6 @@ pub mod omp_profiles;
 pub enum NativeAgent {
     Claude,
     Codex,
-    Gemini,
     Grok,
     Omp,
     Pi,
@@ -123,7 +121,6 @@ impl NativeAgent {
         match id {
             "claude" => Some(Self::Claude),
             "codex" => Some(Self::Codex),
-            "gemini" => Some(Self::Gemini),
             "grok" => Some(Self::Grok),
             "omp" => Some(Self::Omp),
             "pi" => Some(Self::Pi),
@@ -135,7 +132,6 @@ impl NativeAgent {
         match self {
             Self::Claude => "claude",
             Self::Codex => "codex",
-            Self::Gemini => "gemini",
             Self::Grok => "grok",
             Self::Omp => "omp",
             Self::Pi => "pi",
@@ -145,29 +141,21 @@ impl NativeAgent {
     pub(crate) fn home(self) -> Option<std::path::PathBuf> {
         use std::{env, path::PathBuf};
 
-        let (key, folder, relative_to_home) = match self {
-            Self::Claude => ("CLAUDE_CONFIG_DIR", ".claude", false),
-            Self::Codex => ("CODEX_HOME", ".codex", false),
-            Self::Gemini => ("GEMINI_CLI_HOME", ".gemini", true),
-            Self::Grok => ("GROK_HOME", ".grok", false),
+        let (key, folder) = match self {
+            Self::Claude => ("CLAUDE_CONFIG_DIR", ".claude"),
+            Self::Codex => ("CODEX_HOME", ".codex"),
+            Self::Grok => ("GROK_HOME", ".grok"),
             Self::Omp => {
                 let name = env::var_os("PI_CONFIG_DIR")
                     .filter(|name| !name.is_empty())
                     .unwrap_or_else(|| ".omp".into());
                 return Some(env::home_dir()?.join(name).join("agent"));
             }
-            Self::Pi => ("PI_CODING_AGENT_DIR", ".pi/agent", false),
+            Self::Pi => ("PI_CODING_AGENT_DIR", ".pi/agent"),
         };
         env::var_os(key)
             .filter(|path| !path.is_empty())
             .map(PathBuf::from)
-            .map(|path| {
-                if relative_to_home {
-                    path.join(folder)
-                } else {
-                    path
-                }
-            })
             .or_else(|| env::home_dir().map(|home| home.join(folder)))
     }
 }
@@ -234,25 +222,4 @@ pub fn pi_model<'a>(
         });
     }
     model
-}
-
-/// Gemini CLI selects its gateway backend from the base URL alone. The
-/// explicit API-key selection enables its Gemini protocol for this profile.
-pub fn gemini_home(dir: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
-    use nextjson::formats::{Format, Json5};
-
-    let home = std::path::absolute(dir.join("agents/gemini"))?;
-    let settings = crate::config::private_file(&home.join(".gemini"), "settings.json", || {
-        Ok(br#"{"security":{"auth":{"selectedType":"gemini-api-key"}}}"#.to_vec())
-    })?;
-    let source = settings.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&settings);
-    let settings: nextjson::Value = Json5.decode(source).map_err(anyhow::Error::msg)?;
-    anyhow::ensure!(
-        settings
-            .pointer("/security/auth/selectedType")
-            .and_then(nextjson::Value::as_str)
-            == Some("gemini-api-key"),
-        "select gemini-api-key in the Crabforge Gemini profile"
-    );
-    Ok(home)
 }

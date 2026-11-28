@@ -1,9 +1,7 @@
 import 'package:crabforge/material_symbols.dart';
-import 'package:crabforge/brand_assets.dart';
 import 'package:crabforge/l10n/app_localizations.dart';
 import 'package:crabforge/main.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -43,6 +41,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(GridView), findsOneWidget);
     expect(find.text('relay/gpt-example'), findsOneWidget);
+    expect(find.byIcon(CrabforgeSymbols.memory), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'GROUP/PARENT');
     await tester.pumpAndSettle();
     expect(find.text('group/parent'), findsOneWidget);
@@ -53,18 +52,5 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ListView), findsOneWidget);
     expect(find.text('group/parent'), findsOneWidget);
-  });
-
-  testWidgets('Bundled provider and agent vectors decode', (tester) async {
-    for (final asset in {
-      ...providerBrandAssets.values,
-      ...agentBrandAssets.values,
-    }.where((s) => s.endsWith('.svg'))) {
-      final data = await SvgAssetLoader(
-        'brands/$asset',
-        packageName: 'crabforge_assets',
-      ).loadBytes(null);
-      expect(data.lengthInBytes, greaterThan(0), reason: asset);
-    }
   });
 }

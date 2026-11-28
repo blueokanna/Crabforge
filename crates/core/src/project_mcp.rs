@@ -59,7 +59,6 @@ fn target(agent: &str) -> Result<Target> {
             container: &["mcp_servers"],
             template: "command = \"path-to-server\"\nargs = []\n",
         },
-        "gemini" => json_target(".gemini/settings.json"),
         "cursor" => json_target(".cursor/mcp.json"),
         "opencode" => Target {
             file: "opencode.json",

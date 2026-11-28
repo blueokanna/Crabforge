@@ -1,6 +1,6 @@
 use crate::config::Endpoints;
 
-// Magpie's presets supply these lists for services without a usable model
+// backup's presets supply these lists for services without a usable model
 // catalog. Account permissions and regional availability still apply.
 const BEDROCK: &[&str] = &[
     "global.anthropic.claude-opus-5-5",

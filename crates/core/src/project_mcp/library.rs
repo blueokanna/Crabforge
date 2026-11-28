@@ -12,8 +12,8 @@ use std::{
 use toml_edit::{Array, DocumentMut, InlineTable, value};
 use url::Url;
 
-mod magpie;
-pub use magpie::import_magpie;
+mod backup;
+pub use backup::import_backup;
 
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
 
@@ -63,7 +63,7 @@ impl Config {
         let url = self.url.as_deref().unwrap_or_default();
         let sse = self.transport == "sse";
         ensure!(
-            !sse || !matches!(agent, "codex" | "pi" | "trae-cn"),
+            !sse || !matches!(agent, "agy" | "antigravity" | "codex" | "pi" | "trae-cn"),
             "{agent} project MCP requires stdio or streamable HTTP"
         );
         if agent == "codex" {
@@ -111,7 +111,6 @@ impl Config {
             entry
         } else {
             let key = match agent {
-                "gemini" if !sse => "httpUrl",
                 "agy" | "antigravity" => "serverUrl",
                 _ => "url",
             };
@@ -119,10 +118,7 @@ impl Config {
             if agent == "opencode" {
                 entry.insert("type".into(), json!("remote"));
                 entry.insert("enabled".into(), json!(true));
-            } else if typed
-                || matches!(agent, "qoder" | "qoder-cn")
-                || (sse && matches!(agent, "agy" | "antigravity"))
-            {
+            } else if typed || matches!(agent, "qoder" | "qoder-cn") {
                 entry.insert("type".into(), json!(self.transport));
             }
             if let Some(headers) = &self.headers {
@@ -271,7 +267,25 @@ fn placement_view(dir: &Path, assignment: &Assignment) -> Result<NativeView> {
 impl Store {
     fn load(path: &Path) -> Result<Self> {
         match read_limited(path, MAX_LIBRARY) {
-            Ok(bytes) => nextjson::from_slice(&bytes).map_err(anyhow::Error::msg),
+            Ok(bytes) => {
+                let mut store: Self = nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?;
+                for server in store.servers.values_mut() {
+                    server
+                        .assignments
+                        .retain(|assignment| assignment.agent != "gemini");
+                }
+                store
+                    .applied
+                    .retain(|record| record.assignment.agent != "gemini");
+                if store
+                    .pending
+                    .as_ref()
+                    .is_some_and(|pending| pending.assignment.agent == "gemini")
+                {
+                    store.pending = None;
+                }
+                Ok(store)
+            }
             Err(error) if error.kind() == ErrorKind::NotFound => Ok(Self::default()),
             Err(error) => Err(error.into()),
         }
@@ -625,10 +639,10 @@ mod tests {
         let root = tempfile::tempdir()?;
         let dir = root.path().join("data");
         let project = root.path();
-        fs::create_dir(project.join(".gemini"))?;
-        let gemini = project.join(".gemini/settings.json");
+        fs::create_dir(project.join(".agents"))?;
+        let antigravity = project.join(".agents/mcp_config.json");
         fs::write(
-            &gemini,
+            &antigravity,
             "{\n// keep this comment\n\"context\": {},\n\"mcpServers\": {\"existing\": {\"command\": \"mine\"}}\n}\n",
         )?;
         let saved = report(
@@ -646,19 +660,19 @@ mod tests {
             enabled: true,
             expected: server_revision(view),
         };
-        let first = report(&dir, assign("gemini", &saved))?;
+        let first = report(&dir, assign("antigravity", &saved))?;
         assert!(report(&dir, assign("codex", &saved)).is_err());
         let second = report(&dir, assign("codex", &first))?;
         let settings = project.join(".codex/config.toml");
         let codex = fs::read_to_string(&settings)?;
         assert!(codex.contains("[mcp_servers.diagnostics]"));
         assert!(codex.contains("env = { UNIT = \"ms\" }"));
-        let gemini_text = fs::read_to_string(&gemini)?;
-        assert!(gemini_text.contains("// keep this comment"));
-        assert!(gemini_text.contains("\"existing\": {\"command\": \"mine\"}"));
+        let antigravity_text = fs::read_to_string(&antigravity)?;
+        assert!(antigravity_text.contains("// keep this comment"));
+        assert!(antigravity_text.contains("\"existing\": {\"command\": \"mine\"}"));
         fs::write(
-            &gemini,
-            gemini_text.replace("\"--measure\"", "/* local note */ \"--measure\""),
+            &antigravity,
+            antigravity_text.replace("\"--measure\"", "/* local note */ \"--measure\""),
         )?;
         let updated = report(
             &dir,
@@ -669,7 +683,7 @@ mod tests {
             },
         )?;
         assert_eq!(
-            updated.pointer("/placements/1/status").unwrap(),
+            updated.pointer("/placements/0/status").unwrap(),
             &json!("conflict")
         );
         let changed = fs::read_to_string(&settings)?;
@@ -685,15 +699,17 @@ mod tests {
         )?;
         assert_eq!(
             removed.pointer("/placements/0/status").unwrap(),
-            &json!("removed")
+            &json!("conflict")
         );
         assert_eq!(
             removed.pointer("/placements/1/status").unwrap(),
-            &json!("conflict")
+            &json!("removed")
         );
         assert!(!fs::read_to_string(settings)?.contains("diagnostics"));
-        let gemini_text = fs::read_to_string(gemini)?;
-        assert!(gemini_text.contains("/* local note */") && gemini_text.contains("existing"));
+        let antigravity_text = fs::read_to_string(antigravity)?;
+        assert!(
+            antigravity_text.contains("/* local note */") && antigravity_text.contains("existing")
+        );
         Ok(())
     }
 

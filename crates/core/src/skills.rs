@@ -14,11 +14,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+mod backup;
 mod catalog;
-mod magpie;
 mod remote;
 pub(crate) mod tree;
-pub use magpie::import_magpie;
+pub use backup::import_backup;
 pub(crate) use remote::{
     is_repository_url, load_repository_document, load_repository_tree, read_plugin_archive,
     visit_repository_documents,
@@ -26,7 +26,7 @@ pub(crate) use remote::{
 use tree::Tree;
 pub(crate) use tree::is_link;
 
-const AGENTS: &[&str] = &["claude", "codex", "gemini", "opencode", "pi"];
+const AGENTS: &[&str] = &["agy", "claude", "codex", "opencode", "pi"];
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
 const MAX_FRONT_MATTER: usize = 64 * 1024;
 
@@ -224,9 +224,6 @@ fn homes(dir: &Path) -> Result<Homes> {
     let codex = NativeAgent::Codex
         .home()
         .context("Codex profile is unavailable")?;
-    let gemini = setting("GEMINI_CLI_HOME")
-        .unwrap_or_else(|| home.clone())
-        .join(".gemini");
     let opencode = setting("OPENCODE_CONFIG_DIR").unwrap_or_else(|| {
         setting("XDG_CONFIG_HOME")
             .unwrap_or_else(|| home.join(".config"))
@@ -234,9 +231,9 @@ fn homes(dir: &Path) -> Result<Homes> {
     });
     let pi = setting("PI_CODING_AGENT_DIR").unwrap_or_else(|| home.join(".pi/agent"));
     Ok(BTreeMap::from([
+        ("agy", vec![home.join(".gemini/config")]),
         ("claude", vec![claude]),
         ("codex", vec![codex]),
-        ("gemini", vec![gemini, dir.join("agents/gemini/.gemini")]),
         ("opencode", vec![opencode]),
         ("pi", vec![pi, dir.join("agents/pi")]),
     ]))
@@ -300,7 +297,23 @@ fn snapshot(library: &Path, content: &str, tree: &Tree) -> Result<()> {
 impl Store {
     fn load(path: &Path) -> Result<Self> {
         match read_limited(path, MAX_LIBRARY) {
-            Ok(bytes) => nextjson::from_slice(&bytes).map_err(anyhow::Error::msg),
+            Ok(bytes) => {
+                let mut store: Self = nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?;
+                for skill in store.skills.values_mut() {
+                    skill.agents.retain(|agent| agent != "gemini");
+                }
+                store
+                    .applied
+                    .retain(|applied| applied.target.agent != "gemini");
+                if store
+                    .pending
+                    .as_ref()
+                    .is_some_and(|pending| pending.target.agent == "gemini")
+                {
+                    store.pending = None;
+                }
+                Ok(store)
+            }
             Err(error) if error.kind() == ErrorKind::NotFound => Ok(Self::default()),
             Err(error) => Err(error.into()),
         }
@@ -1096,15 +1109,15 @@ mod tests {
     fn reconciles_the_native_and_gateway_profiles_for_one_agent() -> Result<()> {
         let root = tempfile::tempdir()?;
         let dir = root.path().join("data");
-        let native = root.path().join("native/.gemini");
-        let gateway = dir.join("agents/gemini/.gemini");
-        let homes = BTreeMap::from([("gemini", vec![native.clone(), gateway.clone()])]);
+        let native = root.path().join("native/pi");
+        let gateway = dir.join("agents/pi");
+        let homes = BTreeMap::from([("pi", vec![native.clone(), gateway.clone()])]);
         let imported = report(
             &dir,
             &homes,
             Edit::Import {
                 source: source(root.path())?,
-                agents: vec!["gemini".into()],
+                agents: vec!["pi".into()],
                 expected: None,
             },
         )?;
@@ -1116,7 +1129,7 @@ mod tests {
                 [0, 100, 255]
             );
         }
-        let aliased = BTreeMap::from([("gemini", vec![gateway.clone(), gateway.canonicalize()?])]);
+        let aliased = BTreeMap::from([("pi", vec![gateway.clone(), gateway.canonicalize()?])]);
         assert_eq!(statuses(&report(&dir, &aliased, Edit::Read)?), ["applied"]);
         let edited = folder(&native).join("references/units.bin");
         fs::write(&edited, b"local edit")?;

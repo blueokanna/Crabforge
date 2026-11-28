@@ -11,14 +11,14 @@ use std::{
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use yaml_edit::{Mapping, Sequence, YamlFile};
 
+mod backup;
 mod digest;
 pub mod distill;
-mod magpie;
 pub mod mcp;
 mod project;
 
+pub use backup::import_backup;
 pub use digest::{agent_digest, project_digest};
-pub use magpie::import_magpie;
 pub use project::key as project_key;
 
 const MAX_FILE: usize = 256 * 1024;
@@ -508,7 +508,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn reads_magpie_markdown_and_preserves_provenance_when_archiving() -> Result<()> {
+    fn reads_imported_markdown_and_preserves_provenance_when_archiving() -> Result<()> {
         let home = tempfile::tempdir()?;
         let root = home.path();
         fs::create_dir(root.join("memory"))?;

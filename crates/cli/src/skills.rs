@@ -20,15 +20,15 @@ pub(super) enum Command {
     /// Import a local folder or a Git source for a skill and its supporting files.
     Import {
         source: PathBuf,
-        /// Assign to claude, codex, gemini, opencode or pi. Repeat for each agent.
+        /// Assign to claude, codex, opencode or pi. Repeat for each agent.
         #[arg(long = "agent")]
         agents: Vec<String>,
         /// Require the revision from list when updating an existing skill.
         #[arg(long)]
         revision: Option<String>,
     },
-    /// Preview or restore complete skills from an encrypted Magpie backup.
-    ImportMagpie {
+    /// Preview or restore complete skills from an encrypted backup.
+    ImportBackup {
         file: PathBuf,
         /// Repeat to select several names. The default selects all skills.
         #[arg(long = "name")]
@@ -71,9 +71,9 @@ pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
             println!("{}", skills::discover(dir)?);
             return Ok(());
         }
-        Command::ImportMagpie { file, names, apply } => {
+        Command::ImportBackup { file, names, apply } => {
             let passphrase = super::backup_passphrase()?;
-            let report = skills::import_magpie(dir, &file, &passphrase, &names, apply)?;
+            let report = skills::import_backup(dir, &file, &passphrase, &names, apply)?;
             println!(
                 "{}",
                 nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?

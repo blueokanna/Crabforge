@@ -11,11 +11,11 @@ use std::{
 use toml_edit::{DocumentMut, value};
 
 const SUBAGENTS: &[&str] = &[
-    "claude", "codex", "opencode", "gemini", "qwen", "droid", "grok", "cursor", "copilot",
+    "claude", "codex", "opencode", "qwen", "droid", "grok", "cursor", "copilot", "agy",
 ];
-const COMMANDS: &[&str] = &["claude", "opencode", "pi", "gemini", "qwen", "droid"];
+const COMMANDS: &[&str] = &["claude", "opencode", "pi", "qwen", "droid"];
 const PROJECT_SUBAGENTS: &[&str] = &[
-    "claude", "codex", "opencode", "gemini", "qwen", "droid", "cursor", "copilot", "agy",
+    "claude", "codex", "opencode", "qwen", "droid", "cursor", "copilot", "agy",
 ];
 
 pub(super) fn user_agents(kind: Kind) -> &'static [&'static str] {
@@ -55,7 +55,6 @@ impl Profiles {
                     ("claude", vec![project.join(".claude")]),
                     ("codex", vec![project.join(".codex")]),
                     ("opencode", vec![project.join(".opencode")]),
-                    ("gemini", vec![project.join(".gemini")]),
                     ("qwen", vec![project.join(".qwen")]),
                     ("droid", vec![project.join(".factory")]),
                     ("cursor", vec![project.join(".cursor")]),
@@ -78,13 +77,11 @@ impl Profiles {
             .home()
             .context("Codex profile is unavailable")?;
         let opencode = profile("XDG_CONFIG_HOME", ".config").join("opencode");
-        let gemini = setting("GEMINI_CLI_HOME")
-            .unwrap_or_else(|| home.clone())
-            .join(".gemini");
         let droid = setting("FACTORY_HOME_OVERRIDE")
             .unwrap_or_else(|| home.clone())
             .join(".factory");
         let homes = BTreeMap::from([
+            ("agy", vec![home.join(".gemini/config")]),
             ("claude", vec![claude]),
             ("codex", vec![codex]),
             ("opencode", vec![opencode]),
@@ -95,7 +92,6 @@ impl Profiles {
                     data.join("agents/pi"),
                 ],
             ),
-            ("gemini", vec![gemini, data.join("agents/gemini/.gemini")]),
             (
                 "qwen",
                 vec![profile("QWEN_HOME", ".qwen"), data.join("agents/qwen")],
@@ -125,7 +121,6 @@ impl Profiles {
             (Kind::Subagent, "droid") => ("droids", ".md"),
             (Kind::Subagent, "copilot") => ("agents", ".agent.md"),
             (Kind::Subagent, _) => ("agents", ".md"),
-            (Kind::Command, "gemini") => ("commands", ".toml"),
             (Kind::Command, "pi") => ("prompts", ".md"),
             (Kind::Command, _) => ("commands", ".md"),
         };
@@ -295,7 +290,7 @@ pub(super) fn command(agent: &str, toml: bool, entry: &Entry) -> Result<String> 
             % 2
             == 0
     });
-    if matches!(agent, "gemini" | "qwen" | "droid") {
+    if matches!(agent, "qwen" | "droid") {
         ensure!(
             !positions
                 .into_iter()
@@ -321,7 +316,7 @@ pub(super) fn command(agent: &str, toml: bool, entry: &Entry) -> Result<String> 
         expanded.push_str(&prompt[cursor..]);
         prompt = expanded;
     }
-    if matches!(agent, "gemini" | "qwen") {
+    if matches!(agent, "qwen") {
         prompt = prompt.replace("$ARGUMENTS", "{{args}}");
     }
     if toml {

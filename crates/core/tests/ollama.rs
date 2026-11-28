@@ -17,7 +17,7 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
             let signal = signal.clone();
             async move {
                 assert!(!headers.contains_key("authorization"));
-                assert!(!headers.contains_key("x-magpie-session") && !headers.contains_key("x-session-affinity"));
+                assert!(!headers.contains_key("x-crabforge-session") && !headers.contains_key("x-session-affinity"));
                 assert_eq!(req["model"], json!("m"));
                 assert_eq!(req["messages"][0]["tool_calls"][0]["function"]["arguments"], json!("{\"x\":1}"));
                 assert_eq!(req["messages"][1]["tool_call_id"], req["messages"][0]["tool_calls"][0]["id"]);
@@ -100,7 +100,7 @@ async fn ollama_routes_preserve_streamed_calls_usage_and_fallback() -> Result<()
         {"role":"assistant","tool_calls":[{"function":{"name":"sum","arguments":{"x":1}}}]},
         {"role":"tool","tool_name":"sum","content":"1"}]});
     let mut resp = post("chat", req)
-        .header("x-magpie-session", "gateway-session")
+        .header("x-crabforge-session", "gateway-session")
         .header("x-session-affinity", "native-session")
         .send()
         .await?

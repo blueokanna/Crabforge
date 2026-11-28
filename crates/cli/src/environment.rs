@@ -13,8 +13,8 @@ pub(super) enum Command {
         #[arg(long)]
         show_values: bool,
     },
-    /// Preview or restore environment variables from an encrypted Magpie backup.
-    ImportMagpie {
+    /// Preview or restore environment variables from an encrypted backup.
+    ImportBackup {
         file: PathBuf,
         /// Repeat to select several names. The default selects all variables.
         #[arg(long = "name")]
@@ -46,9 +46,9 @@ pub(super) enum Command {
 pub(super) fn run(dir: &Path, command: Command) -> Result<()> {
     let (edit, reveal) = match command {
         Command::List { show_values } => (Edit::Read, show_values),
-        Command::ImportMagpie { file, names, apply } => {
+        Command::ImportBackup { file, names, apply } => {
             let passphrase = super::backup_passphrase()?;
-            let report = environment::import_magpie(dir, &file, &passphrase, &names, apply)?;
+            let report = environment::import_backup(dir, &file, &passphrase, &names, apply)?;
             println!(
                 "{}",
                 nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?

@@ -288,7 +288,7 @@ pub(super) fn portable_arguments(agent: &str, prompt: &str) -> String {
             })
             .into_owned(),
         "pi" => prompt.replace("$@", "$ARGUMENTS"),
-        "gemini" | "qwen" => prompt.replace("{{args}}", "$ARGUMENTS"),
+        "qwen" => prompt.replace("{{args}}", "$ARGUMENTS"),
         _ => prompt.to_owned(),
     }
 }

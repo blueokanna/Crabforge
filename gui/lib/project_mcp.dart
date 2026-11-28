@@ -18,7 +18,6 @@ const projectMcpAgents = {
   'codex',
   'cursor',
   'droid',
-  'gemini',
   'opencode',
   'pi',
   'qoder',

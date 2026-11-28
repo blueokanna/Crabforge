@@ -1,5 +1,5 @@
 use super::{MAX_DOCUMENT, Section, edit_agent, read_agent, updated};
-use crate::config::open_magpie_backup;
+use crate::config::open_import_backup;
 use anyhow::{Context, Result, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize};
 use std::{collections::BTreeMap, path::Path};
@@ -26,7 +26,7 @@ struct InstructionSet {
     name: String,
 }
 
-pub struct MagpieInstructions<'a> {
+pub struct BackupInstructions<'a> {
     pub agent: &'a str,
     pub set: Option<&'a str>,
     pub revision: Option<&'a str>,
@@ -49,33 +49,33 @@ pub struct ImportReport {
 }
 
 /// Import a shared instruction set and the selected agent's additions into its user profile.
-pub fn import_magpie(
+pub fn import_backup(
     dir: &Path,
     file: &Path,
     passphrase: &str,
-    options: MagpieInstructions<'_>,
+    options: BackupInstructions<'_>,
 ) -> Result<ImportReport> {
-    let MagpieInstructions {
+    let BackupInstructions {
         agent,
         set,
         revision,
         apply,
     } = options;
-    let mut backup = open_magpie_backup(file, passphrase)?;
+    let mut backup = open_import_backup(file, passphrase)?;
     let library: Library = nextjson::from_value(
         backup
             .remove("library")
             .filter(|value| !value.is_null())
-            .context("Magpie backup has no library section")?,
+            .context("encrypted backup has no library section")?,
     )
-    .map_err(|_| anyhow::anyhow!("invalid Magpie instruction sets"))?;
+    .map_err(|_| anyhow::anyhow!("invalid backup instruction sets"))?;
     let instructions = library.instructions;
     let mut named_sets = BTreeMap::new();
     for set in instructions.sets.unwrap_or_default() {
-        ensure!(!set.id.is_empty(), "empty Magpie instruction set ID");
+        ensure!(!set.id.is_empty(), "empty backup instruction set ID");
         ensure!(
             named_sets.insert(set.id.clone(), set).is_none(),
-            "duplicate Magpie instruction set ID"
+            "duplicate backup instruction set ID"
         );
     }
     named_sets
@@ -91,7 +91,7 @@ pub fn import_magpie(
     let selected_set = set.unwrap_or(&active_set);
     ensure!(
         named_sets.contains_key(selected_set),
-        "Magpie instruction set {selected_set:?} was not found"
+        "backup instruction set {selected_set:?} was not found"
     );
     let mut texts = library.texts.unwrap_or_default();
     let mut extras = library.extra.unwrap_or_default();

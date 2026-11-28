@@ -16,8 +16,8 @@ pub(super) enum Command {
     ProbeSource { source: String },
     /// Import selected resource files from a preview request read as UTF-8 JSON.
     ImportSource,
-    /// Preview or restore user library definitions from an encrypted Magpie backup.
-    ImportMagpie {
+    /// Preview or restore user library definitions from an encrypted backup.
+    ImportBackup {
         file: PathBuf,
         /// Repeat to select several names. The default selects the whole section.
         #[arg(long = "name")]
@@ -67,13 +67,13 @@ pub(super) fn run(dir: &Path, kind: Kind, project: Option<&Path>, command: Comma
         Command::ImportSource => Edit::ImportSource {
             request: ImportRequest::from_json(&document()?)?,
         },
-        Command::ImportMagpie { file, names, apply } => {
+        Command::ImportBackup { file, names, apply } => {
             ensure!(
                 project.is_none(),
-                "import Magpie resources into the user library"
+                "import backup resources into the user library"
             );
             let passphrase = super::backup_passphrase()?;
-            let report = agent_files::import_magpie(dir, kind, &file, &passphrase, &names, apply)?;
+            let report = agent_files::import_backup(dir, kind, &file, &passphrase, &names, apply)?;
             println!(
                 "{}",
                 nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?

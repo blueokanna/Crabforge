@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 pub enum Command {
     /// List rules, revisions and native file statuses as JSON.
     List,
-    /// Preview or restore Markdown rules from an encrypted Magpie backup.
-    ImportMagpie {
+    /// Preview or restore Markdown rules from an encrypted backup.
+    ImportBackup {
         file: PathBuf,
         /// Repeat to select several names. The default selects all rules.
         #[arg(long = "name")]
@@ -52,9 +52,9 @@ pub enum Command {
 pub fn run(dir: &Path, command: Command) -> Result<()> {
     let edit = match command {
         Command::List => Edit::Read,
-        Command::ImportMagpie { file, names, apply } => {
+        Command::ImportBackup { file, names, apply } => {
             let passphrase = super::backup_passphrase()?;
-            let report = rules::import_magpie(dir, &file, &passphrase, &names, apply)?;
+            let report = rules::import_backup(dir, &file, &passphrase, &names, apply)?;
             println!(
                 "{}",
                 nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?

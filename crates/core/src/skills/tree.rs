@@ -75,7 +75,7 @@ impl Tree {
     ) -> Result<Self> {
         ensure!(
             executable.iter().all(|name| files.contains_key(name)),
-            "a Magpie skill marks a missing file executable"
+            "a backup skill marks a missing file executable"
         );
         ensure!(files.len() <= MAX_ENTRIES, "too many skill files");
         let mut tree = Self::default();

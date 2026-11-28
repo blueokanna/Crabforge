@@ -30,20 +30,13 @@ class WorkspaceBrand extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Image.asset(
-        'crabforge.png',
-        package: 'crabforge_assets',
-        width: 32,
-        height: 32,
-        cacheWidth: (32 * MediaQuery.devicePixelRatioOf(context)).ceil(),
-        excludeFromSemantics: true,
+      Icon(
+        CrabforgeSymbols.hub,
+        size: 28,
+        color: Theme.of(context).colorScheme.primary,
       ),
       const SizedBox(width: 10),
-      Text(
-        'Crabforge',
-        style: Theme.of(context).textTheme.titleLarge
-            ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.7),
-      ),
+      Text('Crabforge', style: Theme.of(context).textTheme.titleLarge),
     ],
   );
 }

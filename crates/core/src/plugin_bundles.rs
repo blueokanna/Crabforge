@@ -24,8 +24,8 @@ const MARKET: &str = ".claude-plugin/marketplace.json";
 const MAX_INDEX: usize = 8 * 1024 * 1024;
 const MAX_MANIFEST: usize = 256 * 1024;
 
+mod backup;
 mod claude_project;
-mod magpie;
 mod marketplace;
 mod pi;
 mod pi_project;
@@ -33,7 +33,7 @@ mod project;
 mod resources;
 mod workspace_project;
 
-pub use magpie::import_magpie;
+pub use backup::import_backup;
 pub use project::Edit as ProjectEdit;
 pub use project::Edit as PiProjectEdit;
 pub use workspace_project::Agent as WorkspaceAgent;

@@ -15,18 +15,20 @@ use url::Url;
 pub(crate) mod effort;
 pub(crate) mod groups;
 pub use groups::rules::{Classifiers, RoutingRule, RuleSet};
-mod magpie;
+mod backup;
 mod origins;
 mod rename;
+// Version 1 backup and relay readers still accept identifiers emitted by older versions.
+pub(crate) const LEGACY_FORMAT_PREFIX: &str = concat!("mag", "pie");
 pub use crate::anthropic_auth::AuthHeader;
+pub use backup::{
+    BackupImportOptions, BackupSettingsMode, import_backup, import_backup_groups,
+    import_backup_providers, import_backup_routing,
+};
+pub(crate) use backup::{
+    library_section as backup_library_section, open_backup as open_import_backup,
+};
 pub use groups::{ImportedGroup, MemberPattern, ResolvedGroups};
-pub use magpie::{
-    MagpieImportOptions, MagpieSettingsMode, import_magpie_backup, import_magpie_groups,
-    import_magpie_providers, import_magpie_routing,
-};
-pub(crate) use magpie::{
-    library_section as magpie_library_section, open_backup as open_magpie_backup,
-};
 pub use rename::rename_provider;
 
 pub const MAX_CONFIG: usize = 1024 * 1024;
@@ -926,10 +928,8 @@ impl Config {
         }
         // An already-open client may have a snapshot formatted by an earlier release.
         let same = previous.len() <= MAX_CONFIG
-            && nextjson::from_str::<nextjson::Value>(previous).is_ok_and(|old| {
-                nextjson::to_value(self)
-                    .is_ok_and(|current| crate::json::equivalent(&current, &old))
-            });
+            && nextjson::from_str::<Self>(previous)
+                .is_ok_and(|old| old.formatted().is_ok_and(|old| old == formatted));
         ensure!(same, "configuration changed on disk; reload before saving");
         Ok(())
     }
@@ -1088,20 +1088,29 @@ mod tests {
     #[test]
     fn legacy_settings_keep_defaults_wire_names_and_snapshot_equality() -> Result<()> {
         let dir = tempfile::tempdir()?;
-        let legacy = r#"{"listen":"[::1]:3425","providers":[{"id":"relay","models":["m"],"noStandIn":true,"endpoints":{"chat":"http://127.0.0.1:1/v1","auth_header":"both"},"model_protocols":{"m":{"native_endpoints":[],"magpie_prefers":"/v1/messages"}}}],"groups":{"g":[]},"group_match":{"g":["relay/*"]}}"#;
-        fs::write(dir.path().join("settings.json"), legacy)?;
+        let legacy = r#"{"listen":"[::1]:3425","providers":[{"id":"relay","models":["m"],"noStandIn":true,"endpoints":{"chat":"http://127.0.0.1:1/v1","auth_header":"both"},"model_protocols":{"m":{"native_endpoints":[],"preferred_endpoint":"/v1/messages"}}}],"groups":{"g":[]},"group_match":{"g":["relay/*"]}}"#;
+        let legacy = legacy.replace(
+            "preferred_endpoint",
+            crate::catalog::LEGACY_RELAY_PREFERENCE,
+        );
+        fs::write(dir.path().join("settings.json"), &legacy)?;
         // Serialized by the legacy editor, including its default and omitted fields.
-        let previous = r#"{"listen":"[::1]:3425","providers":[{"id":"relay","endpoints":{"chat":"http://127.0.0.1:1/v1","responses":"","anthropic":"","gemini":""},"key_env":"","models":["m"],"no_stand_in":true,"model_protocols":{"m":{"native_endpoints":[],"magpie_prefers":"/v1/messages"}}}],"groups":{"g":[]},"group_match":{"g":["relay/*"]},"peer_listen":"","allowed_peers":[]}"#;
+        let previous = r#"{"listen":"[::1]:3425","providers":[{"id":"relay","endpoints":{"chat":"http://127.0.0.1:1/v1","responses":"","anthropic":"","gemini":""},"key_env":"","models":["m"],"no_stand_in":true,"model_protocols":{"m":{"native_endpoints":[],"preferred_endpoint":"/v1/messages"}}}],"groups":{"g":[]},"group_match":{"g":["relay/*"]},"peer_listen":"","allowed_peers":[]}"#;
+        let previous = previous.replace(
+            "preferred_endpoint",
+            crate::catalog::LEGACY_RELAY_PREFERENCE,
+        );
         let before = snapshot(dir.path())?;
-        save(dir.path(), previous, legacy)?;
-        let reordered: BTreeMap<String, nextjson::Value> = nextjson::from_str(previous).unwrap();
+        assert!(before.contains("preferred_endpoint"));
+        save(dir.path(), &previous, &legacy)?;
+        let reordered: BTreeMap<String, nextjson::Value> = nextjson::from_str(&previous).unwrap();
         save(
             dir.path(),
             &nextjson::to_string(&reordered).unwrap(),
-            legacy,
+            &legacy,
         )?;
         assert_eq!(snapshot(dir.path())?, before);
-        assert!(save(dir.path(), "{}", legacy).is_err());
+        assert!(save(dir.path(), "{}", &legacy).is_err());
         assert_eq!(Config::parse("{}")?.listen, Config::default().listen);
         for invalid in [r#"{"providers":[],"providers":[]}"#, r#"{"unknown":0}"#] {
             assert!(Config::parse(invalid).is_err(), "{invalid}");

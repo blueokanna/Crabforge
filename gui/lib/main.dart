@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 
 import 'material_symbols.dart';
 import 'appearance.dart';
-import 'brand_icon.dart';
 import 'agent_environment.dart';
 import 'agent_files.dart';
 import 'agent_hooks.dart';
@@ -883,7 +882,10 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                   selected: widget.font == font,
                   label: Text(
                     font.label,
-                    style: TextStyle(fontFamily: font.family),
+                    style: TextStyle(
+                      fontFamily: font.family,
+                      fontFamilyFallback: font.fallback,
+                    ),
                   ),
                 ),
             ],
@@ -1022,8 +1024,10 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           grid: grid,
           title: collectionTitle(p['id']),
           detail: Text((p['models'] as List).join(' · ')),
-          leading: BrandIcon.provider(
-            p['web_site'] == null ? p['id'] : '${p['web_site']}-web',
+          leading: Icon(
+            p['web_site'] == null
+                ? CrabforgeSymbols.hub
+                : CrabforgeSymbols.link,
           ),
           onTap: busy || running
               ? null
@@ -1072,7 +1076,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                         providers.any((p) => p['id'] == '${s.$2}-web')
                     ? null
                     : () => addWeb(s.$2),
-                icon: BrandIcon.provider('${s.$2}-web', size: 18),
+                icon: const Icon(CrabforgeSymbols.link, size: 18),
                 label: Text(context.strings.webSite(s.$1)),
               ),
           ],
@@ -1584,14 +1588,10 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                   enableFilter: true,
                   menuHeight: 240,
                   initialSelection: selectedAgent,
-                  leadingIcon: BrandIcon.agent(selectedAgent),
+                  leadingIcon: const Icon(CrabforgeSymbols.terminal),
                   dropdownMenuEntries: [
                     for (final (id, name) in agents)
-                      DropdownMenuEntry(
-                        value: id,
-                        label: name,
-                        leadingIcon: BrandIcon.agent(id),
-                      ),
+                      DropdownMenuEntry(value: id, label: name),
                   ],
                   onSelected: (v) {
                     if (v != null) setState(() => selectedAgent = v);
@@ -1804,7 +1804,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           return Card.filled(
             child: ListTile(
               selected: selectedAgent == id,
-              leading: BrandIcon.agent(id),
+              leading: const Icon(CrabforgeSymbols.terminal),
               title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: name == id
                   ? null
@@ -1993,9 +1993,11 @@ class _ModelCatalogState extends State<ModelCatalog> {
                   final row = rows[i];
                   final group = row.group;
                   final provider = row.provider;
-                  final brand = group != null
-                      ? const Icon(CrabforgeSymbols.accountTree)
-                      : BrandIcon.model(row.id);
+                  final icon = Icon(
+                    group != null
+                        ? CrabforgeSymbols.accountTree
+                        : CrabforgeSymbols.memory,
+                  );
                   final actions = [
                     if (group != null ||
                         (provider != null && provider['web_site'] == null))
@@ -2025,7 +2027,7 @@ class _ModelCatalogState extends State<ModelCatalog> {
                   ];
                   return CollectionTile(
                     grid: grid,
-                    leading: brand,
+                    leading: icon,
                     title: grid
                         ? Tooltip(
                             message: row.id,

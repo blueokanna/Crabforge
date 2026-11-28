@@ -23,7 +23,6 @@ void main() {
     for (final (variable, profile) in [
       ('CLAUDE_CONFIG_DIR', 'claude'),
       ('CODEX_HOME', 'codex'),
-      ('GEMINI_CLI_HOME', 'gemini'),
     ]) {
       if (Directory(Platform.environment[variable] ?? '').uri !=
           Directory('$root/$profile').uri) {
@@ -84,17 +83,15 @@ void main() {
     await tap(below(commands, find.text('Add slash command')));
     await enter('Name', 'check');
     await enter('Prompt', r'Check $ARGUMENTS.');
-    await tap(find.widgetWithText(FilterChip, 'Gemini CLI'));
+    await tap(find.widgetWithText(FilterChip, 'Claude Code'));
     await tap(find.widgetWithText(FilledButton, 'Save'));
     final command = find.byKey(const ValueKey('check'));
     await waitFor(command);
     await verifyLayout(commands, false);
-    for (final profile in ['gemini', 'agents/gemini']) {
-      expect(
-        File('$root/$profile/.gemini/commands/check.toml').readAsStringSync(),
-        contains('{{args}}'),
-      );
-    }
+    expect(
+      File('$root/claude/commands/check.md').readAsStringSync(),
+      contains(r'Check $ARGUMENTS.'),
+    );
     tester.view.physicalSize = const Size(1280, 900);
     await tester.pumpAndSettle();
     await verifyLayout(commands, true);

@@ -22,7 +22,6 @@ void main() {
     for (final (variable, profile) in [
       ('CLAUDE_CONFIG_DIR', 'claude'),
       ('CODEX_HOME', 'codex'),
-      ('GEMINI_CLI_HOME', 'gemini'),
       ('CURSOR_HOME', 'cursor'),
       ('GROK_HOME', 'grok'),
     ]) {
@@ -104,7 +103,6 @@ void main() {
       'echo managed',
     );
     await tap(find.widgetWithText(FilterChip, 'Claude Code'));
-    await tap(find.widgetWithText(FilterChip, 'Gemini CLI'));
     if (checkDsh) {
       await tap(find.widgetWithText(FilterChip, 'DeepSeek Harness'));
     }
@@ -112,10 +110,6 @@ void main() {
     final managed = find.byKey(const ValueKey('managed'));
     await waitFor(managed);
     expect(settings.readAsStringSync(), contains('echo managed'));
-    expect(
-      File('$root/agents/gemini/.gemini/settings.json').readAsStringSync(),
-      contains('AfterAgent'),
-    );
     if (checkDsh) {
       await waitFor(below(managed, find.text('DeepSeek Harness · Applied')));
       expect(dshPatch.readAsStringSync(), contains('id: crabforge-hooks'));
@@ -136,10 +130,6 @@ void main() {
     expect(config['env']['PREEXISTING'], 'kept');
     expect(settings.readAsStringSync(), contains('echo existing'));
     expect(settings.readAsStringSync(), contains('echo external'));
-    expect(
-      File('$root/gemini/.gemini/settings.json').readAsStringSync(),
-      isNot(contains('echo managed')),
-    );
     if (checkDsh) {
       expect(dshPatch.readAsBytesSync(), originalDshPatch);
       expect(

@@ -73,9 +73,9 @@ carbforge-cli serve
 
 组也可以随供应商的模型目录变化。`carbforge-cli group set free-models 'free:workbuddy/*'` 创建只包含目录明确标记为免费的模型组。`*` 可以跨越 `/`，`re:` 接受匹配整个 `供应商/模型` 的正则表达式，默认忽略大小写，支持 `(?-i)` 及前瞻。默认先尝试显式成员，再按目录顺序尝试匹配项。`group show 组名` 列出每条规则的命中数。`group place 组名 成员列表` 可把指定成员移到最前，省略成员则恢复默认顺序。桌面编辑器可逐行输入规则，预览匹配模型并调整优先级。
 
-`carbforge-cli models 供应商 --sync` 用上游返回的模型 ID 和免费标记更新本机目录。如果会使显式成员失效，保存会报告哪个组引用了该模型。模式组可暂时匹配零项。下次启动网关时会使用更新后的目录。Magpie v1 分享携带 `match` 和 `placed`，收件人在自己的目录上重新匹配。
+`carbforge-cli models 供应商 --sync` 用上游返回的模型 ID 和免费标记更新本机目录。如果会使显式成员失效，保存会报告哪个组引用了该模型。模式组可暂时匹配零项。下次启动网关时会使用更新后的目录。路由组分享携带 `match` 和 `placed`，收件人在自己的目录上重新匹配。
 
-在桌面组卡片上选择「复制路由组以分享」，在另一台设备的「路由组 → 导入路由组」中粘贴。CLI 可用 `carbforge-cli group share work` 输出 Magpie v1 分享文本，用 `carbforge-cli group import work.json` 从 UTF-8 文件导入，省略文件名则读取标准输入。默认追加为新组；已有自定义组的 ID 与分享文本相同时，`--replace` 在原位置更新它并保留启停状态。导入报告列出缺失成员和本机采用的等价模型。当前可传递顺序、轮询、加权和手选策略、成员开关、目录可见性、备注与历史地址。导入器遇到尚未支持的策略或设置会报告错误。
+在桌面组卡片上选择「复制路由组以分享」，在另一台设备的「路由组 → 导入路由组」中粘贴。CLI 可用 `carbforge-cli group share work` 输出分享文本，用 `carbforge-cli group import work.json` 从 UTF-8 文件导入，省略文件名则读取标准输入。默认追加为新组。已有自定义组的 ID 与分享文本相同时，`--replace` 在原位置更新它并保留启停状态。导入报告列出缺失成员和本机采用的等价模型。当前可传递顺序、轮询、加权和手选策略、成员开关、目录可见性、备注与历史地址。导入器遇到尚未支持的策略或设置会报告错误。
 
 用 `carbforge-cli group switch daily off` 或点击组卡片左侧的开关，可停用已保存的组。重启网关后，客户端目录会移除该组，向其当前或历史地址发送请求会收到 HTTP 404。顺序、轮询和加权父组会跳过它。手动父组选中它时，请选择另一个可用成员。`group switch daily on` 可恢复原有成员、策略和目录规则。停用期间仍可编辑组，复制得到的新组会启用。自动发现的组须先编辑保存才能切换。
 
@@ -103,13 +103,13 @@ carbforge-cli agent deveco deepseek/deepseek-chat -- run "你好"
 carbforge-cli agents
 ```
 
-把示例中的模型替换为供应商实际提供的 ID，并安装相应客户端。启动器通过环境变量向子进程传递网关密钥。Gemini CLI 使用 Crabforge 数据目录下的 `agents/gemini` 配置。Pi 的 `agents/pi/models.json` 和 Goose 的 `agents/goose/config/custom_providers/crabforge.json` 包含裸模型名、供应商前缀名和路由组，启动器在每次运行时更新这两种目录中的对应文件。文件中只保存密钥变量名。Agent 请求的可用参数取决于上游协议，使用客户端的原生协议端点可保留其专用字段。`key` 用于手动配置客户端。
+把示例中的模型替换为供应商实际提供的 ID，并安装相应客户端。启动器通过环境变量向子进程传递网关密钥。Pi 的 `agents/pi/models.json` 和 Goose 的 `agents/goose/config/custom_providers/crabforge.json` 包含裸模型名、供应商前缀名和路由组，启动器在每次运行时更新这两个文件。文件中只保存密钥变量名。Agent 请求的可用参数取决于上游协议，使用客户端的原生协议端点可保留其专用字段。 [Antigravity 配置步骤](docs/antigravity.md#简体中文)
 
 Qwen Code 使用 `agents/qwen` 作为自己的配置目录。启动器选择 OpenAI 认证和该 Agent 的 Chat Completions 地址，并通过 `OPENAI_API_KEY` 将网关密钥传给子进程。
 
 Pi、mu、OmO 和 Prime Agent 各用 `agents/<客户端>/models.json`。启动器只更新其中的 `crabforge` 供应商，保留个人供应商条目，并为每个客户端写入它能解析的环境变量引用。
 
-连接另一个 Crabforge 或 Magpie 网关时，用 `carbforge-cli models 供应商 --sync` 或桌面的「读取模型目录」再保存。目录中的 `native_endpoints` 表示模型能直接处理的协议，`magpie_prefers` 表示上游首选协议。启动器据此配置每个模型。Pi 和 mu 的 Gemini 模型默认经 Chat 转换，OmO 和 Prime Agent 可直接使用 Gemini。Responses 模型支持严格模式，Messages 模型使用网关根地址。
+连接另一个模型网关时，用 `carbforge-cli models 供应商 --sync` 或桌面的「读取模型目录」再保存。目录中的 `native_endpoints` 表示模型能直接处理的协议，`preferred_endpoint` 表示上游首选协议。启动器据此配置每个模型。Pi 和 mu 的 Gemini 模型默认经 Chat 转换，OmO 和 Prime Agent 可直接使用 Gemini。Responses 模型支持严格模式，Messages 模型使用网关根地址。
 
 首次同步已有 Pi 格式的配置会建立模型协议记录。此后，在 `models.json` 中给某个模型指定一个此前未由 Crabforge 写入的 `api`，下次同步会保留它及同一条目中的 `baseUrl`、`compat`。删除模型的 `api` 可恢复自动选择。
 
@@ -136,7 +136,7 @@ carbforge-cli omp-roles --profile work --role default --reset
 
 更换模型时会沿用角色原有的思考级别。给默认角色选模型时，已有的全局 `enabledModels` 会允许该模型。给顾问选模型时，若此前没有显式启停设置，Crabforge 会启用顾问，重置角色时会撤回这次启用。若直接运行 `omp --profile work`，先启动网关，再在该终端设置 `$env:CRABFORGE_GATEWAY_KEY = (carbforge-cli key)`。新启动的 Oh My Pi 会按已保存的默认角色选择模型。
 
-「路由」页在每次尝试旁显示客户端提供的会话 ID。网关优先读取 `X-Crabforge-Session`，其次读取 `X-Magpie-Session`，最后读取客户端的原生会话头。带 ID 的已认证请求会在响应中收到 `X-Crabforge-Session` 和 `X-Magpie-Session`。Pi 和 Oh My Pi 16.0.6 起支持用 `x-session-affinity` 上报会话。路由页保留本网关进程最近 128 次尝试，重启会清空记录。
+「路由」页在每次尝试旁显示客户端提供的会话 ID。网关优先读取 `X-Crabforge-Session`，也支持部分客户端的原生会话头。带 ID 的已认证请求会在响应中收到 `X-Crabforge-Session`。Pi 和 Oh My Pi 16.0.6 起支持用 `x-session-affinity` 上报会话。路由页保留本网关进程最近 128 次尝试，重启会清空记录。
 
 浏览器页面需要跨来源访问网关时，在「网关 → 网络设置」中每行填一个来源，例如 `https://app.example.com` 或 `http://localhost:3000`，保存并启动网关。对应配置为 `"cors_origins":["https://app.example.com"]`。支持 HTTP、HTTPS 和具有完整 ID 的 Chrome、Firefox、Safari 扩展来源。页面的实际请求需要网关密钥，获得授权后可用 `response.headers.get('X-Crabforge-Session')` 读取会话 ID。Obsidian 的 `app://obsidian.md` 窗口也可以使用网关密钥访问。
 
@@ -218,8 +218,7 @@ Oh My Pi 桌面专项另用新的测试目录。将 `PI_CONFIG_DIR` 设为从 Wi
 
 从仓库根目录可以运行以下专项验收。
 
-- 将官方 Codex、Copilot、Claude Code、Gemini CLI、Pi、Oh My Pi、Goose、Qwen Code、Mistral Vibe、Crush、Kimi Code、nanobot、mu、OmO、Prime Agent、OpenCode V2、MiMo Code 和 DevEco Code 加入 `PATH`，执行 `cargo test --locked -p crabforge-cli --test agents -- --include-ignored --test-threads=1`。Windows 上的 Oh My Pi npm 入口还需要 Bun。
-- 将 `MAGPIE_TEST_EXE` 设为 Windows Magpie 可执行文件路径，执行 `cargo test --locked -p crabforge-cli --test magpie quic_client_reaches -- --ignored`。同时设置 `LLAMA_TEST_SERVER` 和 `LLAMA_TEST_GGUF` 后，执行 `cargo test --locked -p crabforge-cli --test magpie -- --ignored --nocapture` 可再验证 QUIC 经两个网关调用真实模型。
+- 将受测试的客户端加入 `PATH`，执行 `cargo test --locked -p crabforge-cli --test agents -- --include-ignored --test-threads=1`。各客户端测试的运行条件可用 `cargo test --locked -p crabforge-cli --test agents -- --list` 查看。Windows 上的 Oh My Pi npm 入口还需要 Bun。
 - 将 `KUBO_TEST_EXE` 设为 Kubo `ipfs` 可执行文件路径，执行 `cargo test --locked -p crabforge-core --test kubo -- --ignored`。测试创建临时 Kubo 仓库，在回环端口上验证两个方向的 QUIC 转发和 HTTP 密钥校验。
 - 将 `LLAMA_TEST_SERVER` 和 `LLAMA_TEST_GGUF` 分别设为 llama.cpp 服务程序与模型权重路径，执行 `cargo test --locked -p crabforge-core --test llama local_weights -- --ignored --nocapture`。再将 `OLLAMA_TEST_PYTHON` 指向已安装官方 `ollama` 包的 Python，执行 `cargo test --locked -p crabforge-core --test llama official_ollama -- --ignored --nocapture`，可复现原生客户端的端到端测试。
 - 设置 `CRABFORGE_CHROMEDRIVER`，执行 `cargo test --locked -p crabforge-core browser_submits -- --ignored`。

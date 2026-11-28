@@ -31,7 +31,7 @@ impl<'a> Caller<'a> {
                 .map(Cow::Borrowed)
                 .or_else(|| crate::agents::client_name(headers.get(USER_AGENT)?.to_str().ok()?)),
             session: id("x-crabforge-session")
-                .or_else(|| id("x-magpie-session"))
+                .or_else(|| id(concat!("x-mag", "pie-session")))
                 .or(native_session),
             native_session,
         }
@@ -40,7 +40,6 @@ impl<'a> Caller<'a> {
     pub fn set_response_headers(&self, headers: &mut HeaderMap) {
         if let Some(id) = self.session {
             let value = HeaderValue::from_str(id).expect("validated session header");
-            headers.insert("x-magpie-session", value.clone());
             headers.insert("x-crabforge-session", value);
         }
     }

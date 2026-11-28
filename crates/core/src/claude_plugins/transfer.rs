@@ -1,7 +1,7 @@
 use super::{EMPTY, ENABLED, MARKETPLACES, enabled, encode, patch_setting, read_object, valid_id};
 use crate::{
     agents::NativeAgent,
-    config::{open_magpie_backup, read_limited},
+    config::{open_import_backup, read_limited},
     native_settings,
     project_mcp::jsonc,
 };
@@ -244,21 +244,21 @@ pub fn import_settings(dir: &Path, text: &str) -> Result<()> {
     Ok(())
 }
 
-/// Restore portable marketplace sources and enabled plugin declarations from a Magpie backup.
-pub fn import_magpie(
+/// Restore portable marketplace sources and enabled plugin declarations from a encrypted backup.
+pub fn import_backup(
     dir: &Path,
     file: &Path,
     passphrase: &str,
     apply: bool,
 ) -> Result<ImportReport> {
-    let backup = open_magpie_backup(file, passphrase)?;
+    let backup = open_import_backup(file, passphrase)?;
     let declarations = backup
         .get("library")
         .and_then(|library| library.get("claudePlugins"))
         .filter(|value| !value.is_null())
-        .context("Magpie backup has no Claude Code plugin settings")?;
+        .context("encrypted backup has no Claude Code plugin settings")?;
     let incoming = nextjson::from_value(declarations.clone())
-        .map_err(|_| anyhow::anyhow!("invalid Magpie Claude Code plugin settings"))?;
+        .map_err(|_| anyhow::anyhow!("invalid backup Claude Code plugin settings"))?;
     ensure!(
         encode(&incoming)?.len() <= LIMIT,
         "shared Claude Code settings exceed 1 MiB"

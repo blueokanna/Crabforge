@@ -1,5 +1,5 @@
 use super::{Tree, encode_index, inspect, lock_library, read_index, replace, snapshot};
-use crate::config::magpie_library_section;
+use crate::config::backup_library_section;
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value};
 use std::{
@@ -37,14 +37,14 @@ struct PlannedBundle {
 }
 
 /// Restore complete plugin snapshots into the shared catalog for explicit project assignment.
-pub fn import_magpie(
+pub fn import_backup(
     dir: &Path,
     file: &Path,
     passphrase: &str,
     selected: &[String],
     apply: bool,
 ) -> Result<ImportReport> {
-    let (entries, other_library_sections) = magpie_library_section(file, passphrase, "plugins")?;
+    let (entries, other_library_sections) = backup_library_section(file, passphrase, "plugins")?;
     let selected: BTreeSet<_> = selected.iter().map(String::as_str).collect();
     let mut found = BTreeSet::new();
     let mut imported = BTreeMap::new();
@@ -52,25 +52,25 @@ pub fn import_magpie(
         let name = entry
             .get("name")
             .and_then(Value::as_str)
-            .context("missing Magpie plugin name")?;
+            .context("missing backup plugin name")?;
         if !selected.is_empty() && !selected.contains(name) {
             continue;
         }
         ensure!(
             found.insert(name.to_owned()),
-            "duplicate Magpie plugin name {name:?}"
+            "duplicate backup plugin name {name:?}"
         );
         let entry: CarriedPlugin = nextjson::from_value(entry)
-            .map_err(|_| anyhow::anyhow!("invalid Magpie plugin definition"))?;
+            .map_err(|_| anyhow::anyhow!("invalid backup plugin definition"))?;
         ensure!(
             entry.taken.as_ref().is_none_or(Vec::is_empty),
-            "Magpie plugin {:?} has removed components",
+            "backup plugin {:?} has removed components",
             entry.name
         );
         let files = entry.files.filter(|files| !files.is_empty());
         ensure!(
             files.is_some() && entry.left.as_ref().is_none_or(Vec::is_empty),
-            "Magpie plugin {:?} requires files from outside the backup",
+            "backup plugin {:?} requires files from outside the backup",
             entry.name
         );
         let files = files.expect("checked for embedded plugin files");
@@ -78,21 +78,21 @@ pub fn import_magpie(
             files.keys().all(|path| !path
                 .split('/')
                 .any(|part| part.eq_ignore_ascii_case(".git"))),
-            "Magpie plugin {:?} contains Git metadata",
+            "backup plugin {:?} contains Git metadata",
             entry.name
         );
         let executable = entry.exec.unwrap_or_default();
         let tree = Tree::from_backup(files, &executable)
-            .with_context(|| format!("read Magpie plugin {:?}", entry.name))?;
+            .with_context(|| format!("read backup plugin {:?}", entry.name))?;
         let source = file
             .to_str()
             .context("backup path must be UTF-8")?
             .to_owned();
         let bundle = inspect(&tree, source)
-            .with_context(|| format!("inspect Magpie plugin {:?}", entry.name))?;
+            .with_context(|| format!("inspect backup plugin {:?}", entry.name))?;
         ensure!(
             bundle.name == entry.name,
-            "Magpie plugin name differs from its manifest"
+            "backup plugin name differs from its manifest"
         );
         let report = PlannedBundle {
             name: bundle.name.clone(),
@@ -104,12 +104,12 @@ pub fn import_magpie(
             action: "create",
         };
         let Entry::Vacant(slot) = imported.entry(bundle.name.to_ascii_lowercase()) else {
-            bail!("ambiguous Magpie plugin name {:?}", bundle.name);
+            bail!("ambiguous backup plugin name {:?}", bundle.name);
         };
         slot.insert((bundle, tree, report));
     }
     for name in selected {
-        ensure!(found.contains(name), "Magpie plugin {name:?} was not found");
+        ensure!(found.contains(name), "backup plugin {name:?} was not found");
     }
 
     let library = dir.join("plugin-bundles");

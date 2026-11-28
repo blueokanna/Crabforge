@@ -41,8 +41,8 @@ enum Command {
         #[command(subcommand)]
         command: Option<GroupCommand>,
     },
-    /// Preview or atomically import supported settings from a sealed Magpie backup.
-    ImportMagpie {
+    /// Preview or atomically import supported settings from a sealed encrypted backup.
+    ImportBackup {
         file: PathBuf,
         /// Select a provider by ID. Repeat to import several. Defaults to all providers.
         #[arg(long = "provider")]
@@ -82,8 +82,8 @@ enum Command {
         #[arg(long)]
         revision: Option<String>,
     },
-    /// Preview or import a Magpie instruction set into a Claude Code or Codex user profile.
-    ImportMagpieInstructions {
+    /// Preview or import a backup instruction set into a Claude Code or Codex user profile.
+    ImportBackupInstructions {
         file: PathBuf,
         /// Target client and source of the agent-specific additions.
         #[arg(long)]
@@ -153,7 +153,7 @@ enum Command {
         #[command(subcommand)]
         command: plugin_bundles::Command,
     },
-    /// Discover recent local Claude Code, Codex, Gemini CLI, Grok Build, Oh My Pi and Pi sessions.
+    /// Discover recent local Claude Code, Codex, Grok Build, Oh My Pi and Pi sessions.
     Sessions {
         #[arg(long, value_enum)]
         agent: Option<SessionAgent>,
@@ -271,7 +271,6 @@ enum Command {
 enum SessionAgent {
     Claude,
     Codex,
-    Gemini,
     Grok,
     Omp,
     Pi,
@@ -293,7 +292,6 @@ impl From<SessionAgent> for crabforge_core::agents::NativeAgent {
         match agent {
             SessionAgent::Claude => Self::Claude,
             SessionAgent::Codex => Self::Codex,
-            SessionAgent::Gemini => Self::Gemini,
             SessionAgent::Grok => Self::Grok,
             SessionAgent::Omp => Self::Omp,
             SessionAgent::Pi => Self::Pi,
@@ -303,8 +301,8 @@ impl From<SessionAgent> for crabforge_core::agents::NativeAgent {
 
 #[derive(Subcommand)]
 enum ProviderCommand {
-    /// Preview provider settings from a sealed Magpie backup, or add them with --apply.
-    ImportMagpie {
+    /// Preview provider settings from a sealed encrypted backup, or add them with --apply.
+    ImportBackup {
         file: PathBuf,
         /// Select a provider by ID. Repeat to import several. Defaults to all providers.
         #[arg(long = "provider")]
@@ -357,7 +355,7 @@ fn backup_passphrase() -> Result<zeroize::Zeroizing<String>> {
     const MAX_PASSPHRASE: u64 = 16 * 1024;
     if stdin().is_terminal() {
         return Ok(zeroize::Zeroizing::new(rpassword::prompt_password(
-            "Magpie backup passphrase: ",
+            "encrypted backup passphrase: ",
         )?));
     }
     let mut line = zeroize::Zeroizing::new(String::new());
@@ -367,7 +365,7 @@ fn backup_passphrase() -> Result<zeroize::Zeroizing<String>> {
         .read_line(&mut line)?;
     ensure!(
         line.len() as u64 <= MAX_PASSPHRASE,
-        "Magpie backup passphrase is too long"
+        "encrypted backup passphrase is too long"
     );
     if line.ends_with('\n') {
         line.pop();
@@ -398,7 +396,7 @@ fn parse_provider_setting(input: &str) -> Result<ProviderSetting, String> {
 #[derive(Subcommand)]
 enum GroupCommand {
     List,
-    /// Print this group's portable Magpie routing-group JSON.
+    /// Print this group's portable backup routing-group JSON.
     Share {
         id: String,
     },
@@ -408,8 +406,8 @@ enum GroupCommand {
         #[arg(long)]
         replace: bool,
     },
-    /// Preview routing groups from a sealed Magpie backup, or add them with --apply.
-    ImportMagpie {
+    /// Preview routing groups from a sealed encrypted backup, or add them with --apply.
+    ImportBackup {
         file: PathBuf,
         /// Select a group by ID. Repeat to include nested groups. Defaults to all groups.
         #[arg(long = "group")]
@@ -558,7 +556,7 @@ async fn dispatch(args: Args) -> Result<()> {
         None => config::data_dir()?,
     };
     match args.command {
-        Command::ImportMagpie {
+        Command::ImportBackup {
             file,
             providers,
             groups,
@@ -570,15 +568,15 @@ async fn dispatch(args: Args) -> Result<()> {
             let key_envs = key_env_map(key_envs)?;
             let passphrase = backup_passphrase()?;
             let settings = match (settings, settings_only) {
-                (_, true) => config::MagpieSettingsMode::Only,
-                (true, false) => config::MagpieSettingsMode::Include,
-                (false, false) => config::MagpieSettingsMode::Skip,
+                (_, true) => config::BackupSettingsMode::Only,
+                (true, false) => config::BackupSettingsMode::Include,
+                (false, false) => config::BackupSettingsMode::Skip,
             };
-            let report = config::import_magpie_backup(
+            let report = config::import_backup(
                 &dir,
                 &file,
                 &passphrase,
-                config::MagpieImportOptions {
+                config::BackupImportOptions {
                     providers: &providers,
                     groups: &groups,
                     key_envs: &key_envs,
@@ -593,7 +591,7 @@ async fn dispatch(args: Args) -> Result<()> {
         }
         Command::Provider {
             command:
-                ProviderCommand::ImportMagpie {
+                ProviderCommand::ImportBackup {
                     file,
                     providers,
                     key_envs,
@@ -602,7 +600,7 @@ async fn dispatch(args: Args) -> Result<()> {
         } => {
             let key_envs = key_env_map(key_envs)?;
             let passphrase = backup_passphrase()?;
-            let report = config::import_magpie_providers(
+            let report = config::import_backup_providers(
                 &dir,
                 &file,
                 &passphrase,
@@ -678,13 +676,13 @@ async fn dispatch(args: Args) -> Result<()> {
             let previous = config::snapshot(&dir)?;
             let mut cfg = config::Config::parse(&previous)?;
             match command.unwrap_or(GroupCommand::List) {
-                GroupCommand::ImportMagpie {
+                GroupCommand::ImportBackup {
                     file,
                     groups,
                     apply,
                 } => {
                     let passphrase = backup_passphrase()?;
-                    let report = config::import_magpie_groups(
+                    let report = config::import_backup_groups(
                         &dir,
                         &previous,
                         &file,
@@ -1195,20 +1193,20 @@ async fn dispatch(args: Args) -> Result<()> {
                 nextjson::to_string(&view).map_err(anyhow::Error::msg)?
             );
         }
-        Command::ImportMagpieInstructions {
+        Command::ImportBackupInstructions {
             file,
             agent,
             set,
             revision,
             apply,
         } => {
-            use crabforge_core::project_instructions::{MagpieInstructions, import_magpie};
+            use crabforge_core::project_instructions::{BackupInstructions, import_backup};
             let passphrase = backup_passphrase()?;
-            let report = import_magpie(
+            let report = import_backup(
                 &dir,
                 &file,
                 &passphrase,
-                MagpieInstructions {
+                BackupInstructions {
                     agent: &agent,
                     set: set.as_deref(),
                     revision: revision.as_deref(),

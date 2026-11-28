@@ -88,25 +88,6 @@ fn events(agent: Agent) -> Events {
             shell: "Bash",
             edit: "apply_patch",
         },
-        Agent::Gemini => Events {
-            mapped: [
-                "AfterAgent",
-                "AfterTool",
-                "BeforeTool",
-                "BeforeAgent",
-                "SessionStart",
-            ],
-            additional: &[
-                "Notification",
-                "SessionEnd",
-                "PreCompress",
-                "BeforeModel",
-                "AfterModel",
-                "BeforeToolSelection",
-            ],
-            shell: "run_shell_command",
-            edit: "write_file|replace",
-        },
         Agent::Cursor => Events {
             mapped: [
                 "stop",
@@ -239,20 +220,6 @@ pub(super) fn encode(agent: Agent, hook: &Hook) -> Result<(String, Value)> {
             "edit" => spec.edit,
             starts if !starts.is_empty() && hook.event == "session-start" => match agent {
                 Agent::Cursor => anyhow::bail!("Cursor cannot filter session start sources"),
-                Agent::Gemini => {
-                    let mut available = starts
-                        .split('|')
-                        .filter(|start| ["startup", "resume", "clear"].contains(start));
-                    let selected = available
-                        .next()
-                        .context("Gemini has no requested session start source")?;
-                    let remainder = available.count();
-                    ensure!(
-                        remainder != 1,
-                        "Gemini accepts one session start source or all of them"
-                    );
-                    if remainder == 2 { "" } else { selected }
-                }
                 Agent::Grok => {
                     let requested = |source| starts.split('|').any(|start| start == source);
                     let fresh = requested("startup");
@@ -292,12 +259,7 @@ pub(super) fn encode(agent: Agent, hook: &Hook) -> Result<(String, Value)> {
     );
     let mut command = Map::from_iter([("command", Value::from(hook.command.as_str()))]);
     if hook.timeout != 0 {
-        let timeout = if agent == Agent::Gemini {
-            hook.timeout * 1_000
-        } else {
-            hook.timeout
-        };
-        command.insert("timeout".into(), json!(timeout));
+        command.insert("timeout".into(), json!(hook.timeout));
     }
     let mut entry = if agent == Agent::Cursor {
         command
@@ -361,18 +323,12 @@ pub(super) fn decode(agent: Agent, event: &str, entry: &Value) -> Option<Hook> {
         }
         (handler.get("command")?, handler.get("timeout"))
     };
-    let mut timeout = match timeout {
+    let timeout = match timeout {
         Some(timeout) => timeout
             .as_u64()
             .filter(|value| timeout.as_f64() == Some(*value as f64))?,
         None => 0,
     };
-    if agent == Agent::Gemini {
-        if timeout % 1_000 != 0 {
-            return None;
-        }
-        timeout /= 1_000;
-    }
     let matcher = match object.get("matcher") {
         Some(matcher) => matcher.as_str()?.to_owned(),
         None => String::new(),

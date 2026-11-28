@@ -1,11 +1,11 @@
+mod backup;
 mod discovery;
 mod import;
-mod magpie;
 mod native;
 mod shared;
+pub use backup::import_backup;
 pub use import::Request as ImportRequest;
 pub(crate) use import::bundle_entry;
-pub use magpie::import_magpie;
 pub use shared::Assignment as ProjectAssignment;
 
 use crate::{config::read_limited, native_settings, project_instructions::replace};
@@ -277,7 +277,30 @@ fn path_key(path: &str) -> String {
 impl Store {
     fn load(path: &Path) -> Result<Self> {
         match read_limited(path, MAX_LIBRARY) {
-            Ok(bytes) => nextjson::from_slice(&bytes).map_err(anyhow::Error::msg),
+            Ok(bytes) => {
+                let mut store: Self = nextjson::from_slice(&bytes).map_err(anyhow::Error::msg)?;
+                for entry in store.entries.values_mut() {
+                    entry.agents.retain(|agent| agent != "gemini");
+                }
+                for project in store.projects.values_mut() {
+                    project.retire_assignments();
+                }
+                store.applied.retain(|key, applied| {
+                    if applied.target.agent == "gemini" {
+                        store.adopted.remove(key);
+                        return false;
+                    }
+                    true
+                });
+                if store
+                    .pending
+                    .as_ref()
+                    .is_some_and(|pending| pending.target.agent == "gemini")
+                {
+                    store.pending = None;
+                }
+                Ok(store)
+            }
             Err(error) if error.kind() == ErrorKind::NotFound => Ok(Self::default()),
             Err(error) => Err(error.into()),
         }
@@ -799,16 +822,13 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let profiles = native::Profiles {
             kind: Kind::Command,
-            agents: &["claude", "gemini", "opencode"],
+            agents: &["claude", "qwen", "opencode"],
             project_scope: false,
             homes: BTreeMap::from([
                 ("claude", vec![temp.path().join("claude")]),
                 (
-                    "gemini",
-                    vec![
-                        temp.path().join("gemini"),
-                        temp.path().join("gateway/gemini"),
-                    ],
+                    "qwen",
+                    vec![temp.path().join("qwen"), temp.path().join("gateway/qwen")],
                 ),
                 ("opencode", vec![temp.path().join("opencode")]),
             ]),
@@ -816,7 +836,7 @@ mod tests {
         let dir = temp.path().join("data");
         let path = dir.join("commands/library.json");
         let mut entry = parse(
-            r#"{"name":"check","description":"Read the plan","prompt":"Check $1 then $2. All: $ARGUMENTS.","agents":["claude","opencode","gemini"]}"#,
+            r#"{"name":"check","description":"Read the plan","prompt":"Check $1 then $2. All: $ARGUMENTS.","agents":["claude","opencode","qwen"]}"#,
         );
         let saved = library_in(
             &dir,
@@ -867,11 +887,13 @@ mod tests {
             },
         )
         .unwrap();
-        for profile in ["gemini", "gateway/gemini"] {
-            let file = temp.path().join(profile).join("commands/check.toml");
-            let document: toml_edit::DocumentMut =
-                fs::read_to_string(file).unwrap().parse().unwrap();
-            assert_eq!(document["prompt"].as_str(), Some("Check {{args}}.\n"));
+        for profile in ["qwen", "gateway/qwen"] {
+            let file = temp.path().join(profile).join("commands/check.md");
+            assert!(
+                fs::read_to_string(file)
+                    .unwrap()
+                    .contains("Check {{args}}.\n")
+            );
         }
     }
 
@@ -1119,13 +1141,13 @@ mod tests {
         let dir = temp.path().join("data");
         let root = temp.path().join("external");
         let claude = root.join(".claude/commands/inspect_plan.md");
-        let gemini = root.join(".gemini/commands/compare.toml");
+        let qwen = root.join(".qwen/commands/compare.toml");
         fs::create_dir_all(claude.parent().unwrap())?;
-        fs::create_dir_all(gemini.parent().unwrap())?;
+        fs::create_dir_all(qwen.parent().unwrap())?;
         let original = "\u{feff}---\r\ndescription: Inspect a plan\r\n---\r\nInspect $ARGUMENTS[0] and $1.\r\n";
         fs::write(&claude, original)?;
         fs::write(
-            &gemini,
+            &qwen,
             "description = 'Compare files'\nprompt = 'Compare {{args}}.'\n",
         )?;
         fs::write(root.join("README.md"), "This documents the repository.")?;

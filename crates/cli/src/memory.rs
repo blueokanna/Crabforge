@@ -101,8 +101,8 @@ pub(super) enum Command {
     },
     /// Show a memory and its revision.
     Show { id: String },
-    /// Preview or restore memories from an encrypted Magpie backup.
-    ImportMagpie {
+    /// Preview or restore memories from an encrypted backup.
+    ImportBackup {
         file: PathBuf,
         /// Write the reviewed memories to the local store.
         #[arg(long)]
@@ -168,9 +168,9 @@ fn print(value: &impl NsonSerialize) -> Result<()> {
 
 pub(super) async fn run(dir: &Path, command: Command) -> Result<()> {
     match command {
-        Command::ImportMagpie { file, apply } => {
+        Command::ImportBackup { file, apply } => {
             let passphrase = super::backup_passphrase()?;
-            print(&memory::import_magpie(dir, &file, &passphrase, apply)?)
+            print(&memory::import_backup(dir, &file, &passphrase, apply)?)
         }
         Command::ProjectKey { folder } => {
             println!("{}", memory::project_key(&folder)?);

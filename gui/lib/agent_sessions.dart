@@ -12,7 +12,6 @@ import 'src/rust/api.dart' as api;
 const _agentNames = {
   'claude': 'Claude Code',
   'codex': 'Codex',
-  'gemini': 'Gemini CLI',
   'grok': 'Grok Build',
   'omp': 'Oh My Pi',
   'pi': 'Pi',

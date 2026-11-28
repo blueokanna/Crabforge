@@ -1,5 +1,5 @@
 use super::{Store, Variable, name_key};
-use crate::{config::magpie_library_section, native_settings};
+use crate::{config::backup_library_section, native_settings};
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value};
 use std::{
@@ -9,7 +9,7 @@ use std::{
 };
 
 #[derive(NsonDeserialize)]
-struct MagpieVariable {
+struct BackupVariable {
     name: String,
     value: String,
     agents: Option<BTreeSet<String>>,
@@ -34,27 +34,27 @@ struct PlannedVariable {
 }
 
 /// Copy environment definitions into the library without publishing to clients.
-pub fn import_magpie(
+pub fn import_backup(
     dir: &Path,
     file: &Path,
     passphrase: &str,
     selected: &[String],
     apply: bool,
 ) -> Result<ImportReport> {
-    let (entries, other_library_sections) = magpie_library_section(file, passphrase, "env")?;
+    let (entries, other_library_sections) = backup_library_section(file, passphrase, "env")?;
     let selected: BTreeSet<_> = selected.iter().map(|name| name_key(name)).collect();
     let mut variables = BTreeMap::new();
     for entry in entries {
         let name = entry
             .pointer("/name")
             .and_then(Value::as_str)
-            .context("missing Magpie environment variable name")?;
+            .context("missing backup environment variable name")?;
         let key = name_key(name);
         if !selected.is_empty() && !selected.contains(&key) {
             continue;
         }
-        let imported: MagpieVariable = nextjson::from_value(entry)
-            .map_err(|_| anyhow::anyhow!("invalid Magpie environment variable"))?;
+        let imported: BackupVariable = nextjson::from_value(entry)
+            .map_err(|_| anyhow::anyhow!("invalid backup environment variable"))?;
         let variable = Variable {
             name: imported.name,
             value: imported.value,
@@ -62,16 +62,16 @@ pub fn import_magpie(
         };
         variable
             .validate()
-            .with_context(|| format!("invalid Magpie environment variable {key:?}"))?;
+            .with_context(|| format!("invalid backup environment variable {key:?}"))?;
         let Entry::Vacant(slot) = variables.entry(key) else {
-            bail!("duplicate Magpie environment variable {:?}", variable.name);
+            bail!("duplicate backup environment variable {:?}", variable.name);
         };
         slot.insert((variable, imported.other.into_keys().collect()));
     }
     for key in selected {
         ensure!(
             variables.contains_key(&key),
-            "Magpie environment variable {key:?} was not found"
+            "backup environment variable {key:?} was not found"
         );
     }
 

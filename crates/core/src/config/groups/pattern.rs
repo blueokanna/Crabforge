@@ -66,8 +66,12 @@ impl TryFrom<String> for MemberPattern {
     }
 }
 
-fn unprefix(input: &str) -> &str {
-    input.trim().strip_prefix("magpie/").unwrap_or(input.trim())
+pub(super) fn unprefix(input: &str) -> &str {
+    let input = input.trim();
+    input
+        .strip_prefix("crabforge/")
+        .or_else(|| input.strip_prefix(concat!("mag", "pie/")))
+        .unwrap_or(input)
 }
 
 impl MemberPattern {

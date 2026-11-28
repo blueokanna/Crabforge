@@ -13,12 +13,12 @@ use std::{
 
 mod antigravity;
 mod backup;
+mod backup_import;
 mod dsh;
 mod grok;
-mod magpie;
 mod native;
 mod project;
-pub use magpie::import_magpie;
+pub use backup_import::import_backup;
 pub use project::Assignment as ProjectAssignment;
 
 const MAX_LIBRARY: usize = 4 * 1024 * 1024;
@@ -26,7 +26,7 @@ pub const MAX_ENTRY: usize = 64 * 1024;
 
 string_enum! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-    pub enum Agent { Claude => "claude", Codex => "codex", Gemini => "gemini", Cursor => "cursor", Antigravity => "agy", Grok => "grok", Dsh => "dsh" }
+    pub enum Agent { Claude => "claude", Codex => "codex", Cursor => "cursor", Antigravity => "agy", Grok => "grok", Dsh => "dsh" }
 }
 
 impl Agent {
@@ -38,7 +38,6 @@ impl Agent {
         match self {
             Self::Claude => "claude",
             Self::Codex => "codex",
-            Self::Gemini => "gemini",
             Self::Cursor => "cursor",
             Self::Antigravity => "agy",
             Self::Grok => "grok",
@@ -219,7 +218,7 @@ fn profile(key: &str, fallback: PathBuf) -> PathBuf {
         .map_or(fallback, PathBuf::from)
 }
 
-fn targets(dir: &Path) -> Result<BTreeMap<Target, &'static str>> {
+fn targets() -> Result<BTreeMap<Target, &'static str>> {
     let home = env::home_dir().context("user profile is unavailable")?;
     let claude = NativeAgent::Claude
         .home()
@@ -227,7 +226,6 @@ fn targets(dir: &Path) -> Result<BTreeMap<Target, &'static str>> {
     let codex = NativeAgent::Codex
         .home()
         .context("Codex profile is unavailable")?;
-    let gemini = profile("GEMINI_CLI_HOME", home.clone());
     let cursor = profile("CURSOR_HOME", home.join(".cursor"));
     let grok = profile("GROK_HOME", home.join(".grok"));
     let mut targets = [
@@ -243,12 +241,6 @@ fn targets(dir: &Path) -> Result<BTreeMap<Target, &'static str>> {
             Agent::Cursor,
             cursor.join("hooks.json"),
             "{\"version\":1}\n",
-        ),
-        (Agent::Gemini, gemini.join(".gemini/settings.json"), "{}\n"),
-        (
-            Agent::Gemini,
-            dir.join("agents/gemini/.gemini/settings.json"),
-            "{\"security\":{\"auth\":{\"selectedType\":\"gemini-api-key\"}}}\n",
         ),
     ]
     .into_iter()
@@ -270,7 +262,30 @@ impl Store {
     fn load(path: &Path) -> Result<Self> {
         match read_limited(path, MAX_LIBRARY) {
             Ok(bytes) => {
-                nextjson::from_slice(&bytes).map_err(|_| anyhow::anyhow!("invalid hook library"))
+                let invalid = |_| anyhow::anyhow!("invalid hook library");
+                let mut data: Value = nextjson::from_slice(&bytes).map_err(invalid)?;
+                // Retain definitions from older profiles without publishing their retired assignments.
+                let retired = |agent: &Value| agent.as_str() == Some("gemini");
+                if let Some(hooks) = data.get_mut("hooks").and_then(Value::as_object_mut) {
+                    for (_, hook) in hooks.iter_mut() {
+                        if let Some(agents) = hook.get_mut("agents").and_then(Value::as_array_mut) {
+                            agents.retain(|agent| !retired(agent));
+                        }
+                    }
+                }
+                let retired_target =
+                    |publication: &Value| publication.pointer("/target/agent").is_some_and(retired);
+                if let Some(publications) =
+                    data.get_mut("publications").and_then(Value::as_array_mut)
+                {
+                    publications.retain(|publication| !retired_target(publication));
+                }
+                if let Some(pending) = data.get_mut("pending")
+                    && pending.get("publication").is_some_and(retired_target)
+                {
+                    *pending = Value::Null;
+                }
+                nextjson::from_value(data).map_err(invalid)
             }
             Err(error) if error.kind() == ErrorKind::NotFound => Ok(Self::default()),
             Err(error) => Err(error.into()),
@@ -835,7 +850,7 @@ fn find_installed<'a>(
 }
 
 pub fn edit(dir: &Path, change: Edit) -> Result<String> {
-    edit_in(dir, &targets(dir)?, change)
+    edit_in(dir, &targets()?, change)
 }
 
 pub(crate) fn bundle_hook(
@@ -854,7 +869,7 @@ pub(crate) fn bundle_hook(
 
 pub fn edit_project(dir: &Path, root: &Path, change: Edit) -> Result<String> {
     let _lock = native_settings::lock(dir)?;
-    project::edit(&dir.join("hooks"), root, &targets(dir)?, change)
+    project::edit(&dir.join("hooks"), root, &targets()?, change)
 }
 
 #[cfg(test)]

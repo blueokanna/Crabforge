@@ -1,55 +1,42 @@
-# Windows x64 发布
+# Windows x64 发行版
 
-向 `main` 推送、提交拉取请求或手动运行时，[Windows 构建](../.github/workflows/windows-build.yml)会审计锁定的 Rust 依赖，执行 Rust 和 Flutter 检查，再编译桌面及两个 CLI。未签名的构建产物保存在该次运行的 `crabforge-windows-x64-ci` 中。
+[English](windows-release.en.md)
 
-[签名发布工作流](../.github/workflows/windows-release.yml)从发行提交重新构建。签名任务独占发布密钥，使用 Windows SignTool 为 EXE 和 DLL 添加 SHA-256 Authenticode 签名以及 DigiCert RFC 3161 时间戳。全部验签后才生成包内清单和 ZIP 校验文件。发布任务先把两项附件传入 Release 草稿，上传完成后再公开。
+Windows 构建工作流在 `main` 分支更新和拉取请求时运行。它执行 Rust 和 Flutter 检查，构建 CLI 与桌面端，并将便携发行包暂存为 `crabforge-windows-x64-ci`。发行工作流从发行提交重新构建，生成包含 `SHA256SUMS` 清单的 ZIP，再通过 GitHub Actions 生成来源证明。发布任务验证压缩包哈希与构建来源，上传两个附件并核对上传后的摘要，然后公开发行版。 [构建工作流](../.github/workflows/windows-build.yml) · [发行工作流](../.github/workflows/windows-release.yml)
 
-## 配置签名
+## 验证与运行
 
-在仓库的 **Settings → Environments** 创建 `windows-release`，添加下表两项环境密钥和一项环境变量。部署来源应限制为默认分支和受信任的发行标签。
-
-| 设置 | 类型 | 值 |
-| --- | --- | --- |
-| `WINDOWS_SIGNING_PFX_BASE64` | Secret | 发布者 Windows 代码签名 PFX 的 Base64，包含私钥和中间证书 |
-| `WINDOWS_SIGNING_PFX_PASSWORD` | Secret | PFX 密码 |
-| `WINDOWS_SIGNING_CERT_THUMBPRINT` | Variable | 发布者证书的 40 位 SHA-1 指纹，去掉空格 |
-
-证书链须通过 GitHub Windows runner 上的 Authenticode 验证。指纹用于选择证书，文件摘要和时间戳都使用 SHA-256。签名任务需要可导出的 PFX。采用不可导出硬件密钥的证书须经其服务商的签名接口使用。
-
-## 发布和核验
-
-同步 `Cargo.toml`、`gui/pubspec.yaml` 和 `assets/pubspec.yaml` 中的产品版本。在 `main` 手动运行 **Signed Windows release**，或推送匹配标签。Flutter `0.1.0+1` 对应 `v0.1.0`，更高构建号会保留在标签中，例如 `v0.1.0+2`。已经公开的版本不可覆盖。
-
-下载 ZIP 和 `.sha256`。使用 `Get-FileHash -Algorithm SHA256 <下载的ZIP>` 核对发布摘要。校验后解压，在解压根目录执行下列命令。签名输出列出各二进制文件的发布者和时间戳证书。[GitHub Releases](https://github.com/blueokanna/Crabforge/releases)
+从同一发行版下载 ZIP 和对应的 `.sha256` 文件。以下命令以 `v0.1.0` 为例，请替换成实际下载的文件名和标签。GitHub CLI 还会核对构建是否使用 GitHub 托管运行器，以及构建来源是否与发行标签指向的提交一致。 [GitHub Releases](https://github.com/blueokanna/Crabforge/releases) · [GitHub CLI](https://cli.github.com/)
 
 ```powershell
-$manifest = @(Get-Content -LiteralPath SHA256SUMS -Encoding UTF8 -ErrorAction Stop)
-if (!$manifest.Count) { throw 'SHA256SUMS is empty' }
-foreach ($entry in $manifest) {
-    $expected, $file = $entry -split '  ', 2
-    if ((Get-FileHash -LiteralPath $file -Algorithm SHA256 -ErrorAction Stop).Hash -ne $expected) {
-        throw "SHA-256 mismatch for $file"
-    }
+$repo = 'blueokanna/Crabforge'
+$tag = 'v0.1.0'
+$archive = '.\crabforge-0.1.0-windows-x64.zip'
+$expected = (Get-Content -LiteralPath "$archive.sha256" -Raw).Trim().Split(' ')[0]
+if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expected) {
+    throw 'Archive SHA-256 mismatch'
 }
-
-$binaries = Get-ChildItem -Recurse -File -Force | Where-Object Extension -In '.exe', '.dll'
-foreach ($binary in $binaries) {
-    $signature = Get-AuthenticodeSignature -LiteralPath $binary.FullName
-    if ($signature.Status -ne 'Valid' -or !$signature.TimeStamperCertificate) {
-        throw "Invalid signature or missing timestamp for $($binary.FullName)"
-    }
-    $signature | Select-Object Path, Status, SignerCertificate, TimeStamperCertificate
-}
+$commit = gh api "repos/$repo/commits/$tag" --jq .sha
+if ($LASTEXITCODE -or $commit -notmatch '^[0-9a-f]{40}$') { throw 'Cannot resolve release commit' }
+gh attestation verify $archive --repo $repo --signer-workflow "$repo/.github/workflows/windows-release.yml" --source-digest $commit --deny-self-hosted-runners
+if ($LASTEXITCODE) { throw 'Build provenance verification failed' }
 ```
 
-运行 `desktop/crabforge.exe`，保持同目录的 DLL 和 `data` 目录完整。两个 CLI 位于解压根目录。
+解压验证通过的文件。`SHA256SUMS` 记录包内各文件的哈希。启动 `desktop\crabforge.exe` 时，保留同目录的 DLL 和 `data` 目录。CLI 位于解压目录根部。如系统缺少运行库，请安装 Microsoft Visual C++ x64 Redistributable。 [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)
 
-桌面和 CLI 需要 Microsoft Visual C++ x64 运行库。若 Windows 尚未安装，请安装当前版本。[Microsoft Visual C++ Redistributable](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)
+如果该版本使用了 Authenticode，可用 `Get-AuthenticodeSignature` 查看 EXE 和 DLL 的发布者与时间戳。GitHub 构建来源证明覆盖整个 ZIP，是每个发行版的必备验证项。
 
-## 桌面外观
+## 发布新版本
 
-Windows DWM 强调色用于生成 Flutter Material 3 Expressive 的浅色、深色和高对比度配色。系统未提供强调色时使用内置铜色。应用操作和导航使用 Google 官方 Material Symbols Rounded。Crabforge 图标以及供应商和客户端标志保留各自品牌图案。
+保持 `Cargo.toml`、`gui/pubspec.yaml` 和 `assets/pubspec.yaml` 中的产品版本一致。从 `main` 手动运行 **Windows release**，或推送匹配的版本标签。Flutter `0.1.0+1` 对应 `v0.1.0`。更高的构建号会写入标签，例如 `v0.1.0+2`。后续发行请使用新的版本号或构建号。
 
-在顶栏的字体菜单选择 Google Sans 或 HarmonyOS Sans SC。Google Sans 模式下，拉丁字符使用 Google Sans，汉字使用 HarmonyOS Sans SC。HarmonyOS Sans SC 模式下，两类字符均直接使用该字体。韩文缺字由 Noto Sans KR 补齐。字体偏好保存在 Crabforge 数据目录，保存后立即生效。[字体来源与校验值](../assets/fonts/manifest.json)
+如需启用 Authenticode，在 GitHub 的 `windows-release` 环境中配置以下项目。SignTool 为 EXE 和 DLL 应用 SHA-256 签名和 RFC 3161 时间戳，并在打包前验证签名。提供任一签名项后，必须一并提供完整的证书配置。
 
-[Windows 构建与桌面外观验收](validation/cf-windows-469e877/README.md)
+| 配置 | 类型 | 值 |
+| --- | --- | --- |
+| `WINDOWS_SIGNING_PFX_BASE64` | Secret | 以 Base64 编码的发布者 PFX，包含私钥和中间证书 |
+| `WINDOWS_SIGNING_PFX_PASSWORD` | Secret | PFX 密码 |
+| `WINDOWS_SIGNING_CERT_THUMBPRINT` | Variable | 发布者证书的 40 字符 SHA-1 指纹 |
+| `WINDOWS_SIGNING_REQUIRED` | Variable | 设置为 `true` 时，每个发行版均须通过 Authenticode 签名 |
+
+证书链必须通过运行器的 Windows Authenticode 策略验证。SHA-1 指纹用于选择证书，文件和时间戳摘要均使用 SHA-256。

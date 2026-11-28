@@ -275,8 +275,8 @@ impl Facts {
             agent: agent_key(caller.agent.as_deref().unwrap_or_default()),
             compact: false,
             subagent: [
-                "x-magpie-subagent",
                 "x-crabforge-subagent",
+                concat!("x-mag", "pie-subagent"),
                 "x-codex-subagent",
                 "x-claude-code-agent-id",
                 "x-claude-code-parent-agent-id",

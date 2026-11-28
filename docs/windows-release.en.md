@@ -1,55 +1,42 @@
 # Windows x64 releases
 
-The [Windows build](../.github/workflows/windows-build.yml) runs on pushes to `main`, pull requests, and manual dispatch. It checks the locked Rust dependency graph, runs Rust and Flutter checks, and builds the two CLI entry points and the Flutter desktop. The run stores its unsigned distribution in `crabforge-windows-x64-ci`.
+[简体中文](windows-release.md)
 
-The [signed release workflow](../.github/workflows/windows-release.yml) builds the candidate again from its release commit. The signing job is the only job with access to signing material. Windows SignTool applies SHA-256 Authenticode signatures and DigiCert RFC 3161 timestamps to the EXEs and DLLs. The job verifies every signature before writing the package manifest and ZIP checksum. The publishing job attaches the ZIP and its checksum to a draft Release, then publishes it once both uploads succeed.
+The Windows build workflow runs on `main` pushes and pull requests. It runs the Rust and Flutter checks, builds the CLI and desktop, and stages the portable distribution as `crabforge-windows-x64-ci`. The release workflow rebuilds the release commit, creates a ZIP with an internal `SHA256SUMS` manifest, and attests the ZIP through GitHub Actions. The publish job verifies the archive hash and provenance, uploads both release assets to a draft, checks the uploaded digests, and publishes the draft. [Build workflow](../.github/workflows/windows-build.yml) · [Release workflow](../.github/workflows/windows-release.yml)
 
-## Signing setup
+## Verify and run
 
-In the repository's **Settings → Environments**, create `windows-release`. Add the two environment secrets and one environment variable below. Limit deployments to the default branch and trusted release tags.
-
-| Setting | Type | Value |
-| --- | --- | --- |
-| `WINDOWS_SIGNING_PFX_BASE64` | Secret | Base64 of the publisher's Windows code-signing PFX, including its private key and intermediate certificates |
-| `WINDOWS_SIGNING_PFX_PASSWORD` | Secret | PFX password |
-| `WINDOWS_SIGNING_CERT_THUMBPRINT` | Variable | Publisher certificate's 40-character SHA-1 thumbprint, without spaces |
-
-Use a code-signing certificate whose chain validates under the Windows Authenticode policy on the GitHub-hosted runner. The thumbprint selects the certificate. The file digest and timestamp both use SHA-256. The signing job requires exportable PFX material. A hardware-backed, non-exportable key must be used through its provider's signing service.
-
-## Publish and verify
-
-Keep `Cargo.toml`, `gui/pubspec.yaml`, and `assets/pubspec.yaml` on the same product version. Run **Signed Windows release** from `main` or push the matching tag. Flutter `0.1.0+1` maps to `v0.1.0`. A higher Flutter build number is included in the tag, as in `v0.1.0+2`. A published release is write-once.
-
-Download the ZIP and its `.sha256` file. Compare the result of `Get-FileHash -Algorithm SHA256 <downloaded.zip>` with the published hash. Extract the verified ZIP and run the checks below from its root. The signature output shows each publisher and timestamp certificate. [GitHub Releases](https://github.com/blueokanna/Crabforge/releases)
+Download the ZIP and its `.sha256` sidecar from the same release. The example uses the `v0.1.0` asset name. Set `$archive` and `$tag` to the files and tag you downloaded. The GitHub CLI command also checks that GitHub hosted the build and that the source matches the commit behind the release tag. [GitHub Releases](https://github.com/blueokanna/Crabforge/releases) · [GitHub CLI](https://cli.github.com/)
 
 ```powershell
-$manifest = @(Get-Content -LiteralPath SHA256SUMS -Encoding UTF8 -ErrorAction Stop)
-if (!$manifest.Count) { throw 'SHA256SUMS is empty' }
-foreach ($entry in $manifest) {
-    $expected, $file = $entry -split '  ', 2
-    if ((Get-FileHash -LiteralPath $file -Algorithm SHA256 -ErrorAction Stop).Hash -ne $expected) {
-        throw "SHA-256 mismatch for $file"
-    }
+$repo = 'blueokanna/Crabforge'
+$tag = 'v0.1.0'
+$archive = '.\crabforge-0.1.0-windows-x64.zip'
+$expected = (Get-Content -LiteralPath "$archive.sha256" -Raw).Trim().Split(' ')[0]
+if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expected) {
+    throw 'Archive SHA-256 mismatch'
 }
-
-$binaries = Get-ChildItem -Recurse -File -Force | Where-Object Extension -In '.exe', '.dll'
-foreach ($binary in $binaries) {
-    $signature = Get-AuthenticodeSignature -LiteralPath $binary.FullName
-    if ($signature.Status -ne 'Valid' -or !$signature.TimeStamperCertificate) {
-        throw "Invalid signature or missing timestamp for $($binary.FullName)"
-    }
-    $signature | Select-Object Path, Status, SignerCertificate, TimeStamperCertificate
-}
+$commit = gh api "repos/$repo/commits/$tag" --jq .sha
+if ($LASTEXITCODE -or $commit -notmatch '^[0-9a-f]{40}$') { throw 'Cannot resolve release commit' }
+gh attestation verify $archive --repo $repo --signer-workflow "$repo/.github/workflows/windows-release.yml" --source-digest $commit --deny-self-hosted-runners
+if ($LASTEXITCODE) { throw 'Build provenance verification failed' }
 ```
 
-Launch `desktop/crabforge.exe` with its neighboring DLLs and `data` directory in place. The two CLI executables are at the archive root.
+Extract the verified archive. `SHA256SUMS` lists the hashes of the packaged files. Run `desktop\crabforge.exe` with the adjacent DLLs and `data` directory in place. The CLI binaries are at the archive root. Install the Microsoft Visual C++ x64 Redistributable if the PC lacks the runtime. [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
 
-The desktop and CLI require the Microsoft Visual C++ x64 runtime. Install the current redistributable on a Windows PC that does not already have it. [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
+For builds with Authenticode, use `Get-AuthenticodeSignature` on the EXEs and DLLs to inspect the publisher and timestamp. GitHub build provenance applies to the entire ZIP and is required for every release.
 
-## Desktop appearance
+## Publish a release
 
-Windows' DWM accent seeds Flutter's Material 3 Expressive light, dark, and high-contrast schemes. A bundled copper seed is used when Windows supplies no accent. Crabforge uses Google's Material Symbols Rounded for its UI actions and navigation. The application mark and provider and client logos retain their branding.
+Keep the versions in `Cargo.toml`, `gui/pubspec.yaml`, and `assets/pubspec.yaml` aligned. Run **Windows release** from `main` or push the matching version tag. Flutter `0.1.0+1` maps to `v0.1.0`. Higher build numbers are included in the tag, such as `v0.1.0+2`. Select a new version or build number for subsequent releases.
 
-Use the app bar's font menu to choose Google Sans or HarmonyOS Sans SC. With Google Sans selected, Latin text uses Google Sans and Han characters use HarmonyOS Sans SC. HarmonyOS Sans SC handles both directly when selected. Noto Sans KR provides Hangul fallback. The preference is saved in the Crabforge data directory and applies as soon as the choice is saved. [Font provenance and checksums](../assets/fonts/manifest.json)
+To enable Authenticode, configure these settings in the `windows-release` GitHub environment. SignTool applies SHA-256 Authenticode signatures and RFC 3161 timestamps to EXE and DLL files and verifies them before packaging. If any signing setting is supplied, the full certificate configuration is required.
 
-[Windows build and desktop appearance validation](validation/cf-windows-469e877/README.md)
+| Setting | Scope | Value |
+| --- | --- | --- |
+| `WINDOWS_SIGNING_PFX_BASE64` | Secret | Base64-encoded publisher PFX with its private key and intermediate certificates |
+| `WINDOWS_SIGNING_PFX_PASSWORD` | Secret | PFX password |
+| `WINDOWS_SIGNING_CERT_THUMBPRINT` | Variable | Publisher certificate’s 40-character SHA-1 thumbprint |
+| `WINDOWS_SIGNING_REQUIRED` | Variable | `true` to require Authenticode on every release |
+
+The certificate chain must validate under Windows Authenticode policy on the runner. The SHA-1 thumbprint identifies the certificate. File and timestamp digests use SHA-256.

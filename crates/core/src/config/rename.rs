@@ -48,7 +48,7 @@ impl Config {
             .position(|p| p.id == from)
             .context("unknown provider")?;
         ensure!(
-            valid_id(to) && !matches!(to, "auto" | "group" | "crabforge" | "magpie"),
+            valid_id(to) && !matches!(to, "auto" | "group" | "crabforge"),
             "invalid or reserved provider ID {to:?}"
         );
         ensure!(

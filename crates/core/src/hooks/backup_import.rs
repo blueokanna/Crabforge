@@ -1,5 +1,5 @@
 use super::{Agent, Hook, MAX_ENTRY, Store, encode};
-use crate::{config::magpie_library_section, native_settings};
+use crate::{config::backup_library_section, native_settings};
 use anyhow::{Context, Result, bail, ensure};
 use nextjson::{NsonDeserialize, NsonSerialize, Value};
 use std::{
@@ -9,7 +9,7 @@ use std::{
 };
 
 #[derive(NsonDeserialize)]
-struct MagpieHook {
+struct BackupHook {
     name: String,
     description: Option<String>,
     event: String,
@@ -39,29 +39,29 @@ struct PlannedHook {
 }
 
 /// Save the selected definitions to the shared hook library for later publication.
-pub fn import_magpie(
+pub fn import_backup(
     dir: &Path,
     file: &Path,
     passphrase: &str,
     selected: &[String],
     apply: bool,
 ) -> Result<ImportReport> {
-    let (entries, other_library_sections) = magpie_library_section(file, passphrase, "hooks")?;
+    let (entries, other_library_sections) = backup_library_section(file, passphrase, "hooks")?;
     let selected: BTreeSet<_> = selected.iter().map(String::as_str).collect();
     let mut hooks = BTreeMap::new();
     for entry in entries {
         let name = entry
             .pointer("/name")
             .and_then(Value::as_str)
-            .context("missing Magpie hook name")?;
+            .context("missing backup hook name")?;
         if !selected.is_empty() && !selected.contains(name) {
             continue;
         }
-        let imported: MagpieHook = nextjson::from_value(entry)
-            .map_err(|_| anyhow::anyhow!("invalid Magpie hook definition"))?;
+        let imported: BackupHook = nextjson::from_value(entry)
+            .map_err(|_| anyhow::anyhow!("invalid backup hook definition"))?;
         ensure!(
             imported.bundle.as_deref().is_none_or(str::is_empty),
-            "Magpie hook {:?} belongs to a plugin",
+            "backup hook {:?} belongs to a plugin",
             imported.name
         );
         let agents = imported
@@ -70,7 +70,7 @@ pub fn import_magpie(
             .iter()
             .map(|agent| Agent::parse(agent))
             .collect::<Result<_>>()
-            .with_context(|| format!("invalid assignments for Magpie hook {:?}", imported.name))?;
+            .with_context(|| format!("invalid assignments for backup hook {:?}", imported.name))?;
         let hook = Hook {
             name: imported.name,
             description: imported.description.unwrap_or_default(),
@@ -81,20 +81,20 @@ pub fn import_magpie(
             agents,
         };
         hook.validate()
-            .with_context(|| format!("invalid Magpie hook {:?}", hook.name))?;
+            .with_context(|| format!("invalid backup hook {:?}", hook.name))?;
         ensure!(
             encode(&hook)?.len() <= MAX_ENTRY,
             "hook entry exceeds 64 KiB"
         );
         let Entry::Vacant(slot) = hooks.entry(hook.name.clone()) else {
-            bail!("duplicate Magpie hook name {:?}", hook.name);
+            bail!("duplicate backup hook name {:?}", hook.name);
         };
         slot.insert((hook, imported.other.into_keys().collect()));
     }
     for name in selected {
         ensure!(
             hooks.contains_key(name),
-            "Magpie hook {name:?} was not found"
+            "backup hook {name:?} was not found"
         );
     }
 

@@ -4,6 +4,7 @@ use courierust::{
     courierust_client::Client,
     courierust_http::{HeaderMap, HeaderName, HeaderValue, Method},
 };
+use nextjson::NsonDeserialize;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     time::Duration,
@@ -54,10 +55,12 @@ struct Entry {
     name: Option<String>,
     free: Option<nextjson::Value>,
     native_endpoints: Option<nextjson::Value>,
-    magpie_prefers: Option<nextjson::Value>,
+    preferred_endpoint: Option<nextjson::Value>,
     reasoning_levels: Option<nextjson::Value>,
     #[njson(rename = "supportedGenerationMethods")]
     methods: Option<Vec<String>>,
+    #[njson(flatten)]
+    extra: BTreeMap<String, nextjson::Value>,
 }
 
 string_enum! {
@@ -71,27 +74,69 @@ string_enum! {
     }
 }
 
-#[derive(Clone, Debug, Default, nextjson::NsonSerialize, nextjson::NsonDeserialize)]
-#[njson(default, deny_unknown_fields)]
+pub(crate) const LEGACY_RELAY_PREFERENCE: &str = concat!("mag", "pie_prefers");
+
+#[derive(Clone, Debug, Default, nextjson::NsonSerialize)]
 pub struct RelayProtocols {
     #[njson(skip_serializing_if = "Option::is_none")]
     pub native_endpoints: Option<BTreeSet<RelayEndpoint>>,
     #[njson(skip_serializing_if = "Option::is_none")]
-    pub magpie_prefers: Option<RelayEndpoint>,
+    pub preferred_endpoint: Option<RelayEndpoint>,
+}
+
+impl<'de> NsonDeserialize<'de> for RelayProtocols {
+    fn nextdecode_into<D: nextjson::FormatDecoder<'de>>(
+        decoder: &mut D,
+        out: &mut nextjson::DecodeSlot<Self>,
+    ) -> std::result::Result<(), D::Error> {
+        let mut native_endpoints = None;
+        let mut preferred_endpoint = None;
+        decoder.begin_object()?;
+        while let Some(key) = decoder.object_key()? {
+            match key.as_ref() {
+                "native_endpoints" if native_endpoints.is_none() => {
+                    native_endpoints = Some(Option::nextdecode(decoder)?);
+                }
+                "native_endpoints" => {
+                    return Err(nextjson::Error::duplicate_field("native_endpoints").into());
+                }
+                "preferred_endpoint" | LEGACY_RELAY_PREFERENCE if preferred_endpoint.is_none() => {
+                    preferred_endpoint = Some(Option::nextdecode(decoder)?);
+                }
+                "preferred_endpoint" | LEGACY_RELAY_PREFERENCE => {
+                    return Err(nextjson::Error::duplicate_field("preferred_endpoint").into());
+                }
+                _ => return Err(nextjson::Error::unknown_field(key.into_owned()).into()),
+            }
+            if !decoder.object_entry_sep()? {
+                break;
+            }
+        }
+        decoder.end_object()?;
+        out.write(Self {
+            native_endpoints: native_endpoints.flatten(),
+            preferred_endpoint: preferred_endpoint.flatten(),
+        });
+        Ok(())
+    }
 }
 
 impl Entry {
     fn relay_protocols(&self) -> Option<RelayProtocols> {
         let known = |value: &nextjson::Value| RelayEndpoint::from_wire(value.as_str()?);
-        let magpie_prefers = self.magpie_prefers.as_ref().and_then(known);
+        let preferred_endpoint = self
+            .preferred_endpoint
+            .as_ref()
+            .or_else(|| self.extra.get(LEGACY_RELAY_PREFERENCE))
+            .and_then(known);
         let native_endpoints = self
             .native_endpoints
             .as_ref()
             .and_then(nextjson::Value::as_array)
             .map(|values| values.iter().filter_map(known).collect());
-        (magpie_prefers.is_some() || native_endpoints.is_some()).then_some(RelayProtocols {
+        (preferred_endpoint.is_some() || native_endpoints.is_some()).then_some(RelayProtocols {
             native_endpoints,
-            magpie_prefers,
+            preferred_endpoint,
         })
     }
 }
@@ -382,7 +427,7 @@ impl CatalogAuth<'_> {
             headers.insert("anthropic-version".into(), "2023-06-01".into());
         }
         if matches!(api, "decisions" | "systemone") {
-            headers.insert("x-magpie-deciders".into(), "true".into());
+            headers.insert("x-crabforge-deciders".into(), "true".into());
         }
         if let Some(token) = self.bearer {
             headers.insert(

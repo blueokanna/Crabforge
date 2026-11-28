@@ -10,8 +10,8 @@ use std::{
 pub(super) enum Command {
     /// List saved hooks, native assignments and existing hooks available for adoption.
     List,
-    /// Preview or stage command hooks from an encrypted Magpie backup.
-    ImportMagpie {
+    /// Preview or stage command hooks from an encrypted backup.
+    ImportBackup {
         file: PathBuf,
         /// Repeat to select several hook names. The default selects all hooks.
         #[arg(long = "name")]
@@ -55,13 +55,13 @@ pub(super) enum Command {
 pub(super) fn run(dir: &Path, project: Option<&Path>, command: Command) -> Result<()> {
     let edit = match command {
         Command::List => Edit::Read,
-        Command::ImportMagpie { file, names, apply } => {
+        Command::ImportBackup { file, names, apply } => {
             ensure!(
                 project.is_none(),
-                "import Magpie hooks into the shared library"
+                "import backup hooks into the shared library"
             );
             let passphrase = super::backup_passphrase()?;
-            let report = hooks::import_magpie(dir, &file, &passphrase, &names, apply)?;
+            let report = hooks::import_backup(dir, &file, &passphrase, &names, apply)?;
             println!(
                 "{}",
                 nextjson::to_string_pretty(&report).map_err(anyhow::Error::msg)?

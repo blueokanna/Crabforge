@@ -11,12 +11,11 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-mod magpie;
-pub use magpie::{MagpieInstructions, import_magpie};
+mod backup;
+pub use backup::{BackupInstructions, import_backup};
 
-// Keeping Magpie's markers lets an existing project move between the two editors.
-const BEGIN: &str = "<!-- magpie:begin · written by magpie from its Library -->";
-const END: &str = "<!-- magpie:end -->";
+const BEGIN: &str = "<!-- crabforge:instructions:begin -->";
+const END: &str = "<!-- crabforge:instructions:end -->";
 const MEMORY_BEGIN: &str = "<!-- crabforge:project-memory:begin -->";
 const MEMORY_END: &str = "<!-- crabforge:project-memory:end -->";
 const AGENT_MEMORY_BEGIN: &str = "<!-- crabforge:agent-memory:begin -->";
@@ -57,7 +56,8 @@ const AGENTS: &[(&str, &[&str])] = &[
         ],
     ),
     ("opencode", &["AGENTS.md", "CLAUDE.md"]),
-    ("gemini", &["GEMINI.md"]),
+    ("agy", &["AGENTS.md"]),
+    ("antigravity", &["AGENTS.md"]),
     ("qwen", &["QWEN.md"]),
     ("qoder", &["AGENTS.md"]),
     ("qoder-cn", &["AGENTS.md"]),
@@ -103,14 +103,12 @@ fn context_filename(settings: &Path) -> Result<Option<String>> {
 
 fn configured_filename(dir: &Path, project: &Path, agent: &str) -> Result<Option<String>> {
     let (folder, env_key, profile) = match agent {
-        "gemini" => (".gemini", "GEMINI_CLI_HOME", Some("agents/gemini/.gemini")),
         "qwen" => (".qwen", "QWEN_HOME", Some("agents/qwen")),
         "qoder" => (".qoder", "QODER_CONFIG_DIR", None),
         "qoder-cn" => (".qoder-cn", "QODERCN_CONFIG_DIR", None),
         _ => return Ok(None),
     };
     let native = match env::var_os(env_key).filter(|value| !value.is_empty()) {
-        Some(home) if agent == "gemini" => Some(PathBuf::from(home).join(folder)),
         Some(home) => Some(PathBuf::from(home)),
         None => env::home_dir().map(|home| home.join(folder)),
     };
@@ -200,7 +198,7 @@ fn agent_target(agent: &str) -> Result<PathBuf> {
     let names: &[&str] = match agent {
         NativeAgent::Claude => &["CLAUDE.md"],
         NativeAgent::Codex => &["AGENTS.override.md", "AGENTS.md"],
-        NativeAgent::Gemini | NativeAgent::Grok | NativeAgent::Omp | NativeAgent::Pi => {
+        NativeAgent::Grok | NativeAgent::Omp | NativeAgent::Pi => {
             anyhow::bail!("user instructions support Claude Code and Codex")
         }
     };
@@ -605,7 +603,6 @@ mod tests {
         let root = project.path().canonicalize()?;
         fs::create_dir(root.join("guide"))?;
         for (agent, folder) in [
-            ("gemini", ".gemini"),
             ("qwen", ".qwen"),
             ("qoder", ".qoder"),
             ("qoder-cn", ".qoder-cn"),

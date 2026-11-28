@@ -166,9 +166,9 @@ class CollectionGlyph extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return DecoratedBox(
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(10),
+        shape: const CircleBorder(),
       ),
       child: SizedBox.square(dimension: 40, child: Center(child: child)),
     );
@@ -195,10 +195,6 @@ class CollectionTile extends StatelessWidget {
   Widget build(BuildContext context) => Card.outlined(
     clipBehavior: Clip.hardEdge,
     color: Theme.of(context).colorScheme.surfaceContainerLowest,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(14),
-      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
-    ),
     child: LayoutBuilder(
       builder: (context, bounds) {
         if (!grid) {

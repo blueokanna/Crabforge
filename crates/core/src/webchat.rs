@@ -102,12 +102,12 @@ mod tests {
             (
                 &allowed,
                 config::token(root.path())?,
-                json!([200, "browser-turn", "browser-turn"]),
+                json!([200, "browser-turn"]),
             ),
-            (&allowed, "invalid".into(), json!([401, null, null])),
+            (&allowed, "invalid".into(), json!([401, null])),
             (&denied, config::token(other.path())?, json!("blocked")),
         ] {
-            let script = "const [url,key,done]=arguments; fetch(url,{headers:{Authorization:'Bearer '+key,'X-Crabforge-Session':'browser-turn'}}).then(r=>done([r.status,r.headers.get('X-Crabforge-Session'),r.headers.get('X-Magpie-Session')])).catch(()=>done('blocked'))";
+            let script = "const [url,key,done]=arguments; fetch(url,{headers:{Authorization:'Bearer '+key,'X-Crabforge-Session':'browser-turn'}}).then(r=>done([r.status,r.headers.get('X-Crabforge-Session')])).catch(()=>done('blocked'))";
             let result = browser.command(Method::POST, "/execute/async", Some(json!({"script":script,"args":[format!("http://{}/agent/pi/v1/models",svc.addr),key]}))).await?;
             assert_eq!(result, expected);
         }

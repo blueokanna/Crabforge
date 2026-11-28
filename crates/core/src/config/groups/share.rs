@@ -58,7 +58,7 @@ pub struct ImportedGroup {
     pub replaced: bool,
 }
 
-// Account fingerprints in older Magpie shares belong only to their sender.
+// Account fingerprints in portable shares belong only to their sender.
 fn without_account(id: &str) -> &str {
     id.rsplit_once('#')
         .filter(|(m, a)| !m.is_empty() && !a.trim().is_empty() && !a.contains('/'))
@@ -77,8 +77,11 @@ fn shared_text(text: &str) -> Result<SharedGroup> {
         .context("expected a shared routing group")?;
     let doc: Value = nextjson::from_str(raw).map_err(anyhow::Error::msg)?;
     ensure!(
-        doc.get("magpie").and_then(Value::as_str) == Some("routing-group"),
-        "expected a Magpie routing-group share"
+        doc.get("format")
+            .or_else(|| doc.get(crate::config::LEGACY_FORMAT_PREFIX))
+            .and_then(Value::as_str)
+            == Some("routing-group"),
+        "expected a routing-group share"
     );
     let version = doc.get("version").unwrap_or(&Value::Null);
     ensure!(
@@ -164,7 +167,7 @@ impl Config {
         }
     }
 
-    pub(in crate::config) fn restore_magpie_groups(
+    pub(in crate::config) fn restore_backup_groups(
         &mut self,
         definitions: Vec<Value>,
         selected: &[String],
@@ -190,26 +193,26 @@ impl Config {
             let source = raw
                 .get("id")
                 .and_then(Value::as_str)
-                .context("missing Magpie group ID")?;
+                .context("missing backup group ID")?;
             if !selected.is_empty() && !selected.iter().any(|id| id == source) {
                 continue;
             }
             let id = source.to_owned();
             let group: SharedGroup = nextjson::from_value(raw)
-                .map_err(|_| anyhow::anyhow!("invalid Magpie group definition: {id}"))?;
+                .map_err(|_| anyhow::anyhow!("invalid backup group definition: {id}"))?;
             ensure!(
                 valid_id(&id) && !id.starts_with("auto-"),
-                "unsupported Magpie group ID {id:?}"
+                "unsupported backup group ID {id:?}"
             );
             ensure!(occupied.insert(id.clone()), "group ID already in use: {id}");
-            self.restore_magpie_group(&id, group, &mut occupied)
-                .with_context(|| format!("Magpie group {id}"))?;
+            self.restore_backup_group(&id, group, &mut occupied)
+                .with_context(|| format!("backup group {id}"))?;
             ids.push(id);
         }
         for id in selected {
             ensure!(ids.contains(id), "group {id:?} is absent from the backup");
         }
-        ensure!(!ids.is_empty(), "Magpie backup has no groups to import");
+        ensure!(!ids.is_empty(), "encrypted backup has no groups to import");
         let ranks: BTreeMap<_, _> = order.iter().enumerate().map(|(i, id)| (id, i)).collect();
         ids.sort_by_key(|id| ranks.get(id).copied().unwrap_or(usize::MAX));
         self.group_display_order = resolved
@@ -221,7 +224,7 @@ impl Config {
         Ok(ids)
     }
 
-    fn restore_magpie_group(
+    fn restore_backup_group(
         &mut self,
         id: &str,
         mut group: SharedGroup,
@@ -237,7 +240,7 @@ impl Config {
         for field in group.other.keys() {
             ensure!(
                 field == "routedAt",
-                "unsupported Magpie group setting: {field}"
+                "unsupported backup group setting: {field}"
             );
         }
         ensure!(group.matched.is_empty(), "backup contains derived members");
@@ -416,9 +419,9 @@ impl Config {
                 .chain(std::iter::once(group.classifier.as_str()))
                 .chain(group.classifier_more.iter().map(String::as_str))
                 .all(|m| without_account(m) == m),
-            "a member's literal # suffix cannot be represented in a Magpie share"
+            "a member's literal # suffix cannot be represented in a portable share"
         );
-        nextjson::to_string(&json!({"magpie":"routing-group","version":1,"group":group}))
+        nextjson::to_string(&json!({"format":"routing-group","version":1,"group":group}))
             .map_err(anyhow::Error::msg)
     }
 
@@ -463,7 +466,7 @@ impl Config {
             let candidate = if local.contains(raw) {
                 raw
             } else {
-                raw.strip_prefix("magpie/").unwrap_or(raw)
+                super::pattern::unprefix(raw)
             };
             let target = if local.contains(candidate) {
                 Some(candidate.to_owned())

@@ -15,7 +15,7 @@ use std::{
 };
 
 mod transfer;
-pub use transfer::{export_settings, import_magpie, import_settings, import_settings_file};
+pub use transfer::{export_settings, import_backup, import_settings, import_settings_file};
 
 pub(crate) const ENABLED: &str = "enabledPlugins";
 pub(crate) const MARKETPLACES: &str = "extraKnownMarketplaces";

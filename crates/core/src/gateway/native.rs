@@ -61,7 +61,7 @@ impl NativeProtocols {
         let chat = chat && native.is_none_or(|n| n.contains(&RelayEndpoint::Chat));
         let responses = responses && native.is_none_or(|n| n.contains(&RelayEndpoint::Responses));
         let messages = messages && native.is_none_or(|n| n.contains(&RelayEndpoint::Messages));
-        let advertised = match hints.and_then(|h| h.magpie_prefers) {
+        let advertised = match hints.and_then(|h| h.preferred_endpoint) {
             Some(RelayEndpoint::Chat) if chat => Some(Format::Chat),
             Some(RelayEndpoint::Responses) if responses => Some(Format::Responses),
             Some(RelayEndpoint::Messages) if messages => Some(Format::Messages),

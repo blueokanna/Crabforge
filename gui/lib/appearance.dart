@@ -20,7 +20,7 @@ enum WorkspaceFont {
 
   List<String> get fallback => switch (this) {
     googleSans => [harmonyOs.family, _korean],
-    harmonyOs => [googleSans.family, _korean],
+    harmonyOs => [_korean],
   };
 
   static const _korean = 'packages/crabforge_assets/Noto Sans KR';
@@ -46,8 +46,7 @@ ThemeData workspaceTheme(
     dynamicSchemeVariant: DynamicSchemeVariant.expressive,
     contrastLevel: highContrast ? 1 : 0,
   );
-  final border = OutlineInputBorder(borderRadius: BorderRadius.circular(12));
-  return ThemeData(
+  final theme = ThemeData(
     useMaterial3: true,
     colorScheme: colors,
     typography: Typography.material2021(colorScheme: colors),
@@ -60,18 +59,42 @@ ThemeData workspaceTheme(
       drawerButtonIconBuilder: (_) => const Icon(CrabforgeSymbols.menu),
       endDrawerButtonIconBuilder: (_) => const Icon(CrabforgeSymbols.menu),
     ),
-    cardTheme: CardThemeData(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    ),
+    cardTheme: const CardThemeData(margin: EdgeInsets.zero),
     inputDecorationTheme: InputDecorationThemeData(
       filled: true,
       fillColor: colors.surfaceContainerLowest,
-      border: border,
+      border: const OutlineInputBorder(),
     ),
     tooltipTheme: const TooltipThemeData(
       waitDuration: Duration(milliseconds: 400),
       preferBelow: false,
+    ),
+  );
+  // Material 3 Expressive small-button tokens use medium corners at rest and
+  // small corners when pressed. The emphasized title roles keep the type scale.
+  final buttonShape = WidgetStateProperty.resolveWith<OutlinedBorder>(
+    (states) => RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(
+        states.contains(WidgetState.pressed) ? 8 : 12,
+      ),
+    ),
+  );
+  return theme.copyWith(
+    filledButtonTheme: FilledButtonThemeData(
+      style: ButtonStyle(shape: buttonShape),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: ButtonStyle(shape: buttonShape),
+    ),
+    appBarTheme: theme.appBarTheme.copyWith(
+      titleTextStyle: theme.textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+    dialogTheme: theme.dialogTheme.copyWith(
+      titleTextStyle: theme.textTheme.headlineSmall?.copyWith(
+        fontWeight: FontWeight.w500,
+      ),
     ),
   );
 }

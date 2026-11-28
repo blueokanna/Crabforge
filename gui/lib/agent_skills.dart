@@ -12,9 +12,9 @@ part 'installed_skills.dart';
 part 'repository_skills.dart';
 
 const _agents = {
+  'agy': 'Antigravity',
   'claude': 'Claude Code',
   'codex': 'Codex',
-  'gemini': 'Gemini CLI',
   'opencode': 'OpenCode',
   'pi': 'Pi',
 };

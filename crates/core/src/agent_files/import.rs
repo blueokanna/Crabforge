@@ -150,7 +150,7 @@ fn command(path: &str, native_path: &str, selected: bool, raw: &str) -> Option<E
             .and_then(Item::as_str)
             .unwrap_or_default();
         let prompt = doc.get("prompt")?.as_str()?;
-        ("gemini", description.to_owned(), prompt.to_owned())
+        ("qwen", description.to_owned(), prompt.to_owned())
     } else {
         let (front, prompt) = discovery::markdown(&source).ok()?;
         let description = front
