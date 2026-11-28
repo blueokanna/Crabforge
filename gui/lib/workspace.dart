@@ -34,13 +34,21 @@ class WorkspaceBrand extends StatelessWidget {
         'crabforge.png',
         package: 'crabforge_assets',
         scale: 1,
-        width: 32,
-        height: 32,
-        cacheWidth: (32 * MediaQuery.devicePixelRatioOf(context)).ceil(),
+        width: 28,
+        height: 28,
+        cacheWidth: (28 * MediaQuery.devicePixelRatioOf(context)).ceil(),
         excludeFromSemantics: true,
       ),
       const SizedBox(width: 10),
-      Text('Crabforge', style: Theme.of(context).textTheme.titleLarge),
+      Flexible(
+        child: Text(
+          'Crabforge',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ),
     ],
   );
 }
@@ -61,50 +69,59 @@ class WorkspaceHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
-            builder: (context, bounds) {
-              final heading = Semantics(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: LayoutBuilder(
+        builder: (context, bounds) {
+          final typography = theme.textTheme;
+          final heading = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
                 header: true,
-                child: Text(title, style: theme.textTheme.headlineLarge),
-              );
-              if (actions.length > 1 &&
-                  (bounds.maxWidth < 440 ||
-                      MediaQuery.textScalerOf(context).scale(16) >= 22)) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    heading,
-                    const SizedBox(height: 8),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: actions,
-                    ),
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: heading),
-                  ...actions,
-                ],
-              );
-            },
-          ),
-          if (detail case final String detail)
-            Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: Text(
-                detail,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                child: Text(
+                  title,
+                  style:
+                      (bounds.maxWidth >= 600
+                              ? typography.displaySmall
+                              : typography.headlineLarge)
+                          ?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
-            ),
-        ],
+              if (detail case final String detail)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    detail,
+                    style: typography.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+            ],
+          );
+          if (actions.isEmpty) return heading;
+          final controls = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: actions,
+          );
+          if (actions.length > 1 &&
+              (bounds.maxWidth < 540 ||
+                  MediaQuery.textScalerOf(context).scale(16) >= 22)) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [heading, const SizedBox(height: 12), controls],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: heading),
+              const SizedBox(width: 24),
+              controls,
+            ],
+          );
+        },
       ),
     );
   }
@@ -130,12 +147,15 @@ class WorkspacePageTransition extends StatelessWidget {
             : const Duration(milliseconds: 200),
         switchInCurve: Curves.easeOutCubic,
         layoutBuilder: (current, _) => current ?? const SizedBox.shrink(),
-        transitionBuilder: (child, animation) => SlideTransition(
-          position: Tween(
-            begin: const Offset(0, 0.018),
-            end: Offset.zero,
-          ).animate(animation),
-          child: child,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(0, 0.018),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
         ),
         child: KeyedSubtree(
           key: ValueKey(page),
@@ -161,18 +181,19 @@ class WorkspaceStatus extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusColor = running
-        ? theme.colorScheme.tertiary
-        : theme.colorScheme.onSurfaceVariant;
+    final colors = theme.colorScheme;
     return TextButton.icon(
       onPressed: onPressed,
-      icon: Icon(
-        CrabforgeSymbols.circle,
-        fill: running ? 1 : 0,
-        size: 12,
-        color: statusColor,
+      style: TextButton.styleFrom(
+        backgroundColor: running
+            ? colors.tertiaryContainer
+            : colors.surfaceContainerHigh,
+        foregroundColor: running
+            ? colors.onTertiaryContainer
+            : colors.onSurfaceVariant,
       ),
-      label: Text(label, style: TextStyle(color: statusColor)),
+      icon: Icon(CrabforgeSymbols.circle, fill: running ? 1 : 0, size: 12),
+      label: Text(label),
     );
   }
 }

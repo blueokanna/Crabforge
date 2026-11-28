@@ -148,9 +148,9 @@ void main() {
     await tap(below(commands, find.widgetWithText(TextButton, 'Close')));
     expect(commands, findsNothing);
 
-    final rail = find.byType(NavigationRail);
-    await tap(below(rail, find.text('Providers')));
-    await tap(below(rail, find.text('Client connections')));
+    final drawer = find.byType(NavigationDrawer);
+    await tap(below(drawer, find.text('Providers')));
+    await tap(below(drawer, find.text('Client connections')));
     final clientPage = find.byKey(const PageStorageKey(5));
     await waitFor(clientPage);
     final scrollable = tester.state<ScrollableState>(

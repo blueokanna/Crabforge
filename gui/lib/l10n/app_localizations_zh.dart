@@ -118,7 +118,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get interfaceFont => '????';
+  String get interfaceFont => '界面字体';
 
   @override
   String get importSlashCommands => '导入斜杠命令';

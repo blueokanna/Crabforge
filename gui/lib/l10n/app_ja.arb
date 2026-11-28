@@ -22,7 +22,7 @@
   "memoryTidyUndo": "前回の整理を取り消す",
   "memoryTidyChanged": "変更したメモリ（{count}件）",
   "memoryTidyRestored": "取り消した変更（{count}件）",
-  "interfaceFont": "??????",
+  "interfaceFont": "表示フォント",
   "importSlashCommands": "スラッシュコマンドをインポート",
   "commandImportSource": "Markdown または TOML ファイル、ローカルフォルダー、Git URL",
   "commandChooseFile": "コマンドファイルを選択",

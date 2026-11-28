@@ -22,7 +22,7 @@
   "memoryTidyUndo": "마지막 정리 취소",
   "memoryTidyChanged": "변경된 메모리 ({count})",
   "memoryTidyRestored": "되돌린 변경 사항 ({count})",
-  "interfaceFont": "????? ??",
+  "interfaceFont": "인터페이스 글꼴",
   "importSlashCommands": "슬래시 명령 가져오기",
   "commandImportSource": "Markdown 또는 TOML 파일, 로컬 폴더 또는 Git URL",
   "commandChooseFile": "명령 파일 선택",

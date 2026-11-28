@@ -167,10 +167,18 @@ class CollectionGlyph extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: ShapeDecoration(
-        color: colors.surfaceContainer,
-        shape: const CircleBorder(),
+        color: colors.secondaryContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
-      child: SizedBox.square(dimension: 40, child: Center(child: child)),
+      child: SizedBox.square(
+        dimension: 40,
+        child: Center(
+          child: IconTheme.merge(
+            data: IconThemeData(color: colors.onSecondaryContainer),
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -192,9 +200,10 @@ class CollectionTile extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Card.outlined(
+  Widget build(BuildContext context) => Card.filled(
     clipBehavior: Clip.hardEdge,
-    color: Theme.of(context).colorScheme.surfaceContainerLowest,
+    color: Theme.of(context).colorScheme.surfaceContainerLow,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     child: LayoutBuilder(
       builder: (context, bounds) {
         if (!grid) {

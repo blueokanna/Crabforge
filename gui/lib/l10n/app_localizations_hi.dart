@@ -119,7 +119,7 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get interfaceFont => '???????? ??????';
+  String get interfaceFont => 'इंटरफ़ेस फ़ॉन्ट';
 
   @override
   String get importSlashCommands => 'स्लैश कमांड इंपोर्ट करें';

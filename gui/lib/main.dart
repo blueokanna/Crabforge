@@ -225,7 +225,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   List<(String, String)> agents = [];
   Set<String> projectAgents = const {};
   String selectedAgent = 'claude';
-  String routeQuery = '';
+  final routeSearch = TextEditingController();
   bool busy = false, reading = false, initialized = false;
   bool get grid => CollectionLayout.of(context).grid;
   Timer? timer;
@@ -251,6 +251,17 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   Map<String, dynamic> get groupPicks => settings['group_picks'] ?? {};
   ColorScheme get colors => Theme.of(context).colorScheme;
 
+  Uri? get clientOrigin {
+    final address = (running ? status['address'] : null) ?? settings['listen'];
+    final origin = Uri.parse('http://$address');
+    if (origin.port == 0) return null;
+    return switch (origin.host) {
+      '0.0.0.0' => origin.replace(host: '127.0.0.1'),
+      '::' => origin.replace(host: '::1'),
+      _ => origin,
+    };
+  }
+
   @override
   void initState() {
     super.initState();
@@ -262,6 +273,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     timer?.cancel();
+    routeSearch.dispose();
     super.dispose();
   }
 
@@ -736,7 +748,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
       (context.strings.models, CrabforgeSymbols.viewList),
       (context.strings.clients, CrabforgeSymbols.devices),
     ];
-    final wide = MediaQuery.sizeOf(context).width >= 820;
+    final wide = MediaQuery.sizeOf(context).width >= workspaceWideBreakpoint;
     final ready = snapshot != null && error == null;
     final body = ready && page == 4
         ? ModelCatalog(
@@ -779,7 +791,6 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                                   : CollectionLayout.of(context).toggle,
                             ),
                             if (page == 0 || page == 2) ...[
-                              const SizedBox(width: 8),
                               FilledButton.icon(
                                 onPressed:
                                     busy ||
@@ -865,8 +876,8 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     );
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: wide ? 62 : 56,
-        titleSpacing: 18,
+        toolbarHeight: wide ? 64 : 56,
+        titleSpacing: 12,
         title: TextButton(
           style: TextButton.styleFrom(foregroundColor: colors.onSurface),
           onPressed: () => showAboutDialog(
@@ -879,9 +890,11 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           ),
           child: const WorkspaceBrand(),
         ),
-        shape: Border(bottom: BorderSide(color: colors.outlineVariant)),
         actions: [
-          if (ready && MediaQuery.sizeOf(context).width >= 480 && page != 3)
+          if (ready &&
+              MediaQuery.sizeOf(context).width >= 560 &&
+              MediaQuery.textScalerOf(context).scale(16) < 22 &&
+              page != 3)
             WorkspaceStatus(
               running: running,
               label: running
@@ -939,45 +952,56 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               ],
             ),
       body: SafeArea(
-        child: Row(
-          children: [
-            if (wide) ...[
-              ColoredBox(
-                color: colors.surfaceContainerLow,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 16, 10, 0),
-                  child: NavigationRail(
-                    extended: true,
-                    scrollable: true,
-                    minExtendedWidth: 188,
-                    backgroundColor: colors.surfaceContainerLow,
+        child: Padding(
+          padding: wide
+              ? const EdgeInsetsDirectional.only(end: 12, bottom: 12)
+              : EdgeInsets.zero,
+          child: Row(
+            children: [
+              if (wide)
+                SizedBox(
+                  width: 224,
+                  child: NavigationDrawer(
                     selectedIndex: page,
                     onDestinationSelected: navigate,
-                    destinations: [
+                    children: [
+                      const SizedBox(height: 16),
                       for (final p in pages)
-                        NavigationRailDestination(
+                        NavigationDrawerDestination(
                           icon: Icon(p.$2),
                           selectedIcon: Icon(p.$2, fill: 1),
-                          label: Text(p.$1),
+                          label: SizedBox(
+                            width: 136,
+                            child: Text(
+                              p.$1,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
                     ],
                   ),
                 ),
-              ),
-              VerticalDivider(width: 1, color: colors.outlineVariant),
-            ],
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1360),
-                  child: WorkspacePageTransition(
-                    page: ready ? page : -1,
-                    child: body,
+              Expanded(
+                child: Material(
+                  color: colors.surface,
+                  borderRadius: wide
+                      ? BorderRadius.circular(28)
+                      : BorderRadius.zero,
+                  clipBehavior: Clip.antiAlias,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1360),
+                      child: WorkspacePageTransition(
+                        page: ready ? page : -1,
+                        child: body,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1003,37 +1027,6 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
           ?.copyWith(fontWeight: FontWeight.bold),
     ),
   );
-  Widget summaryPanel(IconData icon, String title, String? detail) =>
-      Card.filled(
-        color: colors.surfaceContainerLow,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Row(
-            children: [
-              CollectionGlyph(Icon(icon, size: 22)),
-              const SizedBox(width: 18),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    if (detail != null)
-                      Text(
-                        detail,
-                        style: TextStyle(color: colors.onSurfaceVariant),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-
   List<Widget> providerPage() => [
     if (providers.isEmpty)
       SliverToBoxAdapter(
@@ -1435,6 +1428,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
 
   List<Widget> routesPage() {
     final attempts = (status['attempts'] as List).cast<JsonMap>();
+    final routeQuery = routeSearch.text.trim().toLowerCase();
     final visible = routeQuery.isEmpty
         ? attempts
         : attempts
@@ -1466,16 +1460,11 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               CrabforgeSymbols.timeline,
             )
           else ...[
-            TextFormField(
-              initialValue: routeQuery,
-              decoration: InputDecoration(
-                labelText: MaterialLocalizations.of(context).searchFieldLabel,
-                prefixIcon: const Icon(CrabforgeSymbols.search),
-              ),
-              onChanged: (value) {
-                final query = value.trim().toLowerCase();
-                if (query != routeQuery) setState(() => routeQuery = query);
-              },
+            SearchBar(
+              controller: routeSearch,
+              hintText: MaterialLocalizations.of(context).searchFieldLabel,
+              leading: const Icon(CrabforgeSymbols.search),
+              onChanged: (_) => setState(() {}),
             ),
             heading(context.strings.recentAttempts(visible.length)),
           ],
@@ -1520,51 +1509,108 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   }
 
   List<Widget> gatewayPage() {
-    final addr = status['address'] ?? settings['listen'];
+    final base = clientOrigin?.replace(path: '/v1').toString();
+    final foreground = colors.onPrimaryContainer;
     return [
       SliverList.list(
         children: [
-          summaryPanel(
-            CrabforgeSymbols.dns,
-            running ? context.strings.running : context.strings.stopped,
-            'http://$addr/v1',
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                onPressed: busy
-                    ? null
-                    : () => act(() async {
-                        await api.setRunning(on_: !running);
-                        final s = await api.status();
-                        if (mounted) setState(() => applyStatus(s));
-                      }),
-                icon: Icon(
-                  running ? CrabforgeSymbols.stop : CrabforgeSymbols.playArrow,
-                ),
-                label: Text(
-                  running ? context.strings.stop : context.strings.start,
-                ),
+          Card.filled(
+            color: colors.primaryContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CollectionGlyph(
+                        Icon(CrabforgeSymbols.dns, fill: running ? 1 : 0),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          running
+                              ? context.strings.running
+                              : context.strings.stopped,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                color: foreground,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (base != null) ...[
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(context.strings.apiBase),
+                      subtitle: SelectableText(base),
+                      textColor: foreground,
+                      iconColor: foreground,
+                      trailing: IconButton(
+                        tooltip: context.strings.copyBase,
+                        onPressed: () => copy(base, context.strings.baseCopied),
+                        icon: const Icon(CrabforgeSymbols.contentCopy),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: busy
+                            ? null
+                            : () => act(() async {
+                                await api.setRunning(on_: !running);
+                                final s = await api.status();
+                                if (mounted) setState(() => applyStatus(s));
+                              }),
+                        icon: Icon(
+                          running
+                              ? CrabforgeSymbols.stop
+                              : CrabforgeSymbols.playArrow,
+                        ),
+                        label: Text(
+                          running
+                              ? context.strings.stop
+                              : context.strings.start,
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: foreground,
+                        ),
+                        onPressed: busy
+                            ? null
+                            : () => act(() async {
+                                final key = await api.gatewayKey();
+                                if (mounted) {
+                                  await copy(key, context.strings.keyCopied);
+                                }
+                              }),
+                        icon: const Icon(CrabforgeSymbols.key),
+                        label: Text(context.strings.copyKey),
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: foreground,
+                        ),
+                        onPressed: busy || running ? null : network,
+                        icon: const Icon(CrabforgeSymbols.tune),
+                        label: Text(context.strings.networkSettings),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              OutlinedButton.icon(
-                onPressed: busy
-                    ? null
-                    : () => act(() async {
-                        final key = await api.gatewayKey();
-                        if (mounted) await copy(key, context.strings.keyCopied);
-                      }),
-                icon: const Icon(CrabforgeSymbols.key),
-                label: Text(context.strings.copyKey),
-              ),
-              TextButton.icon(
-                onPressed: busy || running ? null : network,
-                icon: const Icon(CrabforgeSymbols.tune),
-                label: Text(context.strings.networkSettings),
-              ),
-            ],
+            ),
           ),
           heading('P2P · QUIC'),
         ],
@@ -1608,7 +1654,7 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
               onTap: () => navigate(5),
             ),
           ),
-          ...gatewayConnections(addr),
+          gatewayTunnel(),
         ],
       ),
       SliverToBoxAdapter(
@@ -1624,7 +1670,9 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
   }
 
   List<Widget> agentPage() {
-    final addr = status['address'] ?? settings['listen'];
+    final root = clientOrigin
+        ?.replace(pathSegments: ['agent', selectedAgent])
+        .toString();
     return [
       SliverToBoxAdapter(
         child: Card.filled(
@@ -1655,14 +1703,13 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(context.strings.agentRoot),
-                  subtitle: SelectableText('http://$addr/agent/$selectedAgent'),
+                  subtitle: root == null ? null : SelectableText(root),
                   trailing: IconButton(
                     tooltip: context.strings.copyRoot,
                     icon: const Icon(CrabforgeSymbols.contentCopy),
-                    onPressed: () => copy(
-                      'http://$addr/agent/$selectedAgent',
-                      context.strings.rootCopied,
-                    ),
+                    onPressed: root == null
+                        ? null
+                        : () => copy(root, context.strings.rootCopied),
                   ),
                 ),
                 Text(context.strings.agentHelp),
@@ -1875,63 +1922,50 @@ class _ConsoleState extends State<Console> with WidgetsBindingObserver {
     ];
   }
 
-  List<Widget> gatewayConnections(String addr) => [
-    Card.filled(
-      child: ListTile(
-        title: Text(context.strings.tunnel),
-        subtitle: Text(
+  Widget gatewayTunnel() => Card.filled(
+    child: ListTile(
+      title: Text(context.strings.tunnel),
+      subtitle: Text(
+        status['tunnel'] == null
+            ? context.strings.disconnected
+            : 'http://${status['tunnel']}/v1',
+      ),
+      trailing: TextButton(
+        onPressed: busy
+            ? null
+            : () async {
+                if (status['tunnel'] != null) {
+                  await act(() async {
+                    await api.disconnectPeer();
+                    final updated = await api.status();
+                    if (mounted) setState(() => applyStatus(updated));
+                  });
+                  return;
+                }
+                final address = await showDialog<(String, String, String)>(
+                  context: context,
+                  builder: (_) => const TunnelEditor(),
+                );
+                if (address != null && mounted) {
+                  await act(() async {
+                    await api.connectPeer(
+                      remote: address.$1,
+                      listen: address.$2,
+                      relayFallback: address.$3.isEmpty ? null : address.$3,
+                    );
+                    final updated = await api.status();
+                    if (mounted) setState(() => applyStatus(updated));
+                  });
+                }
+              },
+        child: Text(
           status['tunnel'] == null
-              ? context.strings.disconnected
-              : 'http://${status['tunnel']}/v1',
-        ),
-        trailing: TextButton(
-          onPressed: busy
-              ? null
-              : () async {
-                  if (status['tunnel'] != null) {
-                    await act(() async {
-                      await api.disconnectPeer();
-                      final updated = await api.status();
-                      if (mounted) setState(() => applyStatus(updated));
-                    });
-                    return;
-                  }
-                  final address = await showDialog<(String, String, String)>(
-                    context: context,
-                    builder: (_) => const TunnelEditor(),
-                  );
-                  if (address != null && mounted) {
-                    await act(() async {
-                      await api.connectPeer(
-                        remote: address.$1,
-                        listen: address.$2,
-                        relayFallback: address.$3.isEmpty ? null : address.$3,
-                      );
-                      final updated = await api.status();
-                      if (mounted) setState(() => applyStatus(updated));
-                    });
-                  }
-                },
-          child: Text(
-            status['tunnel'] == null
-                ? context.strings.connect
-                : context.strings.disconnect,
-          ),
+              ? context.strings.connect
+              : context.strings.disconnect,
         ),
       ),
     ),
-    Card.filled(
-      child: ListTile(
-        title: Text(context.strings.apiBase),
-        subtitle: SelectableText('http://$addr/v1'),
-        trailing: IconButton(
-          tooltip: context.strings.copyBase,
-          onPressed: () => copy('http://$addr/v1', context.strings.baseCopied),
-          icon: const Icon(CrabforgeSymbols.contentCopy),
-        ),
-      ),
-    ),
-  ];
+  );
 }
 
 class ModelCatalog extends StatefulWidget {
@@ -2010,7 +2044,9 @@ class _ModelCatalogState extends State<ModelCatalog> {
     final material = MaterialLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: MediaQuery.sizeOf(context).width >= 820 ? 38 : 18,
+        horizontal: MediaQuery.sizeOf(context).width >= workspaceWideBreakpoint
+            ? 38
+            : 18,
         vertical: 28,
       ),
       child: Column(
@@ -2020,11 +2056,9 @@ class _ModelCatalogState extends State<ModelCatalog> {
             title: strings.models,
             actions: [LayoutToggle(grid: grid, onPressed: widget.onToggle)],
           ),
-          TextField(
-            decoration: InputDecoration(
-              labelText: material.searchFieldLabel,
-              prefixIcon: const Icon(CrabforgeSymbols.search),
-            ),
+          SearchBar(
+            hintText: material.searchFieldLabel,
+            leading: const Icon(CrabforgeSymbols.search),
             onChanged: (value) {
               final query = value.trim().toLowerCase();
               if (query == filter) return;
@@ -2098,10 +2132,11 @@ class _ModelCatalogState extends State<ModelCatalog> {
                 }
 
                 if (!grid) {
-                  return ListView.builder(
+                  return ListView.separated(
                     key: const PageStorageKey('model-list'),
                     itemCount: rows.length,
                     itemBuilder: item,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
                   );
                 }
                 return GridView.builder(

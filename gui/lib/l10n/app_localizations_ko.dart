@@ -118,7 +118,7 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get interfaceFont => '????? ??';
+  String get interfaceFont => '인터페이스 글꼴';
 
   @override
   String get importSlashCommands => '슬래시 명령 가져오기';

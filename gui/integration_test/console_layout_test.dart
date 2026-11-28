@@ -64,6 +64,7 @@ void main() {
             for (final (id, model) in [
               ('openai', 'gpt-4.1'),
               ('anthropic', 'claude-sonnet-4'),
+              ('google', 'gemini-2.5-flash'),
             ])
               {
                 'id': id,
@@ -97,12 +98,22 @@ void main() {
     await tester.pumpWidget(
       RepaintBoundary(key: capture, child: const CrabforgeApp()),
     );
+    final addProvider = find.text('Add provider');
+    final loadError = find.byType(SelectableText);
     final deadline = DateTime.now().add(const Duration(seconds: 20));
-    while (find.text('Add provider').evaluate().isEmpty &&
+    while (addProvider.evaluate().isEmpty &&
+        loadError.evaluate().isEmpty &&
         DateTime.now().isBefore(deadline)) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.text('Add provider'), findsOneWidget);
+    expect(
+      addProvider,
+      findsOneWidget,
+      reason: tester
+          .widgetList<SelectableText>(loadError)
+          .map((text) => text.data)
+          .join('\n'),
+    );
     expect(
       find.descendant(
         of: find.byType(WorkspaceBrand),
@@ -138,13 +149,30 @@ void main() {
       strings.clients,
     ];
     final pages = labels(strings);
-    Finder navigation(int width) =>
-        find.byType(width >= 820 ? NavigationRail : NavigationBar);
+    Finder navigation(int width) => find.byType(
+      width >= workspaceWideBreakpoint ? NavigationDrawer : NavigationBar,
+    );
     Future<void> openPage(Finder nav, String label) async {
       await tester.tap(
         find.descendant(of: nav, matching: find.text(label)).first,
       );
       await tester.pumpAndSettle(const Duration(milliseconds: 16));
+    }
+
+    Future<void> saveCapture(String path) async {
+      final boundary =
+          capture.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      final image = await boundary.toImage();
+      try {
+        final bytes = (await image.toByteData(format: ui.ImageByteFormat.png))!;
+        final file = File(path);
+        await file.parent.create(recursive: true);
+        await file.writeAsBytes(
+          bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        );
+      } finally {
+        image.dispose();
+      }
     }
 
     if (Platform.environment['CRABFORGE_LAYOUT_PROFILE']
@@ -189,6 +217,50 @@ void main() {
     addTearDown(
       tester.binding.platformDispatcher.clearPlatformBrightnessTestValue,
     );
+    final wideNav = navigation(1200);
+    await openPage(wideNav, strings.clients);
+    final copyRoot = find.byWidgetPredicate(
+      (widget) => widget is IconButton && widget.tooltip == strings.copyRoot,
+    );
+    expect(tester.widget<IconButton>(copyRoot).onPressed, isNull);
+    await openPage(wideNav, strings.gateway);
+    expect(find.byTooltip(strings.copyBase), findsNothing);
+    final gatewayButton = find.widgetWithText(FilledButton, strings.start);
+    await tester.tap(gatewayButton);
+    final stopGateway = find.widgetWithText(FilledButton, strings.stop);
+    final gatewayDeadline = DateTime.now().add(const Duration(seconds: 10));
+    while (stopGateway.evaluate().isEmpty &&
+        DateTime.now().isBefore(gatewayDeadline)) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(stopGateway, findsOneWidget);
+    final address = (jsonDecode(await native.status()) as Map)['address'];
+    final local = Uri.parse('http://$address');
+    expect(local.host, '127.0.0.1');
+    expect(local.port, greaterThan(0));
+    expect(find.text('$local/v1'), findsOneWidget);
+    if (output != null) {
+      tester.binding.platformDispatcher.platformBrightnessTestValue =
+          Brightness.dark;
+      tester.view.physicalSize = const Size(1200, 840);
+      await tester.pumpAndSettle();
+      await saveCapture('$output/en-gateway.png');
+      tester.view.physicalSize = const Size(1200, 800);
+      await tester.pumpAndSettle();
+    }
+    await openPage(wideNav, strings.clients);
+    expect(tester.widget<IconButton>(copyRoot).onPressed, isNotNull);
+    expect(find.text('$local/agent/claude'), findsOneWidget);
+    await openPage(wideNav, strings.gateway);
+    await tester.tap(stopGateway);
+    final stopDeadline = DateTime.now().add(const Duration(seconds: 10));
+    while (find.byTooltip(strings.copyBase).evaluate().isNotEmpty &&
+        DateTime.now().isBefore(stopDeadline)) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byTooltip(strings.copyBase), findsNothing);
+    await tester.pumpAndSettle();
+
     Finder layoutToggle(bool grid) => find.byWidgetPredicate(
       (widget) =>
           widget is IconButton &&
@@ -217,29 +289,9 @@ void main() {
             );
             expect(tester.takeException(), isNull);
             if (output != null) {
-              final boundary =
-                  capture.currentContext!.findRenderObject()!
-                      as RenderRepaintBoundary;
-              final image = await boundary.toImage();
-              try {
-                expect(image.width, width);
-                expect(image.height, 800);
-                final bytes = (await image.toByteData(
-                  format: ui.ImageByteFormat.png,
-                ))!;
-                final file = File(
-                  '$output/${brightness.name}/$width-${pages.indexOf(label)}-${grid ? 'grid' : 'list'}.png',
-                );
-                await file.parent.create(recursive: true);
-                await file.writeAsBytes(
-                  bytes.buffer.asUint8List(
-                    bytes.offsetInBytes,
-                    bytes.lengthInBytes,
-                  ),
-                );
-              } finally {
-                image.dispose();
-              }
+              await saveCapture(
+                '$output/${brightness.name}/$width-${pages.indexOf(label)}-${grid ? 'grid' : 'list'}.png',
+              );
             }
             await tester.tap(toggle);
             final deadline = DateTime.now().add(const Duration(seconds: 10));
@@ -257,6 +309,26 @@ void main() {
           }
         }
       }
+    }
+
+    if (output != null) {
+      const locale = Locale('zh');
+      final zh = lookupAppLocalizations(locale);
+      tester.binding.platformDispatcher.localesTestValue = [locale];
+      tester.view.physicalSize = const Size(1200, 800);
+      for (final (brightness, label, file) in [
+        (Brightness.light, zh.providers, 'providers'),
+        (Brightness.dark, zh.models, 'models'),
+      ]) {
+        tester.binding.platformDispatcher.platformBrightnessTestValue =
+            brightness;
+        await tester.pumpAndSettle();
+        await openPage(wideNav, label);
+        expect(tester.takeException(), isNull);
+        await saveCapture('$output/zh-$file.png');
+      }
+      tester.binding.platformDispatcher.localesTestValue = [const Locale('en')];
+      await tester.pumpAndSettle();
     }
 
     final saveRouteLimits = find.widgetWithText(FilledButton, strings.save);

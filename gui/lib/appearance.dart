@@ -27,6 +27,7 @@ enum WorkspaceFont {
 }
 
 const systemAccentChannel = 'com.blue.crabforge/system-accent';
+const workspaceWideBreakpoint = 820.0;
 
 Color? decodeSystemAccent(ByteData? bytes) {
   if (bytes == null || bytes.lengthInBytes != 4) return null;
@@ -49,6 +50,7 @@ ThemeData workspaceTheme(
   final theme = ThemeData(
     useMaterial3: true,
     colorScheme: colors,
+    scaffoldBackgroundColor: colors.surfaceContainerLow,
     typography: Typography.material2021(colorScheme: colors),
     fontFamily: font.family,
     fontFamilyFallback: font.fallback,
@@ -60,6 +62,22 @@ ThemeData workspaceTheme(
       endDrawerButtonIconBuilder: (_) => const Icon(CrabforgeSymbols.menu),
     ),
     cardTheme: const CardThemeData(margin: EdgeInsets.zero),
+    drawerTheme: const DrawerThemeData(shape: RoundedRectangleBorder()),
+    navigationDrawerTheme: NavigationDrawerThemeData(
+      backgroundColor: colors.surfaceContainerLow,
+      elevation: 0,
+      tileHeight: 52,
+      indicatorSize: const Size(double.infinity, 48),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: colors.surfaceContainerLow,
+      elevation: 0,
+    ),
+    searchBarTheme: SearchBarThemeData(
+      elevation: const WidgetStatePropertyAll(0),
+      backgroundColor: WidgetStatePropertyAll(colors.surfaceContainerHigh),
+      constraints: const BoxConstraints(minHeight: 48),
+    ),
     inputDecorationTheme: InputDecorationThemeData(
       filled: true,
       fillColor: colors.surfaceContainerLowest,
@@ -70,8 +88,7 @@ ThemeData workspaceTheme(
       preferBelow: false,
     ),
   );
-  // Material 3 Expressive small-button tokens use medium corners at rest and
-  // small corners when pressed. The emphasized title roles keep the type scale.
+  // These controls use the Expressive extra-small button corner tokens.
   final buttonShape = WidgetStateProperty.resolveWith<OutlinedBorder>(
     (states) => RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(
@@ -87,6 +104,8 @@ ThemeData workspaceTheme(
       style: ButtonStyle(shape: buttonShape),
     ),
     appBarTheme: theme.appBarTheme.copyWith(
+      backgroundColor: colors.surfaceContainerLow,
+      scrolledUnderElevation: 0,
       titleTextStyle: theme.textTheme.titleLarge?.copyWith(
         fontWeight: FontWeight.w500,
       ),

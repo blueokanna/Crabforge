@@ -6,7 +6,7 @@ Windows 构建工作流在 `main` 分支更新和拉取请求时运行。它执�
 
 ## 验证与运行
 
-从同一发行版下载 ZIP 和对应的 `.sha256` 文件。以下命令以 `v0.1.0` 为例，请替换成实际下载的文件名和标签。GitHub CLI 还会核对构建是否使用 GitHub 托管运行器，以及构建来源是否与发行标签指向的提交一致。 [GitHub Releases](https://github.com/blueokanna/Crabforge/releases) · [GitHub CLI](https://cli.github.com/)
+从同一发行版下载 ZIP 和对应的 `.sha256` 文件。安装 GitHub CLI 并用 `gh auth login` 登录后，再运行校验命令。以下命令以 `v0.1.0` 为例，请将 `$archive` 和 `$tag` 改成实际下载的 ZIP 文件名和发行标签。来源验证会核对构建是否使用 GitHub 托管运行器，以及构建来源是否与标签指向的提交一致。[GitHub Releases](https://github.com/blueokanna/Crabforge/releases) · [GitHub CLI](https://cli.github.com/)
 
 ```powershell
 $repo = 'blueokanna/Crabforge'
@@ -22,7 +22,20 @@ gh attestation verify $archive --repo $repo --signer-workflow "$repo/.github/wor
 if ($LASTEXITCODE) { throw 'Build provenance verification failed' }
 ```
 
-解压验证通过的文件。`SHA256SUMS` 记录包内各文件的哈希。启动 `desktop\crabforge.exe` 时，保留同目录的 DLL 和 `data` 目录。CLI 位于解压目录根部。如系统缺少运行库，请安装 Microsoft Visual C++ x64 Redistributable。 [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)
+将验证通过的 ZIP 解压到新目录。在解压目录中执行以下命令，按 `SHA256SUMS` 清单逐个校验包内文件。
+
+```powershell
+foreach ($entry in Get-Content -LiteralPath '.\SHA256SUMS' -Encoding UTF8 -ErrorAction Stop) {
+    if ($entry -notmatch '^([0-9a-f]{64})  (.+)$') { throw 'Invalid SHA256SUMS entry' }
+    $digest = $Matches[1]
+    $path = $Matches[2]
+    if ((Get-FileHash -LiteralPath $path -Algorithm SHA256 -ErrorAction Stop).Hash -ne $digest) {
+        throw "File SHA-256 mismatch for $path"
+    }
+}
+```
+
+启动 `desktop\crabforge.exe` 时，保留同目录的 DLL 和 `data` 目录。CLI 位于解压目录根部。如系统缺少运行库，请安装 Microsoft Visual C++ x64 Redistributable。 [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)
 
 如果该版本使用了 Authenticode，可用 `Get-AuthenticodeSignature` 查看 EXE 和 DLL 的发布者与时间戳。GitHub 构建来源证明覆盖整个 ZIP，是每个发行版的必备验证项。
 

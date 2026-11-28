@@ -118,7 +118,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get interfaceFont => '??????';
+  String get interfaceFont => '表示フォント';
 
   @override
   String get importSlashCommands => 'スラッシュコマンドをインポート';

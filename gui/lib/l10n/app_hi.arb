@@ -22,7 +22,7 @@
   "memoryTidyUndo": "पिछले बदलाव वापस लें",
   "memoryTidyChanged": "बदली गई स्मृतियाँ ({count})",
   "memoryTidyRestored": "वापस लिए गए बदलाव ({count})",
-  "interfaceFont": "???????? ??????",
+  "interfaceFont": "इंटरफ़ेस फ़ॉन्ट",
   "importSlashCommands": "स्लैश कमांड इंपोर्ट करें",
   "commandImportSource": "Markdown या TOML फ़ाइल, स्थानीय फ़ोल्डर या Git URL",
   "commandChooseFile": "कमांड फ़ाइल चुनें",
