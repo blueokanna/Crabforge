@@ -35,7 +35,7 @@ impl Client {
     fn request(self, method: Method, url: &str) -> TestRequest {
         TestRequest {
             builder: Request::builder().method(method).uri(url),
-            body: String::new(),
+            body: Vec::new(),
             timeout: self.timeout,
         }
     }
@@ -43,7 +43,7 @@ impl Client {
 
 pub struct TestRequest {
     builder: Builder,
-    body: String,
+    body: Vec<u8>,
     timeout: Duration,
 }
 
@@ -57,8 +57,12 @@ impl TestRequest {
         self.header("authorization", format!("Bearer {token}"))
     }
 
-    pub fn body(mut self, value: impl Into<String>) -> Self {
-        self.body = value.into();
+    pub fn body(self, value: impl Into<String>) -> Self {
+        self.body_bytes(value.into().into_bytes())
+    }
+
+    pub fn body_bytes(mut self, value: Vec<u8>) -> Self {
+        self.body = value;
         self
     }
 

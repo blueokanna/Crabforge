@@ -400,7 +400,7 @@ async fn modelscope_gateway_polls_images_and_keeps_partial_results() -> Result<(
         .post(format!("http://{addr}/v1/images/edits"))
         .bearer_auth("gateway-key")
         .header("content-type", "multipart/form-data; boundary=fixture")
-        .body(body)
+        .body_bytes(body)
         .send()
         .await?
         .error_for_status()?

@@ -379,14 +379,14 @@ pub(crate) async fn maintain(root: &Path, app: Arc<Gateway>, mut active: Config)
                 p.model_reasoning_levels
                     .clone_from(&saved.model_reasoning_levels);
                 p.endpoints.auth_header = saved.endpoints.auth_header;
-                changed = true;
             }
         }
         if changed {
-            match app.replace_catalog(updated.clone()) {
-                Ok(()) => active = updated,
-                Err(error) => eprintln!("Could not update the gateway model directory: {error:#}"),
+            if let Err(error) = app.replace_catalog(updated.clone()) {
+                eprintln!("Could not update the gateway model directory: {error:#}");
+                continue;
             }
         }
+        active = updated;
     }
 }
