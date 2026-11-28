@@ -10,6 +10,40 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get memorySync => 'WebDAV 메모리 동기화';
+
+  @override
+  String get memorySyncUrl => 'WebDAV 폴더 또는 백업 URL';
+
+  @override
+  String get memorySyncUser => 'WebDAV 사용자 이름(선택 사항)';
+
+  @override
+  String get memorySyncPassword => 'WebDAV 암호';
+
+  @override
+  String get memorySyncPassphrase => '백업 암호 문구';
+
+  @override
+  String get memorySyncPreview => '미리 보기';
+
+  @override
+  String get memorySyncApply => '동기화 적용';
+
+  @override
+  String get memorySyncComplete => '동기화 완료';
+
+  @override
+  String memorySyncChanges(
+    String downloaded,
+    String updated,
+    String removed,
+    String uploaded,
+  ) {
+    return '다운로드 $downloaded개 · 업데이트 $updated개 · 삭제 $removed개 · 업로드 $uploaded개';
+  }
+
+  @override
   String get memoryTidy => '야간 메모리 정리';
 
   @override

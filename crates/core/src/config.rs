@@ -26,7 +26,8 @@ pub use backup::{
     import_backup_providers, import_backup_routing,
 };
 pub(crate) use backup::{
-    library_section as backup_library_section, open_backup as open_import_backup,
+    MAX_BACKUP, decode_backup, encode_backup, library_section as backup_library_section,
+    open_backup as open_import_backup,
 };
 pub use groups::{ImportedGroup, MemberPattern, ResolvedGroups};
 pub use rename::rename_provider;

@@ -112,6 +112,65 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @memorySync.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV memory sync'**
+  String get memorySync;
+
+  /// No description provided for @memorySyncUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV collection or backup URL'**
+  String get memorySyncUrl;
+
+  /// No description provided for @memorySyncUser.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV username (optional)'**
+  String get memorySyncUser;
+
+  /// No description provided for @memorySyncPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV password'**
+  String get memorySyncPassword;
+
+  /// No description provided for @memorySyncPassphrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup passphrase'**
+  String get memorySyncPassphrase;
+
+  /// No description provided for @memorySyncPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get memorySyncPreview;
+
+  /// No description provided for @memorySyncApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply sync'**
+  String get memorySyncApply;
+
+  /// No description provided for @memorySyncComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete'**
+  String get memorySyncComplete;
+
+  /// No description provided for @memorySyncChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Download {downloaded} · Update {updated} · Remove {removed} · Upload {uploaded}'**
+  String memorySyncChanges(
+    String downloaded,
+    String updated,
+    String removed,
+    String uploaded,
+  );
+
   /// No description provided for @memoryTidy.
   ///
   /// In en, this message translates to:

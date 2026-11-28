@@ -10,6 +10,40 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get memorySync => 'WebDAV memory sync';
+
+  @override
+  String get memorySyncUrl => 'WebDAV collection or backup URL';
+
+  @override
+  String get memorySyncUser => 'WebDAV username (optional)';
+
+  @override
+  String get memorySyncPassword => 'WebDAV password';
+
+  @override
+  String get memorySyncPassphrase => 'Backup passphrase';
+
+  @override
+  String get memorySyncPreview => 'Preview';
+
+  @override
+  String get memorySyncApply => 'Apply sync';
+
+  @override
+  String get memorySyncComplete => 'Sync complete';
+
+  @override
+  String memorySyncChanges(
+    String downloaded,
+    String updated,
+    String removed,
+    String uploaded,
+  ) {
+    return 'Download $downloaded · Update $updated · Remove $removed · Upload $uploaded';
+  }
+
+  @override
   String get memoryTidy => 'Nightly memory tidy';
 
   @override

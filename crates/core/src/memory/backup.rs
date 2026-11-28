@@ -19,35 +19,37 @@ struct Bundle {
     other: BTreeMap<String, Value>,
 }
 
-#[derive(NsonDeserialize)]
+#[derive(Clone, PartialEq, NsonDeserialize, NsonSerialize)]
 #[njson(rename_all = "camelCase")]
-struct Memory {
-    id: String,
-    text: String,
-    kind: String,
-    scope: String,
-    status: String,
-    origin: String,
-    created: String,
-    updated: String,
-    edited: Option<String>,
-    why: Option<String>,
-    tags: Option<Vec<String>>,
-    pinned: Option<bool>,
-    sources: Option<Vec<Source>>,
-    superseded_by: Option<String>,
-    skill: Option<String>,
+pub(super) struct Memory {
+    pub(super) id: String,
+    pub(super) text: String,
+    pub(super) kind: String,
+    pub(super) scope: String,
+    pub(super) status: String,
+    pub(super) origin: String,
+    pub(super) created: String,
+    pub(super) updated: String,
+    pub(super) edited: Option<String>,
+    pub(super) why: Option<String>,
+    pub(super) tags: Option<Vec<String>>,
+    pub(super) pinned: Option<bool>,
+    pub(super) sources: Option<Vec<Source>>,
+    pub(super) superseded_by: Option<String>,
+    pub(super) skill: Option<String>,
+    pub(super) merged_from: Option<Vec<String>>,
 }
 
-#[derive(Default, NsonDeserialize)]
+#[derive(Clone, Default, PartialEq, NsonDeserialize, NsonSerialize)]
 #[njson(default)]
-struct Source {
-    agent: String,
-    session: String,
-    dir: String,
-    file: String,
-    quote: String,
-    at: String,
+pub(super) struct Source {
+    pub(super) agent: String,
+    pub(super) session: String,
+    pub(super) dir: String,
+    pub(super) file: String,
+    pub(super) quote: String,
+    #[njson(skip_serializing_if = "String::is_empty")]
+    pub(super) at: String,
 }
 
 #[derive(NsonSerialize)]
@@ -154,7 +156,7 @@ pub fn import_backup(
     Ok(report)
 }
 
-fn timestamp(value: &str) -> Result<OffsetDateTime> {
+pub(super) fn timestamp(value: &str) -> Result<OffsetDateTime> {
     OffsetDateTime::parse(value, &Rfc3339).context("invalid backup memory timestamp")
 }
 
@@ -173,7 +175,7 @@ fn write_new(folder: &Path, create: Vec<(PathBuf, Vec<u8>)>) -> Result<()> {
 }
 
 impl Memory {
-    fn markdown(&self) -> Result<Vec<u8>> {
+    pub(super) fn markdown(&self) -> Result<Vec<u8>> {
         timestamp(&self.created)?;
         timestamp(&self.updated)?;
         let file: YamlFile = "".parse()?;
@@ -203,6 +205,16 @@ impl Memory {
                 list.push(value.as_str());
             }
             ensure!(doc.set("tags", list), "cannot write memory tags");
+        }
+        if let Some(ids) = &self.merged_from {
+            let list = Sequence::new();
+            for id in ids {
+                list.push(id.as_str());
+            }
+            ensure!(
+                doc.set("mergedFrom", list),
+                "cannot write merged memory IDs"
+            );
         }
         if let Some(sources) = &self.sources {
             let list = Sequence::new();

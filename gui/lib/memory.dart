@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'material_symbols.dart';
 import 'collection_view.dart';
 import 'language.dart';
+import 'memory_sync.dart';
 import 'src/rust/api.dart' as api;
 
 const _kinds = [
@@ -223,6 +224,17 @@ class _MemoryLibraryState extends State<MemoryLibrary> {
                     child: Text(
                       MaterialLocalizations.of(context).closeButtonLabel,
                     ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final changed = await showDialog<bool>(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => const MemorySync(),
+                      );
+                      if (mounted && changed == true) refresh();
+                    },
+                    child: Text(strings.memorySync),
                   ),
                   FilledButton.icon(
                     onPressed: edit,

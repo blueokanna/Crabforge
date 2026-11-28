@@ -10,7 +10,7 @@ use std::{
 };
 use zeroize::Zeroizing;
 
-const MAX_BACKUP: usize = 64 * 1024 * 1024;
+pub(crate) const MAX_BACKUP: usize = 64 * 1024 * 1024;
 
 pub(crate) fn library_section(
     file: &Path,
@@ -33,7 +33,7 @@ pub(crate) fn library_section(
     Ok((entries, library.into_keys().collect()))
 }
 
-#[derive(NsonDeserialize)]
+#[derive(NsonDeserialize, NsonSerialize)]
 struct Envelope {
     format: String,
     version: u32,
@@ -45,6 +45,34 @@ struct Envelope {
 }
 
 impl Envelope {
+    fn header(&self, salt: &[u8]) -> String {
+        format!(
+            "{}/{}/{}/{}/{}",
+            self.format,
+            self.version,
+            self.kdf,
+            self.iterations,
+            hex::encode(salt)
+        )
+    }
+
+    fn key(&self, passphrase: &str, salt: &[u8]) -> Result<aead::LessSafeKey> {
+        let rounds = NonZeroU32::new(self.iterations)
+            .filter(|n| (100_000..=10_000_000).contains(&n.get()))
+            .context("invalid encrypted backup iteration count")?;
+        let mut key = Zeroizing::new([0; 32]);
+        pbkdf2::derive(
+            pbkdf2::PBKDF2_HMAC_SHA256,
+            rounds,
+            salt,
+            passphrase.as_bytes(),
+            &mut *key,
+        );
+        let key = aead::UnboundKey::new(&aead::AES_256_GCM, &*key)
+            .map_err(|_| anyhow::anyhow!("could not initialize backup encryption"))?;
+        Ok(aead::LessSafeKey::new(key))
+    }
+
     fn open(&self, passphrase: &str) -> Result<Zeroizing<Vec<u8>>> {
         let legacy = format!("{}-backup", super::LEGACY_FORMAT_PREFIX);
         ensure!(
@@ -55,9 +83,6 @@ impl Envelope {
             self.version == 1 && self.kdf == "pbkdf2-sha256",
             "unsupported encrypted backup envelope"
         );
-        let rounds = NonZeroU32::new(self.iterations)
-            .filter(|n| (100_000..=10_000_000).contains(&n.get()))
-            .context("invalid encrypted backup iteration count")?;
         let salt = STANDARD.decode(&self.salt).context("invalid backup salt")?;
         ensure!(salt.len() >= 16, "invalid backup salt length");
         let nonce = STANDARD
@@ -66,26 +91,13 @@ impl Envelope {
         let nonce = aead::Nonce::try_assume_unique_for_key(&nonce)
             .map_err(|_| anyhow::anyhow!("invalid backup nonce length"))?;
         let mut data = Zeroizing::new(STANDARD.decode(&self.data).context("invalid backup data")?);
-        let mut key = Zeroizing::new([0; 32]);
-        pbkdf2::derive(
-            pbkdf2::PBKDF2_HMAC_SHA256,
-            rounds,
-            &salt,
-            passphrase.as_bytes(),
-            &mut *key,
-        );
-        let key = aead::UnboundKey::new(&aead::AES_256_GCM, &*key)
-            .map_err(|_| anyhow::anyhow!("could not initialize backup decryption"))?;
-        let header = format!(
-            "{}/{}/{}/{}/{}",
-            self.format,
-            self.version,
-            self.kdf,
-            self.iterations,
-            hex::encode(&salt)
-        );
-        let length = aead::LessSafeKey::new(key)
-            .open_in_place(nonce, aead::Aad::from(header.as_bytes()), &mut data)
+        let length = self
+            .key(passphrase, &salt)?
+            .open_in_place(
+                nonce,
+                aead::Aad::from(self.header(&salt).as_bytes()),
+                &mut data,
+            )
             .map_err(|_| anyhow::anyhow!("wrong passphrase or modified encrypted backup"))?
             .len();
         data.truncate(length);
@@ -284,13 +296,24 @@ pub struct BackupProviderImport {
 }
 
 pub(crate) fn open_backup(file: &Path, passphrase: &str) -> Result<BTreeMap<String, Value>> {
+    let bytes = read_limited(file, MAX_BACKUP).context("could not read encrypted backup")?;
+    Ok(decode_backup(&bytes, passphrase)?.1)
+}
+
+pub(crate) fn decode_backup(
+    bytes: &[u8],
+    passphrase: &str,
+) -> Result<(String, BTreeMap<String, Value>)> {
     ensure!(
         !passphrase.is_empty(),
         "an encrypted backup requires its passphrase"
     );
-    let bytes = read_limited(file, MAX_BACKUP).context("could not read encrypted backup")?;
+    ensure!(
+        bytes.len() <= MAX_BACKUP,
+        "encrypted backup exceeds its size limit"
+    );
     let envelope: Envelope =
-        nextjson::from_slice(bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&bytes))
+        nextjson::from_slice(bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(bytes))
             .map_err(|_| anyhow::anyhow!("invalid encrypted backup envelope"))?;
     let plain = envelope.open(passphrase)?;
     let bundle: BTreeMap<String, Value> = nextjson::from_slice(&plain)
@@ -302,7 +325,51 @@ pub(crate) fn open_backup(file: &Path, passphrase: &str) -> Result<BTreeMap<Stri
         ),
         "unsupported encrypted backup version"
     );
-    Ok(bundle)
+    Ok((envelope.format, bundle))
+}
+
+pub(crate) fn encode_backup(
+    bundle: &BTreeMap<String, Value>,
+    passphrase: &str,
+    format: String,
+) -> Result<Vec<u8>> {
+    ensure!(
+        !passphrase.is_empty(),
+        "an encrypted backup requires its passphrase"
+    );
+    let mut salt = [0; 16];
+    let mut nonce = [0; 12];
+    getrandom::fill(&mut salt).map_err(anyhow::Error::msg)?;
+    getrandom::fill(&mut nonce).map_err(anyhow::Error::msg)?;
+    let mut envelope = Envelope {
+        format,
+        version: 1,
+        kdf: "pbkdf2-sha256".into(),
+        iterations: 600_000,
+        salt: STANDARD.encode(salt),
+        nonce: STANDARD.encode(nonce),
+        data: String::new(),
+    };
+    let mut data = Zeroizing::new(nextjson::to_vec(bundle).map_err(anyhow::Error::msg)?);
+    ensure!(
+        data.len() < MAX_BACKUP,
+        "encrypted backup exceeds its size limit"
+    );
+    envelope
+        .key(passphrase, &salt)?
+        .seal_in_place_append_tag(
+            aead::Nonce::assume_unique_for_key(nonce),
+            aead::Aad::from(envelope.header(&salt).as_bytes()),
+            &mut *data,
+        )
+        .map_err(|_| anyhow::anyhow!("could not encrypt backup"))?;
+    envelope.data = STANDARD.encode(&*data);
+    let bytes = nextjson::to_vec(&envelope).map_err(anyhow::Error::msg)?;
+    ensure!(
+        bytes.len() <= MAX_BACKUP,
+        "encrypted backup exceeds its size limit"
+    );
+    Ok(bytes)
 }
 
 #[derive(NsonSerialize)]

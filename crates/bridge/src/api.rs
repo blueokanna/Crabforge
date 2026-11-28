@@ -953,6 +953,33 @@ pub fn search_memories(query: String) -> Result<String> {
     )?)
 }
 
+pub async fn synchronize_memories(
+    url: String,
+    user: String,
+    password: String,
+    passphrase: String,
+    revision: Option<String>,
+) -> Result<String> {
+    let password = zeroize::Zeroizing::new(password);
+    let passphrase = zeroize::Zeroizing::new(passphrase);
+    let dir = config::data_dir()?;
+    encode(
+        &tokio::task::spawn_blocking(move || {
+            crabforge_core::memory::sync::synchronize(
+                &dir,
+                crabforge_core::memory::sync::Options {
+                    url: &url,
+                    user: &user,
+                    password: &password,
+                    passphrase: &passphrase,
+                    revision: revision.as_deref(),
+                },
+            )
+        })
+        .await??,
+    )
+}
+
 pub fn memory_project_key(project: String) -> Result<String> {
     crabforge_core::memory::project_key(project.as_ref())
 }

@@ -1,4 +1,13 @@
 {
+  "memorySync": "Gedächtnis über WebDAV synchronisieren",
+  "memorySyncUrl": "WebDAV-Ordner oder Sicherungs-URL",
+  "memorySyncUser": "WebDAV-Benutzername (optional)",
+  "memorySyncPassword": "WebDAV-Kennwort",
+  "memorySyncPassphrase": "Passphrase der Sicherung",
+  "memorySyncPreview": "Vorschau",
+  "memorySyncApply": "Synchronisieren",
+  "memorySyncComplete": "Synchronisierung abgeschlossen",
+  "memorySyncChanges": "Herunterladen {downloaded} · Aktualisieren {updated} · Entfernen {removed} · Hochladen {uploaded}",
   "memoryTidy": "Nächtliche Gedächtnispflege",
   "memoryTidyHelp": "Wenn aktiviert, beginnt die Pflege nach 3 Uhr Ortszeit. Das Gateway sendet die gespeicherten Erinnerungen an die gewählte Modellroute, um doppelte und veraltete Einträge zu finden. Selbst verfasste und angeheftete Einträge sind geschützt.",
   "memoryTidyRun": "Jetzt aufräumen",

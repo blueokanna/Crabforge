@@ -10,6 +10,40 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get memorySync => 'Sincronizar memórias por WebDAV';
+
+  @override
+  String get memorySyncUrl => 'URL da pasta ou cópia de segurança WebDAV';
+
+  @override
+  String get memorySyncUser => 'Utilizador WebDAV (opcional)';
+
+  @override
+  String get memorySyncPassword => 'Palavra-passe WebDAV';
+
+  @override
+  String get memorySyncPassphrase => 'Frase-passe da cópia de segurança';
+
+  @override
+  String get memorySyncPreview => 'Pré-visualizar';
+
+  @override
+  String get memorySyncApply => 'Sincronizar';
+
+  @override
+  String get memorySyncComplete => 'Sincronização concluída';
+
+  @override
+  String memorySyncChanges(
+    String downloaded,
+    String updated,
+    String removed,
+    String uploaded,
+  ) {
+    return 'Transferir $downloaded · Atualizar $updated · Remover $removed · Enviar $uploaded';
+  }
+
+  @override
   String get memoryTidy => 'Organização noturna da memória';
 
   @override

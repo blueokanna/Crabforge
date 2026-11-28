@@ -1,4 +1,13 @@
 {
+  "memorySync": "WebDAV 메모리 동기화",
+  "memorySyncUrl": "WebDAV 폴더 또는 백업 URL",
+  "memorySyncUser": "WebDAV 사용자 이름(선택 사항)",
+  "memorySyncPassword": "WebDAV 암호",
+  "memorySyncPassphrase": "백업 암호 문구",
+  "memorySyncPreview": "미리 보기",
+  "memorySyncApply": "동기화 적용",
+  "memorySyncComplete": "동기화 완료",
+  "memorySyncChanges": "다운로드 {downloaded}개 · 업데이트 {updated}개 · 삭제 {removed}개 · 업로드 {uploaded}개",
   "memoryTidy": "야간 메모리 정리",
   "memoryTidyHelp": "사용하면 현지 시각 오전 3시 이후에 정리를 시작합니다. 게이트웨이가 저장된 메모리를 선택한 모델 경로로 보내 중복되거나 오래된 내용을 찾습니다. 직접 작성하거나 고정한 메모리는 보호됩니다.",
   "memoryTidyRun": "지금 정리",

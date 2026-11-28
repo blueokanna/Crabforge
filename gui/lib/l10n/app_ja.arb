@@ -1,4 +1,13 @@
 {
+  "memorySync": "WebDAV メモリ同期",
+  "memorySyncUrl": "WebDAV フォルダーまたはバックアップの URL",
+  "memorySyncUser": "WebDAV ユーザー名（任意）",
+  "memorySyncPassword": "WebDAV パスワード",
+  "memorySyncPassphrase": "バックアップのパスフレーズ",
+  "memorySyncPreview": "プレビュー",
+  "memorySyncApply": "同期を適用",
+  "memorySyncComplete": "同期が完了しました",
+  "memorySyncChanges": "ダウンロード {downloaded} 件 · 更新 {updated} 件 · 削除 {removed} 件 · アップロード {uploaded} 件",
   "memoryTidy": "夜間のメモリ整理",
   "memoryTidyHelp": "有効にすると、現地時刻の午前3時以降に整理が始まります。重複したメモや古くなったメモを見つけるため、保存済みメモリを選択したモデルルートに送信します。手書きや固定済みのメモリは保護されます。",
   "memoryTidyRun": "今すぐ整理",

@@ -13,6 +13,7 @@ tokio.workspace = true
 crabforge-core.workspace = true
 flutter_rust_bridge = "2.13.0"
 nextjson.workspace = true
+zeroize = "1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

@@ -1,4 +1,13 @@
 {
+  "memorySync": "Synchronisation des mémoires via WebDAV",
+  "memorySyncUrl": "URL du dossier ou de la sauvegarde WebDAV",
+  "memorySyncUser": "Nom d’utilisateur WebDAV (facultatif)",
+  "memorySyncPassword": "Mot de passe WebDAV",
+  "memorySyncPassphrase": "Phrase secrète de la sauvegarde",
+  "memorySyncPreview": "Aperçu",
+  "memorySyncApply": "Synchroniser",
+  "memorySyncComplete": "Synchronisation terminée",
+  "memorySyncChanges": "Télécharger {downloaded} · Mettre à jour {updated} · Supprimer {removed} · Envoyer {uploaded}",
   "memoryTidy": "Tri nocturne des mémoires",
   "memoryTidyHelp": "Une fois activé, le tri commence après 3 h, heure locale. La passerelle envoie les mémoires au modèle sélectionné pour repérer les doublons et les notes obsolètes. Les mémoires écrites à la main ou épinglées sont protégées.",
   "memoryTidyRun": "Trier maintenant",

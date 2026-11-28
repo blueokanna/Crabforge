@@ -16,6 +16,7 @@ mod digest;
 pub mod distill;
 pub mod mcp;
 mod project;
+pub mod sync;
 pub mod tidy;
 
 pub use backup::import_backup;

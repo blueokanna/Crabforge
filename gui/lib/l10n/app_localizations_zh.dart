@@ -10,6 +10,40 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get memorySync => 'WebDAV 记忆同步';
+
+  @override
+  String get memorySyncUrl => 'WebDAV 目录或备份地址';
+
+  @override
+  String get memorySyncUser => 'WebDAV 用户名（可选）';
+
+  @override
+  String get memorySyncPassword => 'WebDAV 密码';
+
+  @override
+  String get memorySyncPassphrase => '备份加密口令';
+
+  @override
+  String get memorySyncPreview => '预览';
+
+  @override
+  String get memorySyncApply => '应用同步';
+
+  @override
+  String get memorySyncComplete => '同步完成';
+
+  @override
+  String memorySyncChanges(
+    String downloaded,
+    String updated,
+    String removed,
+    String uploaded,
+  ) {
+    return '下载 $downloaded 项 · 更新 $updated 项 · 移除 $removed 项 · 上传 $uploaded 项';
+  }
+
+  @override
   String get memoryTidy => '夜间整理记忆';
 
   @override

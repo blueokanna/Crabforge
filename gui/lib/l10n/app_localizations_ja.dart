@@ -10,6 +10,40 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get memorySync => 'WebDAV メモリ同期';
+
+  @override
+  String get memorySyncUrl => 'WebDAV フォルダーまたはバックアップの URL';
+
+  @override
+  String get memorySyncUser => 'WebDAV ユーザー名（任意）';
+
+  @override
+  String get memorySyncPassword => 'WebDAV パスワード';
+
+  @override
+  String get memorySyncPassphrase => 'バックアップのパスフレーズ';
+
+  @override
+  String get memorySyncPreview => 'プレビュー';
+
+  @override
+  String get memorySyncApply => '同期を適用';
+
+  @override
+  String get memorySyncComplete => '同期が完了しました';
+
+  @override
+  String memorySyncChanges(
+    String downloaded,
+    String updated,
+    String removed,
+    String uploaded,
+  ) {
+    return 'ダウンロード $downloaded 件 · 更新 $updated 件 · 削除 $removed 件 · アップロード $uploaded 件';
+  }
+
+  @override
   String get memoryTidy => '夜間のメモリ整理';
 
   @override

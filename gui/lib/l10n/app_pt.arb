@@ -1,4 +1,13 @@
 {
+  "memorySync": "Sincronizar memórias por WebDAV",
+  "memorySyncUrl": "URL da pasta ou cópia de segurança WebDAV",
+  "memorySyncUser": "Utilizador WebDAV (opcional)",
+  "memorySyncPassword": "Palavra-passe WebDAV",
+  "memorySyncPassphrase": "Frase-passe da cópia de segurança",
+  "memorySyncPreview": "Pré-visualizar",
+  "memorySyncApply": "Sincronizar",
+  "memorySyncComplete": "Sincronização concluída",
+  "memorySyncChanges": "Transferir {downloaded} · Atualizar {updated} · Remover {removed} · Enviar {uploaded}",
   "memoryTidy": "Organização noturna da memória",
   "memoryTidyHelp": "Quando ativada, a organização começa depois das 3:00 da madrugada, hora local. O gateway envia as memórias guardadas para a rota de modelo escolhida para detetar notas duplicadas e desatualizadas. As memórias escritas manualmente ou fixadas estão protegidas.",
   "memoryTidyRun": "Organizar agora",

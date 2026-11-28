@@ -10,6 +10,40 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get memorySync => 'WebDAV से स्मृतियाँ सिंक करें';
+
+  @override
+  String get memorySyncUrl => 'WebDAV फ़ोल्डर या बैकअप का URL';
+
+  @override
+  String get memorySyncUser => 'WebDAV उपयोगकर्ता नाम (वैकल्पिक)';
+
+  @override
+  String get memorySyncPassword => 'WebDAV पासवर्ड';
+
+  @override
+  String get memorySyncPassphrase => 'बैकअप का पासफ़्रेज़';
+
+  @override
+  String get memorySyncPreview => 'पूर्वावलोकन';
+
+  @override
+  String get memorySyncApply => 'सिंक लागू करें';
+
+  @override
+  String get memorySyncComplete => 'सिंक पूरा हुआ';
+
+  @override
+  String memorySyncChanges(
+    String downloaded,
+    String updated,
+    String removed,
+    String uploaded,
+  ) {
+    return 'डाउनलोड $downloaded · अपडेट $updated · हटाएँ $removed · अपलोड $uploaded';
+  }
+
+  @override
   String get memoryTidy => 'रात में स्मृतियाँ व्यवस्थित करें';
 
   @override

@@ -571,6 +571,20 @@ Future<String> undoMemoryTidy() =>
 Future<String> searchMemories({required String query}) =>
     RustLib.instance.api.crateApiSearchMemories(query: query);
 
+Future<String> synchronizeMemories({
+  required String url,
+  required String user,
+  required String password,
+  required String passphrase,
+  String? revision,
+}) => RustLib.instance.api.crateApiSynchronizeMemories(
+  url: url,
+  user: user,
+  password: password,
+  passphrase: passphrase,
+  revision: revision,
+);
+
 Future<String> memoryProjectKey({required String project}) =>
     RustLib.instance.api.crateApiMemoryProjectKey(project: project);
 

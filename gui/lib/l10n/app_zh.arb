@@ -1,4 +1,13 @@
 {
+  "memorySync": "WebDAV 记忆同步",
+  "memorySyncUrl": "WebDAV 目录或备份地址",
+  "memorySyncUser": "WebDAV 用户名（可选）",
+  "memorySyncPassword": "WebDAV 密码",
+  "memorySyncPassphrase": "备份加密口令",
+  "memorySyncPreview": "预览",
+  "memorySyncApply": "应用同步",
+  "memorySyncComplete": "同步完成",
+  "memorySyncChanges": "下载 {downloaded} 项 · 更新 {updated} 项 · 移除 {removed} 项 · 上传 {uploaded} 项",
   "memoryTidy": "夜间整理记忆",
   "memoryTidyHelp": "启用后，网关会在本地时间凌晨 3 点后开始整理。已保存的记忆会发送到所选模型路由，以识别重复和过时的条目。手写及置顶记忆受到保护。",
   "memoryTidyRun": "立即整理",

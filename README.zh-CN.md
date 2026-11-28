@@ -58,6 +58,7 @@ CLI 提供相同的操作。运行 `crabforge-cli memory distillation status` �
 桌面端使用 Material 3 Expressive 按钮形状、强调标题样式，以及 Google Material Symbols Rounded 图标。浅色、深色和高对比度的 Expressive 配色会随 Windows 强调色更新。工具栏中选择 Google Sans 时，拉丁文本使用 Google Sans，汉字使用 HarmonyOS Sans SC。选择 HarmonyOS Sans SC 时，中英文均使用该字体。 [内置字体来源和许可证](assets/fonts/manifest.json)
 - **每日发布记忆。** 在当前源码构建的版本中，打开 Claude Code 或 Codex 的「用户指令」并启用「每日发布记忆」。网关运行时会刷新生效的全局和 Agent 记忆摘要。手动修改已发布的区块或切换指令文件后，重新加载并启用以确认目标。`crabforge-cli memory agent-instructions <claude|codex>` 支持 `--auto-publish` 和 `--stop-auto-publish`。
 - **夜间整理记忆。** 打开「客户端连接 → 本地会话 → 夜间整理记忆」并选择模型路由。启用后，网关会在本地时间凌晨 3 点后开始整理。它将已保存的记忆发送到所选路由，以识别重复或过时的条目，并归档超过 30 天未审核的提炼候选。手写和置顶记忆受到保护。可用「撤销上次整理」恢复修订仍匹配的条目。两个 CLI 都支持 `memory tidy` 子命令。
+- **WebDAV 记忆同步。** 打开「客户端连接 → 记忆库 → WebDAV 记忆同步」，填入已有目录或完整备份地址，然后预览并应用。使用目录时，文件名为 `crabforge.crabforge-backup`。共用既有 Magpie 备份时，填写以 `magpie/magpie.magpie-backup` 结尾的完整地址及其口令。本地记忆或远端备份发生变更时须重新预览。回环数字地址以外使用 HTTPS，更新远端备份需要服务端支持带强 ETag 的条件写入。双 CLI 均可先运行 `memory sync <url>`，再以返回的修订运行 `memory sync <url> --apply <revision>`。Basic 认证使用 `--user <名称> --password-env <变量>`。备份加密口令由终端提示或标准输入首行读取。
 
 ## 从源码构建
 

@@ -126,6 +126,18 @@ pub(super) enum Command {
         #[arg(long)]
         apply: bool,
     },
+    /// Preview or apply a two-way encrypted memory sync with a WebDAV collection or backup URL.
+    Sync {
+        url: String,
+        #[arg(long, default_value = "")]
+        user: String,
+        /// Read the WebDAV password from this environment variable.
+        #[arg(long, requires = "user")]
+        password_env: Option<String>,
+        /// Apply the sync after checking this revision returned by a preview.
+        #[arg(long, value_name = "REVISION")]
+        apply: Option<String>,
+    },
     /// Create a memory from UTF-8 Markdown.
     Add {
         from: PathBuf,
@@ -220,6 +232,36 @@ pub(super) async fn run(dir: &Path, command: Command) -> Result<()> {
         Command::ImportBackup { file, apply } => {
             let passphrase = super::backup_passphrase()?;
             print(&memory::import_backup(dir, &file, &passphrase, apply)?)
+        }
+        Command::Sync {
+            url,
+            user,
+            password_env,
+            apply,
+        } => {
+            let password = password_env
+                .as_deref()
+                .map(std::env::var)
+                .transpose()
+                .context("could not read the WebDAV password environment variable")?;
+            let password = zeroize::Zeroizing::new(password.unwrap_or_default());
+            let passphrase = super::backup_passphrase()?;
+            let dir = dir.to_owned();
+            print(
+                &tokio::task::spawn_blocking(move || {
+                    memory::sync::synchronize(
+                        &dir,
+                        memory::sync::Options {
+                            url: &url,
+                            user: &user,
+                            password: &password,
+                            passphrase: &passphrase,
+                            revision: apply.as_deref(),
+                        },
+                    )
+                })
+                .await??,
+            )
         }
         Command::ProjectKey { folder } => {
             println!("{}", memory::project_key(&folder)?);
